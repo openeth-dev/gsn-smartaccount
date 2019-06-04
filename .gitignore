@@ -1,0 +1,10 @@
+.DS_Store
+/.idea/
+/java_client/out/
+/js_client/node_modules/
+/js_client/src/js/kotlin_sdk.js
+/js_foundation/build/
+/js_foundation/node_modules/
+/kotlin_sdk/.gradle/
+/kotlin_sdk/build/
+/out/
