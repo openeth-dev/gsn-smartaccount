@@ -1,12 +1,9 @@
 {
-  "name": "js_foundation",
+  "name": "solidity",
+  "description": "solidity contracts and truffle tests)",
   "version": "1.0.0",
   "scripts": {
     "test": "npx truffle test"
-  },
-  "dependencies": {
-    "truffle-artifactor": "^4.0.17",
-    "truffle-contract": "^4.0.18"
   },
   "devDependencies": {
     "truffle": "^5.0.21",
