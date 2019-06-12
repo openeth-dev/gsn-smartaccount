@@ -1,12 +1,45 @@
-var Vault = artifacts.require("./Vault.sol");
+const Web3 = require('web3');
+const Utils = require('./utils');
+
+
+const Vault = artifacts.require("./Vault.sol");
 
 contract('Vault', function (accounts) {
 
+    let vault;
+    let web3;
+    let ethNodeUrl = "http://localhost:8545";
+    let fromAddress = accounts[0];
+
+    before(async function () {
+        vault = await Vault.deployed();
+        web3 = new Web3(new Web3.providers.HttpProvider(ethNodeUrl))
+    });
+
+
     /* Positive flows */
 
-    it("should receive transfers and emit 'received' events");
+    it("should receive transfers and emit 'received' events", async function () {
+        let value = 777;
+        let res = await vault.sendTransaction({from: fromAddress, value: value});
+        let log = res.logs[0];
 
-    it("should allow to create a delayed ETH transaction and execute it after delay expires");
+        assert.equal(fromAddress, log.args.sender);
+        assert.equal(value, log.args.value);
+        assert.equal("FundsReceived", log.event);
+    });
+
+    it.skip("should allow to create a delayed ETH transaction and execute it after delay expires", async function () {
+        let res = await vault.sendDelayedTransaction(2);
+        // console.log(res);
+
+        let log = res.logs[0];
+        assert.equal("TransactionPending", log.event);
+
+        Utils.increaseTime(10);
+        assert.equal(1, 2);
+
+    });
 
     it("should allow to create a delayed ERC20 transaction and execute it after delay expires");
 

@@ -7,6 +7,7 @@
   },
   "devDependencies": {
     "truffle": "^5.0.21",
+    "ganache-cli": "6.4.3",
     "web3": "1.0.0-beta.37"
   }
 }
