@@ -3,11 +3,24 @@
   "description": "solidity contracts and truffle tests)",
   "version": "1.0.0",
   "scripts": {
-    "test": "npx truffle test"
+    "test": "npx truffle test | sed -e 's/^,//;' ",
+    "compile": "npx truffle compile|sed -e 's/^,//;' ",
+    "trace": "MODE=trace npx truffle test --network cov",
+    "coverage": "rm -rf coverage ; MODE=coverage npx truffle test --network cov; istanbul report text; istanbul report html"
   },
   "devDependencies": {
-    "truffle": "^5.0.21",
+    "@0x/contracts-utils": "3.1.1",
+    "@0x/sol-compiler": "^3.1.0",
+    "@0x/sol-coverage": "^2.0.4",
+    "@0x/sol-trace": "^2.0.5",
+    "@0x/subproviders": "^2.1.11",
+    "chai": "^4.2.0",
+    "ethereum-waffle": "^2.0.12",
     "ganache-cli": "6.4.3",
+    "truffle": "^5.0.21",
     "web3": "1.0.0-beta.37"
+  },
+  "dependencies": {
+    "bn-chai": "^1.0.1"
   }
 }

@@ -11,7 +11,7 @@ contract Vault {
         emit FundsReceived(msg.sender, msg.value);
     }
 
-    function sendDelayedTransaction(uint val) public {
+    function sendDelayedTransaction(uint /*val*/) public {
 
         emit TransactionPending();
     }
