@@ -8,7 +8,9 @@ import "@0x/contracts-utils/contracts/src/LibBytes.sol";
  */
 contract DelayedOps {
 
-    event DelayedOperation(address sender, bytes32 hash, bytes operation, uint dueTime);
+    uint256 opsNonce = 0;
+
+    event DelayedOperation(address sender, uint256 opsNonce, bytes operation, uint dueTime);
 
     //easy modifier to make a method dual-purpose:
     //call from external source will save as delayed op.
@@ -43,22 +45,22 @@ contract DelayedOps {
      */
     function sendDelayedOp(bytes memory operation) internal {
         //can't be a valid operation: must have (at least) one argument..
-        require( operation.length >= 4+16, "invalid delayed op: not enough arguments");
+        require(operation.length >= 4 + 16, "invalid delayed op: not enough arguments");
 
-        address sender = msg.sender;
-        require(sender == getAddress(operation, 4), "wrong sender for delayed op");
-        uint delayTime = validateOperation(sender, operation);
-        require( delayTime > 0, "validateOperation: should return positive delayTime" );
-        bytes32 hash = keccak256(operation);
+        require(msg.sender == getAddress(operation, 4), "wrong sender for delayed op");
+        uint delayTime = validateOperation(msg.sender, operation);
+        require(delayTime > 0, "validateOperation: should return positive delayTime");
+        bytes32 hash = keccak256(abi.encodePacked(operation, opsNonce));
         //make sure we don't resend the same operation
         require(pending[hash] == 0, "repeated delayed op");
         uint dueTime = now + delayTime;
         pending[hash] = dueTime;
-        emit DelayedOperation(sender, hash, operation, dueTime);
+        emit DelayedOperation(msg.sender, opsNonce,  operation, dueTime);
+        opsNonce = opsNonce + 1;
     }
 
     function cancelDelayedOp(bytes32 hash) internal {
-        require( pending[hash]>0, "can't cancel: non existing operation" );
+        require(pending[hash] > 0, "can't cancel: non existing operation");
         delete pending[hash];
     }
 
@@ -67,19 +69,20 @@ contract DelayedOps {
      * actuall caller of this method is not checked: the first parameter of the operatio is the original sender
      * (which was verified by sendDelayedOp), and only it should be validated.
      */
-    function applyDelayedOp(bytes memory operation) internal {
-        bytes32 hash = keccak256(operation);
+    function applyDelayedOp(bytes memory operation, uint256 nonce) internal {
+        bytes32 hash = keccak256(abi.encodePacked(operation, nonce));
         uint dueTime = pending[hash];
         require(dueTime != 0, "applyDelayedOp called for non existing delayed op");
-        require(now > dueTime , "applyDelayedOp called before due time");
+        require(now > dueTime, "applyDelayedOp called before due time");
 
         emit debug(dueTime, now);
         bool success;
-        (success, ) = address(this).call(operation);
+        (success,) = address(this).call(operation);
         require(success, "applyDelayedOp: operation reverted");
     }
 
-    event debug( uint due, uint timeNow );
+    event debug(uint due, uint timeNow);
+
     mapping(bytes32 => uint) pending;
 
     /**
@@ -111,7 +114,7 @@ contract DelayedOps {
     }*/
 
     function getBytes4(bytes memory b, uint ofs) pure internal returns (bytes4) {
-        return bytes4(getBytes32(b,ofs));
+        return bytes4(getBytes32(b, ofs));
     }
 
     function getBytes32(bytes memory b, uint ofs) pure internal returns (bytes32) {
