@@ -25,8 +25,8 @@ contract TestDelayedOps is DelayedOps {
         sendDelayedOp(operation);
     }
 
-    function applyOp(bytes memory operation) public {
-        applyDelayedOp(operation);
+    function applyOp(bytes memory operation, uint256 nonce) public {
+        applyDelayedOp(operation, nonce);
     }
 
     function invalidOperationParams() public {}

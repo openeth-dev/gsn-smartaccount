@@ -1,112 +1,121 @@
-var DelayedOperations = artifacts.require("./DelayedOps.sol");
+const TestDelayedOp = artifacts.require("./tests/TestDelayedOps");
+const Chai = require('chai');
 
-TestDelayedOp = artifacts.require("./tests/TestDelayedOps" )
-const chai = require('chai')
-const expect = chai.expect
+const expect = Chai.expect;
 
 const {createMockProvider, deployContract, getWallets, solidity} = require('ethereum-waffle');
-chai.use(solidity)
+Chai.use(solidity);
 
-const BN = web3.utils.toBN
+const BN = web3.utils.toBN;
 var bnChai = require('bn-chai');
-chai.use(bnChai(BN));
+Chai.use(bnChai(BN));
 
-const utils = require( './utils')
+const utils = require('./utils');
+
 
 contract('DelayedOperations', async (accounts) => {
 
-    from=accounts[0]
-    wrongaddr = accounts[1]
-    var tcontract
-    var trufflecontract
-    var encoded
+    let from = accounts[0];
+    let wrongaddr = accounts[1];
+    let testcontract;
+    let trufflecontract;
+    let encodedDoIncrement;
 
-    after( "write coverage report", async ()=> {
-        await global.postCoverage()
-    })
+    async function extractLastDelayedOpsEvent() {
+        let pastEvents = await trufflecontract.getPastEvents("DelayedOperation", {fromBlock: "latest"});
+        assert.equal(pastEvents.length, 1);
+        return pastEvents[0];
+    }
 
-    global.saveCoverageAtEnd(this)
-
-    before( async ()=> {
-        trufflecontract = await TestDelayedOp.new()
+    before(async () => {
+        trufflecontract = await TestDelayedOp.new();
         //we use the web3 object, not the truffle helper wrapper..
-        tcontract = trufflecontract.contract
-    })
+        testcontract = trufflecontract.contract;
+        encodedDoIncrement = testcontract.methods.doIncrement(from).encodeABI();
+    });
 
-
-    it( "- revert on invalid delayedOp (not 'whitelisted' in validateOperation", async ()=>{
-
-        await expect(
-            tcontract.methods.sendOp(
-                tcontract.methods.operationMissingFromValidate(from).encodeABI()
-            ).send({from})
-        ).to.be.revertedWith("delayed op not allowed")
-    })
-
-    it( "- revert on invalid delayedOp (not enough args)", async ()=>{
-
-        await expect(
-            tcontract.methods.sendOp(
-                tcontract.methods.invalidOperationParams().encodeABI()
-            ).send({from})
-        ).to.be.revertedWith("not enough arguments")
-    })
-
-    it( "- revert on invalid delayedOp (wrong sender)", async ()=>{
-        await expect(
-            tcontract.methods.sendOp(
-                tcontract.methods.doIncrement(wrongaddr).encodeABI()
-            ).send({from})
-        ).to.be.revertedWith("wrong sender for delayed op")
-    })
+    after("write coverage report", async () => {
+        await global.postCoverage()
+    });
 
     /* Positive flows */
 
-    it("should emit event and save hash when new delayed operation is added", async ()=>{
-        encoded = tcontract.methods.doIncrement(from).encodeABI()
+    it("emit event and save hash when new delayed operation is added", async () => {
 
-        ret = await trufflecontract.sendOp(encoded)
-        log = ret.logs[0]
+        let ret = await trufflecontract.sendOp(encodedDoIncrement);
+        let log = ret.logs[0];
 
-        blocktime = (await web3.eth.getBlock('latest')).timestamp
+        let blocktime = (await web3.eth.getBlock('latest')).timestamp;
 
-        delay = log.args.dueTime.toString() - blocktime.toString()
-        console.log( "delay = ", delay)
-        assert.equal( log.args.sender, from)
-        assert.equal( log.args.operation, encoded)
-        assert.equal( log.event, "DelayedOperation")
-    })
+        let delay = log.args.dueTime.toString() - blocktime.toString();
+        console.log("delay = ", delay);
+        assert.equal(log.args.sender, from);
+        assert.equal(log.args.operation, encodedDoIncrement);
+        assert.equal(log.event, "DelayedOperation")
+    });
 
-    it("should reject repeated event", async ()=>{
+    it("succeed to apply the delayed operation after time elapsed", async () => {
 
-        await expect(
-            tcontract.methods.sendOp(
-                tcontract.methods.doIncrement(from).encodeABI()
-            ).send({from})
-        ).to.be.revertedWith("repeated delayed op")
-    })
+        let log = await extractLastDelayedOpsEvent();
 
-    it ( "should reject apply before time elapsed", async ()=>{
-        await expect(
-            trufflecontract.applyOp(encoded)
-        ).to.be.revertedWith("called before due time")
-    })
+        utils.increaseTime(3600 * 24 * 10);
 
-    it ( "should succeed after time elapsed", async ()=>{
-        utils.increaseTime(3600*24*10)
-        // await trufflecontract.setAllowedSender(from)
+        let counterBefore = await trufflecontract.counter();
+        await testcontract.methods.applyOp(log.args.operation, log.args.opsNonce.toString()).send({from});
+        let counterAfter = await trufflecontract.counter();
+        let diff = counterAfter - counterBefore;
+        assert.equal(1, diff)
+    });
 
-        counter = await trufflecontract.counter()
-        await tcontract.methods.applyOp(encoded).send({from})
-        expect( (await trufflecontract.counter()-counter) ).to.eq.BN(1)
-    })
+    it("should be able to differentiate between two identical delayed operations", async () => {
 
-    //not sure what it means
-    it("should be able to differentiate between two identical delayed operations");
+        let counterBefore = await trufflecontract.counter();
+        let res1 = await trufflecontract.sendOp(encodedDoIncrement);
+        let res2 = await trufflecontract.sendOp(encodedDoIncrement);
+        let log1 = res1.logs[0];
+        let log2 = res2.logs[0];
+
+        utils.increaseTime(3600 * 24 * 10);
+
+        await testcontract.methods.applyOp(log1.args.operation, log1.args.opsNonce.toString()).send({from});
+        await testcontract.methods.applyOp(log2.args.operation, log2.args.opsNonce.toString()).send({from});
+
+        let counterAfter = await trufflecontract.counter();
+        assert.equal(counterAfter, parseInt(counterBefore) + 2);
+    });
 
 
     /* Negative flows */
 
+    it("revert on invalid delayedOp (not 'whitelisted' in 'validateOperation')", async () => {
+        let encodedABI = testcontract.methods.operationMissingFromValidate(from).encodeABI();
+
+        await expect(
+            testcontract.methods.sendOp(encodedABI).send({from})
+        ).to.be.revertedWith("delayed op not allowed")
+    });
+
+    it("revert on invalid delayedOp (not enough args)", async () => {
+        let encodedABI = testcontract.methods.invalidOperationParams().encodeABI();
+        await expect(
+            testcontract.methods.sendOp(encodedABI).send({from})
+        ).to.be.revertedWith("not enough arguments")
+    });
+
+    it("revert on invalid delayedOp (wrong sender)", async () => {
+        let encodedABI = testcontract.methods.doIncrement(wrongaddr).encodeABI();
+        await expect(
+            testcontract.methods.sendOp(encodedABI).send({from})
+        ).to.be.revertedWith("wrong sender for delayed op")
+    });
+
+    it("reject apply before time elapsed", async () => {
+        let res = await trufflecontract.sendOp(encodedDoIncrement);
+
+        await expect(
+            trufflecontract.applyOp(res.logs[0].args.operation, res.logs[0].args.opsNonce.toString())
+        ).to.be.revertedWith("called before due time")
+    });
 
     it("should not allow to create delayed operations without a delay");
 

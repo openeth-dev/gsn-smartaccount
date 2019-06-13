@@ -1,6 +1,6 @@
 const mode = process.env.MODE;
 
-useInProcessGanache=true
+useInProcessGanache=true;
 //currently exposing the in-process ganache doesn't work well (relay fail to work with it..)
 //exposeGanachePort=8545
 
@@ -8,8 +8,8 @@ const ProviderEngine = require("web3-provider-engine");
 const RpcProvider = require("web3-provider-engine/subproviders/rpc.js");
 const { TruffleArtifactAdapter } = require("@0x/sol-trace");
 
-const ganacheHttpServer = require( 'ganache-core/lib/httpServer' )
-const { GanacheSubprovider } = require("@0x/subproviders")
+const ganacheHttpServer = require( 'ganache-core/lib/httpServer' );
+const { GanacheSubprovider } = require("@0x/subproviders");
 
 //const { ProfilerSubprovider } = require("@0x/sol-profiler");
 const { CoverageSubprovider } = require("@0x/sol-coverage");
@@ -25,15 +25,15 @@ const provider = new ProviderEngine();
 
 //add to tests: global.addPostCoverage(this), so they save coverage data.
 global.saveCoverageAtEnd = function(test) {
-	after = test.after
+	after = test.after;
 	if ( typeof after !== 'function' ) {
-		console.log( "ERROR: given test", test, "doesn't have \"after()\" method" )
+		console.log( "ERROR: given test", test, "doesn't have \"after()\" method" );
 		return
 	}
 	after("write coverage/profiler output", async () => {
 	        await global.postCoverage()
 	});
-}
+};
 
 global.postCoverage = async function() {
 
@@ -44,7 +44,7 @@ global.postCoverage = async function() {
 	console.log( "==== writing coverage data" );
       await global.coverageSubprovider.writeCoverageAsync();
     }
-}
+};
 
 if (mode === "profile") {
   global.profilerSubprovider = new ProfilerSubprovider(
@@ -64,7 +64,7 @@ if (mode === "profile") {
     );
     provider.addProvider(global.coverageSubprovider);
   } else if (mode === "trace") {
-	console.log( "=== trace provider" )
+	console.log( "=== trace provider" );
     const revertTraceSubprovider = new RevertTraceSubprovider(
       artifactAdapter,
       defaultFromAddress,
@@ -78,9 +78,9 @@ if (mode === "profile") {
 	provider.addProvider(ganahceSubprovider);
 	
 	if ( global.exposeGanachePort ) {
-	  s = ganacheHttpServer( provider, {log : ()=>{}} )
+	  s = ganacheHttpServer( provider, {log : ()=>{}} );
 
-	  s.listen( {port:exposeGanachePort, host:'localhost'} ) 
+	  s.listen( {port:exposeGanachePort, host:'localhost'} );
 	  console.log( "Started in-process Ganache, on port "+exposeGanachePort )
 	}
 	
@@ -102,4 +102,4 @@ provider.start(err => {
  */
 provider.send = provider.sendAsync.bind(provider);
 
-module.exports = provider
+module.exports = provider;
