@@ -30,7 +30,7 @@ contract DelayedOps {
      * return the required delay to apply the operation.
      * revert if the sender is not allowed to make the operation.
      */
-    function validateOperation(address sender, bytes memory operation) internal returns (uint);
+    function validateOperation(address sender, uint256 delay, bytes memory operation) internal;
 
     /**
      * send a single delayed operation. 
@@ -45,17 +45,17 @@ contract DelayedOps {
      */
     function sendDelayedOp(bytes memory operation) internal {
         //can't be a valid operation: must have (at least) one argument..
-        require(operation.length >= 4 + 16, "invalid delayed op: not enough arguments");
+        require(operation.length >= 4 + 20 + 32, "invalid delayed op: not enough arguments");
 
         require(msg.sender == getAddress(operation, 4), "wrong sender for delayed op");
-        uint delayTime = validateOperation(msg.sender, operation);
-        require(delayTime > 0, "validateOperation: should return positive delayTime");
+        uint256 delayTime = uint256(getBytes32(operation, 32 + 4));
+        //        uint delayTime = validateOperation(msg.sender, operation);
+        validateOperation(msg.sender, delayTime, operation);
+        require(delayTime > 0, "validateOperation: should provide positive delayTime");
         bytes32 hash = keccak256(abi.encodePacked(operation, opsNonce));
-        //make sure we don't resend the same operation
-        require(pending[hash] == 0, "repeated delayed op");
         uint dueTime = now + delayTime;
         pending[hash] = dueTime;
-        emit DelayedOperation(msg.sender, opsNonce,  operation, dueTime);
+        emit DelayedOperation(msg.sender, opsNonce, operation, dueTime);
         opsNonce = opsNonce + 1;
     }
 
@@ -77,8 +77,9 @@ contract DelayedOps {
 
         emit debug(dueTime, now);
         bool success;
-        (success,) = address(this).call(operation);
-        require(success, "applyDelayedOp: operation reverted");
+        bytes memory returnVal = "applyDelayedOp: operation reverted";
+        (success, returnVal) = address(this).call(operation);
+        require(success, string(returnVal));
     }
 
     event debug(uint due, uint timeNow);
