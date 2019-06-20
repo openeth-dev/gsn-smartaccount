@@ -57,7 +57,7 @@ contract('DelayedOperations', async function (accounts) {
 
         let log = await extractLastDelayedOpsEvent();
 
-        utils.increaseTime(3600 * 24 * 2 + 10);
+        await utils.increaseTime(3600 * 24 * 2 + 10);
 
         let counterBefore = await trufflecontract.counter();
         await testcontract.methods.applyOp(log.args.operation, log.args.opsNonce.toString()).send({from});
@@ -74,7 +74,7 @@ contract('DelayedOperations', async function (accounts) {
         let log1 = res1.logs[0];
         let log2 = res2.logs[0];
 
-        utils.increaseTime(3600 * 24 * 2 + 10);
+        await utils.increaseTime(3600 * 24 * 2 + 10);
 
         await testcontract.methods.applyOp(log1.args.operation, log1.args.opsNonce.toString()).send({from});
         await testcontract.methods.applyOp(log2.args.operation, log2.args.opsNonce.toString()).send({from});
@@ -131,7 +131,7 @@ contract('DelayedOperations', async function (accounts) {
         let res4 = await trufflecontract.sendOp(encodedABI_long_success);
 
         // It does not matter how much time actually passed - contract checks how much time was requested!
-        utils.increaseTime(3600 * 24 * 2 + 10);
+        await utils.increaseTime(3600 * 24 * 2 + 10);
 
         await expect(
             trufflecontract.applyOp(res1.logs[0].args.operation, res1.logs[0].args.opsNonce.toString())

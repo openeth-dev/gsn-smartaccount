@@ -1,5 +1,5 @@
 const Web3 = require('web3');
-const Utils = require('./utils');
+const utils = require('./utils');
 
 
 const Vault = artifacts.require("./Vault.sol");
@@ -36,7 +36,7 @@ contract('Vault', function (accounts) {
         let log = res.logs[0];
         assert.equal("TransactionPending", log.event);
 
-        Utils.increaseTime(10);
+        await utils.increaseTime(10);
         assert.equal(1, 2);
 
     });

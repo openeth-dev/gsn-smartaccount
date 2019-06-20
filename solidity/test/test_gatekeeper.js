@@ -2,6 +2,7 @@ const Gatekeeper = artifacts.require("./Gatekeeper.sol");
 const Vault = artifacts.require("./Vault.sol");
 const Chai = require('chai');
 const Web3 = require('web3');
+const ABI = require('ethereumjs-abi');
 
 const utils = require('./utils');
 
@@ -11,7 +12,7 @@ const expect = Chai.expect;
 Chai.use(require('ethereum-waffle').solidity);
 Chai.use(require('bn-chai')(web3.utils.toBN));
 
-contract('Gatekeeper', async function (accounts) {
+contract.only('Gatekeeper', async function (accounts) {
 
     let gatekeeper;
     let vault;
@@ -22,6 +23,7 @@ contract('Gatekeeper', async function (accounts) {
     let delay = 77;
     let startBlock;
     let web3;
+    let expectedDelayedEventsCount = 0;
 
     before(async function () {
         gatekeeper = await Gatekeeper.deployed();
@@ -31,7 +33,6 @@ contract('Gatekeeper', async function (accounts) {
         await gatekeeper.setVault(vault.address);
         await gatekeeper.setSpender(from);
         await gatekeeper.setDelay(delay);
-        await web3.eth.sendTransaction({from: from, to: vault.address, value: amount * 10});
     });
 
     async function getLastEvent(contract, event, expectedCount) {
@@ -49,6 +50,7 @@ contract('Gatekeeper', async function (accounts) {
     /* Plain send */
     it("should allow the owner to create a delayed transaction", async function () {
         let res = await gatekeeper.sendEther(destinationAddresss, amount);
+        expectedDelayedEventsCount++;
         let encodedAbiCall = vault.contract.methods.applyDelayedTransaction(gatekeeper.address, delay, destinationAddresss, amount).encodeABI();
         let log = res.logs[0];
         assert.equal(log.event, "DelayedOperation");
@@ -58,16 +60,29 @@ contract('Gatekeeper', async function (accounts) {
         assert.equal(log.args.operation, encodedAbiCall);
     });
 
-    /* Canceled send */
-    it("should allow the owner to cancel a delayed transaction");
+    it("should fail to execute a delayed transfer transaction if not enough funds", async function () {
+        let addedLog = await getLastEvent(vault.contract, "DelayedOperation", expectedDelayedEventsCount);
+        let balance = parseInt(await web3.eth.getBalance(vault.address));
+        assert.equal(balance, 0);
+
+        await utils.increaseTime(3600 * 24 * 2 + 10);
+
+        await expect(
+            vault.applyDelayedOpsPublic(addedLog.operation, addedLog.opsNonce)
+        ).to.be.revertedWith("Cannot transfer more then vault's balance");
+    });
+
+    it("just funding the vault", async function () {
+        await web3.eth.sendTransaction({from: from, to: vault.address, value: amount * 10});
+    });
 
     it("should allow the owner to execute a delayed transfer transaction after delay", async function () {
 
-        let addedLog = await getLastEvent(vault.contract, "DelayedOperation", 1);
+        let addedLog = await getLastEvent(vault.contract, "DelayedOperation", expectedDelayedEventsCount);
         let balanceSenderBefore = parseInt(await web3.eth.getBalance(vault.address));
         let balanceRecieverBefore = parseInt(await web3.eth.getBalance(destinationAddresss));
         assert.isAbove(balanceSenderBefore, amount);
-        utils.increaseTime(3600 * 24 * 2 + 10);
+        await utils.increaseTime(3600 * 24 * 2 + 10);
 
         let res = await vault.applyDelayedOpsPublic(addedLog.operation, addedLog.opsNonce);
         let log = res.logs[1];
@@ -81,6 +96,32 @@ contract('Gatekeeper', async function (accounts) {
         assert.equal(balanceSenderAfter, balanceSenderBefore - amount);
         assert.equal(balanceRecieverAfter, balanceRecieverBefore + amount);
     });
+
+
+    /* Canceled send */
+    it("should revert when trying to cancel a transfer transaction that does not exist", async function () {
+        await expect(
+            gatekeeper.cancelTransaction("0x123123")
+        ).to.be.revertedWith("cannot cancel, operation does not exist");
+    });
+
+    it("should allow the owner to cancel a delayed transfer transaction", async function () {
+        let res1 = await gatekeeper.sendEther(destinationAddresss, amount);
+        expectedDelayedEventsCount++;
+        let encoded = res1.logs[0].args.operation;
+        let encodedBuff = Buffer.from(encoded.slice(2), "hex");
+        let opsNonce = res1.logs[0].args.opsNonce.toNumber();
+        let hash = ABI.soliditySHA3(["bytes", "uint256"],[encodedBuff, opsNonce]);
+        let res2 = await gatekeeper.cancelTransaction(hash);
+        console.log(res2, res2.logs)
+        let log = res2.logs[0];
+        assert.equal(log.event, "DelayedOperationCancelled");
+        assert.equal(log.args.hash, "0x" + hash.toString("hex"));
+        assert.equal(log.args.sender, gatekeeper.address);
+    });
+
+    /** Batch config operations **/
+    it("should allow the admin to create batched config changes");
 
     /* Rejected send */
     it("should allow the admin to cancel a delayed transaction");
@@ -109,7 +150,7 @@ contract('Gatekeeper', async function (accounts) {
     it("should not allow non-owner to create a delayed transaction", async function () {
         await expect(
             gatekeeper.contract.methods.sendEther(destinationAddresss, amount).send({from: wrongaddr})
-        ).to.be.revertedWith("Only spender can perform send operations!")
+        ).to.be.revertedWith("Only spender can perform send operations!");
     });
 
     /* Admin replaced - opposite  & Owner loses phone - opposite */

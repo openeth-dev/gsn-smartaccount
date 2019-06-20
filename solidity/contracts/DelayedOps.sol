@@ -11,6 +11,7 @@ contract DelayedOps {
     uint256 opsNonce = 0;
 
     event DelayedOperation(address sender, uint256 opsNonce, bytes operation, uint dueTime);
+    event DelayedOperationCancelled(address sender, bytes32 hash);
 
     //easy modifier to make a method dual-purpose:
     //call from external source will save as delayed op.
@@ -60,8 +61,9 @@ contract DelayedOps {
     }
 
     function cancelDelayedOp(bytes32 hash) internal {
-        require(pending[hash] > 0, "can't cancel: non existing operation");
+        require(pending[hash] > 0, "cannot cancel, operation does not exist");
         delete pending[hash];
+        emit DelayedOperationCancelled(msg.sender, hash);
     }
 
     /**
