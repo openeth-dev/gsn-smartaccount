@@ -36,4 +36,13 @@ contract Gatekeeper is DelayedOps {
         vault.scheduleDelayedTransaction(delay, destination, value);
     }
 
+    function cancelTransaction(bytes32 hash) public {
+        vault.cancelTransaction(hash);
+    }
+
+    event OperationCancelled(address sender, bytes32 hash);
+
+    function cancelOperation(bytes32 hash) public {
+        cancelDelayedOp(hash);
+    }
 }
