@@ -3,17 +3,15 @@ const Chai = require('chai');
 
 const expect = Chai.expect;
 
-const {createMockProvider, deployContract, getWallets, solidity} = require('ethereum-waffle');
-Chai.use(solidity);
+// const {createMockProvider, deployContract, getWallets, solidity} = ;
+Chai.use(require('ethereum-waffle').solidity);
+Chai.use(require('bn-chai')(web3.utils.toBN));
 
-const BN = web3.utils.toBN;
-var bnChai = require('bn-chai');
-Chai.use(bnChai(BN));
 
 const utils = require('./utils');
 
 
-contract('DelayedOperations', async (accounts) => {
+contract('DelayedOperations', async function (accounts) {
 
     let from = accounts[0];
     let wrongaddr = accounts[1];
@@ -50,9 +48,9 @@ contract('DelayedOperations', async (accounts) => {
 
         let delay = log.args.dueTime.toString() - blocktime.toString();
         console.log("delay = ", delay);
+        assert.equal(log.event, "DelayedOperation");
         assert.equal(log.args.sender, from);
         assert.equal(log.args.operation, encodedDoIncrement);
-        assert.equal(log.event, "DelayedOperation")
     });
 
     it("succeed to apply the delayed operation after time elapsed", async () => {
