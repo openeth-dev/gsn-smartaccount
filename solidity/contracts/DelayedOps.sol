@@ -139,7 +139,7 @@ contract DelayedOps {
         require(pos >= 0 && pos < batch.length, "pos out of range");
         uint len = uint(getBytes32(batch, pos));
         require(len > 0 && pos + len <= batch.length, "invalid length in block");
-        ret = getBytes(batch, pos + 32, pos + len);
+        ret = getBytes(batch, pos + 32, len);
         nextPos = pos + 32 + len;
         if (nextPos == batch.length) {
             nextPos = EOF;

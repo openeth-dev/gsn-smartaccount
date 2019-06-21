@@ -16,6 +16,7 @@ contract TestDelayedOps is DelayedOps {
     function validateOperation(address sender, bytes4 methodSig) internal {
         require(
             methodSig == this.sayHelloWorld.selector ||
+            methodSig == this.addSome.selector ||
             methodSig == this.doIncrement.selector,
             "test: delayed op not allowed");
         require(sender == allowedSender, "sender not allowed to perform this delayed op");
@@ -26,7 +27,7 @@ contract TestDelayedOps is DelayedOps {
         uint pos = 0;
         bytes memory tx;
         while (pos != EOF) {
-            (tx, pos) = nextParam(operation, 0);
+            (tx, pos) = nextParam(operation, pos);
             require(LibBytes.readBytes4(tx, 0) != this.sayHelloWorld.selector, "Cannot use sendOp to schedule secure HelloWorld");
         }
         scheduleDelayedOp(msg.sender, 777, getNonce(), operation);
