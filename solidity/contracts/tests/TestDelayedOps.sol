@@ -13,24 +13,21 @@ contract TestDelayedOps is DelayedOps {
         allowedSender = s;
     }
 
-    function validateOperation(address /*sender*/, uint256 /*delay*/, bytes memory operation) internal {
-        bytes4 sig = getBytes4(operation, 0);
+    function validateOperation(address sender, uint256 /*delay*/, bytes4 methodSig) internal {
         require(
-            sig == this.invalidOperationParams.selector ||
-            sig == this.sayHelloWorld.selector ||
-            sig == this.doIncrement.selector,
+            methodSig == this.sayHelloWorld.selector ||
+            methodSig == this.doIncrement.selector,
             "test: delayed op not allowed");
+        require(sender == allowedSender, "sender not allowed to perform this delayed op");
     }
 
     function sendOp(bytes memory operation) public {
-        sendDelayedOp(operation);
+        scheduleDelayedOp(msg.sender, 777, getNonce(), operation);
     }
 
     function applyOp(bytes memory operation, uint256 nonce) public {
-        applyDelayedOp(operation, nonce);
+        applyDelayedOps(msg.sender, nonce, operation);
     }
-
-    function invalidOperationParams() public {}
 
     function operationMissingFromValidate(address sender, uint256 delay) public {}
 
@@ -59,9 +56,16 @@ contract TestDelayedOps is DelayedOps {
 
     uint public counter;
 
-    function doIncrement(address sender, uint256 delay) public {
+    function doIncrement() public {
         //        require( allowedSender == sender, "doIncrement: wrong sender" );
         counter++;
     }
+
+    uint256 public someValue = 0;
+
+    function addSome(uint256 howMuch) public {
+        someValue = someValue + howMuch;
+    }
+
 
 }

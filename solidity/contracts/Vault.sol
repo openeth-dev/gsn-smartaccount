@@ -29,7 +29,7 @@ contract Vault is DelayedOps {
         applyDelayedOp(operation, nonce);
     }
 
-    function validateOperation(address sender, uint256 delay, bytes memory operation) internal {}
+    function validateOperation(address sender, uint256 delay, bytes4 methodSig) internal {}
 
     // TODO: test to check 'gatekeeperOnly' logic here!
     function scheduleDelayedTransaction(uint256 delay, address destination, uint256 value) public {

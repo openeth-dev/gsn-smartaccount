@@ -1,5 +1,6 @@
 const TestDelayedOp = artifacts.require("./tests/TestDelayedOps");
 const Chai = require('chai');
+const ABI = require('ethereumjs-abi');
 
 const expect = Chai.expect;
 
@@ -26,11 +27,30 @@ contract('DelayedOperations', async function (accounts) {
         return pastEvents[0];
     }
 
+    function bufferToHex(buffer) {
+        return "0x" + buffer.toString("hex");
+    }
+
+    function encodePackedBatchOperation(encodedCalls) {
+        let types = [];
+        let values = [];
+        for (let i = 0; i < encodedCalls.length; i++) {
+            let encodedBuffer = Buffer.from(encodedCalls[i].slice(2), "hex");
+            let encodedCallLengts = encodedBuffer.length;
+            types = types.concat(["uint256", "bytes"]);
+            values = values.concat([encodedCallLengts, encodedBuffer]);
+        }
+        return ABI.solidityPack(types, values);
+    }
+
     before(async () => {
         trufflecontract = await TestDelayedOp.new();
         //we use the web3 object, not the truffle helper wrapper..
         testcontract = trufflecontract.contract;
-        encodedDoIncrement = testcontract.methods.doIncrement(from, defaultDelay).encodeABI();
+        await trufflecontract.setAllowedSender(from);
+        let encodedCall = testcontract.methods.doIncrement().encodeABI();
+
+        encodedDoIncrement = encodePackedBatchOperation([encodedCall]);
     });
 
     after("write coverage report", async () => {
@@ -47,10 +67,9 @@ contract('DelayedOperations', async function (accounts) {
         let blocktime = (await web3.eth.getBlock('latest')).timestamp;
 
         let delay = log.args.dueTime.toString() - blocktime.toString();
-        console.log("delay = ", delay);
         assert.equal(log.event, "DelayedOperation");
         assert.equal(log.args.sender, from);
-        assert.equal(log.args.operation, encodedDoIncrement);
+        assert.equal(log.args.operation, bufferToHex(encodedDoIncrement));
     });
 
     it("succeed to apply the delayed operation after time elapsed", async () => {
@@ -88,24 +107,28 @@ contract('DelayedOperations', async function (accounts) {
 
     it("revert on invalid delayedOp (not 'whitelisted' in 'validateOperation')", async () => {
         let encodedABI = testcontract.methods.operationMissingFromValidate(from, defaultDelay).encodeABI();
+        let encodedPacked = encodePackedBatchOperation([encodedABI]);
+        let res = await trufflecontract.sendOp(encodedPacked);
+
+        await utils.increaseTime(3600 * 24 * 2 + 10);
 
         await expect(
-            testcontract.methods.sendOp(encodedABI).send({from})
+            trufflecontract.applyOp(res.logs[0].args.operation, res.logs[0].args.opsNonce.toString())
         ).to.be.revertedWith("delayed op not allowed")
     });
 
-    it("revert on invalid delayedOp (not enough args)", async () => {
-        let encodedABI = testcontract.methods.invalidOperationParams().encodeABI();
-        await expect(
-            testcontract.methods.sendOp(encodedABI).send({from})
-        ).to.be.revertedWith("not enough arguments")
-    });
+    // TODO: can be left for contract to decide on that
+    it("revert an attempt to apply operation scheduled by different sender");
 
     it("revert on invalid delayedOp (wrong sender)", async () => {
-        let encodedABI = testcontract.methods.doIncrement(wrongaddr, defaultDelay).encodeABI();
+        let encodedABI = testcontract.methods.doIncrement().encodeABI();
+        let encodedPacked = encodePackedBatchOperation([encodedABI]);
+        let res = await trufflecontract.sendOp(encodedPacked, {from: wrongaddr});
+
+        await utils.increaseTime(3600 * 24 * 2 + 10);
         await expect(
-            testcontract.methods.sendOp(encodedABI).send({from})
-        ).to.be.revertedWith("wrong sender for delayed op")
+            trufflecontract.applyOp(res.logs[0].args.operation, res.logs[0].args.opsNonce.toString(), {from: wrongaddr})
+        ).to.be.revertedWith("sender not allowed to perform this delayed op")
     });
 
     it("reject apply before time elapsed", async () => {
@@ -116,6 +139,8 @@ contract('DelayedOperations', async function (accounts) {
         ).to.be.revertedWith("called before due time")
     });
 
+
+    // TODO: move delay to 'schedule', not encoded function itself
     it("should allow to have different delay based on the delayedOp parameters", async function () {
 
         let encodedABI_short_failure = testcontract.methods.sayHelloWorld(from, 3600 * 2 - 10, 4, "short delay failure").encodeABI();
@@ -125,10 +150,15 @@ contract('DelayedOperations', async function (accounts) {
         let encodedABI_long_success = testcontract.methods.sayHelloWorld(from, 3600 * 24 * 2 + 10, 11, "long delay success").encodeABI();
 
 
-        let res1 = await trufflecontract.sendOp(encodedABI_short_failure);
-        let res2 = await trufflecontract.sendOp(encodedABI_long_failure);
-        let res3 = await trufflecontract.sendOp(encodedABI_short_success);
-        let res4 = await trufflecontract.sendOp(encodedABI_long_success);
+        let encodedPacked_short_failure = encodePackedBatchOperation([encodedABI_short_failure]);
+        let encodedPacked_long_failure = encodePackedBatchOperation([encodedABI_long_failure]);
+        let encodedPacked_short_success = encodePackedBatchOperation([encodedABI_short_success]);
+        let encodedPacked_long_success = encodePackedBatchOperation([encodedABI_long_success]);
+
+        let res1 = await trufflecontract.sendOp(encodedPacked_short_failure);
+        let res2 = await trufflecontract.sendOp(encodedPacked_long_failure);
+        let res3 = await trufflecontract.sendOp(encodedPacked_short_success);
+        let res4 = await trufflecontract.sendOp(encodedPacked_long_success);
 
         // It does not matter how much time actually passed - contract checks how much time was requested!
         await utils.increaseTime(3600 * 24 * 2 + 10);
@@ -142,13 +172,27 @@ contract('DelayedOperations', async function (accounts) {
         ).to.be.revertedWith("Everybody must delay by 2 days");
 
         let apllyRes = await trufflecontract.applyOp(res3.logs[0].args.operation, res3.logs[0].args.opsNonce.toString());
-        assert.equal(apllyRes.logs[1].event, 'HelloWorld');
-        assert.equal(apllyRes.logs[1].args.message, "short delay success");
+        assert.equal(apllyRes.logs[0].event, 'HelloWorld');
+        assert.equal(apllyRes.logs[0].args.message, "short delay success");
 
         apllyRes = await trufflecontract.applyOp(res4.logs[0].args.operation, res4.logs[0].args.opsNonce.toString());
 
-        assert.equal(apllyRes.logs[1].event, 'HelloWorld');
-        assert.equal(apllyRes.logs[1].args.message, "long delay success");
+        assert.equal(apllyRes.logs[0].event, 'HelloWorld');
+        assert.equal(apllyRes.logs[0].args.message, "long delay success");
+
+    });
+
+    /** Batch config operations **/
+    it("should allow the admin to create batched config changes", async function () {
+        let somevalueBefore = await trufflecontract.someValue();
+        assert.equal(somevalueBefore, 0);
+        let encodedChangeA = await trufflecontract.addSome(2);
+        let encodedChangeB = await trufflecontract.addSome(7);
+
+        let packedChange;
+
+        let somevalueAfter = await trufflecontract.someValue();
+        // assert.equal(log.event, "DelayedOperationCancelled");
 
     });
 
