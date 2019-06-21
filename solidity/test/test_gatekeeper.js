@@ -12,7 +12,7 @@ const expect = Chai.expect;
 Chai.use(require('ethereum-waffle').solidity);
 Chai.use(require('bn-chai')(web3.utils.toBN));
 
-contract.only('Gatekeeper', async function (accounts) {
+contract('Gatekeeper', async function (accounts) {
 
     let gatekeeper;
     let vault;
@@ -111,17 +111,13 @@ contract.only('Gatekeeper', async function (accounts) {
         let encoded = res1.logs[0].args.operation;
         let encodedBuff = Buffer.from(encoded.slice(2), "hex");
         let opsNonce = res1.logs[0].args.opsNonce.toNumber();
-        let hash = ABI.soliditySHA3(["bytes", "uint256"],[encodedBuff, opsNonce]);
+        let hash = ABI.soliditySHA3(["bytes", "uint256"], [encodedBuff, opsNonce]);
         let res2 = await gatekeeper.cancelTransaction(hash);
-        console.log(res2, res2.logs)
         let log = res2.logs[0];
         assert.equal(log.event, "DelayedOperationCancelled");
         assert.equal(log.args.hash, "0x" + hash.toString("hex"));
         assert.equal(log.args.sender, gatekeeper.address);
     });
-
-    /** Batch config operations **/
-    it("should allow the admin to create batched config changes");
 
     /* Rejected send */
     it("should allow the admin to cancel a delayed transaction");

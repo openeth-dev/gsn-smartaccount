@@ -31,7 +31,6 @@ contract('Vault', function (accounts) {
 
     it.skip("should allow to create a delayed ETH transaction and execute it after delay expires", async function () {
         let res = await vault.sendDelayedTransaction(2);
-        // console.log(res);
 
         let log = res.logs[0];
         assert.equal("TransactionPending", log.event);
