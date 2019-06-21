@@ -140,36 +140,34 @@ contract('DelayedOperations', async function (accounts) {
     });
 
 
-    // TODO: move delay to 'schedule', not encoded function itself
+    // TODO: not really supported yet
+    //  It is implemented with a set of hacks but it is not optimal in general
+    //  If the contract needs an open 'applyBatch' then all operations will be scheduled with same delay
     it("should allow to have different delay based on the delayedOp parameters", async function () {
 
-        let encodedABI_short_failure = testcontract.methods.sayHelloWorld(from, 3600 * 2 - 10, 4, "short delay failure").encodeABI();
-        let encodedABI_long_failure = testcontract.methods.sayHelloWorld(from, 3600 * 24 * 2 - 10, 11, "long delay failure").encodeABI();
+        let shortDelay = 3600 * 2;
+        let longDelay = 3600 * 24 * 2;
 
-        let encodedABI_short_success = testcontract.methods.sayHelloWorld(from, 3600 * 2 + 10, 4, "short delay success").encodeABI();
-        let encodedABI_long_success = testcontract.methods.sayHelloWorld(from, 3600 * 24 * 2 + 10, 11, "long delay success").encodeABI();
-
-
-        let encodedPacked_short_failure = encodePackedBatchOperation([encodedABI_short_failure]);
-        let encodedPacked_long_failure = encodePackedBatchOperation([encodedABI_long_failure]);
-        let encodedPacked_short_success = encodePackedBatchOperation([encodedABI_short_success]);
-        let encodedPacked_long_success = encodePackedBatchOperation([encodedABI_long_success]);
-
-        let res1 = await trufflecontract.sendOp(encodedPacked_short_failure);
-        let res2 = await trufflecontract.sendOp(encodedPacked_long_failure);
-        let res3 = await trufflecontract.sendOp(encodedPacked_short_success);
-        let res4 = await trufflecontract.sendOp(encodedPacked_long_success);
-
-        // It does not matter how much time actually passed - contract checks how much time was requested!
-        await utils.increaseTime(3600 * 24 * 2 + 10);
+        let encodedABI_cannot_schedule = testcontract.methods.sayHelloWorld(from, 4, "cannot schedule this").encodeABI();
+        let encodedPacked_cannot_schedule = encodePackedBatchOperation([encodedABI_cannot_schedule]);
 
         await expect(
-            trufflecontract.applyOp(res1.logs[0].args.operation, res1.logs[0].args.opsNonce.toString())
+            trufflecontract.sendOp(encodedPacked_cannot_schedule)
+        ).to.be.revertedWith("Cannot use sendOp to schedule secure HelloWorld");
+
+        await expect(
+            trufflecontract.scheduleHelloWorld(4, "short delay failure", shortDelay - 10)
         ).to.be.revertedWith("Born on thursdays must delay by 2 hours");
 
         await expect(
-            trufflecontract.applyOp(res2.logs[0].args.operation, res2.logs[0].args.opsNonce.toString())
+            trufflecontract.scheduleHelloWorld(11, "long delay failure", longDelay - 10)
         ).to.be.revertedWith("Everybody must delay by 2 days");
+
+        let res3 = await trufflecontract.scheduleHelloWorld(4, "short delay success", shortDelay + 10);
+        let res4 = await trufflecontract.scheduleHelloWorld(11, "long delay success", longDelay + 10);
+
+        // It does not matter how much time actually passed - contract checks how much time was requested!
+        await utils.increaseTime(longDelay + 20);
 
         let apllyRes = await trufflecontract.applyOp(res3.logs[0].args.operation, res3.logs[0].args.opsNonce.toString());
         assert.equal(apllyRes.logs[0].event, 'HelloWorld');

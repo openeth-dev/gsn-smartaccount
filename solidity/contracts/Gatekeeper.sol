@@ -28,7 +28,7 @@ contract Gatekeeper is DelayedOps {
     }
 
 
-    function validateOperation(address sender, uint256 delay, bytes4 methodSig) internal {
+    function validateOperation(address sender, bytes4 methodSig) internal {
     }
 
     function sendEther(address payable destination, uint value) public {

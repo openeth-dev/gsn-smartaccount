@@ -9,7 +9,8 @@ import "@0x/contracts-utils/contracts/src/LibBytes.sol";
 contract DelayedOps {
 
     uint256 opsNonce = 0;
-    function getNonce() public view returns(uint) { return opsNonce; }
+
+    function getNonce() public view returns (uint) {return opsNonce;}
 
     event DelayedOperation(address sender, uint256 opsNonce, bytes operation, uint dueTime);
     event DelayedOperationCancelled(address sender, bytes32 hash);
@@ -32,7 +33,7 @@ contract DelayedOps {
      * return the required delay to apply the operation.
      * revert if the sender is not allowed to make the operation.
      */
-    function validateOperation(address sender, uint256 delay, bytes4 methodSig) internal;
+    function validateOperation(address sender, bytes4 methodSig) internal;
 
     /**
      * send a single delayed operation. 
@@ -52,7 +53,7 @@ contract DelayedOps {
         require(msg.sender == getAddress(operation, 4), "wrong sender for delayed op");
         uint256 delayTime = uint256(getBytes32(operation, 32 + 4));
         //        uint delayTime = validateOperation(msg.sender, operation);
-        validateOperation(msg.sender, delayTime, getBytes4(operation, 0));
+        validateOperation(msg.sender, LibBytes.readBytes4(operation, 0));
         require(delayTime > 0, "validateOperation: should provide positive delayTime");
         bytes32 hash = keccak256(abi.encodePacked(operation, opsNonce));
         uint dueTime = now + delayTime;
@@ -106,7 +107,7 @@ contract DelayedOps {
     /**
      * call operations to apply.
      * values are taken directly from the DelayedOperation event
-     * actuall caller of this method is not checked: the first parameter of the operation is the original sender
+     * actual caller of this method is not checked: the first parameter of the operation is the original sender
      * (which was verified by sendDelayedOp), and only it should be validated.
      */
     function applyDelayedOps(address sender, uint256 nonce, bytes memory batch) internal {
@@ -124,13 +125,13 @@ contract DelayedOps {
             (singleOp, pos) = nextParam(batch, pos);
             //NOTE: decode doesn't work for methods with no args. but we know all our methods DO have args...
             bytes4 methodSig = LibBytes.readBytes4(singleOp, 0);
-            validateOperation(sender, 777, methodSig);
+            validateOperation(sender, methodSig);
             bool success;
-            bytes memory revert;
+            bytes memory revertMsg;
 //            (success,) = address(this).call(singleOp);
 //            require(success, "applyDelayedOps: operation reverted");
-            (success, revert) = address(this).call(singleOp);
-            require(success, string(revert));
+            (success, revertMsg) = address(this).call(singleOp);
+            require(success, string(revertMsg));
         }
     }
 
@@ -158,11 +159,6 @@ contract DelayedOps {
     event debug(uint due, uint timeNow);
 
     mapping(bytes32 => uint) pending;
-
-
-    function getBytes4(bytes memory b, uint ofs) pure internal returns (bytes4) {
-        return bytes4(getBytes32(b, ofs));
-    }
 
     function getBytes32(bytes memory b, uint ofs) pure internal returns (bytes32) {
         return bytes32(LibBytes.readUint256(b, ofs));
