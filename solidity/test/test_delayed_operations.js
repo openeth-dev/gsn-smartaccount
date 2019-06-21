@@ -184,13 +184,21 @@ contract('DelayedOperations', async function (accounts) {
     it("should allow the admin to create batched config changes", async function () {
         let somevalueBefore = await trufflecontract.someValue();
         assert.equal(somevalueBefore, 0);
-        let encodedChangeA = await trufflecontract.addSome(2);
-        let encodedChangeB = await trufflecontract.addSome(7);
+        let valA = 2;
+        let encodedChangeA = testcontract.methods.addSome(valA).encodeABI();
+        let valB = 7;
+        let encodedChangeB = testcontract.methods.addSome(valB).encodeABI();
 
-        let packedChange;
+        let encodedPacked = encodePackedBatchOperation([encodedChangeA, encodedChangeB]);
+
+        let res = await trufflecontract.sendOp(encodedPacked);
+
+        await utils.increaseTime(3600 * 24 * 2 + 10);
+        await trufflecontract.applyOp(res.logs[0].args.operation, res.logs[0].args.opsNonce.toString());
 
         let somevalueAfter = await trufflecontract.someValue();
-        // assert.equal(log.event, "DelayedOperationCancelled");
+        console.log(somevalueBefore, somevalueBefore.toString(), "somevalueAfter", somevalueAfter.toString())
+        assert.equal(somevalueAfter, valA + valB);
 
     });
 
