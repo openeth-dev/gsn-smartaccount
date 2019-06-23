@@ -7,6 +7,8 @@ contract Gatekeeper is DelayedOps {
 
     Vault vault;
     address participantSpender;
+    address participantAdminA;
+    address participantAdminB;
     uint256 delay = 1 hours;
 
     // TEMP, FOR TDD
@@ -27,13 +29,40 @@ contract Gatekeeper is DelayedOps {
         participantSpender = spender;
     }
 
+    // TEMP, FOR TDD
+    function setAdminA(address adminA) public
+    {
+        participantAdminA = adminA;
+    }
+
+    // TEMP, FOR TDD
+    function setAdminB(address adminB) public
+    {
+        participantAdminB = adminB;
+    }
+    // TODO:
+    //  1. Participant control (hashes map + isParticipant)
+    //  2. Delay per rank control (if supported in BizPoC-2)
+    //  3. Initial configuration
+    // ***********************************
+
 
     function validateOperation(address sender, bytes4 methodSig) internal {
+    }
+
+    function sendBatch(bytes memory batch) public {
+        scheduleDelayedBatch(msg.sender, delay, getNonce(), batch);
     }
 
     function sendEther(address payable destination, uint value) public {
         require(msg.sender == participantSpender, "Only spender can perform send operations!");
         vault.scheduleDelayedTransaction(delay, destination, value);
+    }
+
+    event ParticipantAdded(address participant);
+
+    function addParticipant(address participant) public {
+        emit ParticipantAdded(participant);
     }
 
     function cancelTransaction(bytes32 hash) public {
