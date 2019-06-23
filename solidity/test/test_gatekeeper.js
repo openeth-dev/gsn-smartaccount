@@ -2,7 +2,6 @@ const Gatekeeper = artifacts.require("./Gatekeeper.sol");
 const Vault = artifacts.require("./Vault.sol");
 const Chai = require('chai');
 const Web3 = require('web3');
-const ABI = require('ethereumjs-abi');
 
 const utils = require('./utils');
 
@@ -12,13 +11,23 @@ const expect = Chai.expect;
 Chai.use(require('ethereum-waffle').solidity);
 Chai.use(require('bn-chai')(web3.utils.toBN));
 
-contract('Gatekeeper', async function (accounts) {
+function getDelayedOpHashFromEvent(log) {
+    let sender = log.args.sender;
+    let opsNonce = log.args.opsNonce.toNumber();
+    let encoded = log.args.operation;
+    let encodedBuff = Buffer.from(encoded.slice(2), "hex");
+    return utils.delayedOpHash(sender, opsNonce, encodedBuff);
+}
+
+contract.only('Gatekeeper', async function (accounts) {
 
     let gatekeeper;
     let vault;
     let from = accounts[0];
     let wrongaddr = accounts[1];
     let destinationAddresss = accounts[2];
+    let adminA = accounts[3];
+    let adminB = accounts[4];
     let amount = 100;
     let delay = 77;
     let startBlock;
@@ -32,6 +41,8 @@ contract('Gatekeeper', async function (accounts) {
         startBlock = await web3.eth.getBlockNumber();
         await gatekeeper.setVault(vault.address);
         await gatekeeper.setSpender(from);
+        await gatekeeper.setAdminA(adminA);
+        await gatekeeper.setAdminB(adminB);
         await gatekeeper.setDelay(delay);
     });
 
@@ -48,13 +59,14 @@ contract('Gatekeeper', async function (accounts) {
     /* Positive flows */
 
     /* Plain send */
-    it("should allow the owner to create a delayed transaction", async function () {
+    it("should allow the owner to create a delayed ether transfer transaction", async function () {
         let res = await gatekeeper.sendEther(destinationAddresss, amount);
         expectedDelayedEventsCount++;
         let encodedABI = vault.contract.methods.applyDelayedTransaction(destinationAddresss, amount).encodeABI();
         let encodedPacked = utils.bufferToHex(utils.encodePackedBatch([encodedABI]));
         let log = res.logs[0];
         assert.equal(log.event, "DelayedOperation");
+        assert.equal(log.address, vault.address);
         // Vault sees the transaction as originating from Gatekeeper
         // and it does not know or care which participant initiated it
         assert.equal(log.args.sender, gatekeeper.address);
@@ -99,29 +111,51 @@ contract('Gatekeeper', async function (accounts) {
     });
 
 
-    /* Canceled send */
+    /* Canceled send , Rejected send */
+
     it("should revert when trying to cancel a transfer transaction that does not exist", async function () {
         await expect(
             gatekeeper.cancelTransaction("0x123123")
         ).to.be.revertedWith("cannot cancel, operation does not exist");
     });
 
-    it("should allow the owner to cancel a delayed transfer transaction", async function () {
-        let res1 = await gatekeeper.sendEther(destinationAddresss, amount);
-        expectedDelayedEventsCount++;
-        let encoded = res1.logs[0].args.operation;
-        let encodedBuff = Buffer.from(encoded.slice(2), "hex");
-        let opsNonce = res1.logs[0].args.opsNonce.toNumber();
-        let hash = utils.delayedOpHash(gatekeeper.address, opsNonce, encodedBuff);
-        let res2 = await gatekeeper.cancelTransaction(hash);
-        let log = res2.logs[0];
-        assert.equal(log.event, "DelayedOperationCancelled");
-        assert.equal(log.args.hash, "0x" + hash.toString("hex"));
-        assert.equal(log.args.sender, gatekeeper.address);
+    [{address: from, title: "owner"}, {address: adminA, title: "admin"}].forEach((participant) => {
+        it(`should allow the ${participant.title} to cancel a delayed transfer transaction`, async function () {
+            let res1 = await gatekeeper.sendEther(destinationAddresss, amount);
+            expectedDelayedEventsCount++;
+            let hash = getDelayedOpHashFromEvent(res1.logs[0]);
+            let res2 = await gatekeeper.cancelTransaction(hash, {from: participant.address});
+            let log = res2.logs[0];
+            assert.equal(log.event, "DelayedOperationCancelled");
+            assert.equal(log.address, vault.address);
+            assert.equal(log.args.hash, "0x" + hash.toString("hex"));
+            assert.equal(log.args.sender, gatekeeper.address);
+        });
     });
 
-    /* Rejected send */
-    it("should allow the admin to cancel a delayed transaction");
+    it("should allow the admin to create a delayed config transaction", async function () {
+        let encodedABI = gatekeeper.contract.methods.addParticipant(adminB).encodeABI();
+        let encodedPacked = utils.encodePackedBatch([encodedABI]);
+        let res = await gatekeeper.sendBatch(encodedPacked);
+        let log = res.logs[0];
+        assert.equal(log.event, "DelayedOperation");
+        assert.equal(log.address, gatekeeper.address);
+        assert.equal(log.args.sender, from);
+        assert.equal(log.args.operation, utils.bufferToHex(encodedPacked));
+    });
+
+    /* Rejected config change */
+    it("should allow the admin to cancel a delayed config transaction", async function () {
+        let log = await utils.extractLastDelayedOpsEvent(gatekeeper);
+        let hash = getDelayedOpHashFromEvent(log);
+        let res2 = await gatekeeper.cancelOperation(hash, {from: adminA});
+        let log2 = res2.logs[0];
+        assert.equal(log2.event, "DelayedOperationCancelled");
+        assert.equal(log2.address, gatekeeper.address);
+        assert.equal(log2.args.hash, "0x" + hash.toString("hex"));
+        assert.equal(log2.args.sender, adminA);
+        // TODO: verify after event emitted admin is added in fact
+    });
 
     /* Admin replaced */
     it("should allow the admin to replace another admin after a delay");

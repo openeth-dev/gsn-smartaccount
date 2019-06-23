@@ -20,7 +20,7 @@ contract TestDelayedOps is DelayedOps {
             methodSig == this.addSome.selector ||
             methodSig == this.doIncrement.selector,
             "test: delayed op not allowed");
-        require(sender == allowedSender, "sender not allowed to perform this delayed op");
+        require(msg.sender == allowedSender, "this sender not allowed to apply delayed operations");
 
     }
 
@@ -69,7 +69,7 @@ contract TestDelayedOps is DelayedOps {
     uint public counter;
 
     function doIncrement() public {
-        //        require( allowedSender == sender, "doIncrement: wrong sender" );
+        require(msg.sender == address(this), "this operation must be scheduled");
         counter++;
     }
 

@@ -51,7 +51,13 @@ module.exports = {
         return "0x" + buffer.toString("hex");
     },
 
-    delayedOpHash: function (address, nonce, batch) {
-        return ABI.soliditySHA3(["address", "uint256", "bytes"], [address, nonce, batch])
+    delayedOpHash: function (sender, nonce, batch) {
+        return ABI.soliditySHA3(["address", "uint256", "bytes"], [sender, nonce, batch])
+    },
+
+    extractLastDelayedOpsEvent: async function (trufflecontract) {
+        let pastEvents = await trufflecontract.getPastEvents("DelayedOperation", {fromBlock: "latest"});
+        assert.equal(pastEvents.length, 1);
+        return pastEvents[0];
     }
 };

@@ -20,12 +20,6 @@ contract('DelayedOperations', async function (accounts) {
     let trufflecontract;
     let encodedDoIncrement;
 
-    async function extractLastDelayedOpsEvent() {
-        let pastEvents = await trufflecontract.getPastEvents("DelayedOperation", {fromBlock: "latest"});
-        assert.equal(pastEvents.length, 1);
-        return pastEvents[0];
-    }
-
     before(async () => {
         trufflecontract = await TestDelayedOp.new();
         //we use the web3 object, not the truffle helper wrapper..
@@ -38,6 +32,13 @@ contract('DelayedOperations', async function (accounts) {
 
     after("write coverage report", async () => {
         await global.postCoverage()
+    });
+
+    /* Common sense */
+    it("prevent non-delayed calls to operations that require delay", async function () {
+        await expect(
+            trufflecontract.doIncrement()
+        ).to.be.revertedWith("this operation must be scheduled")
     });
 
     /* Positive flows */
@@ -54,7 +55,7 @@ contract('DelayedOperations', async function (accounts) {
 
     it("succeed to apply the delayed operation after time elapsed", async () => {
 
-        let log = await extractLastDelayedOpsEvent();
+        let log = await utils.extractLastDelayedOpsEvent();
 
         await utils.increaseTime(3600 * 24 * 2 + 10);
 
@@ -97,10 +98,7 @@ contract('DelayedOperations', async function (accounts) {
         ).to.be.revertedWith("delayed op not allowed")
     });
 
-    // TODO: can be left for contract to decide on that
-    it("revert an attempt to apply operation scheduled by different sender");
-
-    it("revert on invalid delayedOp (wrong sender)", async () => {
+    it("allow the implementing contract to revert applying operation depending on sender", async function () {
         let encodedABI = testcontract.methods.doIncrement().encodeABI();
         let encodedPacked = utils.encodePackedBatch([encodedABI]);
         let res = await trufflecontract.sendBatch(encodedPacked, {from: wrongaddr});
@@ -108,7 +106,7 @@ contract('DelayedOperations', async function (accounts) {
         await utils.increaseTime(3600 * 24 * 2 + 10);
         await expect(
             trufflecontract.applyOp(res.logs[0].args.operation, res.logs[0].args.opsNonce.toString(), {from: wrongaddr})
-        ).to.be.revertedWith("sender not allowed to perform this delayed op")
+        ).to.be.revertedWith("this sender not allowed to apply delayed operations")
     });
 
     it("reject apply before time elapsed", async () => {
