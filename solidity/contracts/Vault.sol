@@ -17,16 +17,15 @@ contract Vault is DelayedOps {
 
     // Nothing to do with a sender here - it's always Gatekeeper
     // TODO: test to check only 'this' can call here
-    function applyDelayedTransaction(address /*sender*/, uint256 delay, address payable destination, uint256 value) public {
+    function applyDelayedTransaction(address payable destination, uint256 value) public {
         require(value < address(this).balance, "Cannot transfer more then vault's balance");
         destination.transfer(value);
         emit FundsKindaTransferred(destination, value);
     }
 
-    // Why is base classes methods even internal? The only way to 'apply' something is to schedule it first, it
-    // is basically a meta-transaction
-    function applyDelayedOpsPublic(bytes memory operation, uint256 nonce) public {
-        applyDelayedOp(operation, nonce);
+    // TODO: sender of all operations in vault is a gatekeeper!!!
+    function applyDelayedOpsPublic(address sender, bytes memory operation, uint256 nonce) public {
+        applyDelayedOps(sender, nonce, operation);
     }
 
     function validateOperation(address sender, bytes4 methodSig) internal {}
@@ -34,8 +33,9 @@ contract Vault is DelayedOps {
     // TODO: test to check 'gatekeeperOnly' logic here!
     function scheduleDelayedTransaction(uint256 delay, address destination, uint256 value) public {
         // Alexf: There is no tragedy in using 'encodeWithSelector' here, I believe. Vault's API should not change much.
-        bytes memory delayedTransaction = abi.encodeWithSelector(this.applyDelayedTransaction.selector, msg.sender, delay, destination, value);
-        sendDelayedOp(delayedTransaction);
+        bytes memory delayedTransaction = abi.encodeWithSelector(this.applyDelayedTransaction.selector, destination, value);
+        bytes memory operation = abi.encodePacked(delayedTransaction.length, delayedTransaction);
+        scheduleDelayedBatch(msg.sender, delay, getNonce(), operation);
     }
 
     function cancelTransaction(bytes32 hash) public {

@@ -51,13 +51,14 @@ contract('Gatekeeper', async function (accounts) {
     it("should allow the owner to create a delayed transaction", async function () {
         let res = await gatekeeper.sendEther(destinationAddresss, amount);
         expectedDelayedEventsCount++;
-        let encodedAbiCall = vault.contract.methods.applyDelayedTransaction(gatekeeper.address, delay, destinationAddresss, amount).encodeABI();
+        let encodedABI = vault.contract.methods.applyDelayedTransaction(destinationAddresss, amount).encodeABI();
+        let encodedPacked = utils.bufferToHex(utils.encodePackedBatch([encodedABI]));
         let log = res.logs[0];
         assert.equal(log.event, "DelayedOperation");
         // Vault sees the transaction as originating from Gatekeeper
         // and it does not know or care which participant initiated it
         assert.equal(log.args.sender, gatekeeper.address);
-        assert.equal(log.args.operation, encodedAbiCall);
+        assert.equal(log.args.operation, encodedPacked);
     });
 
     it("should fail to execute a delayed transfer transaction if not enough funds", async function () {
@@ -68,7 +69,7 @@ contract('Gatekeeper', async function (accounts) {
         await utils.increaseTime(3600 * 24 * 2 + 10);
 
         await expect(
-            vault.applyDelayedOpsPublic(addedLog.operation, addedLog.opsNonce)
+            vault.applyDelayedOpsPublic(gatekeeper.address, addedLog.operation, addedLog.opsNonce)
         ).to.be.revertedWith("Cannot transfer more then vault's balance");
     });
 
@@ -84,8 +85,8 @@ contract('Gatekeeper', async function (accounts) {
         assert.isAbove(balanceSenderBefore, amount);
         await utils.increaseTime(3600 * 24 * 2 + 10);
 
-        let res = await vault.applyDelayedOpsPublic(addedLog.operation, addedLog.opsNonce);
-        let log = res.logs[1];
+        let res = await vault.applyDelayedOpsPublic(gatekeeper.address, addedLog.operation, addedLog.opsNonce);
+        let log = res.logs[0];
 
         assert.equal(log.event, "FundsKindaTransferred");
         assert.equal(log.args.destination, destinationAddresss);
@@ -111,7 +112,7 @@ contract('Gatekeeper', async function (accounts) {
         let encoded = res1.logs[0].args.operation;
         let encodedBuff = Buffer.from(encoded.slice(2), "hex");
         let opsNonce = res1.logs[0].args.opsNonce.toNumber();
-        let hash = ABI.soliditySHA3(["bytes", "uint256"], [encodedBuff, opsNonce]);
+        let hash = utils.delayedOpHash(gatekeeper.address, opsNonce, encodedBuff);
         let res2 = await gatekeeper.cancelTransaction(hash);
         let log = res2.logs[0];
         assert.equal(log.event, "DelayedOperationCancelled");

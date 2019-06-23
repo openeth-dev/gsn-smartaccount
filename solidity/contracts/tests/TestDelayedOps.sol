@@ -8,6 +8,7 @@ import "../DelayedOps.sol";
 contract TestDelayedOps is DelayedOps {
 
     address public allowedSender;
+    uint256 operationsDelay = 1 hours;
 
     function setAllowedSender(address s) public {
         allowedSender = s;
@@ -23,14 +24,14 @@ contract TestDelayedOps is DelayedOps {
 
     }
 
-    function sendOp(bytes memory operation) public {
+    function sendBatch(bytes memory batch) public {
         uint pos = 0;
-        bytes memory tx;
+        bytes memory operation;
         while (pos != EOF) {
-            (tx, pos) = nextParam(operation, pos);
-            require(LibBytes.readBytes4(tx, 0) != this.sayHelloWorld.selector, "Cannot use sendOp to schedule secure HelloWorld");
+            (operation, pos) = nextParam(batch, pos);
+            require(LibBytes.readBytes4(operation, 0) != this.sayHelloWorld.selector, "Cannot use sendBatch to schedule secure HelloWorld");
         }
-        scheduleDelayedOp(msg.sender, 777, getNonce(), operation);
+        scheduleDelayedBatch(msg.sender, operationsDelay, getNonce(), batch);
     }
 
     function scheduleHelloWorld(uint dayOfBirth, string memory message, uint256 delay) public {
@@ -42,7 +43,7 @@ contract TestDelayedOps is DelayedOps {
         }
         bytes memory delayedTransaction = abi.encodeWithSelector(this.sayHelloWorld.selector, msg.sender, dayOfBirth, message);
         bytes memory operation = abi.encodePacked(delayedTransaction.length, delayedTransaction);
-        scheduleDelayedOp(msg.sender, delay, getNonce(), operation);
+        scheduleDelayedBatch(msg.sender, delay, getNonce(), operation);
     }
 
     function applyOp(bytes memory operation, uint256 nonce) public {
