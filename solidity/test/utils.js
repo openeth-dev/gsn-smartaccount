@@ -1,3 +1,5 @@
+const ABI = require('ethereumjs-abi');
+
 module.exports = {
 
     increaseTime: function (time) {
@@ -31,4 +33,25 @@ module.exports = {
 
         })
     },
+
+    encodePackedBatch: function (encodedCalls) {
+        let types = [];
+        let values = [];
+        for (let i = 0; i < encodedCalls.length; i++) {
+            let encodedBuffer = Buffer.from(encodedCalls[i].slice(2), "hex");
+            let encodedCallLengts = encodedBuffer.length;
+            types = types.concat(["uint256", "bytes"]);
+            values = values.concat([encodedCallLengts, encodedBuffer]);
+        }
+        return ABI.solidityPack(types, values);
+    },
+
+
+    bufferToHex: function (buffer) {
+        return "0x" + buffer.toString("hex");
+    },
+
+    delayedOpHash: function (address, nonce, batch) {
+        return ABI.soliditySHA3(["address", "uint256", "bytes"], [address, nonce, batch])
+    }
 };

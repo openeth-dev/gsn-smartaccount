@@ -15,18 +15,6 @@ contract DelayedOps {
     event DelayedOperation(address sender, uint256 opsNonce, bytes operation, uint dueTime);
     event DelayedOperationCancelled(address sender, bytes32 hash);
 
-    //easy modifier to make a method dual-purpose:
-    //call from external source will save as delayed op.
-    //later, applyDelayedOp will attempt to call it again to execute the delayed operation.
-    // call from local another method (sender==this) can only be from applyDelayedOp, to actually run it.
-    modifier delayed_operation() {
-        if (msg.sender != address(this)) {
-            sendDelayedOp(msg.data);
-            return;
-        }
-        _;
-    }
-
     /**
      * Template method: validate the sender is allowed to make this operation.
      * most likely, only the selector (first 4 bytes) are checked.
@@ -35,38 +23,11 @@ contract DelayedOps {
      */
     function validateOperation(address sender, bytes4 methodSig) internal;
 
-    /**
-     * send a single delayed operation. 
-     * @param operation - the delayed operation. MUST have the first parameter set to "sender"
-     * usage:
-     * (note that it can't be called directly, but wrapped by the contract should have a method:
-     * 
-     *  myContract.sendDelayedOp(
-     *      myContract.addParticipant(myAddr,myRank,participant).encodeAbi(),
-     *      { from:myAddr }
-     *  )
-     */
-    function sendDelayedOp(bytes memory operation) internal {
-        //can't be a valid operation: must have (at least) one argument..
-        require(operation.length >= 4 + 20 + 32, "invalid delayed op: not enough arguments");
-
-        require(msg.sender == getAddress(operation, 4), "wrong sender for delayed op");
-        uint256 delayTime = uint256(getBytes32(operation, 32 + 4));
-        //        uint delayTime = validateOperation(msg.sender, operation);
-        validateOperation(msg.sender, LibBytes.readBytes4(operation, 0));
-        require(delayTime > 0, "validateOperation: should provide positive delayTime");
-        bytes32 hash = keccak256(abi.encodePacked(operation, opsNonce));
-        uint dueTime = now + delayTime;
-        pending[hash] = dueTime;
-        emit DelayedOperation(msg.sender, opsNonce, operation, dueTime);
-        opsNonce = opsNonce + 1;
-    }
-
     function delayedOpHash(address sender, uint nonce, bytes memory batch) public pure returns (bytes32) {
         return keccak256(abi.encodePacked(sender, nonce, batch));
     }
 
-    function scheduleDelayedOp(address sender, uint delayTime, uint nonce, bytes memory batch) internal {
+    function scheduleDelayedBatch(address sender, uint delayTime, uint nonce, bytes memory batch) internal {
 
         require(nonce == getNonce(), "Wrong nonce");
         require(delayTime > 0, "validateOperation: should return positive delayTime");
@@ -84,24 +45,6 @@ contract DelayedOps {
         require(pending[hash] > 0, "cannot cancel, operation does not exist");
         delete pending[hash];
         emit DelayedOperationCancelled(msg.sender, hash);
-    }
-
-    /**
-     * call an operation to apply. values are taken from the DelayedOperation event
-     * actuall caller of this method is not checked: the first parameter of the operatio is the original sender
-     * (which was verified by sendDelayedOp), and only it should be validated.
-     */
-    function applyDelayedOp(bytes memory operation, uint256 nonce) internal {
-        bytes32 hash = keccak256(abi.encodePacked(operation, nonce));
-        uint dueTime = pending[hash];
-        require(dueTime != 0, "applyDelayedOp called for non existing delayed op");
-        require(now > dueTime, "applyDelayedOp called before due time");
-
-        emit debug(dueTime, now);
-        bool success;
-        bytes memory returnVal = "applyDelayedOp: operation reverted";
-        (success, returnVal) = address(this).call(operation);
-        require(success, string(returnVal));
     }
 
     /**
@@ -128,13 +71,12 @@ contract DelayedOps {
             validateOperation(sender, methodSig);
             bool success;
             bytes memory revertMsg;
-//            (success,) = address(this).call(singleOp);
-//            require(success, "applyDelayedOps: operation reverted");
             (success, revertMsg) = address(this).call(singleOp);
             require(success, string(revertMsg));
         }
     }
 
+    //TODO: test for this method separately
     function nextParam(bytes memory batch, uint pos) public pure returns (bytes memory ret, uint nextPos) {
         require(pos >= 0 && pos < batch.length, "pos out of range");
         uint len = uint(getBytes32(batch, pos));
