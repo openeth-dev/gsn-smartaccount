@@ -55,9 +55,23 @@ module.exports = {
         return ABI.soliditySHA3(["address", "uint256", "bytes"], [sender, nonce, batch])
     },
 
+    participantHash: function (admin, level) {
+        return ABI.soliditySHA3(["address", "uint8"], [admin, level])
+    },
+
     extractLastDelayedOpsEvent: async function (trufflecontract) {
         let pastEvents = await trufflecontract.getPastEvents("DelayedOperation", {fromBlock: "latest"});
         assert.equal(pastEvents.length, 1);
         return pastEvents[0];
+    },
+
+    validateAdminsConfig: async function (admins, levels, expected, gatekeeper) {
+        assert.equal(admins.length, levels.length);
+        assert.equal(expected.length, levels.length);
+        for (let i = 0; i < admins.length; i++) {
+            let adminHash = this.bufferToHex(this.participantHash(admins[i], levels[i]));
+            let isAdmin = await gatekeeper.participants(adminHash);
+            assert.equal(expected[i], isAdmin, `admin №${i} isAdmin=${isAdmin}, expected=${expected[i]}`);
+        }
     }
 };

@@ -23,11 +23,14 @@ contract.only('Gatekeeper', async function (accounts) {
 
     let gatekeeper;
     let vault;
+    let level = 1;
     let from = accounts[0];
     let wrongaddr = accounts[1];
     let destinationAddresss = accounts[2];
     let adminA = accounts[3];
     let adminB = accounts[4];
+    let adminB1 = accounts[5];
+    let adminC = accounts[6];
     let amount = 100;
     let delay = 77;
     let startBlock;
@@ -41,8 +44,8 @@ contract.only('Gatekeeper', async function (accounts) {
         startBlock = await web3.eth.getBlockNumber();
         await gatekeeper.setVault(vault.address);
         await gatekeeper.setSpender(from);
-        await gatekeeper.setAdminA(adminA);
-        await gatekeeper.setAdminB(adminB);
+        await gatekeeper.addParticipant(adminA, level);
+        await gatekeeper.addParticipant(adminB, level);
         await gatekeeper.setDelay(delay);
     });
 
@@ -111,7 +114,7 @@ contract.only('Gatekeeper', async function (accounts) {
     });
 
 
-    /* Canceled send , Rejected send */
+    /* Canceled send, rejected send */
 
     it("should revert when trying to cancel a transfer transaction that does not exist", async function () {
         await expect(
@@ -134,7 +137,7 @@ contract.only('Gatekeeper', async function (accounts) {
     });
 
     it("should allow the admin to create a delayed config transaction", async function () {
-        let encodedABI = gatekeeper.contract.methods.addParticipant(adminB).encodeABI();
+        let encodedABI = gatekeeper.contract.methods.addParticipant(adminB1, level).encodeABI();
         let encodedPacked = utils.encodePackedBatch([encodedABI]);
         let res = await gatekeeper.sendBatch(encodedPacked);
         let log = res.logs[0];
@@ -142,6 +145,13 @@ contract.only('Gatekeeper', async function (accounts) {
         assert.equal(log.address, gatekeeper.address);
         assert.equal(log.args.sender, from);
         assert.equal(log.args.operation, utils.bufferToHex(encodedPacked));
+    });
+
+
+    it("should store admins' credentials hashed", async function () {
+        let hash = utils.bufferToHex(utils.participantHash(adminA, level));
+        let isAdmin = await gatekeeper.participants(hash);
+        assert.equal(true, isAdmin);
     });
 
     /* Rejected config change */
@@ -154,11 +164,71 @@ contract.only('Gatekeeper', async function (accounts) {
         assert.equal(log2.address, gatekeeper.address);
         assert.equal(log2.args.hash, "0x" + hash.toString("hex"));
         assert.equal(log2.args.sender, adminA);
-        // TODO: verify after event emitted admin is added in fact
+
+        await utils.validateAdminsConfig([adminA, adminB, adminB1], [1, 1, 1], [true, true, false], gatekeeper);
+    });
+
+    it("should revert an attempt to delete admin that is not a part of the config", async function () {
+        let encodedABI = await gatekeeper.contract.methods.removeParticipant(utils.participantHash(adminC, level)).encodeABI();
+        let encodedPacked = utils.encodePackedBatch([encodedABI]);
+        let res = await gatekeeper.sendBatch(encodedPacked);
+        let log = res.logs[0];
+        assert.equal(log.event, "DelayedOperation");
+        await utils.increaseTime(3600 * 24 * 2 + 10);
+        await expect(
+            gatekeeper.applyBatch(res.logs[0].args.operation, res.logs[0].args.opsNonce.toString())
+        ).to.be.revertedWith("there is no such participant");
+    });
+
+    it("should allow the admin to add another admin after a delay", async function () {
+        let encodedABI = gatekeeper.contract.methods.addParticipant(adminC, level).encodeABI();
+        let encodedPacked = utils.encodePackedBatch([encodedABI]);
+        let res = await gatekeeper.sendBatch(encodedPacked);
+        await expect(
+            gatekeeper.applyBatch(res.logs[0].args.operation, res.logs[0].args.opsNonce.toString())
+        ).to.be.revertedWith("called before due time");
+        await utils.increaseTime(3600 * 24 * 2 + 10);
+        let res2 = await gatekeeper.applyBatch(res.logs[0].args.operation, res.logs[0].args.opsNonce.toString());
+        let log2 = res2.logs[0];
+        let hash = utils.bufferToHex(utils.participantHash(adminC, level));
+        assert.equal(log2.event, "ParticipantAdded");
+        assert.equal(log2.args.participant, hash);
+        await utils.validateAdminsConfig([adminA, adminB, adminB1, adminC], [1, 1, 1, 1], [true, true, false, true], gatekeeper);
+    });
+
+    it("should allow the admin to delete another admin after a delay", async function () {
+        let encodedABI = await gatekeeper.contract.methods.removeParticipant(utils.participantHash(adminC, level)).encodeABI();
+        let encodedPacked = utils.encodePackedBatch([encodedABI]);
+        let res = await gatekeeper.sendBatch(encodedPacked);
+        let log = res.logs[0];
+        assert.equal(log.event, "DelayedOperation");
+        await utils.increaseTime(3600 * 24 * 2 + 10);
+        let res2 = await gatekeeper.applyBatch(res.logs[0].args.operation, res.logs[0].args.opsNonce.toString());
+        assert.equal(res2.logs[0].event, "ParticipantRemoved");
+        await utils.validateAdminsConfig([adminA, adminB, adminB1, adminC], [1, 1, 1, 1], [true, true, false, false], gatekeeper);
+
     });
 
     /* Admin replaced */
-    it("should allow the admin to replace another admin after a delay");
+    it("should allow the admin to replace another admin after a delay", async function () {
+        let encodedABI_add_adminB1 = gatekeeper.contract.methods.addParticipant(adminB1, level).encodeABI();
+        let encodedABI_remove_adminB = gatekeeper.contract.methods.removeParticipant(utils.participantHash(adminB, level)).encodeABI();
+        let encodedPacked = utils.encodePackedBatch([encodedABI_add_adminB1, encodedABI_remove_adminB]);
+        let res = await gatekeeper.sendBatch(encodedPacked);
+
+        await expect(
+            gatekeeper.applyBatch(res.logs[0].args.operation, res.logs[0].args.opsNonce.toString())
+        ).to.be.revertedWith("called before due time");
+
+        await utils.increaseTime(3600 * 24 * 2 + 10);
+
+        let res2 = await gatekeeper.applyBatch(res.logs[0].args.operation, res.logs[0].args.opsNonce.toString())
+
+        assert.equal(res2.logs[0].event, "ParticipantAdded");
+        assert.equal(res2.logs[1].event, "ParticipantRemoved");
+
+        await utils.validateAdminsConfig([adminA, adminB, adminB1, adminC], [1, 1, 1, 1], [true, false, true, false], gatekeeper);
+    });
 
     /* Owner loses phone*/
     it("should allow the admin to replace the owner after a delay");
@@ -186,6 +256,10 @@ contract.only('Gatekeeper', async function (accounts) {
 
     /* Admin replaced - opposite  & Owner loses phone - opposite */
     it("should not allow non-admin to replace admins or owners");
+
+    it("should not allow any operation to be called without a delay");
+
+    it("?should store participants as a hashes to conceal real number of participants and their identities");
 
 
 });
