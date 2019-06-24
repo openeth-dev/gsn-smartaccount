@@ -29,23 +29,26 @@ contract Gatekeeper is DelayedOps {
         participantSpender = spender;
     }
 
-    // TEMP, FOR TDD
-    function setAdminA(address adminA) public
-    {
-        participantAdminA = adminA;
-    }
-
-    // TEMP, FOR TDD
-    function setAdminB(address adminB) public
-    {
-        participantAdminB = adminB;
-    }
     // TODO:
     //  1. Participant control (hashes map + isParticipant)
     //  2. Delay per rank control (if supported in BizPoC-2)
     //  3. Initial configuration
     // ***********************************
 
+    // ? There are no roles in bizpoc. There is a single spender and few admins.
+    // we had these (role, rank) all over the place.
+    // TODO: decide if there is a need to keep 'participant' concept for now
+
+    mapping(bytes32 => bool) public participants;
+    bytes32 spenderHash;
+
+    function isAdmin(address admin, uint8 level) view public returns (bool) {
+        return participants[adminHash(admin, level)];
+    }
+
+    function adminHash(address participant, uint8 rank) public pure returns (bytes32) {
+        return keccak256(abi.encodePacked(participant, rank));
+    }
 
     function validateOperation(address sender, bytes4 methodSig) internal {
     }
@@ -54,15 +57,29 @@ contract Gatekeeper is DelayedOps {
         scheduleDelayedBatch(msg.sender, delay, getNonce(), batch);
     }
 
+    function applyBatch(bytes memory operation, uint256 nonce) public {
+        applyDelayedOps(msg.sender, nonce, operation);
+    }
+
     function sendEther(address payable destination, uint value) public {
         require(msg.sender == participantSpender, "Only spender can perform send operations!");
         vault.scheduleDelayedTransaction(delay, destination, value);
     }
 
-    event ParticipantAdded(address participant);
+    event ParticipantAdded(bytes32 indexed participant);
+    event ParticipantRemoved(bytes32 indexed participant);
 
-    function addParticipant(address participant) public {
-        emit ParticipantAdded(participant);
+    // TODO: currently is 'addAdmin' as no other role is defined
+    // TODO: obviously does not conceal the level and identity
+    function addParticipant(address participant, uint8 level) public {
+        participants[adminHash(participant, level)] = true;
+        emit ParticipantAdded(adminHash(participant, level));
+    }
+
+    function removeParticipant(bytes32 participant) public {
+        require(participants[participant], "there is no such participant");
+        delete participants[participant];
+        emit ParticipantRemoved(participant);
     }
 
     function cancelTransaction(bytes32 hash) public {
