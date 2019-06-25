@@ -8,30 +8,36 @@ import "../DelayedOps.sol";
 contract TestDelayedOps is DelayedOps {
 
     address public allowedSender;
+    uint256 public allowedExtraData;
     uint256 operationsDelay = 1 hours;
 
     function setAllowedSender(address s) public {
         allowedSender = s;
     }
 
-    function validateOperation(address sender, bytes4 methodSig) internal {
+    function setAllowedExtraData(uint256 data) public {
+        allowedExtraData = data;
+    }
+
+    function validateOperation(address sender, uint256 extraData,bytes4 methodSig) internal {
         require(
             methodSig == this.sayHelloWorld.selector ||
             methodSig == this.addSome.selector ||
             methodSig == this.doIncrement.selector,
             "test: delayed op not allowed");
         require(msg.sender == allowedSender, "this sender not allowed to apply delayed operations");
+        require(extraData == allowedExtraData, "extraData is not allowed");
 
     }
 
-    function sendBatch(bytes memory batch) public {
+    function sendBatch(bytes memory batch, uint256 extraData) public {
         uint pos = 0;
         bytes memory operation;
         while (pos != EOF) {
             (operation, pos) = nextParam(batch, pos);
             require(LibBytes.readBytes4(operation, 0) != this.sayHelloWorld.selector, "Cannot use sendBatch to schedule secure HelloWorld");
         }
-        scheduleDelayedBatch(msg.sender, operationsDelay, getNonce(), batch);
+        scheduleDelayedBatch(msg.sender, extraData, operationsDelay, getNonce(), batch);
     }
 
     function scheduleHelloWorld(uint dayOfBirth, string memory message, uint256 delay) public {
@@ -43,11 +49,11 @@ contract TestDelayedOps is DelayedOps {
         }
         bytes memory delayedTransaction = abi.encodeWithSelector(this.sayHelloWorld.selector, msg.sender, dayOfBirth, message);
         bytes memory operation = abi.encodePacked(delayedTransaction.length, delayedTransaction);
-        scheduleDelayedBatch(msg.sender, delay, getNonce(), operation);
+        scheduleDelayedBatch(msg.sender, 0, delay, getNonce(), operation);
     }
 
-    function applyOp(bytes memory operation, uint256 nonce) public {
-        applyDelayedOps(msg.sender, nonce, operation);
+    function applyOp(bytes memory operation, uint256 extraData, uint256 nonce) public {
+        applyDelayedOps(msg.sender, extraData, nonce, operation);
     }
 
     function operationMissingFromValidate(address sender, uint256 delay) public {}
