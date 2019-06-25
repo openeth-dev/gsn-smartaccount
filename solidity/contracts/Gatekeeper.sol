@@ -39,26 +39,36 @@ contract Gatekeeper is DelayedOps {
     // we had these (role, rank) all over the place.
     // TODO: decide if there is a need to keep 'participant' concept for now
 
+    uint16 constant public spend = 1 << 0;
+    uint16 constant public cancel_spend = 1 << 1;
+    uint16 constant public freeze = 1 << 2;
+    uint16 constant public unfreeze = 1 << 3;
+    uint16 constant public add_participant = 1 << 4;
+    uint16 constant public cancel_add_participant = 1 << 5;
+    uint16 constant public remove_participant = 1 << 6;
+    uint16 constant public cancel_remove_participant = 1 << 7;
+    uint16 constant public give_boost = 1 << 8;
+    uint16 constant public receive_boost = 1 << 9;
+
+    uint16 public ownerPermissions = spend | cancel_spend | freeze | unfreeze | add_participant | cancel_add_participant | remove_participant | cancel_remove_participant | give_boost;
+    uint16 public adminPermissions = add_participant | cancel_add_participant | remove_participant | receive_boost;
+    uint16 public watchdogPermissions = cancel_spend | cancel_add_participant | cancel_remove_participant | freeze;
+
     mapping(bytes32 => bool) public participants;
-    bytes32 spenderHash;
 
-    function isAdmin(address admin, uint8 level) view public returns (bool) {
-        return participants[adminHash(admin, level)];
-    }
-
-    function adminHash(address participant, uint8 rank) public pure returns (bytes32) {
+    function adminHash(address participant, uint16 permissions, uint8 rank) public pure returns (bytes32) {
         return keccak256(abi.encodePacked(participant, rank));
     }
 
-    function validateOperation(address sender, bytes4 methodSig) internal {
+    function validateOperation(address sender, uint256 extraData, bytes4 methodSig) internal {
     }
 
     function sendBatch(bytes memory batch) public {
-        scheduleDelayedBatch(msg.sender, delay, getNonce(), batch);
+        scheduleDelayedBatch(msg.sender, 0, delay, getNonce(), batch);
     }
 
     function applyBatch(bytes memory operation, uint256 nonce) public {
-        applyDelayedOps(msg.sender, nonce, operation);
+        applyDelayedOps(msg.sender, 0, nonce, operation);
     }
 
     function sendEther(address payable destination, uint value) public {
@@ -69,11 +79,10 @@ contract Gatekeeper is DelayedOps {
     event ParticipantAdded(bytes32 indexed participant);
     event ParticipantRemoved(bytes32 indexed participant);
 
-    // TODO: currently is 'addAdmin' as no other role is defined
     // TODO: obviously does not conceal the level and identity
-    function addParticipant(address participant, uint8 level) public {
-        participants[adminHash(participant, level)] = true;
-        emit ParticipantAdded(adminHash(participant, level));
+    function addParticipant(address participant, uint16 permissions, uint8 level) public {
+        participants[adminHash(participant, permissions, level)] = true;
+        emit ParticipantAdded(adminHash(participant, permissions, level));
     }
 
     function removeParticipant(bytes32 participant) public {

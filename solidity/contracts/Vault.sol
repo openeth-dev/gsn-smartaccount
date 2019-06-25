@@ -25,17 +25,17 @@ contract Vault is DelayedOps {
 
     // TODO: sender of all operations in vault is a gatekeeper!!!
     function applyDelayedOpsPublic(address sender, bytes memory operation, uint256 nonce) public {
-        applyDelayedOps(sender, nonce, operation);
+        applyDelayedOps(sender, 0, nonce, operation);
     }
 
-    function validateOperation(address sender, bytes4 methodSig) internal {}
+    function validateOperation(address sender, uint256 extraData, bytes4 methodSig) internal {}
 
     // TODO: test to check 'gatekeeperOnly' logic here!
     function scheduleDelayedTransaction(uint256 delay, address destination, uint256 value) public {
         // Alexf: There is no tragedy in using 'encodeWithSelector' here, I believe. Vault's API should not change much.
         bytes memory delayedTransaction = abi.encodeWithSelector(this.applyDelayedTransaction.selector, destination, value);
         bytes memory operation = abi.encodePacked(delayedTransaction.length, delayedTransaction);
-        scheduleDelayedBatch(msg.sender, delay, getNonce(), operation);
+        scheduleDelayedBatch(msg.sender, 0, delay, getNonce(), operation);
     }
 
     function cancelTransaction(bytes32 hash) public {

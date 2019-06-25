@@ -16,6 +16,7 @@ contract('DelayedOperations', async function (accounts) {
     let from = accounts[0];
     let wrongaddr = accounts[1];
     let defaultDelay = 11;
+    let allowedExtraData = 1234;
     let testcontract;
     let trufflecontract;
     let encodedDoIncrement;
@@ -45,7 +46,7 @@ contract('DelayedOperations', async function (accounts) {
 
     it("emit event and save hash when new delayed operation is added", async () => {
 
-        let ret = await trufflecontract.sendBatch(encodedDoIncrement);
+        let ret = await trufflecontract.sendBatch(encodedDoIncrement, 0);
         let log = ret.logs[0];
 
         assert.equal(log.event, "DelayedOperation");
@@ -55,29 +56,45 @@ contract('DelayedOperations', async function (accounts) {
 
     it("succeed to apply the delayed operation after time elapsed", async () => {
 
-        let log = await utils.extractLastDelayedOpsEvent();
+        let log = await utils.extractLastDelayedOpsEvent(trufflecontract);
 
         await utils.increaseTime(3600 * 24 * 2 + 10);
 
         let counterBefore = await trufflecontract.counter();
-        await testcontract.methods.applyOp(log.args.operation, log.args.opsNonce.toString()).send({from});
+        await testcontract.methods.applyOp(log.args.operation, log.args.extraData.toString(), log.args.opsNonce.toString()).send({from});
         let counterAfter = await trufflecontract.counter();
         let diff = counterAfter - counterBefore;
         assert.equal(1, diff)
     });
 
+    it("allow to accept or decline the scheduled op based on the 'extraData' field", async function () {
+        let res = await trufflecontract.sendBatch(encodedDoIncrement, allowedExtraData);
+        await utils.increaseTime(3600 * 24 * 2 + 10);
+        let log = res.logs[0];
+        await expect(
+            trufflecontract.applyOp(log.args.operation, log.args.extraData.toString(), log.args.opsNonce.toString())
+        ).to.be.revertedWith("extraData is not allowed")
+        await trufflecontract.setAllowedExtraData(allowedExtraData);
+        let counterBefore = await trufflecontract.counter();
+        await testcontract.methods.applyOp(log.args.operation, log.args.extraData.toString(), log.args.opsNonce.toString()).send({from});
+        let counterAfter = await trufflecontract.counter();
+        let diff = counterAfter - counterBefore;
+        assert.equal(1, diff)
+        await trufflecontract.setAllowedExtraData(0);
+    });
+
     it("should be able to differentiate between two identical delayed operations", async () => {
 
         let counterBefore = await trufflecontract.counter();
-        let res1 = await trufflecontract.sendBatch(encodedDoIncrement);
-        let res2 = await trufflecontract.sendBatch(encodedDoIncrement);
+        let res1 = await trufflecontract.sendBatch(encodedDoIncrement, 0);
+        let res2 = await trufflecontract.sendBatch(encodedDoIncrement, 0);
         let log1 = res1.logs[0];
         let log2 = res2.logs[0];
 
         await utils.increaseTime(3600 * 24 * 2 + 10);
 
-        await testcontract.methods.applyOp(log1.args.operation, log1.args.opsNonce.toString()).send({from});
-        await testcontract.methods.applyOp(log2.args.operation, log2.args.opsNonce.toString()).send({from});
+        await testcontract.methods.applyOp(log1.args.operation, log1.args.extraData.toString(), log1.args.opsNonce.toString()).send({from});
+        await testcontract.methods.applyOp(log2.args.operation, log1.args.extraData.toString(), log2.args.opsNonce.toString()).send({from});
 
         let counterAfter = await trufflecontract.counter();
         assert.equal(counterAfter, parseInt(counterBefore) + 2);
@@ -89,31 +106,31 @@ contract('DelayedOperations', async function (accounts) {
     it("revert on invalid delayedOp (not 'whitelisted' in 'validateOperation')", async () => {
         let encodedABI = testcontract.methods.operationMissingFromValidate(from, defaultDelay).encodeABI();
         let encodedPacked = utils.encodePackedBatch([encodedABI]);
-        let res = await trufflecontract.sendBatch(encodedPacked);
+        let res = await trufflecontract.sendBatch(encodedPacked, 0);
 
         await utils.increaseTime(3600 * 24 * 2 + 10);
 
         await expect(
-            trufflecontract.applyOp(res.logs[0].args.operation, res.logs[0].args.opsNonce.toString())
+            trufflecontract.applyOp(res.logs[0].args.operation, res.logs[0].args.extraData.toString(), res.logs[0].args.opsNonce.toString())
         ).to.be.revertedWith("delayed op not allowed")
     });
 
     it("allow the implementing contract to revert applying operation depending on sender", async function () {
         let encodedABI = testcontract.methods.doIncrement().encodeABI();
         let encodedPacked = utils.encodePackedBatch([encodedABI]);
-        let res = await trufflecontract.sendBatch(encodedPacked, {from: wrongaddr});
+        let res = await trufflecontract.sendBatch(encodedPacked, 0, {from: wrongaddr});
 
         await utils.increaseTime(3600 * 24 * 2 + 10);
         await expect(
-            trufflecontract.applyOp(res.logs[0].args.operation, res.logs[0].args.opsNonce.toString(), {from: wrongaddr})
+            trufflecontract.applyOp(res.logs[0].args.operation, res.logs[0].args.extraData.toString(), res.logs[0].args.opsNonce.toString(), {from: wrongaddr})
         ).to.be.revertedWith("this sender not allowed to apply delayed operations")
     });
 
     it("reject apply before time elapsed", async () => {
-        let res = await trufflecontract.sendBatch(encodedDoIncrement);
+        let res = await trufflecontract.sendBatch(encodedDoIncrement, 0);
 
         await expect(
-            trufflecontract.applyOp(res.logs[0].args.operation, res.logs[0].args.opsNonce.toString())
+            trufflecontract.applyOp(res.logs[0].args.operation, res.logs[0].args.extraData.toString(), res.logs[0].args.opsNonce.toString())
         ).to.be.revertedWith("called before due time")
     });
 
@@ -130,7 +147,7 @@ contract('DelayedOperations', async function (accounts) {
         let encodedPacked_cannot_schedule = utils.encodePackedBatch([encodedABI_cannot_schedule]);
 
         await expect(
-            trufflecontract.sendBatch(encodedPacked_cannot_schedule)
+            trufflecontract.sendBatch(encodedPacked_cannot_schedule, 0)
         ).to.be.revertedWith("Cannot use sendBatch to schedule secure HelloWorld");
 
         await expect(
@@ -147,11 +164,11 @@ contract('DelayedOperations', async function (accounts) {
         // It does not matter how much time actually passed - contract checks how much time was requested!
         await utils.increaseTime(longDelay + 20);
 
-        let apllyRes = await trufflecontract.applyOp(res3.logs[0].args.operation, res3.logs[0].args.opsNonce.toString());
+        let apllyRes = await trufflecontract.applyOp(res3.logs[0].args.operation, res3.logs[0].args.extraData.toString(), res3.logs[0].args.opsNonce.toString());
         assert.equal(apllyRes.logs[0].event, 'HelloWorld');
         assert.equal(apllyRes.logs[0].args.message, "short delay success");
 
-        apllyRes = await trufflecontract.applyOp(res4.logs[0].args.operation, res4.logs[0].args.opsNonce.toString());
+        apllyRes = await trufflecontract.applyOp(res4.logs[0].args.operation, res4.logs[0].args.extraData.toString(), res4.logs[0].args.opsNonce.toString());
 
         assert.equal(apllyRes.logs[0].event, 'HelloWorld');
         assert.equal(apllyRes.logs[0].args.message, "long delay success");
@@ -159,7 +176,7 @@ contract('DelayedOperations', async function (accounts) {
     });
 
     /** Batch config operations **/
-    it("should allow the admin to create batched config changes", async function () {
+    it("should allow to create batched config changes", async function () {
         let somevalueBefore = await trufflecontract.someValue();
         assert.equal(somevalueBefore, 0);
         let valA = 2;
@@ -169,13 +186,13 @@ contract('DelayedOperations', async function (accounts) {
 
         let encodedPacked = utils.encodePackedBatch([encodedChangeA, encodedChangeB]);
 
-        let res = await trufflecontract.sendBatch(encodedPacked);
+        let res = await trufflecontract.sendBatch(encodedPacked, 0);
 
         await utils.increaseTime(3600 * 24 * 2 + 10);
-        await trufflecontract.applyOp(res.logs[0].args.operation, res.logs[0].args.opsNonce.toString());
+        await trufflecontract.applyOp(res.logs[0].args.operation, res.logs[0].args.extraData.toString(), res.logs[0].args.opsNonce.toString());
 
         let somevalueAfter = await trufflecontract.someValue();
-        console.log(somevalueBefore, somevalueBefore.toString(), "somevalueAfter", somevalueAfter.toString())
+        console.log(somevalueBefore, somevalueBefore.toString(), "somevalueAfter", somevalueAfter.toString());
         assert.equal(somevalueAfter, valA + valB);
 
     });
