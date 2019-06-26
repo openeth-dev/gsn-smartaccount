@@ -56,6 +56,38 @@ contract Gatekeeper is DelayedOps {
 
     mapping(bytes32 => bool) public participants;
 
+
+    // TODO: this is damn stupid. There has to be a better way...
+    //  ! Note: this IS NOT solved in current Gatekeeper implementation by Yoav
+    // ! If operator adds a 'participant' owner of rank 100, he is allowed to do that
+    //  ! and it seems to me it will pass all 'is_not_frozen(rank)', 'isOperator' and 'is_participant' checks
+    // ! allowing owner to perform 'takeover' from guardians.
+    mapping(address => uint16[]) public permissionsHeld;
+    mapping(uint16 => int) public permissionsHolderCount;
+
+    function isRevealedPerm(address participant, uint16 permissions) public returns (bool){
+        for (uint256 i = 0; i < permissionsHeld[participant].length; i++) {
+            if (permissionsHeld[participant][i] == permissions) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    modifier participantOnly(address participant, uint16 permissions, uint8 level){
+        if (!isRevealedPerm(participant, permissions)) {
+            permissionsHeld[participant].push(permissions);
+            permissionsHolderCount[permissions] = permissionsHolderCount[permissions] + 1;
+        }
+
+        require(participants[adminHash(participant, permissions, level)], "not participant");
+        // Training wheels. Can be removed if we want more freedom, but can be left if we want some hard-coded enforcement of rules in code
+        require(permissions == ownerPermissions || permissions == adminPermissions || permissions == watchdogPermissions, "use defaults or go compile your vault from sources");
+        // Enforce only 1 owner without duplicating all code around a 'address owner' field. Also shall be configurable.
+        require(permissions != ownerPermissions || permissionsHolderCount[permissions] == 1, "cannot have 2 owners");
+        _;
+    }
+
     function adminHash(address participant, uint16 permissions, uint8 rank) public pure returns (bytes32) {
         return keccak256(abi.encodePacked(participant, rank));
     }
