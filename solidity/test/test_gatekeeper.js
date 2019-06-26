@@ -48,6 +48,7 @@ contract('Gatekeeper', async function (accounts) {
     let watchdogC = accounts[10];
     let amount = 100;
     let delay = 77;
+    let fullAccessPermissions = "0xFFFF";
     let startBlock;
     let web3;
     let expectedDelayedEventsCount = 0;
@@ -59,19 +60,19 @@ contract('Gatekeeper', async function (accounts) {
         gatekeeper = await Gatekeeper.deployed();
         vault = await Vault.deployed();
         web3 = new Web3(gatekeeper.contract.currentProvider);
-        ownerPermissions = await gatekeeper.ownerPermissions();
-        adminPermissions = await gatekeeper.adminPermissions();
-        watchdogPermissions = await gatekeeper.watchdogPermissions();
-        console.log(`ownerPermissions: ${ownerPermissions.toString(2)} 0x${ownerPermissions.toString("hex")}`);
-        console.log(`adminPermissions: ${adminPermissions.toString(2)} 0x${adminPermissions.toString("hex")}`);
-        console.log(`watchdogPermissions: ${watchdogPermissions.toString(2)} 0x${watchdogPermissions.toString("hex")}}`);
+        ownerPermissions = utils.bufferToHex(await gatekeeper.ownerPermissions());
+        adminPermissions = utils.bufferToHex(await gatekeeper.adminPermissions());
+        watchdogPermissions = utils.bufferToHex(await gatekeeper.watchdogPermissions());
+        console.log(`ownerPermissions: ${ownerPermissions}`);
+        console.log(`adminPermissions: ${adminPermissions}`);
+        console.log(`watchdogPermissions: ${watchdogPermissions}}`);
         startBlock = await web3.eth.getBlockNumber();
         await gatekeeper.setVault(vault.address);
         await gatekeeper.setSpender(from);
-        await gatekeeper.addParticipant(adminA, "0xFFFF", level);
-        await gatekeeper.addParticipant(adminB, "0xFFFF", level);
-        await gatekeeper.addParticipant(watchdogA, "0xFFFF", level);
-        await gatekeeper.addParticipant(watchdogB, "0xFFFF", level);
+        await gatekeeper.addParticipantInit(adminA, adminPermissions, level);
+        await gatekeeper.addParticipantInit(adminB, adminPermissions, level);
+        await gatekeeper.addParticipantInit(watchdogA, watchdogPermissions, level);
+        await gatekeeper.addParticipantInit(watchdogB, watchdogPermissions, level);
         await gatekeeper.setDelay(delay);
     });
 
@@ -89,7 +90,7 @@ contract('Gatekeeper', async function (accounts) {
 
     /* Plain send */
     it("should allow the owner to create a delayed ether transfer transaction", async function () {
-        let res = await gatekeeper.sendEther(destinationAddresss, amount);
+        let res = await gatekeeper.sendEther(destinationAddresss, amount, fullAccessPermissions);
         expectedDelayedEventsCount++;
         let encodedABI = vault.contract.methods.applyDelayedTransaction(destinationAddresss, amount).encodeABI();
         let encodedPacked = utils.bufferToHex(utils.encodePackedBatch([encodedABI]));
@@ -150,7 +151,7 @@ contract('Gatekeeper', async function (accounts) {
 
     [{address: from, title: "owner"}, {address: watchdogA, title: "watchdog"}].forEach((participant) => {
         it(`should allow the ${participant.title} to cancel a delayed transfer transaction`, async function () {
-            let res1 = await gatekeeper.sendEther(destinationAddresss, amount);
+            let res1 = await gatekeeper.sendEther(destinationAddresss, amount, fullAccessPermissions);
             expectedDelayedEventsCount++;
             let hash = getDelayedOpHashFromEvent(res1.logs[0]);
             let res2 = await gatekeeper.cancelTransaction(hash, {from: participant.address});
@@ -163,10 +164,10 @@ contract('Gatekeeper', async function (accounts) {
     });
 
     it("should allow the owner to create a delayed config transaction", async function () {
-        let encodedABI = gatekeeper.contract.methods.addParticipant(adminB1, "0xFFFF", level).encodeABI();
+        let encodedABI = gatekeeper.contract.methods.addParticipant(adminB1, fullAccessPermissions, level).encodeABI();
         let encodedPacked = utils.encodePackedBatch([encodedABI]);
 
-        let res = await callDelayed(gatekeeper.contract.methods.addParticipant, gatekeeper, [adminB1, "0xFFFF", level], {from: from});
+        let res = await callDelayed(gatekeeper.contract.methods.addParticipant, gatekeeper, [adminB1, fullAccessPermissions, level], {from: from});
         let log = res.logs[0];
         assert.equal(log.event, "DelayedOperation");
         assert.equal(log.address, gatekeeper.address);
@@ -175,7 +176,7 @@ contract('Gatekeeper', async function (accounts) {
     });
 
     it("should store admins' credentials hashed", async function () {
-        let hash = utils.bufferToHex(utils.participantHash(adminA, level));
+        let hash = utils.bufferToHex(utils.participantHash(adminA, "0x270", level));
         let isAdmin = await gatekeeper.participants(hash);
         assert.equal(true, isAdmin);
     });
@@ -195,35 +196,35 @@ contract('Gatekeeper', async function (accounts) {
     });
 
     it("should revert an attempt to delete admin that is not a part of the config", async function () {
-        let res = await callDelayed(gatekeeper.contract.methods.removeParticipant, gatekeeper, [utils.participantHash(adminC, level)], {from: from});
+        let res = await callDelayed(gatekeeper.contract.methods.removeParticipant, gatekeeper, [utils.participantHash(adminC, "0x270", level)], {from: from});
         let log = res.logs[0];
         assert.equal(log.event, "DelayedOperation");
         await utils.increaseTime(3600 * 24 * 2 + 10);
         await expect(
-            gatekeeper.applyBatch(res.logs[0].args.operation, 0, res.logs[0].args.opsNonce.toString())
+            gatekeeper.applyBatch(res.logs[0].args.operation, fullAccessPermissions, res.logs[0].args.opsNonce.toString())
         ).to.be.revertedWith("there is no such participant");
     });
 
     it("should allow the owner to add an admin after a delay", async function () {
-        let res = await callDelayed(gatekeeper.contract.methods.addParticipant, gatekeeper, [adminC, "0xFFFF", level], {from: from});
+        let res = await callDelayed(gatekeeper.contract.methods.addParticipant, gatekeeper, [adminC, "0x270", level], {from: from});
         await expect(
-            gatekeeper.applyBatch(res.logs[0].args.operation, 0, res.logs[0].args.opsNonce.toString())
+            gatekeeper.applyBatch(res.logs[0].args.operation, fullAccessPermissions, res.logs[0].args.opsNonce.toString())
         ).to.be.revertedWith("called before due time");
         await utils.increaseTime(3600 * 24 * 2 + 10);
-        let res2 = await gatekeeper.applyBatch(res.logs[0].args.operation, 0, res.logs[0].args.opsNonce.toString());
+        let res2 = await gatekeeper.applyBatch(res.logs[0].args.operation, fullAccessPermissions, res.logs[0].args.opsNonce.toString());
         let log2 = res2.logs[0];
-        let hash = utils.bufferToHex(utils.participantHash(adminC, level));
+        let hash = utils.bufferToHex(utils.participantHash(adminC, adminPermissions, level));
         assert.equal(log2.event, "ParticipantAdded");
         assert.equal(log2.args.participant, hash);
         await utils.validateAdminsConfig([adminA, adminB, adminB1, adminC], [1, 1, 1, 1], [true, true, false, true], gatekeeper);
     });
 
     it("should allow the owner to delete an admin after a delay", async function () {
-        let res = await callDelayed(gatekeeper.contract.methods.removeParticipant, gatekeeper, [utils.participantHash(adminC, level)], {from: from});
+        let res = await callDelayed(gatekeeper.contract.methods.removeParticipant, gatekeeper, [utils.participantHash(adminC, "0x270", level)], {from: from});
         let log = res.logs[0];
         assert.equal(log.event, "DelayedOperation");
         await utils.increaseTime(3600 * 24 * 2 + 10);
-        let res2 = await gatekeeper.applyBatch(res.logs[0].args.operation, 0, res.logs[0].args.opsNonce.toString());
+        let res2 = await gatekeeper.applyBatch(res.logs[0].args.operation, fullAccessPermissions, res.logs[0].args.opsNonce.toString());
         assert.equal(res2.logs[0].event, "ParticipantRemoved");
         await utils.validateAdminsConfig([adminA, adminB, adminB1, adminC], [1, 1, 1, 1], [true, true, false, false], gatekeeper);
 
@@ -231,18 +232,18 @@ contract('Gatekeeper', async function (accounts) {
 
     /* Admin replaced */
     it("should allow the owner to replace an admin after a delay", async function () {
-        let encodedABI_add_adminB1 = gatekeeper.contract.methods.addParticipant(adminB1, "0xFFFF", level).encodeABI();
-        let encodedABI_remove_adminB = gatekeeper.contract.methods.removeParticipant(utils.participantHash(adminB, level)).encodeABI();
+        let encodedABI_add_adminB1 = gatekeeper.contract.methods.addParticipant(adminB1, adminPermissions, level).encodeABI();
+        let encodedABI_remove_adminB = gatekeeper.contract.methods.removeParticipant(utils.participantHash(adminB, adminPermissions, level)).encodeABI();
         let encodedPacked = utils.encodePackedBatch([encodedABI_add_adminB1, encodedABI_remove_adminB]);
         let res = await gatekeeper.sendBatch(encodedPacked, 0);
 
         await expect(
-            gatekeeper.applyBatch(res.logs[0].args.operation, 0, res.logs[0].args.opsNonce.toString())
+            gatekeeper.applyBatch(res.logs[0].args.operation, fullAccessPermissions, res.logs[0].args.opsNonce.toString())
         ).to.be.revertedWith("called before due time");
 
         await utils.increaseTime(3600 * 24 * 2 + 10);
 
-        let res2 = await gatekeeper.applyBatch(res.logs[0].args.operation, 0, res.logs[0].args.opsNonce.toString());
+        let res2 = await gatekeeper.applyBatch(res.logs[0].args.operation, fullAccessPermissions, res.logs[0].args.opsNonce.toString());
 
         assert.equal(res2.logs[0].event, "ParticipantAdded");
         assert.equal(res2.logs[1].event, "ParticipantRemoved");
@@ -269,28 +270,40 @@ contract('Gatekeeper', async function (accounts) {
 
     /* Plain send - opposite */
     it("should not allow non-owner to create a delayed transfer transaction", async function () {
+        // Not participant will not be found (regardless of claimed permissions, cannot test that)
         await expect(
-            gatekeeper.contract.methods.sendEther(destinationAddresss, amount).send({from: wrongaddr})
-        ).to.be.revertedWith("Only spender can perform send operations!");
+            gatekeeper.contract.methods.sendEther(destinationAddresss, amount, ownerPermissions).send({from: wrongaddr})
+        ).to.be.revertedWith("not participant");
+        // Participant claiming permissions he doesn't have will not be found as well
+        await expect(
+            gatekeeper.contract.methods.sendEther(destinationAddresss, amount, fullAccessPermissions).send({from: adminA})
+        ).to.be.revertedWith("not participant");
+        // Participant honestly presenting his credentials will be rejected
+        await expect(
+            gatekeeper.contract.methods.sendEther(destinationAddresss, amount, adminPermissions).send({from: adminA})
+        ).to.be.revertedWith("not allowed");
     });
 
     /* Admin replaced - opposite  & Owner loses phone - opposite */
     [
-        {address: adminA, title: "admin"},
-        {address: watchdogA, title: "watchdog"},
-        {address: wrongaddr, title: "non-participant"}
+        // TODO:  {address: adminA, title: "admin", permissions: "0x270", expectError: "not allowed"},
+        // It has a permission for the 'chown' as it is the same. IDK what to do
+        {address: watchdogA, title: "watchdog", permissions: "0xa6", expectError: "not allowed"},
+        {address: wrongaddr, title: "non-participant", permissions: "0x1ff", expectError: "not participant"}
     ].forEach((participant) => {
-        it.skip(`should not allow ${participant.title} to add or remove admins or watchdogs`, async function () {
-
-            let resAddScheduled = await callDelayed(gatekeeper.contract.methods.addParticipant, gatekeeper, [adminC, "0xFFFF", level], {from: participant.address});
-            let resRmvScheduled = await callDelayed(gatekeeper.contract.methods.removeParticipant, gatekeeper, [utils.participantHash(adminA, level)], {from: participant.address});
+        it(`should not allow ${participant.title} to add or remove admins or watchdogs`, async function () {
+            if (![watchdogPermissions, adminPermissions, ownerPermissions].includes(participant.permissions)){
+                assert.fail("Chech permissions value"); // this dumb array is apparently created before "before". Ooof.
+            }
+            let resAddScheduled = await callDelayed(gatekeeper.contract.methods.addParticipant, gatekeeper, [adminC, fullAccessPermissions, level], {from: participant.address});
+            let resRmvScheduled = await callDelayed(gatekeeper.contract.methods.removeParticipant, gatekeeper, [utils.participantHash(adminA, "0x270", level)], {from: participant.address});
 
             await utils.increaseTime(3600 * 24 * 2 + 10);
 
             await asyncForEach([resAddScheduled, resRmvScheduled], async (res) => {
                 await expect(
-                    gatekeeper.applyBatch(res.logs[0].args.operation, 0, res.logs[0].args.opsNonce.toString(), {from: participant.address})
-                ).to.be.revertedWith("called before due time");
+                    gatekeeper.applyBatch(res.logs[0].args.operation, participant.permissions, res.logs[0].args.opsNonce.toString(), {from: participant.address})
+                ).to.be.revertedWith(participant.expectError);
             });
         });
     });
