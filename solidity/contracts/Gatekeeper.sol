@@ -6,7 +6,6 @@ import "./Vault.sol";
 contract Gatekeeper is DelayedOps {
 
     Vault vault;
-    address participantSpender;
     address participantAdminA;
     address participantAdminB;
     uint256 delay = 1 hours;
@@ -26,7 +25,13 @@ contract Gatekeeper is DelayedOps {
     // TEMP, FOR TDD
     function setSpender(address spender) public
     {
-        participantSpender = spender;
+        participants[adminHash(spender, 0xffff, 1)] = true;
+    }
+
+
+    // TEMP, FOR TDD
+    function addParticipantInit(address participant, uint16 permissions, uint8 level) public {
+        participants[adminHash(participant, permissions, level)] = true;
     }
 
     // TODO:
@@ -75,21 +80,20 @@ contract Gatekeeper is DelayedOps {
     }
 
     modifier participantOnly(address participant, uint16 permissions, uint8 level){
-        if (!isRevealedPerm(participant, permissions)) {
-            permissionsHeld[participant].push(permissions);
-            permissionsHolderCount[permissions] = permissionsHolderCount[permissions] + 1;
-        }
-
+//        if (!isRevealedPerm(participant, permissions)) {
+//            permissionsHeld[participant].push(permissions);
+//            permissionsHolderCount[permissions] = permissionsHolderCount[permissions] + 1;
+//        }
         require(participants[adminHash(participant, permissions, level)], "not participant");
         // Training wheels. Can be removed if we want more freedom, but can be left if we want some hard-coded enforcement of rules in code
-        require(permissions == ownerPermissions || permissions == adminPermissions || permissions == watchdogPermissions, "use defaults or go compile your vault from sources");
+        require(permissions == ownerPermissions || permissions == adminPermissions || permissions == watchdogPermissions || permissions == 0xffff, "use defaults or go compile your vault from sources");
         // Enforce only 1 owner without duplicating all code around a 'address owner' field. Also shall be configurable.
         require(permissions != ownerPermissions || permissionsHolderCount[permissions] == 1, "cannot have 2 owners");
         _;
     }
 
     function adminHash(address participant, uint16 permissions, uint8 rank) public pure returns (bytes32) {
-        return keccak256(abi.encodePacked(participant, rank));
+        return keccak256(abi.encodePacked(participant, permissions, rank));
     }
 
     function validateOperation(address sender, uint256 extraData, bytes4 methodSig) internal {
@@ -99,25 +103,35 @@ contract Gatekeeper is DelayedOps {
         scheduleDelayedBatch(msg.sender, sender_permissions, delay, getNonce(), batch);
     }
 
-    function applyBatch(bytes memory operation, uint16 sender_permissions, uint256 nonce) public {
+    function applyBatch(bytes memory operation, uint16 sender_permissions, uint256 nonce) participantOnly(msg.sender, sender_permissions, 1) public {
         applyDelayedOps(msg.sender, sender_permissions, nonce, operation);
     }
 
-    function sendEther(address payable destination, uint value) public {
-        require(msg.sender == participantSpender, "Only spender can perform send operations!");
+    function sendEther(address payable destination, uint value, uint16 sender_permissions) participantOnly(msg.sender, sender_permissions, 1) public {
+        require(sender_permissions & spend != 0, "not allowed");
+//        emit HasPermission(sender_permissions & spend, sender_permissions);
         vault.scheduleDelayedTransaction(delay, destination, value);
     }
 
     event ParticipantAdded(bytes32 indexed participant);
     event ParticipantRemoved(bytes32 indexed participant);
 
+    event HasPermission(uint256 permMasked, uint256 extras);
+
+    modifier hasPermission(uint16 permission) {
+        (, uint256 extras) = getScheduledExtras();
+        require(extras & permission != 0, "not allowed");
+//        emit HasPermission(extras & permission, extras);
+        _;
+    }
+
     // TODO: obviously does not conceal the level and identity
-    function addParticipant(address participant, uint16 permissions, uint8 level) public {
+    function addParticipant(address participant, uint16 permissions, uint8 level) hasPermission(add_participant) public {
         participants[adminHash(participant, permissions, level)] = true;
         emit ParticipantAdded(adminHash(participant, permissions, level));
     }
 
-    function removeParticipant(bytes32 participant) public {
+    function removeParticipant(bytes32 participant) hasPermission(remove_participant) public {
         require(participants[participant], "there is no such participant");
         delete participants[participant];
         emit ParticipantRemoved(participant);
