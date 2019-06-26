@@ -63,12 +63,12 @@ contract Gatekeeper is DelayedOps {
     function validateOperation(address sender, uint256 extraData, bytes4 methodSig) internal {
     }
 
-    function sendBatch(bytes memory batch) public {
-        scheduleDelayedBatch(msg.sender, 0, delay, getNonce(), batch);
+    function sendBatch(bytes memory batch, uint16 sender_permissions) public {
+        scheduleDelayedBatch(msg.sender, sender_permissions, delay, getNonce(), batch);
     }
 
-    function applyBatch(bytes memory operation, uint256 nonce) public {
-        applyDelayedOps(msg.sender, 0, nonce, operation);
+    function applyBatch(bytes memory operation, uint16 sender_permissions, uint256 nonce) public {
+        applyDelayedOps(msg.sender, sender_permissions, nonce, operation);
     }
 
     function sendEther(address payable destination, uint value) public {
