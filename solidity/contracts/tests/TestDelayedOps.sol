@@ -9,6 +9,7 @@ contract TestDelayedOps is DelayedOps {
 
     address public allowedSender;
     uint256 public allowedExtraData;
+    uint256 public allowedExtraDataAddSome;
     uint256 operationsDelay = 1 hours;
 
     function setAllowedSender(address s) public {
@@ -19,6 +20,11 @@ contract TestDelayedOps is DelayedOps {
         allowedExtraData = data;
     }
 
+
+    function setAllowedExtraDataForAddSome(uint256 data) public {
+        allowedExtraDataAddSome = data;
+    }
+
     function validateOperation(address sender, uint256 extraData,bytes4 methodSig) internal {
         require(
             methodSig == this.sayHelloWorld.selector ||
@@ -26,6 +32,11 @@ contract TestDelayedOps is DelayedOps {
             methodSig == this.doIncrement.selector,
             "test: delayed op not allowed");
         require(msg.sender == allowedSender, "this sender not allowed to apply delayed operations");
+
+        // Say, addSome overrides global 'allowedExtraData'
+        if (this.addSome.selector == methodSig){
+            return;
+        }
         require(extraData == allowedExtraData, "extraData is not allowed");
 
     }
@@ -80,8 +91,13 @@ contract TestDelayedOps is DelayedOps {
     }
 
     uint256 public someValue = 0;
+    modifier onlyWithExtraData {
+        (, uint256 extras) = getScheduledExtras();
+        require(extras == allowedExtraDataAddSome, "extraData is not allowed");
+        _;
+    }
 
-    function addSome(uint256 howMuch) public {
+    function addSome(uint256 howMuch) onlyWithExtraData public {
         someValue = someValue + howMuch;
     }
 

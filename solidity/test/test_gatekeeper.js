@@ -18,17 +18,17 @@ function getDelayedOpHashFromEvent(log) {
     return utils.delayedOpHash(sender, opsNonce, encodedBuff);
 }
 
-async function callDelayed(method, gatekeeper, callArguments, options) {
+async function callDelayed(method, gatekeeper, callArguments, options, senderPermissions = 0) {
     let encodedABI = method(...callArguments).encodeABI();
     let encodedPacked = utils.encodePackedBatch([encodedABI]);
-    return await gatekeeper.sendBatch(encodedPacked, options);
+    return await gatekeeper.sendBatch(encodedPacked, senderPermissions, options);
 }
 
 let asyncForEach = async function (array, callback) {
     for (let index = 0; index < array.length; index++) {
         await callback(array[index], index, array);
     }
-}
+};
 
 contract('Gatekeeper', async function (accounts) {
 
@@ -200,17 +200,17 @@ contract('Gatekeeper', async function (accounts) {
         assert.equal(log.event, "DelayedOperation");
         await utils.increaseTime(3600 * 24 * 2 + 10);
         await expect(
-            gatekeeper.applyBatch(res.logs[0].args.operation, res.logs[0].args.opsNonce.toString())
+            gatekeeper.applyBatch(res.logs[0].args.operation, 0, res.logs[0].args.opsNonce.toString())
         ).to.be.revertedWith("there is no such participant");
     });
 
     it("should allow the owner to add an admin after a delay", async function () {
         let res = await callDelayed(gatekeeper.contract.methods.addParticipant, gatekeeper, [adminC, "0xFFFF", level], {from: from});
         await expect(
-            gatekeeper.applyBatch(res.logs[0].args.operation, res.logs[0].args.opsNonce.toString())
+            gatekeeper.applyBatch(res.logs[0].args.operation, 0, res.logs[0].args.opsNonce.toString())
         ).to.be.revertedWith("called before due time");
         await utils.increaseTime(3600 * 24 * 2 + 10);
-        let res2 = await gatekeeper.applyBatch(res.logs[0].args.operation, res.logs[0].args.opsNonce.toString());
+        let res2 = await gatekeeper.applyBatch(res.logs[0].args.operation, 0, res.logs[0].args.opsNonce.toString());
         let log2 = res2.logs[0];
         let hash = utils.bufferToHex(utils.participantHash(adminC, level));
         assert.equal(log2.event, "ParticipantAdded");
@@ -223,7 +223,7 @@ contract('Gatekeeper', async function (accounts) {
         let log = res.logs[0];
         assert.equal(log.event, "DelayedOperation");
         await utils.increaseTime(3600 * 24 * 2 + 10);
-        let res2 = await gatekeeper.applyBatch(res.logs[0].args.operation, res.logs[0].args.opsNonce.toString());
+        let res2 = await gatekeeper.applyBatch(res.logs[0].args.operation, 0, res.logs[0].args.opsNonce.toString());
         assert.equal(res2.logs[0].event, "ParticipantRemoved");
         await utils.validateAdminsConfig([adminA, adminB, adminB1, adminC], [1, 1, 1, 1], [true, true, false, false], gatekeeper);
 
@@ -234,15 +234,15 @@ contract('Gatekeeper', async function (accounts) {
         let encodedABI_add_adminB1 = gatekeeper.contract.methods.addParticipant(adminB1, "0xFFFF", level).encodeABI();
         let encodedABI_remove_adminB = gatekeeper.contract.methods.removeParticipant(utils.participantHash(adminB, level)).encodeABI();
         let encodedPacked = utils.encodePackedBatch([encodedABI_add_adminB1, encodedABI_remove_adminB]);
-        let res = await gatekeeper.sendBatch(encodedPacked);
+        let res = await gatekeeper.sendBatch(encodedPacked, 0);
 
         await expect(
-            gatekeeper.applyBatch(res.logs[0].args.operation, res.logs[0].args.opsNonce.toString())
+            gatekeeper.applyBatch(res.logs[0].args.operation, 0, res.logs[0].args.opsNonce.toString())
         ).to.be.revertedWith("called before due time");
 
         await utils.increaseTime(3600 * 24 * 2 + 10);
 
-        let res2 = await gatekeeper.applyBatch(res.logs[0].args.operation, res.logs[0].args.opsNonce.toString());
+        let res2 = await gatekeeper.applyBatch(res.logs[0].args.operation, 0, res.logs[0].args.opsNonce.toString());
 
         assert.equal(res2.logs[0].event, "ParticipantAdded");
         assert.equal(res2.logs[1].event, "ParticipantRemoved");
@@ -289,7 +289,7 @@ contract('Gatekeeper', async function (accounts) {
 
             await asyncForEach([resAddScheduled, resRmvScheduled], async (res) => {
                 await expect(
-                    gatekeeper.applyBatch(res.logs[0].args.operation, res.logs[0].args.opsNonce.toString(), {from: participant.address})
+                    gatekeeper.applyBatch(res.logs[0].args.operation, 0, res.logs[0].args.opsNonce.toString(), {from: participant.address})
                 ).to.be.revertedWith("called before due time");
             });
         });

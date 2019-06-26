@@ -71,7 +71,8 @@ contract DelayedOps {
             validateOperation(sender, extraData, methodSig);
             bool success;
             bytes memory revertMsg;
-            (success, revertMsg) = address(this).call(singleOp);
+            // The actual delayed call is now executed. The sender's address and extraData is appended at the end of the transaction data
+            (success, revertMsg) = address(this).call(abi.encodePacked(singleOp, sender, extraData));
             require(success, string(revertMsg));
         }
     }
@@ -109,4 +110,12 @@ contract DelayedOps {
     function getAddress(bytes memory b, uint ofs) pure internal returns (address) {
         return address(LibBytes.readUint256(b, ofs));
     }
+
+    function getScheduledExtras() internal view returns (address, uint256) {
+        require(msg.sender == address(this), "only the contract itself can send the delayed transaction");
+        uint256 extras = LibBytes.readUint256(msg.data, msg.data.length - 32);
+        address sender = LibBytes.readAddress(msg.data, msg.data.length - 32 - 20);
+        return (sender, extras);
+    }
+
 }
