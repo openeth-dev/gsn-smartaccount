@@ -4,6 +4,7 @@
   "version": "1.0.0",
   "scripts": {
     "test": "npx truffle test | sed -e 's/^,//;' ",
+    "ci": "npx truffle --network npmtest test",
     "compile": "npx truffle compile|sed -e 's/^,//;' ",
     "trace": "MODE=trace npx truffle test --network cov",
     "coverage": "rm -rf coverage ; MODE=coverage npx truffle test --network cov; istanbul report text; istanbul report html"
@@ -22,6 +23,7 @@
   },
   "dependencies": {
     "bn-chai": "^1.0.1",
-    "ethereumjs-abi": "latest"
+    "ethereumjs-abi": "latest",
+    "run-with-testrpc": "^0.3.1"
   }
 }
