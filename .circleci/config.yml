@@ -26,7 +26,9 @@ jobs:
             # fallback to using the latest cache if no exact match is found
             - v1-dependencies-
 
-      - run: cd solidity && yarn install
+      - run:         
+          name: yarn-install
+          command: cd solidity && yarn install
 
       - save_cache:
           paths:
@@ -35,4 +37,6 @@ jobs:
           key: v1-dependencies-{{ checksum "solidity/package.json" }}
 
       # run tests!
-      - run: cd solidity && npx run-with-testrpc -p 8544 'yarn ci'
+      - run: 
+          name: solidity-test
+          command: cd solidity && yarn ci
