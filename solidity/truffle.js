@@ -52,6 +52,11 @@ module.exports = {
       port: 8545,             // Custom port
       network_id: "*",       // Custom network
     },
+    npmtest: { //used from "npm test". see pakcage.json
+      host: "127.0.0.1",
+      port: 8544,
+      network_id: "*",
+    },
 
     cov: { //coverage/trace provider. note that it currently can't run extrnal-process relay.
              provider : require( './coverage-prov.js' ),

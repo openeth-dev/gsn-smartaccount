@@ -4,6 +4,7 @@
   "version": "1.0.0",
   "scripts": {
     "test": "npx truffle test | sed -e 's/^,//;' ",
+    "ci": "npx run-with-testrpc -p 8544 'npx truffle --network npmtest test'",
     "compile": "npx truffle compile|sed -e 's/^,//;' ",
     "trace": "MODE=trace npx truffle test --network cov",
     "coverage": "rm -rf coverage ; MODE=coverage npx truffle test --network cov; istanbul report text; istanbul report html"
@@ -18,7 +19,8 @@
     "ethereum-waffle": "^2.0.12",
     "ganache-cli": "6.4.3",
     "truffle": "^5.0.21",
-    "web3": "1.0.0-beta.37"
+    "web3": "1.0.0-beta.37",
+    "run-with-testrpc": "^0.3.1"
   },
   "dependencies": {
     "bn-chai": "^1.0.1",
