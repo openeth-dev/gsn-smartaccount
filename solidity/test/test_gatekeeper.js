@@ -106,18 +106,6 @@ contract('Gatekeeper', async function (accounts) {
         assert.equal(log.args.operation, encodedPacked);
     });
 
-    it("should fail to execute a delayed transfer transaction if not enough funds", async function () {
-        let addedLog = await getLastEvent(vault.contract, "DelayedOperation", expectedDelayedEventsCount);
-        let balance = parseInt(await web3.eth.getBalance(vault.address));
-        assert.equal(balance, 0);
-
-        await utils.increaseTime(3600 * 24 * 2 + 10);
-
-        await expect(
-            gatekeeper.applyTransfer(addedLog.operation, addedLog.opsNonce, ownerPermissions)
-        ).to.be.revertedWith("Cannot transfer more then vault's balance");
-    });
-
     it("just funding the vault", async function () {
         await web3.eth.sendTransaction({from: from, to: vault.address, value: amount * 10});
     });

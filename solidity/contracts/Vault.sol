@@ -6,6 +6,11 @@ import "openzeppelin-solidity/contracts/token/ERC20/ERC20.sol";
 
 contract Vault is DelayedOps {
 
+    //****** events from erc20
+    event Transfer(address indexed from, address indexed to, uint256 value);
+
+    //******
+
 
     event FundsReceived(address sender, uint256 value);
 
@@ -45,8 +50,12 @@ contract Vault is DelayedOps {
         emit TransactionPending(destination, value, ERC20(address(0)), delay, nonce);
     }
 
-    function scheduleDelayedTokenTransfer(uint256 delay, address destination, uint256 value, address token) public {
-
+    function scheduleDelayedTokenTransfer(uint256 delay, address destination, uint256 value, ERC20 token) public {
+        uint256 nonce = getNonce();
+        bytes memory delayedTransaction = abi.encodeWithSelector(this.transferERC20.selector, msg.sender, nonce, destination, value, address(token));
+        bytes memory operation = abi.encodePacked(delayedTransaction.length, delayedTransaction);
+        scheduleDelayedBatch(msg.sender, nonce, delay, operation);
+        emit TransactionPending(destination, value, token, delay, nonce);
     }
 
     function cancelTransfer(bytes32 hash) public {
@@ -57,6 +66,7 @@ contract Vault is DelayedOps {
     function applyDelayedTransfer(bytes memory operation, uint256 nonce) public {
         // "nonce, nonce" is not an error. It will be used by both the DelayedOps to ensure uniqueness of a transaction,
         // as well as it will be passed as an 'extraData' field to be emitted by the Vault itself.
+        // TODO: probably less hacky to add it as a parameter. May need it for smth else later.
         applyDelayedOps(msg.sender, nonce, nonce, operation);
     }
 
@@ -69,13 +79,14 @@ contract Vault is DelayedOps {
     */
     // TODO: test to check only 'this' can call here
     function transferETH(address /*sender*/, uint256 opsNonce, address payable destination, uint256 value) public {
-                require(value < address(this).balance, "Cannot transfer more then vault's balance");
-                destination.transfer(value);
-                emit TransactionCompleted(destination, value, ERC20(address(0)), opsNonce);
+        require(value < address(this).balance, "Cannot transfer more then vault's balance");
+        destination.transfer(value);
+        emit TransactionCompleted(destination, value, ERC20(address(0)), opsNonce);
     }
 
-    function transferERC20(address /*sender*/, uint256 /*extraData*/, address payable destination, uint256 value, ERC20 token) public {
-
+    function transferERC20(address /*sender*/, uint256 opsNonce, address payable destination, uint256 value, ERC20 token) public {
+        token.transfer(destination, value);
+        emit TransactionCompleted(destination, value, token, opsNonce);
     }
 
 }
