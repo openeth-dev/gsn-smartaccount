@@ -6,12 +6,14 @@ import "./Vault.sol";
 contract Gatekeeper is DelayedOps {
 
     Vault vault;
+    // **** Vault events
+    event TransactionCompleted(address destination, uint value, ERC20 erc20token, uint256 nonce);
+    // ****
+
+
     address participantAdminA;
     address participantAdminB;
     uint256 delay = 1 hours;
-
-    // TEMP, FOR TDD - called on GK but emitted in Vault
-    event FundsKindaTransferred(address destination, uint256 value);
 
     // TEMP, FOR TDD
     function setDelay(uint256 delayParam) public
@@ -95,7 +97,7 @@ contract Gatekeeper is DelayedOps {
 
 
     function sendBatch(bytes memory batch, uint16 sender_permissions) public {
-        scheduleDelayedBatch(msg.sender, sender_permissions, delay, getNonce(), batch);
+        scheduleDelayedBatch(msg.sender, sender_permissions, delay, batch);
     }
 
     function applyBatch(bytes memory operation, uint16 sender_permissions, uint256 nonce) participantOnly(msg.sender, sender_permissions, 1) public {

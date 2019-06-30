@@ -51,8 +51,8 @@ module.exports = {
         return "0x" + buffer.toString("hex");
     },
 
-    delayedOpHash: function (sender, nonce, batch) {
-        return ABI.soliditySHA3(["address", "uint256", "bytes"], [sender, nonce, batch])
+    delayedOpHash: function (sender, extraData, nonce, batch) {
+        return ABI.soliditySHA3(["address", "uint256", "uint256", "bytes"], [sender, extraData, nonce, batch])
     },
 
     participantHash: function (admin, permissions, level) {
@@ -68,7 +68,7 @@ module.exports = {
     validateAdminsConfig: async function (admins, levels, expected, gatekeeper, permissions) {
         assert.equal(admins.length, levels.length);
         assert.equal(expected.length, levels.length);
-        if (permissions === undefined){
+        if (permissions === undefined) {
             permissions = Array(expected.length).fill("0x270");
         }
         assert.equal(expected.length, levels.length);
