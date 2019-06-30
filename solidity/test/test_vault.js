@@ -14,8 +14,6 @@ contract('Vault', function (accounts) {
 
     let vault;
     let erc20;
-    let web3;
-    let ethNodeUrl = "http://localhost:8545";
     let amount = 100;
     let fundedAmount = amount * 3;
     let delay = 77;
@@ -24,7 +22,6 @@ contract('Vault', function (accounts) {
 
     before(async function () {
         vault = await Vault.deployed();
-        web3 = new Web3(new Web3.providers.HttpProvider(ethNodeUrl));
         erc20 = await DAI.new();
     });
 
@@ -70,7 +67,7 @@ contract('Vault', function (accounts) {
         await utils.increaseTime(delay + 10);
 
         let balanceSenderBefore = parseInt(await web3.eth.getBalance(vault.address));
-        let balanceRecieverBefore = parseInt(await web3.eth.getBalance(destination));
+        let balanceReceiverBefore = parseInt(await web3.eth.getBalance(destination));
 
         let opsNonce = log1.args.opsNonce.toString();
         let res2 = await vault.applyDelayedTransfer(log1.args.operation, opsNonce);
@@ -85,7 +82,7 @@ contract('Vault', function (accounts) {
         let balanceSenderAfter = parseInt(await web3.eth.getBalance(vault.address));
         let balanceReceiverAfter = parseInt(await web3.eth.getBalance(destination));
         assert.equal(balanceSenderAfter, balanceSenderBefore - amount);
-        assert.equal(balanceReceiverAfter, balanceRecieverBefore + amount);
+        assert.equal(balanceReceiverAfter, balanceReceiverBefore + amount);
 
     });
 
