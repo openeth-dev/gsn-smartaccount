@@ -3,7 +3,6 @@ const Chai = require('chai');
 
 const expect = Chai.expect;
 
-// const {createMockProvider, deployContract, getWallets, solidity} = ;
 Chai.use(require('ethereum-waffle').solidity);
 Chai.use(require('bn-chai')(web3.utils.toBN));
 
@@ -66,6 +65,7 @@ contract('DelayedOperations', async function (accounts) {
         let diff = counterAfter - counterBefore;
         assert.equal(1, diff)
     });
+
     it("allow to accept or decline the entire scheduled ops batch based on the 'extraData' field", async function () {
         let res = await trufflecontract.sendBatch(encodedDoIncrement, allowedExtraData);
         await utils.increaseTime(3600 * 24 * 2 + 10);

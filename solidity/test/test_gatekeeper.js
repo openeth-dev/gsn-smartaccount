@@ -92,7 +92,8 @@ contract('Gatekeeper', async function (accounts) {
     it("should allow the owner to create a delayed ether transfer transaction", async function () {
         let res = await gatekeeper.sendEther(destinationAddresss, amount, fullAccessPermissions);
         expectedDelayedEventsCount++;
-        let encodedABI = vault.contract.methods.applyDelayedTransaction(destinationAddresss, amount).encodeABI();
+        // TODO: go through gatekeeper::applyTransfer
+        let encodedABI = vault.contract.methods.transferETH(destinationAddresss, amount).encodeABI();
         let encodedPacked = utils.bufferToHex(utils.encodePackedBatch([encodedABI]));
         let log = res.logs[0];
         assert.equal(log.event, "DelayedOperation");
@@ -111,7 +112,7 @@ contract('Gatekeeper', async function (accounts) {
         await utils.increaseTime(3600 * 24 * 2 + 10);
 
         await expect(
-            vault.applyDelayedOpsPublic(gatekeeper.address, addedLog.operation, addedLog.opsNonce)
+            gatekeeper.applyTransfer(addedLog.operation, addedLog.opsNonce, ownerPermissions)
         ).to.be.revertedWith("Cannot transfer more then vault's balance");
     });
 
@@ -127,7 +128,7 @@ contract('Gatekeeper', async function (accounts) {
         assert.isAbove(balanceSenderBefore, amount);
         await utils.increaseTime(3600 * 24 * 2 + 10);
 
-        let res = await vault.applyDelayedOpsPublic(gatekeeper.address, addedLog.operation, addedLog.opsNonce);
+        let res = await gatekeeper.applyTransfer(addedLog.operation, addedLog.opsNonce, ownerPermissions);
         let log = res.logs[0];
 
         assert.equal(log.event, "FundsKindaTransferred");
@@ -145,7 +146,7 @@ contract('Gatekeeper', async function (accounts) {
 
     it("should revert when trying to cancel a transfer transaction that does not exist", async function () {
         await expect(
-            gatekeeper.cancelTransaction("0x123123")
+            gatekeeper.cancelTransfer("0x123123")
         ).to.be.revertedWith("cannot cancel, operation does not exist");
     });
 
@@ -154,7 +155,7 @@ contract('Gatekeeper', async function (accounts) {
             let res1 = await gatekeeper.sendEther(destinationAddresss, amount, fullAccessPermissions);
             expectedDelayedEventsCount++;
             let hash = getDelayedOpHashFromEvent(res1.logs[0]);
-            let res2 = await gatekeeper.cancelTransaction(hash, {from: participant.address});
+            let res2 = await gatekeeper.cancelTransfer(hash, {from: participant.address});
             let log = res2.logs[0];
             assert.equal(log.event, "DelayedOperationCancelled");
             assert.equal(log.address, vault.address);
