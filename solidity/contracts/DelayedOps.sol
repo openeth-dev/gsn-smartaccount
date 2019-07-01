@@ -24,21 +24,20 @@ contract DelayedOps {
     function validateOperation(address sender, uint256 extraData, bytes4 methodSig) internal;
 
     function delayedOpHash(address sender, uint256 extraData, uint nonce, bytes memory batch) public pure returns (bytes32) {
-        return keccak256(abi.encodePacked(sender, nonce, batch));
+        return keccak256(abi.encodePacked(sender, extraData, nonce, batch));
     }
 
-    function scheduleDelayedBatch(address sender, uint256 extraData, uint delayTime, uint nonce, bytes memory batch) internal {
+    function scheduleDelayedBatch(address sender, uint256 extraData, uint delayTime, bytes memory batch) internal {
 
-        require(nonce == getNonce(), "Wrong nonce");
-        require(delayTime > 0, "validateOperation: should return positive delayTime");
-        bytes32 hash = delayedOpHash(sender, extraData, nonce, batch);
+        require(delayTime > 0, "validateOperation: should have positive delayTime");
+        bytes32 hash = delayedOpHash(sender, extraData, opsNonce, batch);
         //make sure we don't resend the same operation
         require(pending[hash] == 0, "repeated delayed op");
         uint dueTime = now + delayTime;
         pending[hash] = dueTime;
+        emit DelayedOperation(sender, extraData, opsNonce, batch, dueTime);
+        // Note: Must be the last thing. Cannot be first, as 'getNonce' should return the value that will be used next.
         opsNonce = opsNonce + 1;
-
-        emit DelayedOperation(sender, extraData, nonce, batch, dueTime);
     }
 
     function cancelDelayedOp(bytes32 hash) internal {

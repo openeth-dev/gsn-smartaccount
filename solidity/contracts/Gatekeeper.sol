@@ -6,6 +6,11 @@ import "./Vault.sol";
 contract Gatekeeper is DelayedOps {
 
     Vault vault;
+    // **** Vault events
+    event TransactionCompleted(address destination, uint value, ERC20 erc20token, uint256 nonce);
+    // ****
+
+
     address participantAdminA;
     address participantAdminB;
     uint256 delay = 1 hours;
@@ -40,9 +45,8 @@ contract Gatekeeper is DelayedOps {
     //  3. Initial configuration
     // ***********************************
 
-    // ? There are no roles in bizpoc. There is a single spender and few admins.
-    // we had these (role, rank) all over the place.
-    // TODO: decide if there is a need to keep 'participant' concept for now
+    event OperationCancelled(address sender, bytes32 hash);
+
 
     uint16 constant public spend = 1 << 0;
     uint16 constant public cancel_spend = 1 << 1;
@@ -62,35 +66,25 @@ contract Gatekeeper is DelayedOps {
     mapping(bytes32 => bool) public participants;
 
 
-    // TODO: this is damn stupid. There has to be a better way...
-    //  ! Note: this IS NOT solved in current Gatekeeper implementation by Yoav
-    // ! If operator adds a 'participant' owner of rank 100, he is allowed to do that
-    //  ! and it seems to me it will pass all 'is_not_frozen(rank)', 'isOperator' and 'is_participant' checks
-    // ! allowing owner to perform 'takeover' from guardians.
-    mapping(address => uint16[]) public permissionsHeld;
-    mapping(uint16 => int) public permissionsHolderCount;
+    event ParticipantAdded(bytes32 indexed participant);
+    event ParticipantRemoved(bytes32 indexed participant);
 
-    function isRevealedPerm(address participant, uint16 permissions) public returns (bool){
-        for (uint256 i = 0; i < permissionsHeld[participant].length; i++) {
-            if (permissionsHeld[participant][i] == permissions) {
-                return true;
-            }
-        }
-        return false;
-    }
+    event HasPermission(uint256 permMasked, uint256 extras);
 
+    // ********** Function modifiers below this point
     modifier participantOnly(address participant, uint16 permissions, uint8 level){
-//        if (!isRevealedPerm(participant, permissions)) {
-//            permissionsHeld[participant].push(permissions);
-//            permissionsHolderCount[permissions] = permissionsHolderCount[permissions] + 1;
-//        }
         require(participants[adminHash(participant, permissions, level)], "not participant");
         // Training wheels. Can be removed if we want more freedom, but can be left if we want some hard-coded enforcement of rules in code
         require(permissions == ownerPermissions || permissions == adminPermissions || permissions == watchdogPermissions || permissions == 0xffff, "use defaults or go compile your vault from sources");
-        // Enforce only 1 owner without duplicating all code around a 'address owner' field. Also shall be configurable.
-        require(permissions != ownerPermissions || permissionsHolderCount[permissions] == 1, "cannot have 2 owners");
         _;
     }
+    modifier hasPermission(uint16 permission) {
+        (, uint256 extras) = getScheduledExtras();
+        require(extras & permission != 0, "not allowed");
+        _;
+    }
+
+    // ********** Pure view functions below this point
 
     function adminHash(address participant, uint16 permissions, uint8 rank) public pure returns (bytes32) {
         return keccak256(abi.encodePacked(participant, permissions, rank));
@@ -99,8 +93,11 @@ contract Gatekeeper is DelayedOps {
     function validateOperation(address sender, uint256 extraData, bytes4 methodSig) internal {
     }
 
+    // ********** Immediate operations below this point
+
+
     function sendBatch(bytes memory batch, uint16 sender_permissions) public {
-        scheduleDelayedBatch(msg.sender, sender_permissions, delay, getNonce(), batch);
+        scheduleDelayedBatch(msg.sender, sender_permissions, delay, batch);
     }
 
     function applyBatch(bytes memory operation, uint16 sender_permissions, uint256 nonce) participantOnly(msg.sender, sender_permissions, 1) public {
@@ -109,21 +106,25 @@ contract Gatekeeper is DelayedOps {
 
     function sendEther(address payable destination, uint value, uint16 sender_permissions) participantOnly(msg.sender, sender_permissions, 1) public {
         require(sender_permissions & spend != 0, "not allowed");
-//        emit HasPermission(sender_permissions & spend, sender_permissions);
-        vault.scheduleDelayedTransaction(delay, destination, value);
+        vault.scheduleDelayedEtherTransfer(delay, destination, value);
     }
 
-    event ParticipantAdded(bytes32 indexed participant);
-    event ParticipantRemoved(bytes32 indexed participant);
-
-    event HasPermission(uint256 permMasked, uint256 extras);
-
-    modifier hasPermission(uint16 permission) {
-        (, uint256 extras) = getScheduledExtras();
-        require(extras & permission != 0, "not allowed");
-//        emit HasPermission(extras & permission, extras);
-        _;
+    function applyTransfer(bytes memory operation, uint256 nonce, uint16 sender_permissions)
+        // TODO: this is an 'owner' special case related flow
+        //    participantOnly(msg.sender, sender_permissions, 1)
+    public {
+        vault.applyDelayedTransfer(operation, nonce);
     }
+
+    function cancelTransfer(bytes32 hash) public {
+        vault.cancelTransfer(hash);
+    }
+
+    function cancelOperation(bytes32 hash) public {
+        cancelDelayedOp(hash);
+    }
+
+    // ********** Delayed operations below this point
 
     // TODO: obviously does not conceal the level and identity
     function addParticipant(address participant, uint16 permissions, uint8 level) hasPermission(add_participant) public {
@@ -137,13 +138,4 @@ contract Gatekeeper is DelayedOps {
         emit ParticipantRemoved(participant);
     }
 
-    function cancelTransaction(bytes32 hash) public {
-        vault.cancelTransaction(hash);
-    }
-
-    event OperationCancelled(address sender, bytes32 hash);
-
-    function cancelOperation(bytes32 hash) public {
-        cancelDelayedOp(hash);
-    }
 }
