@@ -48,20 +48,33 @@ contract Gatekeeper is DelayedOps {
     event OperationCancelled(address sender, bytes32 hash);
 
 
-    uint16 constant public spend = 1 << 0;
-    uint16 constant public cancel_spend = 1 << 1;
-    uint16 constant public freeze = 1 << 2;
-    uint16 constant public unfreeze = 1 << 3;
-    uint16 constant public add_participant = 1 << 4;
-    uint16 constant public cancel_add_participant = 1 << 5;
-    uint16 constant public remove_participant = 1 << 6;
-    uint16 constant public cancel_remove_participant = 1 << 7;
-    uint16 constant public give_boost = 1 << 8;
-    uint16 constant public receive_boost = 1 << 9;
+    uint16 constant public canSpend = 1 << 0;
 
-    uint16 public ownerPermissions = spend | cancel_spend | freeze | unfreeze | add_participant | cancel_add_participant | remove_participant | cancel_remove_participant | give_boost;
-    uint16 public adminPermissions = add_participant | cancel_add_participant | remove_participant | receive_boost;
-    uint16 public watchdogPermissions = cancel_spend | cancel_add_participant | cancel_remove_participant | freeze;
+    uint16 constant public canFreeze = 1 << 2;
+    uint16 constant public canAddParticipants = 1 << 4;
+    uint16 constant public canRemoveParticipants = 1 << 6;
+
+    // 'owner' is a participant that holds most of permissions. It is locked at level 1. There can only be one 'owner' in the contract.
+    // Note that there is no 'cancel change owner' permission - same as in original design, once 'chown' is scheduled, it follows the regular 'config change' algorithm
+    uint16 constant public canChangeOwner = 1 << 9;
+
+    // TODO: Cancels are asymmetrical in nature:
+    //  We cannot differentiate who can cancel what delayed operation.
+    //  That is theoretically possible, but would require parsing the operation you are about to cancel.
+    // Currently, config changes are: add, remove, chown, unfreeze.
+
+    // There was some confusion what is 'give' and 'get' in the context of 'boost'
+    uint16 constant public canSignBoosts = 1 << 8;
+    uint16 constant public canExecuteBoosts = 1 << 9;
+
+    // Instant Run Permissions - these actions do not require delays
+    uint16 constant public canCancelConfigChanges = 1 << 5;
+    uint16 constant public canCancelSpend = 1 << 1;
+    uint16 constant public canUnfreeze = 1 << 3;
+
+    uint16 public ownerPermissions = canSpend | canCancelSpend | canFreeze | canUnfreeze | canAddParticipants | canCancelConfigChanges | canRemoveParticipants | canSignBoosts;
+    uint16 public adminPermissions = canAddParticipants | canCancelConfigChanges | canRemoveParticipants | canExecuteBoosts;
+    uint16 public watchdogPermissions = canCancelSpend | canCancelConfigChanges | canFreeze;
 
     mapping(bytes32 => bool) public participants;
 
@@ -127,12 +140,12 @@ contract Gatekeeper is DelayedOps {
     // ********** Delayed operations below this point
 
     // TODO: obviously does not conceal the level and identity
-    function addParticipant(address participant, uint16 permissions, uint8 level) hasPermission(add_participant) public {
+    function addParticipant(address participant, uint16 permissions, uint8 level) hasPermission(canAddParticipants) public {
         participants[adminHash(participant, permissions, level)] = true;
         emit ParticipantAdded(adminHash(participant, permissions, level));
     }
 
-    function removeParticipant(bytes32 participant) hasPermission(remove_participant) public {
+    function removeParticipant(bytes32 participant) hasPermission(canRemoveParticipants) public {
         require(participants[participant], "there is no such participant");
         delete participants[participant];
         emit ParticipantRemoved(participant);

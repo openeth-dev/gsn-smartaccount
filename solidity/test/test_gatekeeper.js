@@ -279,8 +279,8 @@ contract('Gatekeeper', async function (accounts) {
     [
         // TODO:  {address: adminA, title: "admin", permissions: "0x270", expectError: "not allowed"},
         // It has a permission for the 'chown' as it is the same. IDK what to do
-        {address: watchdogA, title: "watchdog", permissions: "0xa6", expectError: "not allowed"},
-        {address: wrongaddr, title: "non-participant", permissions: "0x1ff", expectError: "not participant"}
+        {address: watchdogA, title: "watchdog", permissions: "0x26", expectError: "not allowed"},
+        {address: wrongaddr, title: "non-participant", permissions: "0x17f", expectError: "not participant"}
     ].forEach((participant) => {
         it(`should not allow ${participant.title} to add or remove admins or watchdogs`, async function () {
             if (![watchdogPermissions, adminPermissions, ownerPermissions].includes(participant.permissions)) {
