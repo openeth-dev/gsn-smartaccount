@@ -30,7 +30,7 @@ contract Gatekeeper is DelayedOps {
     // TEMP, FOR TDD
     function setOperator(address operatorParam) public
     {
-        participants[adminHash(operatorParam, 0x13f, 1)] = true;
+        participants[adminHash(operatorParam, ownerPermissions, 1)] = true;
         operator = operatorParam;
     }
 
@@ -56,7 +56,7 @@ contract Gatekeeper is DelayedOps {
 
     // 'owner' is a participant that holds most of permissions. It is locked at level 1. There can only be one 'owner' in the contract.
     // Note that there is no 'cancel change owner' permission - same as in original design, once 'chown' is scheduled, it follows the regular 'config change' algorithm
-    uint16 constant public canChangeOwner = 1 << 9;
+    uint16 constant public canChangeOwner = 1 << 10;
 
     // TODO: Cancels are asymmetrical in nature:
     //  We cannot differentiate who can cancel what delayed operation.
@@ -72,7 +72,8 @@ contract Gatekeeper is DelayedOps {
     uint16 constant public canCancelConfigChanges = 1 << 5;
     uint16 constant public canCancelSpend = 1 << 1;
 
-    uint16 public canChangeConfig = canUnfreeze | canChangeParticipants  /* | canChangeDelays */;
+    // If the operation is delayed, it's hard to enforce separate permissions for it. (Possible, though. Ask me how.)
+    uint16 public canChangeConfig = canUnfreeze | canChangeParticipants | canChangeOwner /* | canChangeDelays */;
     uint16 public canCancel = canCancelSpend | canCancelConfigChanges;
 
 
@@ -105,7 +106,7 @@ contract Gatekeeper is DelayedOps {
     function validateOperation(address sender, uint256 extraData, bytes4 methodSig) internal {
     }
 
-    function changeConfiguration(address sender, uint16 senderPermissions, bytes memory batch) participantOnly(sender, senderPermissions, 1) hasPermission(canChangeConfig, senderPermissions) public {
+    function changeConfiguration(address sender, uint16 senderPermissions, bytes memory batch) participantOnly(sender, senderPermissions, 1) hasPermissions(canChangeConfig, senderPermissions) public {
         scheduleDelayedBatch(msg.sender, senderPermissions, delay, batch);
     }
 
@@ -133,20 +134,21 @@ contract Gatekeeper is DelayedOps {
         cancelDelayedOp(hash);
     }
 
-    modifier hasPermission(uint16 permission, uint16 senderPermissions) {
-        require(permission & senderPermissions != 0, "not allowed");
+    modifier hasPermissions(uint16 permissions, uint16 senderPermissions) {
+        // Fix: sender has ALL the permissions in the 'permissions' flags bit mask
+        require(permissions & senderPermissions == permissions, "not allowed");
         _;
     }
 
     // ********** Delayed operations below this point
 
     // TODO: obviously does not conceal the level and identity
-    function addParticipant(address sender, uint16 senderPermissions, address participant, uint16 permissions, uint8 level) hasPermission(canChangeParticipants, senderPermissions) public {
+    function addParticipant(address sender, uint16 senderPermissions, address participant, uint16 permissions, uint8 level) hasPermissions(canChangeParticipants, senderPermissions) public {
         participants[adminHash(participant, permissions, level)] = true;
         emit ParticipantAdded(adminHash(participant, permissions, level));
     }
 
-    function removeParticipant(address sender, uint16 senderPermissions, bytes32 participant) hasPermission(canChangeParticipants, senderPermissions) public {
+    function removeParticipant(address sender, uint16 senderPermissions, bytes32 participant) hasPermissions(canChangeParticipants, senderPermissions) public {
         require(participants[participant], "there is no such participant");
         delete participants[participant];
         emit ParticipantRemoved(participant);

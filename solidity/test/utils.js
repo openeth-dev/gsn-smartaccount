@@ -65,7 +65,7 @@ module.exports = {
         return pastEvents[0];
     },
 
-    validateAdminsConfig: async function (admins, levels, expected, gatekeeper, permissions) {
+    validateAdminsConfig: async function (admins, levels, expected, permissions, gatekeeper) {
         assert.equal(admins.length, levels.length);
         assert.equal(expected.length, levels.length);
         assert.equal(expected.length, permissions.length);
