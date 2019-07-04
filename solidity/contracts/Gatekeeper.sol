@@ -28,9 +28,10 @@ contract Gatekeeper is DelayedOps {
     }
 
     // TEMP, FOR TDD
-    function setSpender(address spender) public
+    function setOperator(address operatorParam) public
     {
-        participants[adminHash(spender, 0xffff, 1)] = true;
+        participants[adminHash(operatorParam, 0x13f, 1)] = true;
+        operator = operatorParam;
     }
 
 
@@ -88,8 +89,10 @@ contract Gatekeeper is DelayedOps {
     // ********** Function modifiers below this point
     modifier participantOnly(address participant, uint16 permissions, uint8 level){
         require(participants[adminHash(participant, permissions, level)], "not participant");
+
+        require(permissions != ownerPermissions || participant == operator, "This participant is not a real operator, fix your vault configuration");
         // Training wheels. Can be removed if we want more freedom, but can be left if we want some hard-coded enforcement of rules in code
-        require(permissions == ownerPermissions || permissions == adminPermissions || permissions == watchdogPermissions || permissions == 0xffff, "use defaults or go compile your vault from sources");
+        require(permissions == ownerPermissions || permissions == adminPermissions || permissions == watchdogPermissions, "use defaults or go compile your vault from sources");
         _;
     }
 
