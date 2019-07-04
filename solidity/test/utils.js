@@ -68,10 +68,7 @@ module.exports = {
     validateAdminsConfig: async function (admins, levels, expected, gatekeeper, permissions) {
         assert.equal(admins.length, levels.length);
         assert.equal(expected.length, levels.length);
-        if (permissions === undefined) {
-            permissions = Array(expected.length).fill("0x270");
-        }
-        assert.equal(expected.length, levels.length);
+        assert.equal(expected.length, permissions.length);
         for (let i = 0; i < admins.length; i++) {
             let adminHash = this.bufferToHex(this.participantHash(admins[i], permissions[i], levels[i]));
             let isAdmin = await gatekeeper.participants(adminHash);
