@@ -41,7 +41,8 @@ contract('Gatekeeper', async function (accounts) {
     let gatekeeper;
     let vault;
     let level = 1;
-    let from = accounts[0];
+    let operatorA = accounts[0];
+    let operatorB = accounts[11];
     let wrongaddr = accounts[1];
     let destinationAddresss = accounts[2];
     let adminA = accounts[3];
@@ -63,6 +64,7 @@ contract('Gatekeeper', async function (accounts) {
 
     let addParticipant;
     let removeParticipant;
+    let changeOwner;
 
     before(async function () {
         gatekeeper = await Gatekeeper.deployed();
@@ -78,8 +80,9 @@ contract('Gatekeeper', async function (accounts) {
         startBlock = await web3.eth.getBlockNumber();
         addParticipant = gatekeeper.contract.methods.addParticipant;
         removeParticipant = gatekeeper.contract.methods.removeParticipant;
+        changeOwner = gatekeeper.contract.methods.changeOwner;
         await gatekeeper.setVault(vault.address);
-        await gatekeeper.setOperator(from);
+        await gatekeeper.setOperator(operatorA);
         await gatekeeper.addParticipantInit(adminA, adminPermissions, level);
         await gatekeeper.addParticipantInit(adminB, adminPermissions, level);
         await gatekeeper.addParticipantInit(watchdogA, watchdogPermissions, level);
@@ -95,6 +98,12 @@ contract('Gatekeeper', async function (accounts) {
         // If 'contract' changes, just make sure to take the right one
         assert.equal(delayedEvents.length, expectedCount);
         return delayedEvents[delayedEvents.length - 1].returnValues;
+    }
+
+    function validatePermission(participant) {
+        if (![watchdogPermissions, adminPermissions, ownerPermissions].includes(participant.permissions)) {
+            assert.fail("Check permissions value"); // this dumb array is apparently created before "before". Ooof.
+        }
     }
 
     /* Positive flows */
@@ -117,7 +126,7 @@ contract('Gatekeeper', async function (accounts) {
     });
 
     it("just funding the vault", async function () {
-        await web3.eth.sendTransaction({from: from, to: vault.address, value: amount * 10});
+        await web3.eth.sendTransaction({from: operatorA, to: vault.address, value: amount * 10});
     });
 
     it("should allow the owner to execute a delayed transfer transaction after delay", async function () {
@@ -150,7 +159,7 @@ contract('Gatekeeper', async function (accounts) {
         ).to.be.revertedWith("cannot cancel, operation does not exist");
     });
 
-    [{address: from, title: "owner"}, {address: watchdogA, title: "watchdog"}].forEach((participant) => {
+    [{address: operatorA, title: "owner"}, {address: watchdogA, title: "watchdog"}].forEach((participant) => {
         it(`should allow the ${participant.title} to cancel a delayed transfer transaction`, async function () {
             let res1 = await gatekeeper.sendEther(destinationAddresss, amount, ownerPermissions);
             expectedDelayedEventsCount++;
@@ -165,15 +174,15 @@ contract('Gatekeeper', async function (accounts) {
     });
 
     it("should allow the owner to create a delayed config transaction", async function () {
-        let encodedABI = gatekeeper.contract.methods.addParticipant(from, ownerPermissions, adminB1, ownerPermissions, level).encodeABI();
+        let encodedABI = gatekeeper.contract.methods.addParticipant(operatorA, ownerPermissions, adminB1, ownerPermissions, level).encodeABI();
         let encodedPacked = utils.encodePackedBatch([encodedABI]);
 
-        let callArguments = [from, ownerPermissions, adminB1, ownerPermissions, level];
-        let res = await callDelayed(addParticipant, gatekeeper, callArguments, from);
+        let callArguments = [operatorA, ownerPermissions, adminB1, ownerPermissions, level];
+        let res = await callDelayed(addParticipant, gatekeeper, callArguments, operatorA);
         let log = res.logs[0];
         assert.equal(log.event, "DelayedOperation");
         assert.equal(log.address, gatekeeper.address);
-        assert.equal(log.args.sender, from);
+        assert.equal(log.args.sender, operatorA);
         assert.equal(log.args.operation, utils.bufferToHex(encodedPacked));
     });
 
@@ -203,8 +212,8 @@ contract('Gatekeeper', async function (accounts) {
     });
 
     it("should revert an attempt to delete admin that is not a part of the config", async function () {
-        let callArguments = [from, ownerPermissions, utils.participantHash(adminC, adminPermissions, level)];
-        let res = await callDelayed(removeParticipant, gatekeeper, callArguments, from);
+        let callArguments = [operatorA, ownerPermissions, utils.participantHash(adminC, adminPermissions, level)];
+        let res = await callDelayed(removeParticipant, gatekeeper, callArguments, operatorA);
         let log = res.logs[0];
         assert.equal(log.event, "DelayedOperation");
         await utils.increaseTime(3600 * 24 * 2 + 10);
@@ -214,8 +223,8 @@ contract('Gatekeeper', async function (accounts) {
     });
 
     it("should allow the owner to add an admin after a delay", async function () {
-        let callArguments = [from, ownerPermissions, adminC, adminPermissions, level];
-        let res = await callDelayed(addParticipant, gatekeeper, callArguments, from);
+        let callArguments = [operatorA, ownerPermissions, adminC, adminPermissions, level];
+        let res = await callDelayed(addParticipant, gatekeeper, callArguments, operatorA);
         await expect(
             gatekeeper.applyBatch(res.logs[0].args.operation, ownerPermissions, res.logs[0].args.opsNonce.toString())
         ).to.be.revertedWith("called before due time");
@@ -234,8 +243,8 @@ contract('Gatekeeper', async function (accounts) {
     });
 
     it("should allow the owner to delete an admin after a delay", async function () {
-        let callArguments = [from, ownerPermissions, utils.participantHash(adminC, adminPermissions, level)];
-        let res = await callDelayed(removeParticipant, gatekeeper, callArguments, from);
+        let callArguments = [operatorA, ownerPermissions, utils.participantHash(adminC, adminPermissions, level)];
+        let res = await callDelayed(removeParticipant, gatekeeper, callArguments, operatorA);
         let log = res.logs[0];
         assert.equal(log.event, "DelayedOperation");
         await utils.increaseTime(3600 * 24 * 2 + 10);
@@ -252,10 +261,10 @@ contract('Gatekeeper', async function (accounts) {
 
     /* Admin replaced */
     it("should allow the owner to replace an admin after a delay", async function () {
-        let encodedABI_add_adminB1 = gatekeeper.contract.methods.addParticipant(from, ownerPermissions, adminB1, adminPermissions, level).encodeABI();
-        let encodedABI_remove_adminB = gatekeeper.contract.methods.removeParticipant(from, ownerPermissions, utils.participantHash(adminB, adminPermissions, level)).encodeABI();
+        let encodedABI_add_adminB1 = gatekeeper.contract.methods.addParticipant(operatorA, ownerPermissions, adminB1, adminPermissions, level).encodeABI();
+        let encodedABI_remove_adminB = gatekeeper.contract.methods.removeParticipant(operatorA, ownerPermissions, utils.participantHash(adminB, adminPermissions, level)).encodeABI();
         let encodedPacked = utils.encodePackedBatch([encodedABI_add_adminB1, encodedABI_remove_adminB]);
-        let res = await gatekeeper.changeConfiguration(from, ownerPermissions, encodedPacked);
+        let res = await gatekeeper.changeConfiguration(operatorA, ownerPermissions, encodedPacked);
 
         await expect(
             gatekeeper.applyBatch(res.logs[0].args.operation, ownerPermissions, res.logs[0].args.opsNonce.toString())
@@ -279,8 +288,8 @@ contract('Gatekeeper', async function (accounts) {
     it("should only allow one operator in vault", async function () {
         // as we keep the 'require'-ment to use pre-approved permissions, operator
         // is defined as an account with 'ownerPermissions'
-        let callArguments = [from, ownerPermissions, wrongaddr, ownerPermissions, level];
-        let res1 = await callDelayed(addParticipant, gatekeeper, callArguments, from);
+        let callArguments = [operatorA, ownerPermissions, wrongaddr, ownerPermissions, level];
+        let res1 = await callDelayed(addParticipant, gatekeeper, callArguments, operatorA);
         await utils.increaseTime(3600 * 24 * 2 + 10);
         await gatekeeper.applyBatch(res1.logs[0].args.operation, ownerPermissions, res1.logs[0].args.opsNonce.toString());
         // as per spec file, another 'operator' can be added as a participant, but cannot use it's permissions
@@ -292,15 +301,37 @@ contract('Gatekeeper', async function (accounts) {
         ).to.be.revertedWith("This participant is not a real operator, fix your vault configuration.");
 
         // Clean up
-        let callArgumentsCleanUp = [from, ownerPermissions, utils.participantHash(wrongaddr, ownerPermissions, level)];
-        let res2 = await callDelayed(removeParticipant, gatekeeper, callArgumentsCleanUp, from);
+        let callArgumentsCleanUp = [operatorA, ownerPermissions, utils.participantHash(wrongaddr, ownerPermissions, level)];
+        let res2 = await callDelayed(removeParticipant, gatekeeper, callArgumentsCleanUp, operatorA);
         await utils.increaseTime(3600 * 24 * 2 + 10);
         await gatekeeper.applyBatch(res2.logs[0].args.operation, ownerPermissions, res2.logs[0].args.opsNonce.toString());
         await utils.validateAdminsConfig([wrongaddr], [1], [false], [ownerPermissions], gatekeeper);
     });
 
+    // TODO: these two tests are identical. Combine into 1 looped test.
     /* Owner loses phone*/
-    it("should allow the admin to replace the owner after a delay");
+    it("should allow the admin to replace the owner after a delay", async function () {
+        let admins = [operatorA, operatorB];
+        let levels = [1, 1];
+        let permissions = [ownerPermissions, ownerPermissions];
+        await utils.validateAdminsConfig(admins, levels, [true, false], permissions, gatekeeper);
+        let res = await gatekeeper.scheduleChangeOwner(adminPermissions, operatorB, {from: adminA});
+        await utils.increaseTime(3600 * 24 * 2 + 10);
+        await gatekeeper.applyBatch(res.logs[0].args.operation, adminPermissions, res.logs[0].args.opsNonce.toString(), {from: adminA});
+        await utils.validateAdminsConfig(admins, levels, [false, true], permissions, gatekeeper);
+    });
+
+    /* There is no scenario where this is described, but this is how it was implemented and now it is documented*/
+    it("should allow the owner to replace the owner after a delay", async function () {
+        let admins = [operatorA, operatorB];
+        let levels = [1, 1];
+        let permissions = [ownerPermissions, ownerPermissions];
+        await utils.validateAdminsConfig(admins, levels, [false, true], permissions, gatekeeper);
+        let res = await gatekeeper.scheduleChangeOwner(ownerPermissions, operatorA, {from: operatorB});
+        await utils.increaseTime(3600 * 24 * 2 + 10);
+        await gatekeeper.applyBatch(res.logs[0].args.operation, ownerPermissions, res.logs[0].args.opsNonce.toString(), {from: operatorB});
+        await utils.validateAdminsConfig(admins, levels, [true, false], permissions, gatekeeper);
+    });
 
     /* Owner finds the phone after losing it */
     it("should allow the owner to cancel an owner change");
@@ -316,32 +347,38 @@ contract('Gatekeeper', async function (accounts) {
     /* Owner’s phone controlled by a malicious operator */
     it("should not allow the owner to cancel an owner change if an admin locks him out");
 
-    /* Plain send - opposite */
-    it("should not allow non-owner to create a delayed transfer transaction", async function () {
-        // Not participant will not be found (regardless of claimed permissions, cannot test that)
-        await expect(
-            gatekeeper.contract.methods.sendEther(destinationAddresss, amount, ownerPermissions).send({from: wrongaddr})
-        ).to.be.revertedWith("not participant");
-        // Participant claiming permissions he doesn't have will not be found as well
-        await expect(
-            gatekeeper.contract.methods.sendEther(destinationAddresss, amount, ownerPermissions).send({from: adminA})
-        ).to.be.revertedWith("not participant");
-        // Participant honestly presenting his credentials will be rejected
-        await expect(
-            gatekeeper.contract.methods.sendEther(destinationAddresss, amount, adminPermissions).send({from: adminA})
-        ).to.be.revertedWith("not allowed");
+    function getNonSpenders() {
+        return getNonConfigChangers();
+    }
+
+    function getNonChowners() {
+        return [
+            {address: watchdogA, title: "watchdog", permissions: "0x26", expectError: "not allowed"},
+            {address: wrongaddr, title: "non-participant", permissions: "0x53f", expectError: "not participant"}
+        ];
+    }
+
+    function getNonConfigChangers() {
+        return [
+            {address: adminA, title: "admin", permissions: "0x600", expectError: "not allowed"},
+            {address: watchdogA, title: "watchdog", permissions: "0x26", expectError: "not allowed"},
+            {address: wrongaddr, title: "non-participant", permissions: "0x53f", expectError: "not participant"}
+        ];
+    }
+
+    getNonChowners().forEach((participant) => {
+        it(`should not allow \${${participant.title}} to change owner`, async function () {
+            validatePermission(participant);
+            await expect(
+                gatekeeper.scheduleChangeOwner(participant.permissions, adminC, {from: participant.address})
+            ).to.be.revertedWith(participant.expectError);
+        });
     });
 
     /* Admin replaced - opposite  & Owner loses phone - opposite */
-    [
-        {address: adminA, title: "admin", permissions: "0x600", expectError: "not allowed"},
-        {address: watchdogA, title: "watchdog", permissions: "0x26", expectError: "not allowed"},
-        {address: wrongaddr, title: "non-participant", permissions: "0x53f", expectError: "not participant"}
-    ].forEach((participant) => {
+    getNonConfigChangers().forEach((participant) => {
         it(`should not allow \${${participant.title}} to add or remove admins or watchdogs`, async function () {
-            if (![watchdogPermissions, adminPermissions, ownerPermissions].includes(participant.permissions)) {
-                assert.fail("Check permissions value"); // this dumb array is apparently created before "before". Ooof.
-            }
+            validatePermission(participant);
             let callArgumentsAdd = [participant.address, participant.permissions, adminC, ownerPermissions, level];
             await expect(
                 callDelayed(addParticipant, gatekeeper, callArgumentsAdd, participant.address)
@@ -355,6 +392,17 @@ contract('Gatekeeper', async function (accounts) {
         });
     });
 
+    getNonChowners().forEach((participant) => {
+        it(`should not allow \${${participant.title}} to create a delayed transfer transaction`, async function () {
+            validatePermission(participant);
+            await expect(
+                gatekeeper.sendEther(destinationAddresss, amount,  participant.permissions, {from: participant.address})
+            ).to.be.revertedWith(participant.expectError);
+        });
+    });
+
+    it("should validate correctness of claimed senderPermissions");
+    it("should validate correctness of claimed sender address");
     it("should not allow any operation to be called without a delay");
 
 });

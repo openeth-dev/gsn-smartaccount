@@ -120,4 +120,8 @@ contract DelayedOps {
         return (sender, extras);
     }
 
+    function encodeDelayed(bytes memory delayedTransaction) public pure returns (bytes memory){
+        return abi.encodePacked(delayedTransaction.length, delayedTransaction);
+    }
+
 }
