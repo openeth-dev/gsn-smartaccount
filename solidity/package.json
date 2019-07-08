@@ -7,7 +7,7 @@
     "ci": "npx run-with-testrpc -p 8544 -a 15 'npx truffle --network npmtest test'",
     "compile": "npx truffle compile|sed -e 's/^,//;' ",
     "trace": "MODE=trace npx truffle test --network cov",
-    "coverage": "rm -rf coverage ; MODE=coverage npx truffle test --network cov; istanbul report text; istanbul report html"
+    "coverage": "rm -rf coverage ; rm -rf .0x-artifacts ; MODE=coverage npx truffle test --network cov; istanbul report text; istanbul report html"
   },
   "devDependencies": {
     "@0x/contracts-utils": "3.1.6",

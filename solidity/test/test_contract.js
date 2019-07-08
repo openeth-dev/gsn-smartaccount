@@ -15,4 +15,7 @@ contract('Contract', function (accounts) {
         assert.equal(res2["1"], 3)
     });
 
+    after("write coverage report", async () => {
+        await global.postCoverage()
+    });
 });

@@ -155,4 +155,7 @@ contract('Vault', function (accounts) {
         ).to.be.revertedWith("cannot cancel, operation does not exist");
     });
 
+    after("write coverage report", async () => {
+        await global.postCoverage()
+    });
 });

@@ -108,7 +108,7 @@ contract('Gatekeeper', async function (accounts) {
         ).to.be.revertedWith("too many participants");
     });
 
-    it("should not receive the initial configuration after configured once", async function () {
+    it("should not receive the initial configuration with too many levels", async function () {
         let initialDelays = Array(11).fill(10);
         let initialParticipants = [];
         await expect(
@@ -448,4 +448,7 @@ contract('Gatekeeper', async function (accounts) {
     it("should validate correctness of claimed sender address");
     it("should not allow any operation to be called without a delay");
 
+    after("write coverage report", async () => {
+        await global.postCoverage()
+    });
 });
