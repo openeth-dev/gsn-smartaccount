@@ -28,16 +28,23 @@ contract Gatekeeper is DelayedOps {
     }
 
     // TEMP, FOR TDD
-    function setSpender(address spender) public
+    function setOperator(address operatorParam) public
     {
-        participants[adminHash(spender, 0xffff, 1)] = true;
+        participants[participantHash(operatorParam, ownerPermissions, 1)] = true;
+        operator = operatorParam;
     }
 
 
     // TEMP, FOR TDD
     function addParticipantInit(address participant, uint16 permissions, uint8 level) public {
-        participants[adminHash(participant, permissions, level)] = true;
+        participants[participantHash(participant, permissions, level)] = true;
     }
+
+    //***** events
+    event ParticipantAdded(bytes32 indexed participant);
+    event ParticipantRemoved(bytes32 indexed participant);
+    event OwnerChanged(address indexed newOwner);
+    //*****
 
     // TODO:
     //  1. Participant control (hashes map + isParticipant)
@@ -48,65 +55,78 @@ contract Gatekeeper is DelayedOps {
     event OperationCancelled(address sender, bytes32 hash);
 
 
-    uint16 constant public spend = 1 << 0;
-    uint16 constant public cancel_spend = 1 << 1;
-    uint16 constant public freeze = 1 << 2;
-    uint16 constant public unfreeze = 1 << 3;
-    uint16 constant public add_participant = 1 << 4;
-    uint16 constant public cancel_add_participant = 1 << 5;
-    uint16 constant public remove_participant = 1 << 6;
-    uint16 constant public cancel_remove_participant = 1 << 7;
-    uint16 constant public give_boost = 1 << 8;
-    uint16 constant public receive_boost = 1 << 9;
+    uint16 constant public canSpend = 1 << 0;
 
-    uint16 public ownerPermissions = spend | cancel_spend | freeze | unfreeze | add_participant | cancel_add_participant | remove_participant | cancel_remove_participant | give_boost;
-    uint16 public adminPermissions = add_participant | cancel_add_participant | remove_participant | receive_boost;
-    uint16 public watchdogPermissions = cancel_spend | cancel_add_participant | cancel_remove_participant | freeze;
+    uint16 constant public canUnfreeze = 1 << 3;
+    uint16 constant public canChangeParticipants = 1 << 4;
+
+    // 'owner' is a participant that holds most of permissions. It is locked at level 1. There can only be one 'owner' in the contract.
+    // Note that there is no 'cancel change owner' permission - same as in original design, once 'chown' is scheduled, it follows the regular 'config change' algorithm
+    uint16 constant public canChangeOwner = 1 << 10;
+
+    // TODO: Cancels are asymmetrical in nature:
+    //  We cannot differentiate who can cancel what delayed operation.
+    //  That is theoretically possible, but would require parsing the operation you are about to cancel.
+    // Currently, config changes are: add, remove, chown, unfreeze.
+
+    // There was some confusion what is 'give' and 'get' in the context of 'boost'
+    uint16 constant public canSignBoosts = 1 << 8;
+    uint16 constant public canExecuteBoosts = 1 << 9;
+
+    // Instant Run Permissions - these actions do not require delays
+    uint16 constant public canFreeze = 1 << 2;
+    uint16 constant public canCancelConfigChanges = 1 << 5;
+    uint16 constant public canCancelSpend = 1 << 1;
+
+    // If the operation is delayed, it's hard to enforce separate permissions for it. (Possible, though. Ask me how.)
+    uint16 public canChangeConfig = canUnfreeze | canChangeParticipants | canChangeOwner /* | canChangeDelays */;
+    uint16 public canCancel = canCancelSpend | canCancelConfigChanges;
+
+
+    uint16 public ownerPermissions = canSpend | canCancel | canFreeze | canChangeConfig | canSignBoosts;
+    uint16 public adminPermissions = canChangeOwner | canExecuteBoosts;
+    uint16 public watchdogPermissions = canCancel | canFreeze;
 
     mapping(bytes32 => bool) public participants;
-
-
-    event ParticipantAdded(bytes32 indexed participant);
-    event ParticipantRemoved(bytes32 indexed participant);
-
-    event HasPermission(uint256 permMasked, uint256 extras);
+    address operator;
 
     // ********** Function modifiers below this point
     modifier participantOnly(address participant, uint16 permissions, uint8 level){
-        require(participants[adminHash(participant, permissions, level)], "not participant");
+        require(participants[participantHash(participant, permissions, level)], "not participant");
+
+        require(permissions != ownerPermissions || participant == operator, "This participant is not a real operator, fix your vault configuration");
         // Training wheels. Can be removed if we want more freedom, but can be left if we want some hard-coded enforcement of rules in code
-        require(permissions == ownerPermissions || permissions == adminPermissions || permissions == watchdogPermissions || permissions == 0xffff, "use defaults or go compile your vault from sources");
-        _;
-    }
-    modifier hasPermission(uint16 permission) {
-        (, uint256 extras) = getScheduledExtras();
-        require(extras & permission != 0, "not allowed");
+        require(permissions == ownerPermissions || permissions == adminPermissions || permissions == watchdogPermissions, "use defaults or go compile your vault from sources");
         _;
     }
 
     // ********** Pure view functions below this point
-
-    function adminHash(address participant, uint16 permissions, uint8 rank) public pure returns (bytes32) {
+    function participantHash(address participant, uint16 permissions, uint8 rank) public pure returns (bytes32) {
         return keccak256(abi.encodePacked(participant, permissions, rank));
     }
 
     function validateOperation(address sender, uint256 extraData, bytes4 methodSig) internal {
     }
 
-    // ********** Immediate operations below this point
-
-
-    function sendBatch(bytes memory batch, uint16 sender_permissions) public {
-        scheduleDelayedBatch(msg.sender, sender_permissions, delay, batch);
+    function changeConfiguration(address sender, uint16 senderPermissions, bytes memory batch) participantOnly(sender, senderPermissions, 1) hasPermissions(canChangeConfig, senderPermissions) public {
+        scheduleDelayedBatch(msg.sender, senderPermissions, delay, batch);
     }
 
-    function applyBatch(bytes memory operation, uint16 sender_permissions, uint256 nonce) participantOnly(msg.sender, sender_permissions, 1) public {
-        applyDelayedOps(msg.sender, sender_permissions, nonce, operation);
+    function scheduleChangeOwner(uint16 senderPermissions, address newOwner) participantOnly(msg.sender, senderPermissions, 1) hasPermissions(canChangeOwner, senderPermissions)  public {
+        bytes memory delayedTransaction = abi.encodeWithSelector(this.changeOwner.selector, msg.sender, senderPermissions, newOwner);
+        scheduleDelayedBatch(msg.sender, senderPermissions, delay, encodeDelayed(delayedTransaction));
     }
 
-    function sendEther(address payable destination, uint value, uint16 sender_permissions) participantOnly(msg.sender, sender_permissions, 1) public {
-        require(sender_permissions & spend != 0, "not allowed");
-        vault.scheduleDelayedEtherTransfer(delay, destination, value);
+    function changeOwner(address sender, uint16 senderPermissions, address newOwner) participantOnly(sender, senderPermissions, 1) hasPermissions(canChangeOwner, senderPermissions)  public {
+        if (newOwner == address(0)) {
+            revert();
+        }
+        bytes32 oldParticipant = participantHash(operator, ownerPermissions, 1);
+        bytes32 newParticipant = participantHash(newOwner, ownerPermissions, 1);
+        participants[newParticipant] = true;
+        delete participants[oldParticipant];
+        operator = newOwner;
+        emit OwnerChanged(newOwner);
     }
 
     function applyTransfer(bytes memory operation, uint256 nonce, uint16 sender_permissions)
@@ -124,15 +144,30 @@ contract Gatekeeper is DelayedOps {
         cancelDelayedOp(hash);
     }
 
+    // TODO: RIGHT NOW: add 'scheduler'. (allow any participant to apply)
+    function applyBatch(bytes memory operation, uint16 senderPermissions, uint256 nonce) participantOnly(msg.sender, senderPermissions, 1) public {
+        applyDelayedOps(msg.sender, senderPermissions, nonce, operation);
+    }
+
+    function sendEther(address payable destination, uint value, uint16 senderPermissions)  participantOnly(msg.sender, senderPermissions, 1) hasPermissions(canSpend, senderPermissions) public {
+        vault.scheduleDelayedEtherTransfer(delay, destination, value);
+    }
+
+    modifier hasPermissions(uint16 permissions, uint16 senderPermissions) {
+        // Fix: sender has ALL the permissions in the 'permissions' flags bit mask
+        require(permissions & senderPermissions == permissions, "not allowed");
+        _;
+    }
+
     // ********** Delayed operations below this point
 
     // TODO: obviously does not conceal the level and identity
-    function addParticipant(address participant, uint16 permissions, uint8 level) hasPermission(add_participant) public {
-        participants[adminHash(participant, permissions, level)] = true;
-        emit ParticipantAdded(adminHash(participant, permissions, level));
+    function addParticipant(address sender, uint16 senderPermissions, address participant, uint16 permissions, uint8 level) hasPermissions(canChangeParticipants, senderPermissions) public {
+        participants[participantHash(participant, permissions, level)] = true;
+        emit ParticipantAdded(participantHash(participant, permissions, level));
     }
 
-    function removeParticipant(bytes32 participant) hasPermission(remove_participant) public {
+    function removeParticipant(address sender, uint16 senderPermissions, bytes32 participant) hasPermissions(canChangeParticipants, senderPermissions) public {
         require(participants[participant], "there is no such participant");
         delete participants[participant];
         emit ParticipantRemoved(participant);

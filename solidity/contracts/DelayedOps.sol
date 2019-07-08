@@ -67,6 +67,9 @@ contract DelayedOps {
             (singleOp, pos) = nextParam(batch, pos);
             //NOTE: decode doesn't work for methods with no args. but we know all our methods DO have args...
             bytes4 methodSig = LibBytes.readBytes4(singleOp, 0);
+//            address senderSent = LibBytes.readAddress(singleOp, 4);
+//            bytes32 extraDataSent = LibBytes.readBytes32(singleOp, 32);
+//            senderSent == sender && extraData == extraDataSent
             validateOperation(sender, extraData, methodSig);
             bool success;
             bytes memory revertMsg;
@@ -115,6 +118,10 @@ contract DelayedOps {
         uint256 extras = LibBytes.readUint256(msg.data, msg.data.length - 32);
         address sender = LibBytes.readAddress(msg.data, msg.data.length - 32 - 20);
         return (sender, extras);
+    }
+
+    function encodeDelayed(bytes memory delayedTransaction) public pure returns (bytes memory){
+        return abi.encodePacked(delayedTransaction.length, delayedTransaction);
     }
 
 }
