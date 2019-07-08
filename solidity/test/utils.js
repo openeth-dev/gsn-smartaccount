@@ -65,12 +65,13 @@ module.exports = {
         return pastEvents[0];
     },
 
-    validateAdminsConfig: async function (admins, levels, expected, permissions, gatekeeper) {
-        assert.equal(admins.length, levels.length);
+    // TODO: accept 1 array of objects, not 3 arrays of primitives.
+    validateConfig: async function (participants, levels, expected, permissions, gatekeeper) {
+        assert.equal(participants.length, levels.length);
         assert.equal(expected.length, levels.length);
         assert.equal(expected.length, permissions.length);
-        for (let i = 0; i < admins.length; i++) {
-            let adminHash = this.bufferToHex(this.participantHash(admins[i], permissions[i], levels[i]));
+        for (let i = 0; i < participants.length; i++) {
+            let adminHash = this.bufferToHex(this.participantHash(participants[i], permissions[i], levels[i]));
             let isAdmin = await gatekeeper.participants(adminHash);
             assert.equal(expected[i], isAdmin, `admin №${i} isAdmin=${isAdmin}, expected=${expected[i]}`);
         }

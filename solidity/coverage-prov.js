@@ -73,7 +73,7 @@ if (mode === "profile") {
     provider.addProvider(revertTraceSubprovider);
   }
   if ( global.useInProcessGanache ) {
-	const ganahceSubprovider = new GanacheSubprovider();
+	const ganahceSubprovider = new GanacheSubprovider({total_accounts: 20});
 
 	provider.addProvider(ganahceSubprovider);
 	

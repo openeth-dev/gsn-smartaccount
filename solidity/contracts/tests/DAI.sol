@@ -26,7 +26,7 @@ contract DAI is IERC20 {
 
     uint256 private _totalSupply;
 
-    uint constant EXPECTED_DAI_SUPPLY = 1_000_000;
+    uint constant EXPECTED_DAI_SUPPLY = 1000000;
 
     constructor() public {
         _mint(msg.sender, EXPECTED_DAI_SUPPLY);

@@ -41,6 +41,7 @@ contract('Gatekeeper', async function (accounts) {
     let gatekeeper;
     let vault;
     let level = 1;
+    let zeroAddress = "0x0000000000000000000000000000000000000000";
     let operatorA = accounts[0];
     let operatorB = accounts[11];
     let wrongaddr = accounts[1];
@@ -81,13 +82,6 @@ contract('Gatekeeper', async function (accounts) {
         addParticipant = gatekeeper.contract.methods.addParticipant;
         removeParticipant = gatekeeper.contract.methods.removeParticipant;
         changeOwner = gatekeeper.contract.methods.changeOwner;
-        await gatekeeper.setVault(vault.address);
-        await gatekeeper.setOperator(operatorA);
-        await gatekeeper.addParticipantInit(adminA, adminPermissions, level);
-        await gatekeeper.addParticipantInit(adminB, adminPermissions, level);
-        await gatekeeper.addParticipantInit(watchdogA, watchdogPermissions, level);
-        await gatekeeper.addParticipantInit(watchdogB, watchdogPermissions, level);
-        await gatekeeper.setDelay(delay);
     });
 
     async function getLastEvent(contract, event, expectedCount) {
@@ -106,6 +100,55 @@ contract('Gatekeeper', async function (accounts) {
         }
     }
 
+    it("should not receive the initial configuration with too many participants", async function () {
+        let initialDelays = [];
+        let initialParticipants = Array(21).fill("0x1123123");
+        await expect(
+            gatekeeper.initialConfig(vault.address, initialParticipants, initialDelays)
+        ).to.be.revertedWith("too many participants");
+    });
+
+    it("should not receive the initial configuration after configured once", async function () {
+        let initialDelays = Array(11).fill(10);
+        let initialParticipants = [];
+        await expect(
+            gatekeeper.initialConfig(vault.address, initialParticipants, initialDelays)
+        ).to.be.revertedWith("too many levels");
+    });
+
+    /* Initial configuration */
+    it("should receive the initial vault configuration", async function () {
+        let operator = await gatekeeper.operator();
+        assert.equal(zeroAddress, operator);
+        let initialDelays = [10, 10, 10]; // TODO: support delays
+        let initialParticipants = [
+            utils.bufferToHex(utils.participantHash(adminA, adminPermissions, level)),
+            utils.bufferToHex(utils.participantHash(adminB, adminPermissions, level)),
+            utils.bufferToHex(utils.participantHash(watchdogA, watchdogPermissions, level))
+        ];
+
+        let res = await gatekeeper.initialConfig(vault.address, initialParticipants, initialDelays);
+        let log = res.logs[0];
+        assert.equal(log.event, "GatekeeperInitialized");
+        assert.equal(log.args.vault, vault.address);
+
+        operator = await gatekeeper.operator();
+        assert.equal(operatorA, operator);
+
+        let participants = [operatorA, adminA, adminB, watchdogA, watchdogB, operatorB, adminC, wrongaddr];
+        let levels = [1, 1, 1, 1, 1, 1, 1, 1];
+        let permissions = [ownerPermissions, adminPermissions, adminPermissions, watchdogPermissions, watchdogPermissions, adminPermissions, ownerPermissions, ownerPermissions];
+        await utils.validateConfig(participants, levels, [true, true, true, true, false, false, false, false], permissions, gatekeeper);
+    });
+
+    it("should not receive the initial configuration after configured once", async function () {
+        let initialDelays = []; // TODO: support delays
+        let initialParticipants = [];
+        await expect(
+            gatekeeper.initialConfig(vault.address, initialParticipants, initialDelays)
+        ).to.be.revertedWith("already initialized");
+    });
+    // return;
     /* Positive flows */
 
     /* Plain send */
@@ -203,7 +246,7 @@ contract('Gatekeeper', async function (accounts) {
         assert.equal(log2.args.hash, "0x" + hash.toString("hex"));
         assert.equal(log2.args.sender, watchdogA);
 
-        await utils.validateAdminsConfig(
+        await utils.validateConfig(
             [adminA, adminB, adminB1],
             [1, 1, 1],
             [true, true, false],
@@ -234,7 +277,7 @@ contract('Gatekeeper', async function (accounts) {
         let hash = utils.bufferToHex(utils.participantHash(adminC, adminPermissions, level));
         assert.equal(log2.event, "ParticipantAdded");
         assert.equal(log2.args.participant, hash);
-        await utils.validateAdminsConfig(
+        await utils.validateConfig(
             [adminA, adminB, adminB1, adminC],
             [1, 1, 1, 1],
             [true, true, false, true],
@@ -250,7 +293,7 @@ contract('Gatekeeper', async function (accounts) {
         await utils.increaseTime(3600 * 24 * 2 + 10);
         let res2 = await gatekeeper.applyBatch(res.logs[0].args.operation, ownerPermissions, res.logs[0].args.opsNonce.toString());
         assert.equal(res2.logs[0].event, "ParticipantRemoved");
-        await utils.validateAdminsConfig(
+        await utils.validateConfig(
             [adminA, adminB, adminB1, adminC],
             [1, 1, 1, 1],
             [true, true, false, false],
@@ -277,7 +320,7 @@ contract('Gatekeeper', async function (accounts) {
         assert.equal(res2.logs[0].event, "ParticipantAdded");
         assert.equal(res2.logs[1].event, "ParticipantRemoved");
 
-        await utils.validateAdminsConfig(
+        await utils.validateConfig(
             [adminA, adminB, adminB1, adminC],
             [1, 1, 1, 1],
             [true, false, true, false],
@@ -293,19 +336,19 @@ contract('Gatekeeper', async function (accounts) {
         await utils.increaseTime(3600 * 24 * 2 + 10);
         await gatekeeper.applyBatch(res1.logs[0].args.operation, ownerPermissions, res1.logs[0].args.opsNonce.toString());
         // as per spec file, another 'operator' can be added as a participant, but cannot use it's permissions
-        await utils.validateAdminsConfig([wrongaddr], [1], [true], [ownerPermissions], gatekeeper);
+        await utils.validateConfig([wrongaddr], [1], [true], [ownerPermissions], gatekeeper);
 
         let anyCallArguments = [wrongaddr, ownerPermissions, wrongaddr, ownerPermissions, level];
         await expect(
             callDelayed(addParticipant, gatekeeper, anyCallArguments, wrongaddr)
-        ).to.be.revertedWith("This participant is not a real operator, fix your vault configuration.");
+        ).to.be.revertedWith("This participant is not a real operator, fix your vault configuration");
 
         // Clean up
         let callArgumentsCleanUp = [operatorA, ownerPermissions, utils.participantHash(wrongaddr, ownerPermissions, level)];
         let res2 = await callDelayed(removeParticipant, gatekeeper, callArgumentsCleanUp, operatorA);
         await utils.increaseTime(3600 * 24 * 2 + 10);
         await gatekeeper.applyBatch(res2.logs[0].args.operation, ownerPermissions, res2.logs[0].args.opsNonce.toString());
-        await utils.validateAdminsConfig([wrongaddr], [1], [false], [ownerPermissions], gatekeeper);
+        await utils.validateConfig([wrongaddr], [1], [false], [ownerPermissions], gatekeeper);
     });
 
     // TODO: these two tests are identical. Combine into 1 looped test.
@@ -314,11 +357,11 @@ contract('Gatekeeper', async function (accounts) {
         let admins = [operatorA, operatorB];
         let levels = [1, 1];
         let permissions = [ownerPermissions, ownerPermissions];
-        await utils.validateAdminsConfig(admins, levels, [true, false], permissions, gatekeeper);
+        await utils.validateConfig(admins, levels, [true, false], permissions, gatekeeper);
         let res = await gatekeeper.scheduleChangeOwner(adminPermissions, operatorB, {from: adminA});
         await utils.increaseTime(3600 * 24 * 2 + 10);
         await gatekeeper.applyBatch(res.logs[0].args.operation, adminPermissions, res.logs[0].args.opsNonce.toString(), {from: adminA});
-        await utils.validateAdminsConfig(admins, levels, [false, true], permissions, gatekeeper);
+        await utils.validateConfig(admins, levels, [false, true], permissions, gatekeeper);
     });
 
     /* There is no scenario where this is described, but this is how it was implemented and now it is documented*/
@@ -326,11 +369,11 @@ contract('Gatekeeper', async function (accounts) {
         let admins = [operatorA, operatorB];
         let levels = [1, 1];
         let permissions = [ownerPermissions, ownerPermissions];
-        await utils.validateAdminsConfig(admins, levels, [false, true], permissions, gatekeeper);
+        await utils.validateConfig(admins, levels, [false, true], permissions, gatekeeper);
         let res = await gatekeeper.scheduleChangeOwner(ownerPermissions, operatorA, {from: operatorB});
         await utils.increaseTime(3600 * 24 * 2 + 10);
         await gatekeeper.applyBatch(res.logs[0].args.operation, ownerPermissions, res.logs[0].args.opsNonce.toString(), {from: operatorB});
-        await utils.validateAdminsConfig(admins, levels, [true, false], permissions, gatekeeper);
+        await utils.validateConfig(admins, levels, [true, false], permissions, gatekeeper);
     });
 
     /* Owner finds the phone after losing it */
