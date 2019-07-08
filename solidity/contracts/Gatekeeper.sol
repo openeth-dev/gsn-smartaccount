@@ -15,35 +15,11 @@ contract Gatekeeper is DelayedOps {
     address participantAdminB;
     uint256 delay = 1 hours;
 
-    // TEMP, FOR TDD
-    function setDelay(uint256 delayParam) public
-    {
-        delay = delayParam;
-    }
-
-    // TEMP, FOR TDD
-    function setVault(Vault vaultParam) public
-    {
-        vault = vaultParam;
-    }
-
-    // TEMP, FOR TDD
-    function setOperator(address operatorParam) public
-    {
-        participants[participantHash(operatorParam, ownerPermissions, 1)] = true;
-        operator = operatorParam;
-    }
-
-
-    // TEMP, FOR TDD
-    function addParticipantInit(address participant, uint16 permissions, uint8 level) public {
-        participants[participantHash(participant, permissions, level)] = true;
-    }
-
     //***** events
     event ParticipantAdded(bytes32 indexed participant);
     event ParticipantRemoved(bytes32 indexed participant);
     event OwnerChanged(address indexed newOwner);
+    event GatekeeperInitialized(address vault);
     //*****
 
     // TODO:
@@ -88,7 +64,7 @@ contract Gatekeeper is DelayedOps {
     uint16 public watchdogPermissions = canCancel | canFreeze;
 
     mapping(bytes32 => bool) public participants;
-    address operator;
+    address public operator;
 
     // ********** Function modifiers below this point
     modifier participantOnly(address participant, uint16 permissions, uint8 level){
@@ -105,6 +81,33 @@ contract Gatekeeper is DelayedOps {
         return keccak256(abi.encodePacked(participant, permissions, rank));
     }
 
+
+    uint constant maxParticipants = 20;
+    uint constant maxLevels = 10;
+    uint constant maxDelay = 365 days;
+    uint constant max_freeze = 365 days;
+
+    function initialConfig(Vault vaultParam, bytes32[] memory initialParticipants, uint[] memory initialDelays) public {
+        require(operator == address(0), "already initialized");
+
+        require(initialParticipants.length <= maxParticipants, "too many participants");
+        require(initialDelays.length <= maxLevels, "too many levels");
+        for (uint8 i = 0; i < initialParticipants.length; i++) {
+            participants[initialParticipants[i]] = true;
+        }
+        for (uint8 i = 0; i < initialDelays.length; i++) {
+            require(initialDelays[i] < maxDelay);
+        }
+        //        TODO: implement delays
+        //        delays = initialDelays;
+        vault = vaultParam;
+
+        operator = msg.sender;
+        participants[participantHash(operator, ownerPermissions, 1)] = true;
+
+        emit GatekeeperInitialized(address(vault));
+    }
+
     function validateOperation(address sender, uint256 extraData, bytes4 methodSig) internal {
     }
 
@@ -112,15 +115,13 @@ contract Gatekeeper is DelayedOps {
         scheduleDelayedBatch(msg.sender, senderPermissions, delay, batch);
     }
 
-    function scheduleChangeOwner(uint16 senderPermissions, address newOwner) participantOnly(msg.sender, senderPermissions, 1) hasPermissions(canChangeOwner, senderPermissions)  public {
+    function scheduleChangeOwner(uint16 senderPermissions, address newOwner) participantOnly(msg.sender, senderPermissions, 1) hasPermissions(canChangeOwner, senderPermissions) public {
         bytes memory delayedTransaction = abi.encodeWithSelector(this.changeOwner.selector, msg.sender, senderPermissions, newOwner);
         scheduleDelayedBatch(msg.sender, senderPermissions, delay, encodeDelayed(delayedTransaction));
     }
 
-    function changeOwner(address sender, uint16 senderPermissions, address newOwner) participantOnly(sender, senderPermissions, 1) hasPermissions(canChangeOwner, senderPermissions)  public {
-        if (newOwner == address(0)) {
-            revert();
-        }
+    function changeOwner(address sender, uint16 senderPermissions, address newOwner) participantOnly(sender, senderPermissions, 1) hasPermissions(canChangeOwner, senderPermissions) public {
+        require(newOwner != address(0), "cannot set owner to zero address");
         bytes32 oldParticipant = participantHash(operator, ownerPermissions, 1);
         bytes32 newParticipant = participantHash(newOwner, ownerPermissions, 1);
         participants[newParticipant] = true;
@@ -149,7 +150,7 @@ contract Gatekeeper is DelayedOps {
         applyDelayedOps(msg.sender, senderPermissions, nonce, operation);
     }
 
-    function sendEther(address payable destination, uint value, uint16 senderPermissions)  participantOnly(msg.sender, senderPermissions, 1) hasPermissions(canSpend, senderPermissions) public {
+    function sendEther(address payable destination, uint value, uint16 senderPermissions) participantOnly(msg.sender, senderPermissions, 1) hasPermissions(canSpend, senderPermissions) public {
         vault.scheduleDelayedEtherTransfer(delay, destination, value);
     }
 

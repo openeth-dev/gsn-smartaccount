@@ -23,6 +23,9 @@ const isVerbose = true;
 const artifactAdapter = new TruffleArtifactAdapter(projectRoot, solcVersion);
 const provider = new ProviderEngine();
 
+//ignore imported packages, tests (can also ignore interfaces: sol-coverage report 0% coverage on interfaces..)
+const ignoreFilesGlobs = [ "**/node_modules/**/*", "**/Migrations.sol", "**/Test*"];
+
 //add to tests: global.addPostCoverage(this), so they save coverage data.
 global.saveCoverageAtEnd = function(test) {
 	after = test.after;
@@ -60,7 +63,10 @@ if (mode === "profile") {
     global.coverageSubprovider = new CoverageSubprovider(
       artifactAdapter,
       defaultFromAddress,
-      isVerbose
+        {
+            ignoreFilesGlobs,
+            isVerbose
+        }
     );
     provider.addProvider(global.coverageSubprovider);
   } else if (mode === "trace") {
@@ -68,22 +74,25 @@ if (mode === "profile") {
     const revertTraceSubprovider = new RevertTraceSubprovider(
       artifactAdapter,
       defaultFromAddress,
-      isVerbose
+        {
+            ignoreFilesGlobs,
+            isVerbose
+        }
     );
     provider.addProvider(revertTraceSubprovider);
   }
   if ( global.useInProcessGanache ) {
-	const ganahceSubprovider = new GanacheSubprovider();
+	const ganahceSubprovider = new GanacheSubprovider({total_accounts: 20});
 
 	provider.addProvider(ganahceSubprovider);
-	
+
 	if ( global.exposeGanachePort ) {
 	  s = ganacheHttpServer( provider, {log : ()=>{}} );
 
 	  s.listen( {port:exposeGanachePort, host:'localhost'} );
 	  console.log( "Started in-process Ganache, on port "+exposeGanachePort )
 	}
-	
+
   } else {
 	//use external provider
 	provider.addProvider(new RpcProvider({ rpcUrl: "http://localhost:8544" }));
