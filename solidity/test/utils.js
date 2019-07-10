@@ -1,4 +1,10 @@
 const ABI = require('ethereumjs-abi');
+const Web3Utils = require('web3-utils');
+const EthUtils = require('ethereumjs-util');
+
+function removeHexPrefix(hex) {
+    return hex.replace(/^0x/, '');
+}
 
 module.exports = {
 
@@ -87,5 +93,38 @@ module.exports = {
         assert.isAtMost(permInt, 0x07FF);
         assert.isAtMost(levelInt, 0x1F);
         return "0x" + ((levelInt << 11) + permInt).toString(16);
+    },
+
+    getTransactionHash(txBuffer) {
+        return Web3Utils.sha3('0x' + txBuffer.toString("hex"))
+    },
+
+    async signMessage(hash, web3, {from}) {
+        let sig_;
+        try {
+            sig_ = await new Promise((resolve, reject) => {
+                try {
+                    web3.eth.personal.sign(hash, from, (err, res) => {
+                        if (err) reject(err);
+                        else resolve(res)
+                    })
+                } catch (e) {
+                    reject(e)
+                }
+            })
+
+        } catch (e) {
+            sig_ = await new Promise((resolve, reject) => {
+                web3.eth.sign(hash, from, (err, res) => {
+                    if (err) reject(err);
+                    else resolve(res)
+                })
+            })
+        }
+
+        let signature = EthUtils.fromRpcSig(sig_);
+        // noinspection UnnecessaryLocalVariableJS
+        let sig = Web3Utils.bytesToHex(signature.r) + removeHexPrefix(Web3Utils.bytesToHex(signature.s)) + removeHexPrefix(Web3Utils.toHex(signature.v));
+        return sig;
     }
 };
