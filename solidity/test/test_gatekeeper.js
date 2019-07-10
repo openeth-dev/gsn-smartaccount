@@ -38,12 +38,20 @@ class Participant {
         this.level = level;
         this.name = name;
         this.permLevel = utils.packPermissionLevel(permissions, level);
+        this.isParticipant = false;
     }
 
     expectError(error) {
         let clone = Object.assign({}, this);
         clone.expectError = error;
         return clone;
+    }
+
+    expect() {
+        let clone = Object.assign({}, this);
+        clone.isParticipant = true;
+        return clone;
+
     }
 }
 
@@ -68,7 +76,6 @@ contract('Gatekeeper', async function (accounts) {
     let watchdogB1;
     let watchdogC;
     let amount = 100;
-    let delay = 77;
     let startBlock;
     let web3;
     let expectedDelayedEventsCount = 0;
@@ -157,10 +164,16 @@ contract('Gatekeeper', async function (accounts) {
         assert.equal(operatorA.address, operator);
 
         // let participants = [operatorA, adminA, adminB, watchdogA, watchdogB, operatorB, adminC, wrongaddr];
-        let participants = [operatorA.address, adminA.address, adminB.address, watchdogA.address, watchdogB.address, operatorB.address, adminC.address, wrongaddr.address];
-        let levels = [1, 1, 1, 1, 1, 1, 1, 1];
-        let permissions = [operatorA.permLevel, adminA.permLevel, adminB.permLevel, watchdogA.permLevel, watchdogB.permLevel, operatorB.permLevel, adminC.permLevel, wrongaddr.permLevel];
-        await utils.validateConfig(participants, levels, [true, true, true, true, false, false, false, false], permissions, gatekeeper);
+        let participants = [
+            operatorA.expect(),
+            adminA.expect(),
+            adminB.expect(),
+            watchdogA.expect(),
+            watchdogB,
+            operatorB,
+            adminC,
+            wrongaddr];
+        await utils.validateConfig(participants, gatekeeper);
     });
 
     it("should not receive the initial configuration after configured once", async function () {
@@ -255,10 +268,7 @@ contract('Gatekeeper', async function (accounts) {
         assert.equal(log2.args.sender, watchdogA.address);
 
         await utils.validateConfig(
-            [adminA.address, adminB.address, adminB1.address],
-            [1, 1, 1],
-            [true, true, false],
-            [adminA.permLevel, adminB.permLevel, adminB1.permLevel],
+            [adminA.expect(), adminB.expect(), adminB1],
             gatekeeper);
     });
 
@@ -286,10 +296,7 @@ contract('Gatekeeper', async function (accounts) {
         assert.equal(log2.event, "ParticipantAdded");
         assert.equal(log2.args.participant, hash);
         await utils.validateConfig(
-            [adminA.address, adminB.address, adminB1.address, adminC.address],
-            [1, 1, 1, 1],
-            [true, true, false, true],
-            [adminA.permLevel, adminB.permLevel, adminB1.permLevel, adminC.permLevel],
+            [adminA.expect(), adminB.expect(), adminB1, adminC.expect()],
             gatekeeper);
     });
 
@@ -302,10 +309,7 @@ contract('Gatekeeper', async function (accounts) {
         let res2 = await gatekeeper.applyBatch(res.logs[0].args.operation, operatorA.permLevel, res.logs[0].args.opsNonce.toString());
         assert.equal(res2.logs[0].event, "ParticipantRemoved");
         await utils.validateConfig(
-            [adminA.address, adminB.address, adminB1.address, adminC.address],
-            [1, 1, 1, 1],
-            [true, true, false, false],
-            [adminA.permLevel, adminB.permLevel, adminB1.permLevel, adminC.permLevel],
+            [adminA.expect(), adminB.expect(), adminB1, adminC],
             gatekeeper);
 
     });
@@ -329,10 +333,7 @@ contract('Gatekeeper', async function (accounts) {
         assert.equal(res2.logs[1].event, "ParticipantRemoved");
 
         await utils.validateConfig(
-            [adminA.address, adminB.address, adminB1.address, adminC.address],
-            [1, 1, highLevel, 1],
-            [true, false, true, false],
-            [adminA.permLevel, adminB.permLevel, adminB1.permLevel, adminC.permLevel],
+            [adminA.expect(), adminB, adminB1.expect(), adminC],
             gatekeeper);
     });
 
@@ -344,7 +345,7 @@ contract('Gatekeeper', async function (accounts) {
         await utils.increaseTime(3600 * 24 * 2 + 10);
         await gatekeeper.applyBatch(res1.logs[0].args.operation, operatorA.permLevel, res1.logs[0].args.opsNonce.toString());
         // as per spec file, another 'operator' can be added as a participant, but cannot use it's permissions
-        await utils.validateConfig([wrongaddr.address], [1], [true], [wrongaddr.permLevel], gatekeeper);
+        await utils.validateConfig([wrongaddr.expect()], gatekeeper);
 
         let anyCallArguments = [wrongaddr.address, operatorA.permLevel, wrongaddr.address, wrongaddr.permLevel];
         await expect(
@@ -356,32 +357,30 @@ contract('Gatekeeper', async function (accounts) {
         let res2 = await callDelayed(removeParticipant, gatekeeper, callArgumentsCleanUp, operatorA.address);
         await utils.increaseTime(3600 * 24 * 2 + 10);
         await gatekeeper.applyBatch(res2.logs[0].args.operation, operatorA.permLevel, res2.logs[0].args.opsNonce.toString());
-        await utils.validateConfig([wrongaddr.address], [1], [false], [ownerPermissions], gatekeeper);
+        await utils.validateConfig([wrongaddr], gatekeeper);
     });
 
     // TODO: these two tests are identical. Combine into 1 looped test.
     /* Owner loses phone*/
     it("should allow the admin to replace the owner after a delay", async function () {
-        let admins = [operatorA.address, operatorB.address];
-        let levels = [1, 1];
-        let permissions = [operatorA.permLevel, operatorB.permLevel];
-        await utils.validateConfig(admins, levels, [true, false], permissions, gatekeeper);
+        let participants = [operatorA.expect(), operatorB];
+        await utils.validateConfig(participants, gatekeeper);
         let res = await gatekeeper.scheduleChangeOwner(adminA.permLevel, operatorB.address, {from: adminA.address});
         await utils.increaseTime(3600 * 24 * 2 + 10);
         await gatekeeper.applyBatch(res.logs[0].args.operation, adminA.permLevel, res.logs[0].args.opsNonce.toString(), {from: adminA.address});
-        await utils.validateConfig(admins, levels, [false, true], permissions, gatekeeper);
+        participants = [operatorA, operatorB.expect()];
+        await utils.validateConfig(participants, gatekeeper);
     });
 
     /* There is no scenario where this is described, but this is how it was implemented and now it is documented*/
     it("should allow the owner to replace the owner after a delay", async function () {
-        let admins = [operatorA.address, operatorB.address];
-        let levels = [1, 1];
-        let permissions = [operatorA.permLevel, operatorB.permLevel];
-        await utils.validateConfig(admins, levels, [false, true], permissions, gatekeeper);
+        let participants = [operatorA, operatorB.expect()];
+        await utils.validateConfig(participants, gatekeeper);
         let res = await gatekeeper.scheduleChangeOwner(operatorA.permLevel, operatorA.address, {from: operatorB.address});
         await utils.increaseTime(3600 * 24 * 2 + 10);
         await gatekeeper.applyBatch(res.logs[0].args.operation, operatorA.permLevel, res.logs[0].args.opsNonce.toString(), {from: operatorB.address});
-        await utils.validateConfig(admins, levels, [true, false], permissions, gatekeeper);
+        participants = [operatorA.expect(), operatorB];
+        await utils.validateConfig(participants, gatekeeper);
     });
 
     /* Owner finds the phone after losing it */
@@ -486,13 +485,13 @@ contract('Gatekeeper', async function (accounts) {
             await gatekeeper.applyBatch(res0.logs[0].args.operation, operatorA.permLevel, res0.logs[0].args.opsNonce.toString());
         }
 
-        // TODO: refactor
-        // There is a watchdog with level that is higher than other participants in the vault
-        await utils.validateConfig([watchdogB.address], [freezerLevel], [true], [watchdogB.permLevel], gatekeeper);
-        await utils.validateConfig([watchdogA.address], [level], [true], [watchdogA.permLevel], gatekeeper);
-        await utils.validateConfig([operatorA.address], [level], [true], [operatorA.permLevel], gatekeeper);
-        await utils.validateConfig([adminA.address], [level], [true], [adminA.permLevel], gatekeeper);
-        await utils.validateConfig([adminB1.address], [highLevel], [true], [adminB1.permLevel], gatekeeper);
+        await utils.validateConfig([
+            operatorA.expect(),
+            watchdogA.expect(),
+            watchdogB.expect(),
+            adminA.expect(),
+            adminB1.expect()
+        ], gatekeeper);
 
         // senderPermissions, uint8 senderLevel, uint8 levelToFreeze, uint interval
         let interval = 1000;

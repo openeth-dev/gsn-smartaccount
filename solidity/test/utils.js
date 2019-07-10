@@ -72,23 +72,12 @@ module.exports = {
     },
 
     // TODO: accept 1 array of objects, not 3 arrays of primitives.
-    validateConfigNew: async function (participants, gatekeeper) {
-        this.asyncForEach(participants, async (participant) => {
+    validateConfig: async function (participants, gatekeeper) {
+        await this.asyncForEach(participants, async (participant) => {
             let adminHash = this.bufferToHex(this.participantHash(participant.address, participant.permLevel));
             let isAdmin = await gatekeeper.participants(adminHash);
-            assert.equal(participant.expected, isAdmin, `admin ${participant.name} isAdmin=${isAdmin}, expected=${participant.expected}`);
+            assert.equal(participant.isParticipant, isAdmin, `admin ${participant.name} isAdmin=${isAdmin}, expected=${participant.isParticipant}`);
         });
-    },
-
-    validateConfig: async function (participants, levels, expected, permissions, gatekeeper) {
-        assert.equal(participants.length, levels.length);
-        assert.equal(expected.length, levels.length);
-        assert.equal(expected.length, permissions.length);
-        for (let i = 0; i < participants.length; i++) {
-            let adminHash = this.bufferToHex(this.participantHash(participants[i], permissions[i]));
-            let isAdmin = await gatekeeper.participants(adminHash);
-            assert.equal(expected[i], isAdmin, `admin №${i} isAdmin=${isAdmin}, expected=${expected[i]}`);
-        }
     },
 
     packPermissionLevel(permissions, level) {
