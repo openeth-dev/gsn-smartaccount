@@ -55,8 +55,8 @@ module.exports = {
         return ABI.soliditySHA3(["address", "uint256", "uint256", "bytes"], [sender, extraData, nonce, batch])
     },
 
-    participantHash: function (admin, permissions, level) {
-        return ABI.soliditySHA3(["address", "uint16", "uint8"], [admin, permissions, level])
+    participantHash: function (admin, permLevel) {
+        return ABI.soliditySHA3(["address", "uint16"], [admin, permLevel])
     },
 
     extractLastDelayedOpsEvent: async function (trufflecontract) {
@@ -65,13 +65,27 @@ module.exports = {
         return pastEvents[0];
     },
 
+    asyncForEach: async function (array, callback) {
+        for (let index = 0; index < array.length; index++) {
+            await callback(array[index], index, array);
+        }
+    },
+
     // TODO: accept 1 array of objects, not 3 arrays of primitives.
+    validateConfigNew: async function (participants, gatekeeper) {
+        this.asyncForEach(participants, async (participant) => {
+            let adminHash = this.bufferToHex(this.participantHash(participant.address, participant.permLevel));
+            let isAdmin = await gatekeeper.participants(adminHash);
+            assert.equal(participant.expected, isAdmin, `admin ${participant.name} isAdmin=${isAdmin}, expected=${participant.expected}`);
+        });
+    },
+
     validateConfig: async function (participants, levels, expected, permissions, gatekeeper) {
         assert.equal(participants.length, levels.length);
         assert.equal(expected.length, levels.length);
         assert.equal(expected.length, permissions.length);
         for (let i = 0; i < participants.length; i++) {
-            let adminHash = this.bufferToHex(this.participantHash(participants[i], permissions[i], levels[i]));
+            let adminHash = this.bufferToHex(this.participantHash(participants[i], permissions[i]));
             let isAdmin = await gatekeeper.participants(adminHash);
             assert.equal(expected[i], isAdmin, `admin №${i} isAdmin=${isAdmin}, expected=${expected[i]}`);
         }
