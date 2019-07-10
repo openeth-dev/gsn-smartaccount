@@ -75,5 +75,14 @@ module.exports = {
             let isAdmin = await gatekeeper.participants(adminHash);
             assert.equal(expected[i], isAdmin, `admin №${i} isAdmin=${isAdmin}, expected=${expected[i]}`);
         }
+    },
+
+    packPermissionLevel(permissions, level) {
+        let permInt = parseInt(permissions);
+        let levelInt = parseInt(level);
+
+        assert.isAtMost(permInt, 0x07FF);
+        assert.isAtMost(levelInt, 0x1F);
+        return "0x" + ((levelInt << 11) + permInt).toString(16);
     }
 };
