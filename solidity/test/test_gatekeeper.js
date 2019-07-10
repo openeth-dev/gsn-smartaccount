@@ -23,6 +23,7 @@ function getDelayedOpHashFromEvent(log) {
 async function callDelayed(method, gatekeeper, callArguments, from) {
     // TODO: remove the first two parameters (scheduler, schedulerPermissions) if there will not arise a use case.
     assert.equal(true, (typeof callArguments[0]) === 'string' && EthereumjsUtil.isHexPrefixed(callArguments[0]));
+    // TODO: parseint the permissions thing and compare to 0xffff !!!
     assert.equal(true, callArguments[1].length > 0 && callArguments[1].length < 6 && EthereumjsUtil.isHexPrefixed(callArguments[1]));
 
     let encodedABI = method(...callArguments).encodeABI();
@@ -41,6 +42,7 @@ contract('Gatekeeper', async function (accounts) {
     let gatekeeper;
     let vault;
     let level = 1;
+    let highLevel = 3;
     let zeroAddress = "0x0000000000000000000000000000000000000000";
     let operatorA = accounts[0];
     let operatorB = accounts[11];
@@ -94,6 +96,7 @@ contract('Gatekeeper', async function (accounts) {
         return delayedEvents[delayedEvents.length - 1].returnValues;
     }
 
+    // TODO: figure out how to read from BC before running a test. nested 'context' should do the job
     function validatePermission(participant) {
         if (![watchdogPermissions, adminPermissions, ownerPermissions].includes(participant.permissions)) {
             assert.fail("Check permissions value"); // this dumb array is apparently created before "before". Ooof.
@@ -198,16 +201,20 @@ contract('Gatekeeper', async function (accounts) {
 
     it("should revert when trying to cancel a transfer transaction that does not exist", async function () {
         await expect(
-            gatekeeper.cancelTransfer("0x123123")
+            gatekeeper.cancelTransfer(watchdogPermissions, "0x123123", {from: watchdogA})
         ).to.be.revertedWith("cannot cancel, operation does not exist");
     });
 
-    [{address: operatorA, title: "owner"}, {address: watchdogA, title: "watchdog"}].forEach((participant) => {
+    [
+        {address: operatorA, title: "owner", permissions: "0x53f"},
+        {address: watchdogA, title: "watchdog", permissions: "0x26"}
+    ].forEach((participant) => {
         it(`should allow the ${participant.title} to cancel a delayed transfer transaction`, async function () {
+            validatePermission(participant);
             let res1 = await gatekeeper.sendEther(destinationAddresss, amount, ownerPermissions);
             expectedDelayedEventsCount++;
             let hash = getDelayedOpHashFromEvent(res1.logs[0]);
-            let res2 = await gatekeeper.cancelTransfer(hash, {from: participant.address});
+            let res2 = await gatekeeper.cancelTransfer(participant.permissions, hash, {from: participant.address});
             let log = res2.logs[0];
             assert.equal(log.event, "DelayedOperationCancelled");
             assert.equal(log.address, vault.address);
@@ -239,7 +246,7 @@ contract('Gatekeeper', async function (accounts) {
     it("should allow the watchdog to cancel a delayed config transaction", async function () {
         let log = await utils.extractLastDelayedOpsEvent(gatekeeper);
         let hash = getDelayedOpHashFromEvent(log);
-        let res2 = await gatekeeper.cancelOperation(hash, {from: watchdogA});
+        let res2 = await gatekeeper.cancelOperation(watchdogPermissions, hash, {from: watchdogA});
         let log2 = res2.logs[0];
         assert.equal(log2.event, "DelayedOperationCancelled");
         assert.equal(log2.address, gatekeeper.address);
@@ -304,7 +311,7 @@ contract('Gatekeeper', async function (accounts) {
 
     /* Admin replaced */
     it("should allow the owner to replace an admin after a delay", async function () {
-        let encodedABI_add_adminB1 = gatekeeper.contract.methods.addParticipant(operatorA, ownerPermissions, adminB1, adminPermissions, level).encodeABI();
+        let encodedABI_add_adminB1 = gatekeeper.contract.methods.addParticipant(operatorA, ownerPermissions, adminB1, adminPermissions, highLevel).encodeABI();
         let encodedABI_remove_adminB = gatekeeper.contract.methods.removeParticipant(operatorA, ownerPermissions, utils.participantHash(adminB, adminPermissions, level)).encodeABI();
         let encodedPacked = utils.encodePackedBatch([encodedABI_add_adminB1, encodedABI_remove_adminB]);
         let res = await gatekeeper.changeConfiguration(operatorA, ownerPermissions, encodedPacked);
@@ -322,7 +329,7 @@ contract('Gatekeeper', async function (accounts) {
 
         await utils.validateConfig(
             [adminA, adminB, adminB1, adminC],
-            [1, 1, 1, 1],
+            [1, 1, highLevel, 1],
             [true, false, true, false],
             Array(4).fill(adminPermissions),
             gatekeeper);
@@ -439,10 +446,101 @@ contract('Gatekeeper', async function (accounts) {
         it(`should not allow \${${participant.title}} to create a delayed transfer transaction`, async function () {
             validatePermission(participant);
             await expect(
-                gatekeeper.sendEther(destinationAddresss, amount,  participant.permissions, {from: participant.address})
+                gatekeeper.sendEther(destinationAddresss, amount, participant.permissions, {from: participant.address})
             ).to.be.revertedWith(participant.expectError);
         });
     });
+
+    it.skip("should not allow \${${participant.title}} to freeze", async function () {
+
+    });
+
+
+    it("should not allow to freeze level that is higher than the caller's");
+    it("should not allow to freeze for zero time");
+    it("should not allow to freeze for enormously long time");
+
+    it("should allow the watchdog to freeze all participants below it's level", async function () {
+        // Add a watchdog at level 2
+        let freezerLevel = 2;
+        {
+            let callArguments = [operatorA, ownerPermissions, watchdogB, watchdogPermissions, freezerLevel];
+            let res0 = await callDelayed(addParticipant, gatekeeper, callArguments, operatorA);
+            await utils.increaseTime(3600 * 24 * 2 + 10);
+            await gatekeeper.applyBatch(res0.logs[0].args.operation, ownerPermissions, res0.logs[0].args.opsNonce.toString());
+        }
+
+        // TODO: refactor
+        // There is a watchdog with level that is higher than other participants in the vault
+        await utils.validateConfig([watchdogB], [freezerLevel], [true], [watchdogPermissions], gatekeeper);
+        await utils.validateConfig([watchdogA], [level], [true], [watchdogPermissions], gatekeeper);
+        await utils.validateConfig([operatorA], [level], [true], [ownerPermissions], gatekeeper);
+        await utils.validateConfig([adminA], [level], [true], [adminPermissions], gatekeeper);
+        await utils.validateConfig([adminB1], [highLevel], [true], [adminPermissions], gatekeeper);
+
+        // senderPermissions, uint8 senderLevel, uint8 levelToFreeze, uint interval
+        let interval = 1000;
+        let res = await gatekeeper.freeze(watchdogPermissions, freezerLevel, level, interval, {from: watchdogB});
+        let block = await web3.eth.getBlock(res.receipt.blockNumber);
+        let log = res.logs[0];
+        // assert.equal(log.event, "LevelFrozen");
+        // assert.equal(log.args.frozenLevel, level);
+        // assert.equal(log.args.frozenUntil.toNumber(), block.timestamp + interval);
+        // assert.equal(log.args.sender, watchdogB);
+
+        // Operator cannot send money any more
+        let reason = "level is frozen";
+        // await expect(
+        //     gatekeeper.sendEther(destinationAddresss, amount, ownerPermissions, {from: operatorA})
+        // ).to.be.revertedWith(reason);
+
+        // On lower levels:
+        // Operator cannot change configuration any more
+        let permVal = utils.packPermissionLevel(ownerPermissions, level);
+        let callArgumentsAdd = [operatorA, permVal, adminC, adminPermissions, level];
+        await expect(
+            callDelayed(addParticipant, gatekeeper, callArgumentsAdd, operatorA),
+            "addParticipant did not revert correctly"
+        ).to.be.revertedWith(reason);
+
+        // Admin cannot change owner any more
+        permVal = utils.packPermissionLevel(adminPermissions, level);
+        await expect(
+            gatekeeper.scheduleChangeOwner(permVal, adminC, {from: adminA}),
+            "scheduleChangeOwner did not revert correctly"
+        ).to.be.revertedWith(reason);
+
+        // Watchdog cannot cancel operations any more
+
+        permVal = utils.packPermissionLevel(watchdogPermissions, level);
+        await expect(
+            gatekeeper.cancelOperation(permVal, "0x123123", {from: watchdogA}),
+            "cancelOperation did not revert correctly"
+        ).to.be.revertedWith(reason);
+
+        await expect(
+            gatekeeper.cancelTransfer(permVal, "0x123123", {from: watchdogA}),
+            "cancelTransfer did not revert correctly"
+        ).to.be.revertedWith(reason);
+
+        // On the level of the freezer or up:
+        // Admin can still call 'change owner'
+        permVal = utils.packPermissionLevel(adminPermissions, highLevel);
+        let res2 = await gatekeeper.scheduleChangeOwner(permVal, operatorB, {from: adminB1});
+        // Watchdog can still cancel stuff
+
+        permVal = utils.packPermissionLevel(watchdogPermissions, freezerLevel);
+        let hash = getDelayedOpHashFromEvent(res2.logs[0]);
+        let res3 = await gatekeeper.cancelOperation(permVal, hash, {from: watchdogB});
+        assert.equal(res3.logs[0].event, "DelayedOperationCancelled");
+    });
+
+    it("should not allow to shorten the length of a freeze");
+    it("should not allow to lower the level of the freeze");
+
+    it("should allow owner and admin together to unfreeze");
+
+    it("should automatically unfreeze after a time interval");
 
     it("should validate correctness of claimed senderPermissions");
     it("should validate correctness of claimed sender address");
