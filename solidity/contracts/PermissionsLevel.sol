@@ -34,8 +34,8 @@ contract PermissionsLevel {
     uint16 public adminPermissions = canChangeOwner | canExecuteBoosts;
     uint16 public watchdogPermissions = canCancel | canFreeze;
 
-    function requirePermissions(uint16 neededPermissions, uint16 senderPermissions) view internal {
-        require(neededPermissions & senderPermissions == neededPermissions, "not allowed");
+    function requirePermissions(uint16 neededPermissions, uint16 senderPermissions, string memory error) view internal {
+        require(neededPermissions & senderPermissions == neededPermissions, error);
         require(
             senderPermissions == ownerPermissions ||
             senderPermissions == adminPermissions ||
