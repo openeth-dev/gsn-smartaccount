@@ -8,24 +8,24 @@ import "../DelayedOps.sol";
 contract TestDelayedOps is DelayedOps {
 
     address public allowedSender;
-    uint256 public allowedExtraData;
-    uint256 public allowedExtraDataAddSome;
+    bytes32 public allowedExtraData;
+    bytes32 public allowedExtraDataAddSome;
     uint256 operationsDelay = 1 hours;
 
     function setAllowedSender(address s) public {
         allowedSender = s;
     }
 
-    function setAllowedExtraData(uint256 data) public {
+    function setAllowedExtraData(bytes32 data) public {
         allowedExtraData = data;
     }
 
 
-    function setAllowedExtraDataForAddSome(uint256 data) public {
+    function setAllowedExtraDataForAddSome(bytes32 data) public {
         allowedExtraDataAddSome = data;
     }
 
-    function validateOperation(address sender, uint256 extraData,bytes4 methodSig) internal {
+    function validateOperation(address sender, bytes32 extraData, bytes4 methodSig) internal {
         require(
             methodSig == this.sayHelloWorld.selector ||
             methodSig == this.addSome.selector ||
@@ -48,7 +48,7 @@ contract TestDelayedOps is DelayedOps {
             (operation, pos) = nextParam(batch, pos);
             require(LibBytes.readBytes4(operation, 0) != this.sayHelloWorld.selector, "Cannot use sendBatch to schedule secure HelloWorld");
         }
-        scheduleDelayedBatch(msg.sender, extraData, operationsDelay, batch);
+        scheduleDelayedBatch(msg.sender, bytes32(extraData), operationsDelay, batch);
     }
 
     function scheduleHelloWorld(uint dayOfBirth, string memory message, uint256 delay) public {
@@ -63,7 +63,7 @@ contract TestDelayedOps is DelayedOps {
         scheduleDelayedBatch(msg.sender, 0, delay, operation);
     }
 
-    function applyOp(bytes memory operation, uint256 extraData, uint256 nonce) public {
+    function applyOp(bytes memory operation, bytes32 extraData, uint256 nonce) public {
         applyDelayedOps(msg.sender, extraData, nonce, operation);
     }
 
@@ -92,7 +92,7 @@ contract TestDelayedOps is DelayedOps {
 
     uint256 public someValue = 0;
     modifier onlyWithExtraData {
-        (, uint256 extras) = getScheduledExtras();
+        (, bytes32 extras) = getScheduledExtras();
         require(extras == allowedExtraDataAddSome, "extraData is not allowed");
         _;
     }

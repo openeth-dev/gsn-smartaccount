@@ -40,12 +40,10 @@ contract Gatekeeper is DelayedOps, PermissionsLevel {
 
     // ********** Access control modifiers below this point
 
-    function max(uint8 a, uint8 b) private pure returns (uint8) {
-        return a > b ? a : b;
-    }
-
-    function requireUnfrozen(uint8 senderLevel) internal {
+    modifier nonFrozen(uint16 senderPermsLevel) {
+        (, uint8 senderLevel) = extractPermissionLevel(senderPermsLevel);
         require(now > frozenUntil || senderLevel > frozenLevel, "level is frozen");
+        _;
     }
 
     function requireOneOperator(address participant, uint16 permissions) internal {
@@ -59,12 +57,23 @@ contract Gatekeeper is DelayedOps, PermissionsLevel {
         require(participants[participantHash(participant, permsLevel)], "not participant");
     }
 
-    modifier hasPermissions(address sender, uint16 neededPermissions, uint16 senderPermsLevel, uint8 boosterLevel) {
+    // Modifiers are added to the stack, so I hit 'stack too deep' a lot. This should be easier on compiler to digest.
+    function hasPermissionsInternal(address sender, uint16 neededPermissions, uint16 senderPermsLevel) internal {
+
         (uint16 senderPermissions, uint8 senderLevel) = extractPermissionLevel(senderPermsLevel);
-        requireUnfrozen(max(senderLevel, boosterLevel));
         requireParticipant(sender, senderPermsLevel);
         requireOneOperator(sender, senderPermissions);
-        requirePermissions(neededPermissions, senderPermissions, "not allowed");
+        string memory errorMessage = "not allowed";
+        // TODO: fix error messages to include more debug info
+        // now this to make older test pass
+        if (neededPermissions == canSignBoosts) {
+            errorMessage = "boost not allowed";
+        }
+        requirePermissions(neededPermissions, senderPermissions, errorMessage);
+    }
+
+    modifier hasPermissions(address sender, uint16 neededPermissions, uint16 senderPermsLevel) {
+        hasPermissionsInternal(sender, neededPermissions, senderPermsLevel);
         _;
     }
 
@@ -94,17 +103,18 @@ contract Gatekeeper is DelayedOps, PermissionsLevel {
         emit GatekeeperInitialized(address(vault));
     }
 
-    function validateOperation(address sender, uint256 extraData, bytes4 methodSig) internal {
+    function validateOperation(address sender, bytes32 extraData, bytes4 methodSig) internal {
     }
 
     // ****** Immediately runnable functions below this point
 
-    function freeze(uint16 permsLevel, uint8 levelToFreeze, uint interval)
-    hasPermissions(msg.sender, canFreeze, permsLevel, 0)
+    function freeze(uint16 senderPermsLevel, uint8 levelToFreeze, uint interval)
+    hasPermissions(msg.sender, canFreeze, senderPermsLevel)
+    nonFrozen(senderPermsLevel)
     public
     {
         uint until = now + interval;
-        (, uint8 senderLevel) = extractPermissionLevel(permsLevel);
+        (, uint8 senderLevel) = extractPermissionLevel(senderPermsLevel);
         require(levelToFreeze <= senderLevel, "cannot freeze level that is higher than caller");
         require(levelToFreeze > frozenLevel, "cannot freeze level that is lower than already frozen");
         require(interval <= maxFreeze, "cannot freeze level for this long");
@@ -116,84 +126,99 @@ contract Gatekeeper is DelayedOps, PermissionsLevel {
         emit LevelFrozen(frozenLevel, frozenUntil, msg.sender);
     }
 
-    function boostedConfigChange(uint16 senderPermsLevel, uint16 signerPermsLevel, bytes memory batch, bytes memory signature)
-    hasPermissions(msg.sender, canExecuteBoosts, senderPermsLevel, 0)
+    function boostedConfigChange(uint16 boosterPermsLevel, uint16 signerPermsLevel,
+        bytes memory batch, bytes memory signature)
+    hasPermissions(msg.sender, canExecuteBoosts, boosterPermsLevel)
+    nonFrozen(boosterPermsLevel)
     public {
-        bytes32 hashedMessage = keccak256(batch);
-        address signer = hashedMessage.toEthSignedMessageHash().recover(signature);
-        (, uint8 boosterLevel) = extractPermissionLevel(senderPermsLevel);
-        (uint16 signerPermissions, ) = extractPermissionLevel(signerPermsLevel);
-        requirePermissions(canSignBoosts, signerPermissions, "boost not allowed");
-        changeConfigurationInternal(signer, signerPermsLevel, boosterLevel, batch);
+        address signer = keccak256(batch).toEthSignedMessageHash().recover(signature);
+        hasPermissionsInternal(signer, canSignBoosts, signerPermsLevel);
+        changeConfigurationInternal(signer, signerPermsLevel, msg.sender, boosterPermsLevel, batch);
     }
 
     function changeConfiguration(uint16 senderPermsLevel, bytes memory batch)
-    hasPermissions(msg.sender, canChangeConfig, senderPermsLevel, 0)
+    hasPermissions(msg.sender, canChangeConfig, senderPermsLevel)
+    nonFrozen(senderPermsLevel)
     public
     {
-        changeConfigurationInternal(msg.sender, senderPermsLevel, 0, batch);
+        changeConfigurationInternal(msg.sender, senderPermsLevel, address(0), 0, batch);
     }
 
-    function changeConfigurationInternal(address sender, uint16 senderPermsLevel, uint8 boosterLevel, bytes memory batch)
-    hasPermissions(sender, canChangeConfig, senderPermsLevel, boosterLevel)
+    // Note: 'nonFrozen' is checked in public methods, as we either need to check the real sender, or the booster
+    function changeConfigurationInternal(address sender, uint16 senderPermsLevel, address booster, uint16 boosterPermsLevel, bytes memory batch)
+    hasPermissions(sender, canChangeConfig, senderPermsLevel)
     internal {
-        scheduleDelayedBatch(msg.sender, senderPermsLevel, delay, batch);
+        bytes32 hashOfAllPermsLevels = keccak256(abi.encodePacked(senderPermsLevel, booster, boosterPermsLevel));
+        scheduleDelayedBatch(sender, hashOfAllPermsLevels, delay, batch);
     }
 
     function scheduleChangeOwner(uint16 senderPermsLevel, address newOwner)
-    hasPermissions(msg.sender, canChangeOwner, senderPermsLevel, 0)
+    hasPermissions(msg.sender, canChangeOwner, senderPermsLevel)
+    nonFrozen(senderPermsLevel)
     public {
+        bytes32 hashOfAllPermsLevels = keccak256(abi.encodePacked(senderPermsLevel, address(0), uint16(0)));
         bytes memory delayedTransaction = abi.encodeWithSelector(this.changeOwner.selector, msg.sender, senderPermsLevel, newOwner);
-        scheduleDelayedBatch(msg.sender, senderPermsLevel, delay, encodeDelayed(delayedTransaction));
-    }
-    function applyTransfer(bytes memory operation, uint256 nonce, uint16 senderPermsLevel)
-    public {
-        requireParticipant(msg.sender, senderPermsLevel);// TODO: test!!!
-        vault.applyDelayedTransfer(operation, nonce);
+        scheduleDelayedBatch(msg.sender, hashOfAllPermsLevels, delay, encodeDelayed(delayedTransaction));
     }
 
     function cancelTransfer(uint16 senderPermsLevel, bytes32 hash)
-    hasPermissions(msg.sender, canCancel, senderPermsLevel, 0)
+    hasPermissions(msg.sender, canCancel, senderPermsLevel)
+    nonFrozen(senderPermsLevel)
     public {
         vault.cancelTransfer(hash);
     }
 
     function cancelOperation(uint16 senderPermsLevel, bytes32 hash)
-    hasPermissions(msg.sender, canCancel, senderPermsLevel, 0) public {
+    hasPermissions(msg.sender, canCancel, senderPermsLevel)
+    nonFrozen(senderPermsLevel)
+    public {
         cancelDelayedOp(hash);
     }
 
-    function applyBatch(address scheduler, uint16 schedulerPermsLevel, bytes memory operation, uint16 senderPermsLevel, uint256 nonce)
+    function sendEther(address payable destination, uint value, uint16 senderPermsLevel)
+    hasPermissions(msg.sender, canSpend, senderPermsLevel)
+    nonFrozen(senderPermsLevel)
     public {
-        requireParticipant(msg.sender, senderPermsLevel);
-// TODO: test and implement!!!        requireUnfrozen(schedulerPermsLevel >> 11);
-        applyDelayedOps(scheduler, schedulerPermsLevel, nonce, operation);
+        vault.scheduleDelayedEtherTransfer(delay, destination, value);
     }
 
-    function sendEther(address payable destination, uint value, uint16 senderPermLevel)
-    hasPermissions(msg.sender, canSpend, senderPermLevel, 0) public {
-        vault.scheduleDelayedEtherTransfer(delay, destination, value);
+    function applyBatch(
+        address scheduler, uint16 schedulerPermsLevel,
+        address booster, uint16 boosterPermsLevel,
+        bytes memory operation, uint16 senderPermsLevel, uint256 nonce)
+    nonFrozen(boosterPermsLevel)
+    public {
+        requireParticipant(msg.sender, senderPermsLevel);
+        bytes32 hashOfAllPermsLevels = keccak256(abi.encodePacked(schedulerPermsLevel, booster, boosterPermsLevel));
+        applyDelayedOps(scheduler, hashOfAllPermsLevels, nonce, operation);
+    }
+
+    function applyTransfer(bytes memory operation, uint256 nonce, uint16 senderPermsLevel)
+    public {
+        requireParticipant(msg.sender, senderPermsLevel);
+        // TODO: test!!!
+        vault.applyDelayedTransfer(operation, nonce);
     }
 
     // ********** Delayed operations below this point
 
     // TODO: obviously does not conceal the level and identity
     function addParticipant(address sender, uint16 senderPermsLevel, address newParticipant, uint16 permsLevel)
-    hasPermissions(sender, canChangeParticipants, senderPermsLevel, 0) public {
+    hasPermissions(sender, canChangeParticipants, senderPermsLevel) public {
         bytes32 hash = participantHash(newParticipant, permsLevel);
         participants[hash] = true;
         emit ParticipantAdded(hash);
     }
 
     function removeParticipant(address sender, uint16 senderPermsLevel, bytes32 participant)
-    hasPermissions(sender, canChangeParticipants, senderPermsLevel, 0) public {
+    hasPermissions(sender, canChangeParticipants, senderPermsLevel) public {
         require(participants[participant], "there is no such participant");
         delete participants[participant];
         emit ParticipantRemoved(participant);
     }
 
     function changeOwner(address sender, uint16 senderPermsLevel, address newOwner)
-    hasPermissions(sender, canChangeOwner, senderPermsLevel, 0)
+    hasPermissions(sender, canChangeOwner, senderPermsLevel)
     public {
         require(newOwner != address(0), "cannot set owner to zero address");
         bytes32 oldParticipant = participantHash(operator, packPermissionLevel(ownerPermissions, 1));
@@ -205,12 +230,11 @@ contract Gatekeeper is DelayedOps, PermissionsLevel {
     }
 
     function unfreeze(address sender, uint16 senderPermsLevel)
-    hasPermissions(sender, canUnfreeze, senderPermsLevel, 0xff)
+    hasPermissions(sender, canUnfreeze, senderPermsLevel)
     public {
         frozenLevel = 0;
         frozenUntil = 0;
         emit UnfreezeCompleted();
     }
-//  TODO  modifier delayedHasPermissions(sender, canUnfreeze, senderPermsLevel) or whatever to fix the 0xFF in 'hasPermissions' !!!
 
 }

@@ -13,7 +13,7 @@ Chai.use(require('bn-chai')(web3.utils.toBN));
 
 function getDelayedOpHashFromEvent(log) {
     let sender = log.args.sender;
-    let extraData = log.args.extraData.toNumber();
+    let extraData = log.args.extraData;
     let opsNonce = log.args.opsNonce.toNumber();
     let encoded = log.args.operation;
     let encodedBuff = Buffer.from(encoded.slice(2), "hex");
@@ -29,6 +29,46 @@ async function callDelayed(method, gatekeeper, callArguments, from) {
     let encodedABI = method(...callArguments).encodeABI();
     let encodedPacked = utils.encodePackedBatch([encodedABI]);
     return await gatekeeper.changeConfiguration(callArguments[1], encodedPacked, {from: from});
+}
+
+async function applyDelayed({res, log}, sender, gatekeeper, booster, scheduler) {
+    if (log === undefined) {
+        log = res.logs[0];
+    }
+    let boosterAddress;
+    let boosterPermsLevel;
+    if (booster === undefined) {
+        boosterAddress = "0x0000000000000000000000000000000000000000";
+        boosterPermsLevel = "0";
+    } else {
+        boosterAddress = booster.address;
+        boosterPermsLevel = booster.permLevel;
+    }
+    let schedulerAddress;
+    let schedulerPermsLevel;
+    // TODO!! Events should emit this data!
+    if (scheduler === undefined) {
+        schedulerAddress = sender.address;
+        schedulerPermsLevel = sender.permLevel;
+
+    }else {
+        schedulerAddress = scheduler.address;
+        schedulerPermsLevel = scheduler.permLevel;
+    }
+
+    let batchOperation = log.args.operation;
+
+    let senderPermsLevel = sender.permLevel;
+    let nonce = log.args.opsNonce.toString();
+    return gatekeeper.applyBatch(
+        schedulerAddress,
+        schedulerPermsLevel,
+        boosterAddress,
+        boosterPermsLevel,
+        batchOperation,
+        senderPermsLevel,
+        nonce,
+        {from: sender.address});
 }
 
 class Participant {
@@ -280,7 +320,7 @@ contract('Gatekeeper', async function (accounts) {
         assert.equal(log.event, "DelayedOperation");
         await utils.increaseTime(timeGap);
         await expect(
-            gatekeeper.applyBatch(res.logs[0].args.sender, res.logs[0].args.extraData, res.logs[0].args.operation, operatorA.permLevel, res.logs[0].args.opsNonce.toString())
+            applyDelayed({res}, operatorA, gatekeeper)
         ).to.be.revertedWith("there is no such participant");
     });
 
@@ -288,10 +328,10 @@ contract('Gatekeeper', async function (accounts) {
         let callArguments = [operatorA.address, operatorA.permLevel, adminC.address, adminC.permLevel];
         let res = await callDelayed(addParticipant, gatekeeper, callArguments, operatorA.address);
         await expect(
-            gatekeeper.applyBatch(res.logs[0].args.sender, res.logs[0].args.extraData, res.logs[0].args.operation, operatorA.permLevel, res.logs[0].args.opsNonce.toString())
+            applyDelayed({res}, operatorA, gatekeeper)
         ).to.be.revertedWith("called before due time");
         await utils.increaseTime(timeGap);
-        let res2 = await gatekeeper.applyBatch(res.logs[0].args.sender, res.logs[0].args.extraData, res.logs[0].args.operation, operatorA.permLevel, res.logs[0].args.opsNonce.toString());
+        let res2 = await applyDelayed({res}, operatorA, gatekeeper);
         let log2 = res2.logs[0];
         let hash = utils.bufferToHex(utils.participantHash(adminC.address, adminC.permLevel));
         assert.equal(log2.event, "ParticipantAdded");
@@ -307,7 +347,7 @@ contract('Gatekeeper', async function (accounts) {
         let log = res.logs[0];
         assert.equal(log.event, "DelayedOperation");
         await utils.increaseTime(timeGap);
-        let res2 = await gatekeeper.applyBatch(res.logs[0].args.sender, res.logs[0].args.extraData, res.logs[0].args.operation, operatorA.permLevel, res.logs[0].args.opsNonce.toString());
+        let res2 = await applyDelayed({res}, operatorA, gatekeeper);
         assert.equal(res2.logs[0].event, "ParticipantRemoved");
         await utils.validateConfig(
             [adminA.expect(), adminB.expect(), adminB1, adminC],
@@ -323,12 +363,12 @@ contract('Gatekeeper', async function (accounts) {
         let res = await gatekeeper.changeConfiguration(operatorA.permLevel, encodedPacked);
 
         await expect(
-            gatekeeper.applyBatch(res.logs[0].args.sender, res.logs[0].args.extraData, res.logs[0].args.operation, operatorA.permLevel, res.logs[0].args.opsNonce.toString())
+            applyDelayed({res}, operatorA, gatekeeper)
         ).to.be.revertedWith("called before due time");
 
         await utils.increaseTime(timeGap);
 
-        let res2 = await gatekeeper.applyBatch(res.logs[0].args.sender, res.logs[0].args.extraData, res.logs[0].args.operation, operatorA.permLevel, res.logs[0].args.opsNonce.toString());
+        let res2 = await applyDelayed({res}, operatorA, gatekeeper);
 
         assert.equal(res2.logs[0].event, "ParticipantAdded");
         assert.equal(res2.logs[1].event, "ParticipantRemoved");
@@ -344,7 +384,7 @@ contract('Gatekeeper', async function (accounts) {
         let callArguments = [operatorA.address, operatorA.permLevel, wrongaddr.address, wrongaddr.permLevel];
         let res1 = await callDelayed(addParticipant, gatekeeper, callArguments, operatorA.address);
         await utils.increaseTime(timeGap);
-        await gatekeeper.applyBatch(res1.logs[0].args.sender, res1.logs[0].args.extraData, res1.logs[0].args.operation, operatorA.permLevel, res1.logs[0].args.opsNonce.toString());
+        await applyDelayed({res: res1}, operatorA, gatekeeper);
         // as per spec file, another 'operator' can be added as a participant, but cannot use it's permissions
         await utils.validateConfig([wrongaddr.expect()], gatekeeper);
 
@@ -357,7 +397,7 @@ contract('Gatekeeper', async function (accounts) {
         let callArgumentsCleanUp = [operatorA.address, operatorA.permLevel, utils.participantHash(wrongaddr.address, wrongaddr.permLevel)];
         let res2 = await callDelayed(removeParticipant, gatekeeper, callArgumentsCleanUp, operatorA.address);
         await utils.increaseTime(timeGap);
-        await gatekeeper.applyBatch(res2.logs[0].args.sender, res2.logs[0].args.extraData, res2.logs[0].args.operation, operatorA.permLevel, res2.logs[0].args.opsNonce.toString());
+        await applyDelayed({res: res2}, operatorA, gatekeeper);
         await utils.validateConfig([wrongaddr], gatekeeper);
     });
 
@@ -368,7 +408,7 @@ contract('Gatekeeper', async function (accounts) {
         await utils.validateConfig(participants, gatekeeper);
         let res = await gatekeeper.scheduleChangeOwner(adminA.permLevel, operatorB.address, {from: adminA.address});
         await utils.increaseTime(timeGap);
-        await gatekeeper.applyBatch(res.logs[0].args.sender, res.logs[0].args.extraData, res.logs[0].args.operation, adminA.permLevel, res.logs[0].args.opsNonce.toString(), {from: adminA.address});
+        await applyDelayed({res}, adminA, gatekeeper);
         participants = [operatorA, operatorB.expect()];
         await utils.validateConfig(participants, gatekeeper);
     });
@@ -379,7 +419,7 @@ contract('Gatekeeper', async function (accounts) {
         await utils.validateConfig(participants, gatekeeper);
         let res = await gatekeeper.scheduleChangeOwner(operatorA.permLevel, operatorA.address, {from: operatorB.address});
         await utils.increaseTime(timeGap);
-        await gatekeeper.applyBatch(res.logs[0].args.sender, res.logs[0].args.extraData, res.logs[0].args.operation, operatorA.permLevel, res.logs[0].args.opsNonce.toString(), {from: operatorB.address});
+        await applyDelayed({res}, operatorB, gatekeeper);
         participants = [operatorA.expect(), operatorB];
         await utils.validateConfig(participants, gatekeeper);
     });
@@ -486,12 +526,13 @@ contract('Gatekeeper', async function (accounts) {
     it("should not allow to freeze for zero time");
     it("should not allow to freeze for enormously long time");
 
+    // TODO: separate into 'isFrozen' check and a separate tests for each disabled action while frozen
     it("should allow the watchdog to freeze all participants below it's level", async function () {
         {
             let callArguments = [operatorA.address, operatorA.permLevel, watchdogB.address, watchdogB.permLevel];
             let res0 = await callDelayed(addParticipant, gatekeeper, callArguments, operatorA.address);
             await utils.increaseTime(timeGap);
-            await gatekeeper.applyBatch(res0.logs[0].args.sender, res0.logs[0].args.extraData, res0.logs[0].args.operation, operatorA.permLevel, res0.logs[0].args.opsNonce.toString());
+            await applyDelayed({res: res0}, operatorA, gatekeeper);
         }
 
         await utils.validateConfig([
@@ -606,7 +647,7 @@ contract('Gatekeeper', async function (accounts) {
         await expect(
             gatekeeper.sendEther(destinationAddresss, amount, operatorA.permLevel, {from: operatorA.address})
         ).to.be.revertedWith("level is frozen");
-        let res3 = await gatekeeper.applyBatch(log1.args.sender, log1.args.extraData, log1.args.operation, adminB1.permLevel, log1.args.opsNonce.toString(), {from: adminB1.address});
+        let res3 = await applyDelayed({log: log1}, adminB1, gatekeeper, adminB1, operatorA);
         let log3 = res3.logs[0];
 
         assert.equal(log3.event, "UnfreezeCompleted");
@@ -616,6 +657,29 @@ contract('Gatekeeper', async function (accounts) {
         assert.equal(log2.event, "DelayedOperation");
         assert.equal(log2.address, vault.address);
 
+    });
+
+    describe.skip("when schedule happens before freeze", function () {
+        it("should not allow to apply an already scheduled Delayed Op if the scheduler's rank is frozen", async function () {
+            // Schedule a totally valid config change
+            let callArguments = [operatorA.address, operatorA.permLevel, adminB1.address, adminB1.permLevel];
+            let res1 = await callDelayed(addParticipant, gatekeeper, callArguments, operatorA.address);
+
+            // Freeze the scheduler's rank
+            let res2 = await gatekeeper.freeze(watchdogB.permLevel, level, timeGap, {from: watchdogB.address});
+
+            // Sender cannot apply anything - he is frozen
+            await expect(
+                applyDelayed({res: res1}, operatorA, gatekeeper)
+            ).to.be.revertedWith("level is frozen");
+
+            // Somebody who can apply cannot apply either
+            await expect(
+                applyDelayed({res: res1}, adminB1, gatekeeper)
+            ).to.be.revertedWith("scheduler level is frozen");
+        });
+
+        it("should not allow to apply an already scheduled boosted Delayed Op if the booster's rank is also frozen");
     });
 
     it("should automatically unfreeze after a time interval");

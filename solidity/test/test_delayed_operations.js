@@ -15,7 +15,7 @@ contract('DelayedOperations', async function (accounts) {
     let from = accounts[0];
     let wrongaddr = accounts[1];
     let defaultDelay = 11;
-    let allowedExtraData = 1234;
+    let allowedExtraData = "0x0000000000000000000000000000000000000000000000000000000000001234";
     let testcontract;
     let trufflecontract;
     let encodedDoIncrement;
@@ -75,11 +75,11 @@ contract('DelayedOperations', async function (accounts) {
         ).to.be.revertedWith("extraData is not allowed");
         await trufflecontract.setAllowedExtraData(allowedExtraData);
         let counterBefore = await trufflecontract.counter();
-        await testcontract.methods.applyOp(log.args.operation, log.args.extraData.toString(), log.args.opsNonce.toString()).send({from});
+        await testcontract.methods.applyOp(log.args.operation, log.args.extraData, log.args.opsNonce.toString()).send({from});
         let counterAfter = await trufflecontract.counter();
         let diff = counterAfter - counterBefore;
         assert.equal(1, diff);
-        await trufflecontract.setAllowedExtraData(0);
+        await trufflecontract.setAllowedExtraData("0x00");
     });
 
 
@@ -117,7 +117,7 @@ contract('DelayedOperations', async function (accounts) {
         assert.equal(somevalueAfter, 1 + somevalueBefore.toNumber());
 
         // Set allowed extraData back to 0
-        await trufflecontract.setAllowedExtraDataForAddSome(0);
+        await trufflecontract.setAllowedExtraDataForAddSome("0x00");
     });
 
 
