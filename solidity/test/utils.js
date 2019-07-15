@@ -58,7 +58,7 @@ module.exports = {
     },
 
     delayedOpHash: function (sender, extraData, nonce, batch) {
-        return ABI.soliditySHA3(["address", "uint256", "uint256", "bytes"], [sender, extraData, nonce, batch])
+        return ABI.soliditySHA3(["address", "bytes32", "uint256", "bytes"], [sender, extraData, nonce, batch])
     },
 
     participantHash: function (admin, permLevel) {
