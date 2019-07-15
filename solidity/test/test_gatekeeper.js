@@ -115,10 +115,12 @@ contract('Gatekeeper', async function (accounts) {
     let adminB;
     let adminB1;
     let adminC;
+    let adminZ;
     let watchdogA;
     let watchdogB;
     let watchdogB1;
     let watchdogC;
+    let watchdogZ;
     let amount = 100;
     let startBlock;
     let web3;
@@ -156,10 +158,12 @@ contract('Gatekeeper', async function (accounts) {
         adminB = new Participant(accounts[4], adminPermissions, level, "adminB");
         adminB1 = new Participant(accounts[5], adminPermissions, highLevel, "adminB1");
         adminC = new Participant(accounts[6], adminPermissions, level, "adminC");
+        adminZ = new Participant(accounts[13], adminPermissions, 5, "adminZ");
         watchdogA = new Participant(accounts[7], watchdogPermissions, level, "watchdogA");
         watchdogB = new Participant(accounts[8], watchdogPermissions, freezerLevel, "watchdogB");
         watchdogB1 = new Participant(accounts[9], watchdogPermissions, level, "watchdogB1");
         watchdogC = new Participant(accounts[10], watchdogPermissions, level, "watchdogC");
+        watchdogZ = new Participant(accounts[12], watchdogPermissions, 5, "watchdogZ");
     }
 
     async function getLastEvent(contract, event, expectedCount) {
@@ -196,7 +200,9 @@ contract('Gatekeeper', async function (accounts) {
         let initialParticipants = [
             utils.bufferToHex(utils.participantHash(adminA.address, adminA.permLevel)),
             utils.bufferToHex(utils.participantHash(adminB.address, adminB.permLevel)),
-            utils.bufferToHex(utils.participantHash(watchdogA.address, watchdogA.permLevel))
+            utils.bufferToHex(utils.participantHash(watchdogA.address, watchdogA.permLevel)),
+            utils.bufferToHex(utils.participantHash(watchdogZ.address, watchdogZ.permLevel)),
+            utils.bufferToHex(utils.participantHash(adminZ.address, adminZ.permLevel)),
         ];
 
         let res = await gatekeeper.initialConfig(vault.address, initialParticipants, initialDelays);
@@ -663,6 +669,7 @@ contract('Gatekeeper', async function (accounts) {
     });
 
     describe("when schedule happens before freeze", function () {
+
         it("should not allow to apply an already scheduled Delayed Op if the scheduler's rank is frozen", async function () {
             // Schedule a totally valid config change
             let callArguments = [operatorA.address, operatorA.permLevel, adminB1.address, adminB1.permLevel];
@@ -682,7 +689,32 @@ contract('Gatekeeper', async function (accounts) {
             ).to.be.revertedWith("scheduler level is frozen");
         });
 
-        it("should not allow to apply an already scheduled boosted Delayed Op if the booster's rank is also frozen");
+        // TODO: actually call unfreeze, as the state is different. Actually, this is a bit of a problem. (extra state: outdated freeze). Is there a way to fix it?
+        it("should not allow to apply an already scheduled boosted Delayed Op if the booster's rank is also frozen", async function () {
+            // Schedule a boosted unfreeze by a high level admin
+            let encodedABI = gatekeeper.contract.methods.unfreeze(operatorA.address, operatorA.permLevel).encodeABI();
+            let encodedPacked = utils.encodePackedBatch([encodedABI]);
+            let encodedHash = utils.getTransactionHash(encodedPacked);
+            let signature = await utils.signMessage(encodedHash, web3, {from: operatorA.address});
+            let res1 = await gatekeeper.boostedConfigChange(
+                adminB1.permLevel,
+                operatorA.permLevel,
+                encodedPacked,
+                signature,
+                {from: adminB1.address});
+            let log1 = res1.logs[0];
+            assert.equal(log1.event, "DelayedOperation");
+
+
+            // Increase freeze level to one above the old booster level
+            await gatekeeper.freeze(watchdogZ.permLevel, highLevel, timeGap, {from: watchdogZ.address});
+
+            // Admin with level 5 tries to apply the boosted operation
+            await expect(
+                applyDelayed({res: res1}, adminZ, gatekeeper, adminB1, operatorA)
+            ).to.be.revertedWith("booster level is frozen");
+
+        });
     });
 
     it("should automatically unfreeze after a time interval");
