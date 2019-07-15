@@ -40,9 +40,13 @@ contract Gatekeeper is DelayedOps, PermissionsLevel {
 
     // ********** Access control modifiers below this point
 
-    modifier nonFrozen(uint16 senderPermsLevel) {
+    function nonFrozenInternal(uint16 senderPermsLevel, string memory errorMessage) internal {
         (, uint8 senderLevel) = extractPermissionLevel(senderPermsLevel);
-        require(now > frozenUntil || senderLevel > frozenLevel, "level is frozen");
+        require(now > frozenUntil || senderLevel > frozenLevel, errorMessage);
+    }
+
+    modifier nonFrozen(uint16 senderPermsLevel) {
+        nonFrozenInternal(senderPermsLevel, "level is frozen");
         _;
     }
 
@@ -186,8 +190,15 @@ contract Gatekeeper is DelayedOps, PermissionsLevel {
         address scheduler, uint16 schedulerPermsLevel,
         address booster, uint16 boosterPermsLevel,
         bytes memory operation, uint16 senderPermsLevel, uint256 nonce)
-    nonFrozen(boosterPermsLevel)
+    nonFrozen(senderPermsLevel)
     public {
+        if (booster != address(0))
+        {
+            nonFrozenInternal(boosterPermsLevel, "booster level is frozen");
+        }
+        else {
+            nonFrozenInternal(schedulerPermsLevel, "scheduler level is frozen");
+        }
         requireParticipant(msg.sender, senderPermsLevel);
         bytes32 hashOfAllPermsLevels = keccak256(abi.encodePacked(schedulerPermsLevel, booster, boosterPermsLevel));
         applyDelayedOps(scheduler, hashOfAllPermsLevels, nonce, operation);

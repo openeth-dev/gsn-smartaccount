@@ -2,6 +2,7 @@ const Gatekeeper = artifacts.require("./Gatekeeper.sol");
 const Vault = artifacts.require("./Vault.sol");
 const Chai = require('chai');
 const Web3 = require('web3');
+const ABI = require('ethereumjs-abi');
 const EthereumjsUtil = require('ethereumjs-util')
 
 const utils = require('./utils');
@@ -51,7 +52,7 @@ async function applyDelayed({res, log}, sender, gatekeeper, booster, scheduler) 
         schedulerAddress = sender.address;
         schedulerPermsLevel = sender.permLevel;
 
-    }else {
+    } else {
         schedulerAddress = scheduler.address;
         schedulerPermsLevel = scheduler.permLevel;
     }
@@ -60,6 +61,8 @@ async function applyDelayed({res, log}, sender, gatekeeper, booster, scheduler) 
 
     let senderPermsLevel = sender.permLevel;
     let nonce = log.args.opsNonce.toString();
+    let keccakExtraData = "0x" + ABI.soliditySHA3(["uint16", "address", "uint16"], [schedulerPermsLevel, boosterAddress, boosterPermsLevel]).toString("hex");
+    assert.equal(keccakExtraData, log.args.extraData, "This will lead to a revert, right?");
     return gatekeeper.applyBatch(
         schedulerAddress,
         schedulerPermsLevel,
@@ -659,14 +662,14 @@ contract('Gatekeeper', async function (accounts) {
 
     });
 
-    describe.skip("when schedule happens before freeze", function () {
+    describe("when schedule happens before freeze", function () {
         it("should not allow to apply an already scheduled Delayed Op if the scheduler's rank is frozen", async function () {
             // Schedule a totally valid config change
             let callArguments = [operatorA.address, operatorA.permLevel, adminB1.address, adminB1.permLevel];
             let res1 = await callDelayed(addParticipant, gatekeeper, callArguments, operatorA.address);
 
             // Freeze the scheduler's rank
-            let res2 = await gatekeeper.freeze(watchdogB.permLevel, level, timeGap, {from: watchdogB.address});
+            await gatekeeper.freeze(watchdogB.permLevel, level, timeGap, {from: watchdogB.address});
 
             // Sender cannot apply anything - he is frozen
             await expect(
@@ -675,7 +678,7 @@ contract('Gatekeeper', async function (accounts) {
 
             // Somebody who can apply cannot apply either
             await expect(
-                applyDelayed({res: res1}, adminB1, gatekeeper)
+                applyDelayed({res: res1}, adminB1, gatekeeper, undefined, operatorA)
             ).to.be.revertedWith("scheduler level is frozen");
         });
 
