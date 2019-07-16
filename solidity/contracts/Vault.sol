@@ -34,7 +34,7 @@ contract Vault is DelayedOps {
     }
 
 
-    function validateOperation(address sender, bytes32 extraData, bytes4 methodSig) internal {}
+    function validateOperation(bytes memory blob, bytes memory singleOp) internal {}
 
 
     // ********** Immediate operations below this point
@@ -45,14 +45,14 @@ contract Vault is DelayedOps {
         // Alexf: There is no tragedy in using 'encodeWithSelector' here, I believe. Vault's API should not change much.
         uint256 nonce = getNonce();
         bytes memory delayedTransaction = abi.encodeWithSelector(this.transferETH.selector, msg.sender, nonce, destination, value);
-        scheduleDelayedBatch(msg.sender, bytes32(nonce), delay, encodeDelayed(delayedTransaction));
+        scheduleDelayedBatch(abi.encode(msg.sender, bytes32(nonce)), delay, encodeDelayed(delayedTransaction));
         emit TransactionPending(destination, value, ERC20(address(0)), delay, nonce);
     }
 
     function scheduleDelayedTokenTransfer(uint256 delay, address destination, uint256 value, ERC20 token) public {
         uint256 nonce = getNonce();
         bytes memory delayedTransaction = abi.encodeWithSelector(this.transferERC20.selector, msg.sender, nonce, destination, value, address(token));
-        scheduleDelayedBatch(msg.sender, bytes32(nonce), delay, encodeDelayed(delayedTransaction));
+        scheduleDelayedBatch(abi.encode(msg.sender, bytes32(nonce)), delay, encodeDelayed(delayedTransaction));
         emit TransactionPending(destination, value, token, delay, nonce);
     }
 
@@ -65,7 +65,7 @@ contract Vault is DelayedOps {
         // "nonce, nonce" is not an error. It will be used by both the DelayedOps to ensure uniqueness of a transaction,
         // as well as it will be passed as an 'extraData' field to be emitted by the Vault itself.
         // TODO: probably less hacky to add it as a parameter. May need it for smth else later.
-        applyDelayedOps(msg.sender, bytes32(nonce), nonce, operation);
+        applyDelayedOps(abi.encode(msg.sender, bytes32(nonce)), nonce, operation);
     }
 
 

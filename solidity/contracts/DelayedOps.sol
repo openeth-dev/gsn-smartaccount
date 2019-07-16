@@ -12,7 +12,7 @@ contract DelayedOps {
 
     function getNonce() public view returns (uint) {return opsNonce;}
 
-    event DelayedOperation(address sender, bytes32 extraData, uint256 opsNonce, bytes operation, uint dueTime);
+    event DelayedOperation(bytes batchMetadata, uint256 opsNonce, bytes operation, uint dueTime);
     event DelayedOperationCancelled(address sender, bytes32 hash);
 
     /**
@@ -21,21 +21,21 @@ contract DelayedOps {
      * return the required delay to apply the operation.
      * revert if the sender is not allowed to make the operation.
      */
-    function validateOperation(address sender, bytes32 extraData, bytes4 methodSig) internal;
+    function validateOperation(bytes memory batchMetadata, bytes memory singleOp) internal;
 
-    function delayedOpHash(address sender, bytes32 extraData, uint nonce, bytes memory batch) public pure returns (bytes32) {
-        return keccak256(abi.encodePacked(sender, extraData, nonce, batch));
+    function delayedOpHash(bytes memory batchMetadata, uint nonce, bytes memory batch) public pure returns (bytes32) {
+        return keccak256(abi.encodePacked(batchMetadata, nonce, batch));
     }
 
-    function scheduleDelayedBatch(address sender, bytes32 extraData, uint delayTime, bytes memory batch) internal {
+    function scheduleDelayedBatch(bytes memory batchMetadata, uint delayTime, bytes memory batch) internal {
 
         require(delayTime > 0, "validateOperation: should have positive delayTime");
-        bytes32 hash = delayedOpHash(sender, extraData, opsNonce, batch);
+        bytes32 hash = delayedOpHash(batchMetadata, opsNonce, batch);
         //make sure we don't resend the same operation
         require(pending[hash] == 0, "repeated delayed op");
         uint dueTime = now + delayTime;
         pending[hash] = dueTime;
-        emit DelayedOperation(sender, extraData, opsNonce, batch, dueTime);
+        emit DelayedOperation(batchMetadata, opsNonce, batch, dueTime);
         // Note: Must be the last thing. Cannot be first, as 'getNonce' should return the value that will be used next.
         opsNonce = opsNonce + 1;
     }
@@ -52,8 +52,8 @@ contract DelayedOps {
      * actual caller of this method is not checked: the first parameter of the operation is the original sender
      * (which was verified by sendDelayedOp), and only it should be validated.
      */
-    function applyDelayedOps(address sender, bytes32 extraData, uint256 nonce, bytes memory batch) internal {
-        bytes32 hash = delayedOpHash(sender, extraData, nonce, batch);
+    function applyDelayedOps(bytes memory batchMetadata, uint256 nonce, bytes memory batch) internal {
+        bytes32 hash = delayedOpHash(batchMetadata, nonce, batch);
         uint dueTime = pending[hash];
         require(dueTime != 0, "applyDelayedOps called for non existing delayed op");
         require(now > dueTime, "applyDelayedOps called before due time");
@@ -65,16 +65,10 @@ contract DelayedOps {
         while (pos != EOF) {
             bytes memory singleOp;
             (singleOp, pos) = nextParam(batch, pos);
-            //NOTE: decode doesn't work for methods with no args. but we know all our methods DO have args...
-            bytes4 methodSig = LibBytes.readBytes4(singleOp, 0);
-//            address senderSent = LibBytes.readAddress(singleOp, 4);
-//            bytes32 extraDataSent = LibBytes.readBytes32(singleOp, 32);
-//            senderSent == sender && extraData == extraDataSent
-            validateOperation(sender, extraData, methodSig);
+            validateOperation(batchMetadata, singleOp);
             bool success;
             bytes memory revertMsg;
-            // The actual delayed call is now executed. The sender's address and extraData is appended at the end of the transaction data
-            (success, revertMsg) = address(this).call(abi.encodePacked(singleOp, sender, extraData));
+            (success, revertMsg) = address(this).call(singleOp);
             require(success, string(revertMsg));
         }
     }
@@ -82,7 +76,7 @@ contract DelayedOps {
     //TODO: test for this method separately
     function nextParam(bytes memory batch, uint pos) public pure returns (bytes memory ret, uint nextPos) {
         require(pos >= 0 && pos < batch.length, "pos out of range");
-        uint len = uint(getBytes32(batch, pos));
+        uint len = LibBytes.readUint256(batch, pos);
         require(len > 0 && pos + len <= batch.length, "invalid length in block");
         ret = getBytes(batch, pos + 32, len);
         nextPos = pos + 32 + len;
@@ -104,21 +98,6 @@ contract DelayedOps {
     event debug(uint due, uint timeNow);
 
     mapping(bytes32 => uint) pending;
-
-    function getBytes32(bytes memory b, uint ofs) pure internal returns (bytes32) {
-        return bytes32(LibBytes.readUint256(b, ofs));
-    }
-
-    function getAddress(bytes memory b, uint ofs) pure internal returns (address) {
-        return address(LibBytes.readUint256(b, ofs));
-    }
-
-    function getScheduledExtras() internal view returns (address, bytes32) {
-        require(msg.sender == address(this), "only the contract itself can send the delayed transaction");
-        bytes32 extras = LibBytes.readBytes32(msg.data, msg.data.length - 32);
-        address sender = LibBytes.readAddress(msg.data, msg.data.length - 32 - 20);
-        return (sender, extras);
-    }
 
     function encodeDelayed(bytes memory delayedTransaction) public pure returns (bytes memory){
         return abi.encodePacked(delayedTransaction.length, delayedTransaction);
