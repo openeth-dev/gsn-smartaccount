@@ -4,22 +4,18 @@ import "@0x/contracts-utils/contracts/src/LibBytes.sol";
 
 /**
  * Base contract for delayed operations.
- * a delayed operation is a function where first parameter is its original sender,
  */
 contract DelayedOps {
 
-    uint256 opsNonce = 0;
-
-    function getNonce() public view returns (uint) {return opsNonce;}
+    uint256 public opsNonce = 0;
+    uint constant EOF = uint(- 1);
+    mapping(bytes32 => uint) pending;
 
     event DelayedOperation(bytes batchMetadata, uint256 opsNonce, bytes operation, uint dueTime);
     event DelayedOperationCancelled(address sender, bytes32 hash);
 
     /**
-     * Template method: validate the sender is allowed to make this operation.
-     * most likely, only the selector (first 4 bytes) are checked.
-     * return the required delay to apply the operation.
-     * revert if the sender is not allowed to make the operation.
+     * Implementations must validate that given operation is allowed to proceed or revert otherwise.
      */
     function validateOperation(bytes memory batchMetadata, bytes memory singleOp) internal;
 
@@ -27,16 +23,19 @@ contract DelayedOps {
         return keccak256(abi.encodePacked(batchMetadata, nonce, batch));
     }
 
+    /*
+     * @param batchMetadata - free-form data that can be used by the 'validateOperation' implementation to
+     *      decide if the operation is valid or not; may include sender address, permissions, timestamps etc.
+     * @param nonce - used to differentiate identical transactions
+     */
     function scheduleDelayedBatch(bytes memory batchMetadata, uint delayTime, bytes memory batch) internal {
 
         require(delayTime > 0, "validateOperation: should have positive delayTime");
         bytes32 hash = delayedOpHash(batchMetadata, opsNonce, batch);
-        //make sure we don't resend the same operation
         require(pending[hash] == 0, "repeated delayed op");
         uint dueTime = now + delayTime;
         pending[hash] = dueTime;
         emit DelayedOperation(batchMetadata, opsNonce, batch, dueTime);
-        // Note: Must be the last thing. Cannot be first, as 'getNonce' should return the value that will be used next.
         opsNonce = opsNonce + 1;
     }
 
@@ -47,10 +46,7 @@ contract DelayedOps {
     }
 
     /**
-     * call operations to apply.
-     * values are taken directly from the DelayedOperation event
-     * actual caller of this method is not checked: the first parameter of the operation is the original sender
-     * (which was verified by sendDelayedOp), and only it should be validated.
+     * Applies operations one-by-one. Values can be taken directly from the DelayedOperation event.
      */
     function applyDelayedOps(bytes memory batchMetadata, uint256 nonce, bytes memory batch) internal {
         bytes32 hash = delayedOpHash(batchMetadata, nonce, batch);
@@ -58,9 +54,7 @@ contract DelayedOps {
         require(dueTime != 0, "applyDelayedOps called for non existing delayed op");
         require(now > dueTime, "applyDelayedOps called before due time");
 
-        //break operation (batch) into separate operations. each is validated separately.
-        // each operation start with "len" in uint (32-byte blocks)
-
+        // break up the batch into separate method calls, validated and execute each one separately
         uint pos = 0;
         while (pos != EOF) {
             bytes memory singleOp;
@@ -73,31 +67,14 @@ contract DelayedOps {
         }
     }
 
-    //TODO: test for this method separately
     function nextParam(bytes memory batch, uint pos) public pure returns (bytes memory ret, uint nextPos) {
         require(pos >= 0 && pos < batch.length, "pos out of range");
-        uint len = LibBytes.readUint256(batch, pos);
-        require(len > 0 && pos + len <= batch.length, "invalid length in block");
-        ret = getBytes(batch, pos + 32, len);
-        nextPos = pos + 32 + len;
+        ret = LibBytes.readBytesWithLength(batch, pos);
+        nextPos = pos + 32 + ret.length;
         if (nextPos == batch.length) {
             nextPos = EOF;
         }
     }
-
-    uint constant EOF = uint(- 1);
-
-    function getBytes(bytes memory buf, uint pos, uint len) public pure returns (bytes memory) {
-        bytes memory ret = new bytes(len);
-        for (uint i = 0; i < len; i++) {
-            ret[i] = buf[i + pos];
-        }
-        return ret;
-    }
-
-    event debug(uint due, uint timeNow);
-
-    mapping(bytes32 => uint) pending;
 
     function encodeDelayed(bytes memory delayedTransaction) public pure returns (bytes memory){
         return abi.encodePacked(delayedTransaction.length, delayedTransaction);

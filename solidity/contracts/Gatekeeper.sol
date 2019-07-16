@@ -108,6 +108,11 @@ contract Gatekeeper is DelayedOps, PermissionsLevel {
     }
 
     function validateOperation(bytes memory blob, bytes memory singleOp) internal {
+        (address senderClaim, uint16 senderPermsLevelClaim) = abi.decode(blob, (address, uint16));
+        address senderParam = address(LibBytes.readUint256(singleOp, 4));
+        uint256 senderPermsLevelParam = LibBytes.readUint256(singleOp, 36);
+        require(senderClaim == senderParam, "claimed sender is incorrect");
+        require(senderPermsLevelClaim == senderPermsLevelParam, "claimed permissions are incorrect");
     }
 
     // ****** Immediately runnable functions below this point

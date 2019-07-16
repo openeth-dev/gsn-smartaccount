@@ -43,17 +43,15 @@ contract Vault is DelayedOps {
     // Note: nonce should be passed
     function scheduleDelayedEtherTransfer(uint256 delay, address destination, uint256 value) public {
         // Alexf: There is no tragedy in using 'encodeWithSelector' here, I believe. Vault's API should not change much.
-        uint256 nonce = getNonce();
-        bytes memory delayedTransaction = abi.encodeWithSelector(this.transferETH.selector, msg.sender, nonce, destination, value);
-        scheduleDelayedBatch(abi.encode(msg.sender, bytes32(nonce)), delay, encodeDelayed(delayedTransaction));
-        emit TransactionPending(destination, value, ERC20(address(0)), delay, nonce);
+        bytes memory delayedTransaction = abi.encodeWithSelector(this.transferETH.selector, msg.sender, opsNonce, destination, value);
+        scheduleDelayedBatch(abi.encode(msg.sender, bytes32(opsNonce)), delay, encodeDelayed(delayedTransaction));
+        emit TransactionPending(destination, value, ERC20(address(0)), delay, opsNonce);
     }
 
     function scheduleDelayedTokenTransfer(uint256 delay, address destination, uint256 value, ERC20 token) public {
-        uint256 nonce = getNonce();
-        bytes memory delayedTransaction = abi.encodeWithSelector(this.transferERC20.selector, msg.sender, nonce, destination, value, address(token));
-        scheduleDelayedBatch(abi.encode(msg.sender, bytes32(nonce)), delay, encodeDelayed(delayedTransaction));
-        emit TransactionPending(destination, value, token, delay, nonce);
+        bytes memory delayedTransaction = abi.encodeWithSelector(this.transferERC20.selector, msg.sender, opsNonce, destination, value, address(token));
+        scheduleDelayedBatch(abi.encode(msg.sender, bytes32(opsNonce)), delay, encodeDelayed(delayedTransaction));
+        emit TransactionPending(destination, value, token, delay, opsNonce);
     }
 
     function cancelTransfer(bytes32 hash) public {
