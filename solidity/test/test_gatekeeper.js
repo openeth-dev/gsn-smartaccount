@@ -13,12 +13,12 @@ Chai.use(require('ethereum-waffle').solidity);
 Chai.use(require('bn-chai')(web3.utils.toBN));
 
 function getDelayedOpHashFromEvent(log) {
-    let sender = log.args.sender;
-    let extraData = log.args.extraData;
+    let batchMetadata = log.args.batchMetadata;
+    let batchMetadataBuff = Buffer.from(batchMetadata.slice(2), "hex");
     let opsNonce = log.args.opsNonce.toNumber();
     let encoded = log.args.operation;
     let encodedBuff = Buffer.from(encoded.slice(2), "hex");
-    return utils.delayedOpHash(sender, extraData, opsNonce, encodedBuff);
+    return utils.delayedOpHash(batchMetadataBuff, opsNonce, encodedBuff);
 }
 
 async function callDelayed(method, gatekeeper, callArguments, from) {
@@ -49,6 +49,7 @@ async function applyDelayed({res, log}, sender, gatekeeper, booster, scheduler) 
     let schedulerPermsLevel;
     // TODO!! Events should emit this data!
     if (scheduler === undefined) {
+        scheduler = sender;
         schedulerAddress = sender.address;
         schedulerPermsLevel = sender.permLevel;
 
@@ -61,8 +62,8 @@ async function applyDelayed({res, log}, sender, gatekeeper, booster, scheduler) 
 
     let senderPermsLevel = sender.permLevel;
     let nonce = log.args.opsNonce.toString();
-    let keccakExtraData = "0x" + ABI.soliditySHA3(["uint16", "address", "uint16"], [schedulerPermsLevel, boosterAddress, boosterPermsLevel]).toString("hex");
-    assert.equal(keccakExtraData, log.args.extraData, "This will lead to a revert, right?");
+    let expectedMetadata = getExpectedMetadata(scheduler, booster);
+    assert.equal(expectedMetadata, log.args.batchMetadata, "This will lead to a revert, right?");
     return gatekeeper.applyBatch(
         schedulerAddress,
         schedulerPermsLevel,
@@ -96,6 +97,19 @@ class Participant {
         return clone;
 
     }
+}
+
+function getExpectedMetadata(sender, booster) {
+    if (booster === undefined) {
+        booster = {
+            address: "0x0",
+            permLevel: "0x0",
+        }
+    }
+    return "0x" + ABI.rawEncode(
+        ["address", "uint16", "address", "uint16"],
+        [sender.address, sender.permLevel, booster.address, booster.permLevel]
+    ).toString("hex");
 }
 
 contract('Gatekeeper', async function (accounts) {
@@ -237,6 +251,8 @@ contract('Gatekeeper', async function (accounts) {
     /* Positive flows */
 
     /* Plain send */
+    // TODO: this is an integration test (uses 2 contracts)
+    // This is better to separate these into a separate file
     it("should allow the owner to create a delayed ether transfer transaction", async function () {
         let res = await gatekeeper.sendEther(destinationAddresss, amount, operatorA.permLevel);
         expectedDelayedEventsCount++;
@@ -245,9 +261,10 @@ contract('Gatekeeper', async function (accounts) {
         assert.equal(log.address, vault.address);
         // Vault sees the transaction as originating from Gatekeeper
         // and it does not know or care which participant initiated it
-        assert.equal(log.args.sender, gatekeeper.address);
+        let nonceInExtraData = "0x0";
+        let expectedMetadata = "0x" + ABI.rawEncode(["address", "bytes32"], [gatekeeper.address, nonceInExtraData]).toString("hex");
+        assert.equal(log.args.batchMetadata, expectedMetadata);
         // TODO: go through gatekeeper::applyTransfer
-        let nonceInExtraData = 0;
         let encodedABI = vault.contract.methods.transferETH(gatekeeper.address, nonceInExtraData, destinationAddresss, amount).encodeABI();
         let encodedPacked = utils.bufferToHex(utils.encodePackedBatch([encodedABI]));
         assert.equal(log.args.operation, encodedPacked);
@@ -294,9 +311,10 @@ contract('Gatekeeper', async function (accounts) {
         let callArguments = [operatorA.address, operatorA.permLevel, adminB1.address, adminB1.permLevel];
         let res = await callDelayed(addParticipant, gatekeeper, callArguments, operatorA.address);
         let log = res.logs[0];
+        let expectedMetadata = getExpectedMetadata(operatorA);
         assert.equal(log.event, "DelayedOperation");
         assert.equal(log.address, gatekeeper.address);
-        assert.equal(log.args.sender, operatorA.address);
+        assert.equal(log.args.batchMetadata, expectedMetadata);
         assert.equal(log.args.operation, utils.bufferToHex(encodedPacked));
     });
 
@@ -724,6 +742,35 @@ contract('Gatekeeper', async function (accounts) {
     it("should validate correctness of claimed senderPermissions");
     it("should validate correctness of claimed sender address");
     it("should not allow any operation to be called without a delay");
+
+    it.skip("should revert an attempt to apply an operation under some other participant's name", async function () {
+        // Schedule config change by operator claiming to be an admin
+        // note: this is not useful in current configuration, as operator can change everything and only the
+        // operator can schedule. But in general, this requirement is a cornerstone of the "permissions model".
+        let encodedABI = gatekeeper.contract.methods.addParticipant(adminA.address, adminA.permLevel, adminB1.address, adminB1.permLevel).encodeABI();
+        let encodedPacked = utils.encodePackedBatch([encodedABI]);
+        let res = await gatekeeper.changeConfiguration(operatorA.permLevel, encodedPacked);
+
+        await utils.increaseTime(timeGap);
+
+        // operatorB cannot apply it - the 'sender' claimed is not the real sender
+        await expect(
+            applyDelayed({res}, operatorA, gatekeeper, undefined, operatorA)
+        ).to.be.revertedWith("wrong sender detected");
+
+        // adminA cannot apply it for the operator either
+        await expect(
+            applyDelayed({res}, adminA, gatekeeper, undefined, operatorB)
+        ).to.be.revertedWith("level is frozen");
+
+        // adminA cannot apply it for himself - will not even find it
+        await expect(
+            applyDelayed({res}, adminA, gatekeeper)
+        ).to.be.revertedWith("level is frozen");
+
+    });
+
+    it("should revert an attempt to apply a boosted operation under some other participant's name");
 
     after("write coverage report", async () => {
         await global.postCoverage()

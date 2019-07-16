@@ -107,7 +107,7 @@ contract Gatekeeper is DelayedOps, PermissionsLevel {
         emit GatekeeperInitialized(address(vault));
     }
 
-    function validateOperation(address sender, bytes32 extraData, bytes4 methodSig) internal {
+    function validateOperation(bytes memory blob, bytes memory singleOp) internal {
     }
 
     // ****** Immediately runnable functions below this point
@@ -152,17 +152,17 @@ contract Gatekeeper is DelayedOps, PermissionsLevel {
     function changeConfigurationInternal(address sender, uint16 senderPermsLevel, address booster, uint16 boosterPermsLevel, bytes memory batch)
     hasPermissions(sender, canChangeConfig, senderPermsLevel)
     internal {
-        bytes32 hashOfAllPermsLevels = keccak256(abi.encodePacked(senderPermsLevel, booster, boosterPermsLevel));
-        scheduleDelayedBatch(sender, hashOfAllPermsLevels, delay, batch);
+        bytes memory batchMetadata = abi.encode(sender, senderPermsLevel, booster, boosterPermsLevel);
+        scheduleDelayedBatch(batchMetadata, delay, batch);
     }
 
     function scheduleChangeOwner(uint16 senderPermsLevel, address newOwner)
     hasPermissions(msg.sender, canChangeOwner, senderPermsLevel)
     nonFrozen(senderPermsLevel)
     public {
-        bytes32 hashOfAllPermsLevels = keccak256(abi.encodePacked(senderPermsLevel, address(0), uint16(0)));
+        bytes memory batchMetadata = abi.encode(msg.sender, senderPermsLevel, address(0), uint16(0));
         bytes memory delayedTransaction = abi.encodeWithSelector(this.changeOwner.selector, msg.sender, senderPermsLevel, newOwner);
-        scheduleDelayedBatch(msg.sender, hashOfAllPermsLevels, delay, encodeDelayed(delayedTransaction));
+        scheduleDelayedBatch(batchMetadata, delay, encodeDelayed(delayedTransaction));
     }
 
     function cancelTransfer(uint16 senderPermsLevel, bytes32 hash)
@@ -200,8 +200,8 @@ contract Gatekeeper is DelayedOps, PermissionsLevel {
             nonFrozenInternal(schedulerPermsLevel, "scheduler level is frozen");
         }
         requireParticipant(msg.sender, senderPermsLevel);
-        bytes32 hashOfAllPermsLevels = keccak256(abi.encodePacked(schedulerPermsLevel, booster, boosterPermsLevel));
-        applyDelayedOps(scheduler, hashOfAllPermsLevels, nonce, operation);
+        bytes memory batchMetadata = abi.encode(scheduler, schedulerPermsLevel, booster, boosterPermsLevel);
+        applyDelayedOps(batchMetadata, nonce, operation);
     }
 
     function applyTransfer(bytes memory operation, uint256 nonce, uint16 senderPermsLevel)

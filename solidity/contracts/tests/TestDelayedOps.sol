@@ -1,6 +1,7 @@
 pragma solidity ^0.5.8;
 
 import "../DelayedOps.sol";
+import "@0x/contracts-utils/contracts/src/LibBytes.sol";
 
 /**
  * test class to test delayed ops.
@@ -25,12 +26,14 @@ contract TestDelayedOps is DelayedOps {
         allowedExtraDataAddSome = data;
     }
 
-    function validateOperation(address sender, bytes32 extraData, bytes4 methodSig) internal {
+    function validateOperation(bytes memory blob, bytes memory singleOp) internal {
+        bytes4 methodSig = LibBytes.readBytes4(singleOp, 0);
         require(
             methodSig == this.sayHelloWorld.selector ||
             methodSig == this.addSome.selector ||
             methodSig == this.doIncrement.selector,
             "test: delayed op not allowed");
+        (, bytes32 extraData) = abi.decode(blob, (address, bytes32));
         require(msg.sender == allowedSender, "this sender not allowed to apply delayed operations");
 
         // Say, addSome overrides global 'allowedExtraData'
@@ -48,7 +51,7 @@ contract TestDelayedOps is DelayedOps {
             (operation, pos) = nextParam(batch, pos);
             require(LibBytes.readBytes4(operation, 0) != this.sayHelloWorld.selector, "Cannot use sendBatch to schedule secure HelloWorld");
         }
-        scheduleDelayedBatch(msg.sender, bytes32(extraData), operationsDelay, batch);
+        scheduleDelayedBatch(abi.encode(msg.sender, bytes32(extraData)), operationsDelay, batch);
     }
 
     function scheduleHelloWorld(uint dayOfBirth, string memory message, uint256 delay) public {
@@ -60,11 +63,11 @@ contract TestDelayedOps is DelayedOps {
         }
         bytes memory delayedTransaction = abi.encodeWithSelector(this.sayHelloWorld.selector, msg.sender, dayOfBirth, message);
         bytes memory operation = abi.encodePacked(delayedTransaction.length, delayedTransaction);
-        scheduleDelayedBatch(msg.sender, 0, delay, operation);
+        scheduleDelayedBatch(abi.encode(msg.sender, uint256(0)), delay, operation);
     }
 
-    function applyOp(bytes memory operation, bytes32 extraData, uint256 nonce) public {
-        applyDelayedOps(msg.sender, extraData, nonce, operation);
+    function applyOp(bytes memory operation, bytes memory batchMetadata, uint256 nonce) public {
+        applyDelayedOps(batchMetadata, nonce, operation);
     }
 
     function operationMissingFromValidate(address sender, uint256 delay) public {}
@@ -91,13 +94,9 @@ contract TestDelayedOps is DelayedOps {
     }
 
     uint256 public someValue = 0;
-    modifier onlyWithExtraData {
-        (, bytes32 extras) = getScheduledExtras();
-        require(extras == allowedExtraDataAddSome, "extraData is not allowed");
-        _;
-    }
 
-    function addSome(uint256 howMuch) onlyWithExtraData public {
+    function addSome(bytes32 extraData, uint256 howMuch) public {
+        require(extraData == allowedExtraDataAddSome, "extraData is not allowed");
         someValue = someValue + howMuch;
     }
 
