@@ -32,7 +32,7 @@ async function callDelayed(method, gatekeeper, callArguments, from) {
     return await gatekeeper.changeConfiguration(callArguments[1], encodedPacked, {from: from});
 }
 
-async function applyDelayed({res, log}, sender, gatekeeper, booster, scheduler) {
+async function applyDelayed({res, log}, sender, gatekeeper, booster, scheduler, ignoreObviousError) {
     if (log === undefined) {
         log = res.logs[0];
     }
@@ -63,7 +63,9 @@ async function applyDelayed({res, log}, sender, gatekeeper, booster, scheduler) 
     let senderPermsLevel = sender.permLevel;
     let nonce = log.args.opsNonce.toString();
     let expectedMetadata = getExpectedMetadata(scheduler, booster);
-    assert.equal(expectedMetadata, log.args.batchMetadata, "This will lead to a revert, right?");
+    if (!ignoreObviousError) {
+        assert.equal(expectedMetadata, log.args.batchMetadata, "This will lead to a revert, right?");
+    }
     return gatekeeper.applyBatch(
         schedulerAddress,
         schedulerPermsLevel,
@@ -742,8 +744,9 @@ contract('Gatekeeper', async function (accounts) {
     it("should validate correctness of claimed senderPermissions");
     it("should validate correctness of claimed sender address");
     it("should not allow any operation to be called without a delay");
+    it("should only allow delayed calls to whitelisted operations");
 
-    it.skip("should revert an attempt to apply an operation under some other participant's name", async function () {
+    it("should revert an attempt to apply an operation under some other participant's name", async function () {
         // Schedule config change by operator claiming to be an admin
         // note: this is not useful in current configuration, as operator can change everything and only the
         // operator can schedule. But in general, this requirement is a cornerstone of the "permissions model".
@@ -753,24 +756,27 @@ contract('Gatekeeper', async function (accounts) {
 
         await utils.increaseTime(timeGap);
 
-        // operatorB cannot apply it - the 'sender' claimed is not the real sender
+        // operatorA cannot apply it - the 'sender' claimed is not the real sender
         await expect(
             applyDelayed({res}, operatorA, gatekeeper, undefined, operatorA)
-        ).to.be.revertedWith("wrong sender detected");
+        ).to.be.revertedWith("claimed sender is incorrect");
 
         // adminA cannot apply it for the operator either
         await expect(
-            applyDelayed({res}, adminA, gatekeeper, undefined, operatorB)
-        ).to.be.revertedWith("level is frozen");
+            applyDelayed({res}, adminA, gatekeeper, undefined, operatorA)
+        ).to.be.revertedWith("claimed sender is incorrect");
 
         // adminA cannot apply it for himself - will not even find it
         await expect(
-            applyDelayed({res}, adminA, gatekeeper)
-        ).to.be.revertedWith("level is frozen");
+            applyDelayed({res}, adminA, gatekeeper, undefined, undefined, true)
+        ).to.be.revertedWith("applyDelayedOps called for non existing delayed op");
 
     });
 
     it("should revert an attempt to apply a boosted operation under some other participant's name");
+
+    it("should revert an attempt to apply a boosted operation claiming wrong permissions");
+    it("should revert an attempt to apply an operation claiming wrong permissions");
 
     after("write coverage report", async () => {
         await global.postCoverage()
