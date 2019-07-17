@@ -10,3 +10,4 @@
 node_modules
 *.swp
 /solidity/build/
+/js_foundation/src/js/generated/

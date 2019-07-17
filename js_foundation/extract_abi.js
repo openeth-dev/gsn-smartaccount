@@ -1,60 +1,77 @@
 #!/usr/bin/env node
 
-const solc = require('solc')
-const fs = require('fs')
+const solc = require('solc');
+const fs = require('fs');
 
-contractsFolder ="contracts"
-outAbiFolder = "src/js/generated"
+// TODO: pass all these things as parameters
+const projectFolder = "solidity/";
+const contractsFolder = projectFolder + "contracts";
+const outAbiFolder = "js_foundation/src/js/generated";
 
-contractsToExtract =[ "Contract" ]
+const contractsToExtract = ["Contract", "Gatekeeper", "Vault"];
 
-contractsToExtract.forEach( c => {
+function compileFile(contractFile, c) {
+    let contractSource = fs.readFileSync(contractFile, {encoding: 'utf8'});
 
-	contractFile = contractsFolder + "/"+ c + ".sol"
-	outAbiFile = outAbiFolder + "/" + c +".js"
+    let input = {
+        language: 'Solidity',
+        sources: {
+            contractFile: {
+                content: contractSource
+            }
+        },
+        settings: {
+            outputSelection: {
+                '*': {
+                    '*': ['*']
+                }
+            }
+        }
+    };
+    let result;
+    let abi;
+    try {
+        let compile = solc.compile(JSON.stringify(input), function (path) {
+            let realPath = contractsFolder + "/" + path;
+            if (!fs.existsSync(realPath)) {
+                realPath = projectFolder + "node_modules/" + path;
+            }
+            console.log("wtf", arguments, path, realPath);
+            return {
+                'contents': fs.readFileSync(realPath).toString()
+            }
+        });
+        result = JSON.parse(compile);
+        abi = JSON.stringify(result.contracts.contractFile[c].abi);
+    } catch (e) {
+        console.log(e)
+    }
+    if (!abi) {
+        console.log("ERROR: failed to extract abi:", result);
+        process.exit(1)
+    }
 
-	try {
-		if ( fs.statSync(contractFile).mtime <= fs.statSync(outAbiFile).mtime ) {
-			console.log( "not modified: ", outAbiFile )
-			return
-		}
-	} catch(e){
-		//target file is missing.
-	}
+    return abi;
+}
 
-	hubApi = fs.readFileSync( contractFile, {encoding:'utf8'} )
+contractsToExtract.forEach(c => {
 
-	let input = {
-		language: 'Solidity',
-		sources: {
-			contractFile: {
-				content: hubApi
-			}
-		},
-		settings: {
-			outputSelection: {
-				'*': {
-					'*': [ '*' ]
-				}
-			}
-		}
-	}
-	result = JSON.parse(solc.compile(JSON.stringify(input)))
+    let contractFile = contractsFolder + "/" + c + ".sol";
+    let outAbiFile = outAbiFolder + "/" + c + ".js";
 
-	if ( result.errors ) {
-		console.log( "ERROR: ", result )
-		process.exit(1)
-	}
+    try {
+        if (fs.existsSync(outAbiFile) &&
+            fs.statSync(contractFile).mtime <= fs.statSync(outAbiFile).mtime) {
+            console.log("not modified: ", outAbiFile);
+            return;
+        }
+    } catch (e) {
+        console.log(e);
+    }
 
-	abi = JSON.stringify(result.contracts.contractFile[ c ].abi)
+    let abi = compileFile(contractFile, c);
 
-	if ( !abi )  {
-		console.log( "ERROR: failed to extract abi:", result)
-		process.exit(1);
-	} else {
-
-		fs.writeFileSync( outAbiFile, "module.exports="+abi )
-		console.log( "written \""+outAbiFile+"\"" )
-	}
-})
+    fs.writeFileSync(outAbiFile, "module.exports=" + abi);
+    console.log("written \"" + outAbiFile + "\"")
+});
 
