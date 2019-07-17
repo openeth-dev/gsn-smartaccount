@@ -2,7 +2,7 @@
   "name": "js_foundation",
   "version": "1.0.0",
   "scripts": {
-    "test": "npx truffle test"
+    "test": "mocha"
   },
   "dependencies": {
     "truffle-artifactor": "^4.0.17",
@@ -10,6 +10,7 @@
   },
   "devDependencies": {
     "truffle": "^5.0.21",
-    "web3": "1.0.0-beta.37"
+    "web3": "1.0.0-beta.37",
+    "solc": "latest"
   }
 }
