@@ -38,6 +38,11 @@ contract Gatekeeper is DelayedOps, PermissionsLevel {
     uint256 public frozenLevel;
     uint256 public frozenUntil;
 
+    constructor() public {
+
+    }
+
+
     // ********** Access control modifiers below this point
 
     function nonFrozenInternal(uint16 senderPermsLevel, string memory errorMessage) internal {

@@ -5,12 +5,15 @@
     "test": "mocha"
   },
   "dependencies": {
+    "chai": "^4.2.0",
+    "chai-as-promised": "^7.1.1",
     "truffle-artifactor": "^4.0.17",
     "truffle-contract": "^4.0.18"
   },
   "devDependencies": {
+    "sinon": "^7.3.2",
+    "solc": "latest",
     "truffle": "^5.0.21",
-    "web3": "1.0.0-beta.37",
-    "solc": "latest"
+    "web3": "1.0.0-beta.37"
   }
 }
