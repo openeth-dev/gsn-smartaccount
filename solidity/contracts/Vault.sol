@@ -18,16 +18,11 @@ contract Vault is DelayedOps {
     event TransactionPending(address destination, uint value, ERC20 erc20token, uint delay, uint256 nonce);
     event TransactionCompleted(address destination, uint value, ERC20 erc20token, uint256 nonce);
 
-    // ***** Start TDD temp methods
+    address public gatekeeper;
 
-    address gatekeeper;
-
-    function setGatekeeper(address gatekeeperAddress) public
-    {
+    constructor(address gatekeeperAddress) public{
         gatekeeper = gatekeeperAddress;
     }
-
-    // ***** End TDD temp methods
 
     function() payable external {
         emit FundsReceived(msg.sender, msg.value);
