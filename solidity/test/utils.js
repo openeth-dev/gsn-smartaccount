@@ -2,13 +2,23 @@ const ABI = require('ethereumjs-abi');
 const Web3Utils = require('web3-utils');
 const EthUtils = require('ethereumjs-util');
 
+if (typeof assert === 'undefined'){
+    assert = require('chai').assert;
+}
+
 function removeHexPrefix(hex) {
     return hex.replace(/^0x/, '');
 }
 
+
+// TODO: some of these mothods are used outside of tests, and in 'js_foundation' project
+//  create a 'shared' js module for those
 module.exports = {
 
-    increaseTime: function (time) {
+    increaseTime: function (time, _web3) {
+        if (typeof web3 === 'undefined'){
+            web3 = _web3;
+        }
         return new Promise((resolve, reject) => {
             web3.currentProvider.send({
                 jsonrpc: '2.0',
@@ -16,7 +26,7 @@ module.exports = {
                 params: [time],
                 id: new Date().getSeconds()
             }, (err) => {
-                if (err) return reject(err)
+                if (err) return reject(err);
                 module.exports.evmMine()
                     .then(r => resolve(r))
                     .catch(e => reject(e))
@@ -33,7 +43,7 @@ module.exports = {
                 params: [],
                 id: new Date().getSeconds()
             }, (e, r) => {
-                if (e) reject(e)
+                if (e) reject(e);
                 else resolve(r)
             });
 
