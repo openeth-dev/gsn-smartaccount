@@ -5,13 +5,18 @@ const fs = require('fs');
 const Web3 = require('web3');
 const TruffleContract = require("truffle-contract");
 
-const Interactor = require("../src/js/index.js");
+const Interactor = require("../src/js/VaultContractInteractor.js");
+const ParticipantAddedEvent = require("../src/js/events/ParticipantAddedEvent");
+const ParticipantRemovedEvent = require("../src/js/events/ParticipantRemovedEvent");
+const OwnerChangedEvent = require("../src/js/events/OwnerChangedEvent");
+const GatekeeperInitializedEvent = require("../src/js/events/GatekeeperInitializedEvent");
 
 context('VaultContractInteractor Integration Test', function () {
     let ethNodeUrl = 'http://localhost:8545';
     let vaultFactoryAddress;
     let web3;
     let accounts;
+    let interactor;
 
     before(async function () {
         let provider = new Web3.providers.HttpProvider(ethNodeUrl);
@@ -26,9 +31,9 @@ context('VaultContractInteractor Integration Test', function () {
             address: vaultFactoryAddress
         });
         vaultFactoryContract.setProvider(provider);
-        console.log("aaa");
         let vaultFactory = await vaultFactoryContract.new({from: accounts[0]});
         vaultFactoryAddress = vaultFactory.address;
+        interactor = await Interactor.connect(accounts[0], ethNodeUrl, undefined, undefined, vaultFactoryAddress);
     });
 
     // write tests are quite boring as each should be just a wrapper around a Web3 operation, which
@@ -36,7 +41,6 @@ context('VaultContractInteractor Integration Test', function () {
 
     context("creation of new vault", function () {
         it("deploys a new vault, but only if not initialized", async function () {
-            let interactor = await Interactor.connect(accounts[0], ethNodeUrl, undefined, undefined, vaultFactoryAddress);
             let addressBefore = interactor.getGatekeeperAddress();
             assert.strictEqual(addressBefore, null);
 
@@ -55,49 +59,93 @@ context('VaultContractInteractor Integration Test', function () {
         });
 
         it("the newly deployed vault should handle having no configuration", async function () {
-            assert.fail()
+            let operator = await interactor.getOperator();
+            assert.equal(operator, null);
+            let delays = await interactor.getDelays();
+            assert.equal(delays.length, 0);
+            let initializedEvent = await interactor.getGatekeeperInitializedEvent();
+            assert.equal(initializedEvent, null);
+            let addedEvents = await interactor.getParticipantAddedEvents();
+            assert.equal(addedEvents.length, 0);
+            let removedEvents = await interactor.getParticipantRemovedEvents();
+            assert.equal(removedEvents.length, 0);
+            let ownerEvents = await interactor.getOwnerChangedEvents();
+            assert.equal(ownerEvents.length, 0);
+            let freezeParams = await interactor.getFreezeParameters();
+            assert.equal(freezeParams, null);
+            let scheduledOperations = await interactor.getScheduledOperations();
+            assert.equal(scheduledOperations.length, 0);
         });
 
         it("the newly deployed vault should accept the initial configuration", async function () {
-            assert.fail()
+            let participantsHashes = [
+                "0xaa",
+                "0xbb",
+                "0xcc",
+            ];
+            let delaysExpected = [1, 2, 3];
+            await interactor.initialConfig({
+                participants:
+                participantsHashes,
+                delays:
+                delaysExpected
+            });
+
+            let initEvent = await interactor.getGatekeeperInitializedEvent();
+            let expectedHashes = participantsHashes.map(function (hash) {
+                return hash.padEnd(66, '0')
+            });
+            assert.deepEqual(initEvent.participantsHashes, expectedHashes);
+
+            let operator = await interactor.getOperator();
+            assert.equal(operator, accounts[0]);
+
+            let delays = await interactor.getDelays();
+            assert.deepEqual(delays, delaysExpected);
+
         });
 
     });
 
-    it("can schedule to change participants in the vault and later apply it", async function () {
-        assert.fail()
-    });
+    context("using initialized and configured vault", function () {
 
-    it("can freeze and unfreeze", async function () {
-        assert.fail()
-    });
+        before(function () {
+            // TODO: fund the vault
+        });
 
-    it("can change owner", async function () {
-        assert.fail()
-    });
-
-    it("can transfer different types of assets", async function () {
-        assert.fail()
-    });
-
-
-    // ****** read tests
-
-    context("reading directly from the contract's state", function () {
-        it("read operator", async function () {
+        it("can schedule to change participants in the vault and later apply it", async function () {
             assert.fail()
         });
-        it("read balances", async function () {
+
+        it("can freeze and unfreeze", async function () {
             assert.fail()
         });
-    });
 
-
-    context("reading by parsing the event logs", function () {
-        it("read participant hashes", async function () {
+        it("can change owner", async function () {
             assert.fail()
         });
+
+        it("can transfer different types of assets", async function () {
+            assert.fail()
+        });
+
+
+        // ****** read tests
+
+        context("reading directly from the contract's state", function () {
+            it("read operator", async function () {
+                assert.fail()
+            });
+            it("read balances", async function () {
+                assert.fail()
+            });
+        });
+
+
+        context("reading by parsing the event logs", function () {
+            it("read participant hashes", async function () {
+                assert.fail()
+            });
+        });
     });
-
-
 });
