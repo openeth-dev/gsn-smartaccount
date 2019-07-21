@@ -12,7 +12,8 @@ contract Gatekeeper is DelayedOps, PermissionsLevel {
     event ParticipantAdded(bytes32 indexed participant);
     event ParticipantRemoved(bytes32 indexed participant);
     event OwnerChanged(address indexed newOwner);
-    event GatekeeperInitialized(address vault);
+    // TODO: not log participants
+    event GatekeeperInitialized(address vault, bytes32[] participants);
     event LevelFrozen(uint256 frozenLevel, uint256 frozenUntil, address sender);
     event UnfreezeCompleted();
     //*****
@@ -30,7 +31,11 @@ contract Gatekeeper is DelayedOps, PermissionsLevel {
     Vault vault;
 
     uint256 delay = 1 hours;
+    uint256[] public delays;
 
+    function getDelays() public view returns(uint256[] memory) {
+        return delays;
+    }
 
     mapping(bytes32 => bool) public participants;
     address public operator;
@@ -103,13 +108,13 @@ contract Gatekeeper is DelayedOps, PermissionsLevel {
             require(initialDelays[i] < maxDelay);
         }
         //        TODO: implement delays
-        //        delays = initialDelays;
+        delays = initialDelays;
         vault = vaultParam;
 
         operator = msg.sender;
         participants[participantHash(operator, packPermissionLevel(ownerPermissions, 1))] = true;
 
-        emit GatekeeperInitialized(address(vault));
+        emit GatekeeperInitialized(address(vault), initialParticipants);
     }
 
     function validateOperation(bytes memory blob, bytes memory singleOp) internal {
