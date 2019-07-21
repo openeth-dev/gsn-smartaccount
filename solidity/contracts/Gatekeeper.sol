@@ -96,7 +96,7 @@ contract Gatekeeper is DelayedOps, PermissionsLevel {
     uint constant maxDelay = 365 days;
     uint constant maxFreeze = 365 days;
 
-    function initialConfig(Vault vaultParam, bytes32[] memory initialParticipants, uint[] memory initialDelays) public {
+    function initialConfig(Vault vaultParam, bytes32[] memory initialParticipants, uint256[] memory initialDelays) public {
         require(operator == address(0), "already initialized");
 
         require(initialParticipants.length <= maxParticipants, "too many participants");

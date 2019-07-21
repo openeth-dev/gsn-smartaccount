@@ -5,11 +5,17 @@ const fs = require('fs');
 const Web3 = require('web3');
 const TruffleContract = require("truffle-contract");
 
+const truffleUtils = require("../../solidity/test/utils");
+
 const Interactor = require("../src/js/VaultContractInteractor.js");
 const ParticipantAddedEvent = require("../src/js/events/ParticipantAddedEvent");
 const ParticipantRemovedEvent = require("../src/js/events/ParticipantRemovedEvent");
 const OwnerChangedEvent = require("../src/js/events/OwnerChangedEvent");
 const GatekeeperInitializedEvent = require("../src/js/events/GatekeeperInitializedEvent");
+
+const TransactionReceipt = require("../src/js/TransactionReceipt");
+const ConfigurationDelta = require("../src/js/ConfigurationDelta");
+const PermissionsModel = require("../src/js/PermissionsModel");
 
 context('VaultContractInteractor Integration Test', function () {
     let ethNodeUrl = 'http://localhost:8545';
@@ -17,6 +23,9 @@ context('VaultContractInteractor Integration Test', function () {
     let web3;
     let accounts;
     let interactor;
+
+    let account23 = "0xcdc1e53bdc74bbf5b5f715d6327dca5785e228b4";
+    let account24 = "0xf5d1eaf516ef3b0582609622a221656872b82f78";
 
     before(async function () {
         let provider = new Web3.providers.HttpProvider(ethNodeUrl);
@@ -78,8 +87,9 @@ context('VaultContractInteractor Integration Test', function () {
         });
 
         it("the newly deployed vault should accept the initial configuration", async function () {
+            let anyAdmin = "0x" + truffleUtils.participantHash(account23, truffleUtils.packPermissionLevel(PermissionsModel.getAdminPermissions(), 1)).toString('hex');
             let participantsHashes = [
-                "0xaa",
+                anyAdmin,
                 "0xbb",
                 "0xcc",
             ];
@@ -114,7 +124,38 @@ context('VaultContractInteractor Integration Test', function () {
         });
 
         it("can schedule to change participants in the vault and later apply it", async function () {
-            assert.fail()
+            let change = new ConfigurationDelta([
+                    {address: account24, permissions: PermissionsModel.getAdminPermissions(), level: 1}
+                ],
+                []);
+            let receipt1 = await interactor.changeConfiguration(change);
+            let blockOptions = {
+                fromBlock: receipt1.blockNumber,
+                toBlock: receipt1.blockNumber
+            };
+            // values here are not deterministic. I can only check they exist.
+            assert.equal(receipt1.blockHash.length, 66);
+            assert.equal(receipt1.transactionHash.length, 66);
+            assert.isAbove(receipt1.blockNumber, 0);
+            assert.isAbove(receipt1.gasUsed, 21000);
+
+            let delayedOpEvents = await interactor.getDelayedOperationsEvents(blockOptions);
+            assert.equal(delayedOpEvents.length, 1);
+
+            let delays = await interactor.getDelays();
+            let time = delays[1] + 100;
+            // TODO: fix when delay per level is implemented
+            await truffleUtils.increaseTime(1000 * 60 * 60 * 24, web3);
+
+            let receipt2 = await interactor.applyBatch(delayedOpEvents[0].operation, delayedOpEvents[0].opsNonce);
+            blockOptions = {
+                fromBlock: receipt2.blockNumber,
+                toBlock: receipt2.blockNumber
+            };
+            let addedEvents = await interactor.getParticipantAddedEvents(blockOptions);
+            assert.equal(addedEvents.length, 1)
+            // TODO: implement config validation as in truffle project
+
         });
 
         it("can freeze and unfreeze", async function () {

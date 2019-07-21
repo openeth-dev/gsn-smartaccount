@@ -10,7 +10,13 @@ const ParticipantAddedEvent = require('./events/ParticipantAddedEvent');
 const ParticipantRemovedEvent = require('./events/ParticipantRemovedEvent');
 const GatekeeperInitializedEvent = require('./events/GatekeeperInitializedEvent');
 const OwnerChangedEvent = require('./events/OwnerChangedEvent');
+const DelayedOperationEvent = require('./events/DelayedOperationEvent');
 
+const TransactionReceipt = require("./TransactionReceipt");
+const PermissionsModel = require("./PermissionsModel");
+
+// TODO: not use this module! Create a 'shared' module!!!
+const truffleUtils = require("../../../solidity/test/utils");
 
 let GatekeeperContract = TruffleContract({
     contractName: "Gatekeeper",
@@ -33,17 +39,22 @@ const participantRemovedEvent = "ParticipantRemoved";
 const ownerChangedEvent = "OwnerChanged";
 const levelFrozenEvent = "LevelFrozen";
 const unfreezeCompletedEvent = "UnfreezeCompleted";
+const delayedOperationEvent = "DelayedOperation";
 
 
 function getAllBlocksSinceVault() {
     let fromBlock = 0;
-    if (this.initialConfigEvent){
+    if (this.initialConfigEvent) {
         fromBlock = this.initialConfigEvent.blockNumber;
     }
     return {
         fromBlock: fromBlock,
         toBlock: 'latest'
     };
+}
+
+function myPermLevel() {
+    return truffleUtils.packPermissionLevel(PermissionsModel.getOwnerPermissions(), 1);
 }
 
 class VaultContractInteractor {
@@ -130,12 +141,37 @@ class VaultContractInteractor {
      * @param delays
      */
     async initialConfig({participants, delays}) {
-        // vaultParam, bytes32[] memory initialParticipants, uint[] memory initialDelays
         await this.gatekeeper.initialConfig(this.vault.address, participants, delays, {from: this.account});
     }
 
-    async changeConfiguration() {
-
+    // TODO: refactor
+    async changeConfiguration({participantsToAdd, participantsToRemove, newOwner, unfreeze}) {
+        let operations = [];
+        if (participantsToAdd) {
+            operations.push(...participantsToAdd.map(participant => {
+                let callArguments = [
+                    this.account,
+                    myPermLevel(),
+                    participant.address,
+                    truffleUtils.packPermissionLevel(participant.permissions, participant.level)
+                ];
+                return this.gatekeeper.contract.methods.addParticipant(...callArguments).encodeABI()
+            }));
+        }
+        // if (participantsToRemove) {
+        //     operations.push(participantsToAdd.map(function (participant) {
+        //         return "0x00"
+        //     }));
+        // }
+        if (newOwner) {
+            operations.push();
+        }
+        if (unfreeze) {
+            operations.push();
+        }
+        let encodedPacked = truffleUtils.encodePackedBatch(operations);
+        let web3receipt = await this.gatekeeper.changeConfiguration(myPermLevel(), encodedPacked, {from: this.account});
+        return new TransactionReceipt(web3receipt.receipt)
     }
 
     async boostedConfigChange() {
@@ -154,8 +190,31 @@ class VaultContractInteractor {
 
     }
 
-    async applyBatch() {
+    // Currently, only applies operations scheduled by himself.
+    async applyBatch(batchOperation, nonce, booster) {
+        let boosterAddress;
+        let boosterPermsLevel;
+        if (booster === undefined) {
+            boosterAddress = "0x0000000000000000000000000000000000000000";
+            boosterPermsLevel = "0";
+        } else {
+            boosterAddress = booster.address;
+            boosterPermsLevel = booster.permLevel;
+        }
+        let schedulerAddress = this.account;
+        let schedulerPermsLevel = myPermLevel();
+        let senderPermsLevel = myPermLevel();
 
+        let web3receipt = await this.gatekeeper.applyBatch(
+            schedulerAddress,
+            schedulerPermsLevel,
+            boosterAddress,
+            boosterPermsLevel,
+            batchOperation,
+            senderPermsLevel,
+            nonce,
+            {from: this.account});
+        return new TransactionReceipt(web3receipt);
     }
 
     async sendEther() {
@@ -188,7 +247,7 @@ class VaultContractInteractor {
     }
 
     async getGatekeeperInitializedEvent() {
-        if (!this.gatekeeper || !this.vault){
+        if (!this.gatekeeper || !this.vault) {
             return null;
         }
         if (!this.initialConfigEvent) {
@@ -202,24 +261,33 @@ class VaultContractInteractor {
         return this.initialConfigEvent
     }
 
+
+    // TODO: extract method
     async getParticipantAddedEvents(options) {
         let events = await this.gatekeeper.getPastEvents(participantAddedEvent, options || getAllBlocksSinceVault.call(this));
         return events.map(e => {
-            new ParticipantAddedEvent(e);
+            return new ParticipantAddedEvent(e);
         })
     }
 
     async getParticipantRemovedEvents(options) {
         let events = await this.gatekeeper.getPastEvents(participantAddedEvent, options || getAllBlocksSinceVault.call(this));
         return events.map(e => {
-            new ParticipantRemovedEvent(e);
+            return new ParticipantRemovedEvent(e);
+        })
+    }
+
+    async getDelayedOperationsEvents(options) {
+        let events = await this.gatekeeper.getPastEvents(delayedOperationEvent, options || getAllBlocksSinceVault.call(this));
+        return events.map(e => {
+            return new DelayedOperationEvent(e);
         })
     }
 
     async getOwnerChangedEvents(options) {
         let events = await this.gatekeeper.getPastEvents(ownerChangedEvent, options || getAllBlocksSinceVault.call(this));
         return events.map(e => {
-            new OwnerChangedEvent(e);
+            return new OwnerChangedEvent(e);
         })
     }
 
