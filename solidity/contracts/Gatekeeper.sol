@@ -117,6 +117,7 @@ contract Gatekeeper is DelayedOps, PermissionsLevel {
         emit GatekeeperInitialized(address(vault), initialParticipants);
     }
 
+    //TODO:
     function validateOperation(bytes memory blob, bytes memory singleOp) internal {
         (address senderClaim, uint16 senderPermsLevelClaim) = abi.decode(blob, (address, uint16));
         address senderParam = address(LibBytes.readUint256(singleOp, 4));
@@ -230,14 +231,16 @@ contract Gatekeeper is DelayedOps, PermissionsLevel {
 
     // TODO: obviously does not conceal the level and identity
     function addParticipant(address sender, uint16 senderPermsLevel, address newParticipant, uint16 permsLevel)
-    hasPermissions(sender, canChangeParticipants, senderPermsLevel) public {
+    hasPermissions(sender, canChangeParticipants, senderPermsLevel) external {
+        require(address(this) == msg.sender, "Function can only be called by Gatekeeper");
         bytes32 hash = participantHash(newParticipant, permsLevel);
         participants[hash] = true;
         emit ParticipantAdded(hash);
     }
 
     function removeParticipant(address sender, uint16 senderPermsLevel, bytes32 participant)
-    hasPermissions(sender, canChangeParticipants, senderPermsLevel) public {
+    hasPermissions(sender, canChangeParticipants, senderPermsLevel) external {
+        require(address(this) == msg.sender, "Function can only be called by Gatekeeper");
         require(participants[participant], "there is no such participant");
         delete participants[participant];
         emit ParticipantRemoved(participant);
@@ -245,7 +248,8 @@ contract Gatekeeper is DelayedOps, PermissionsLevel {
 
     function changeOwner(address sender, uint16 senderPermsLevel, address newOwner)
     hasPermissions(sender, canChangeOwner, senderPermsLevel)
-    public {
+    external {
+        require(address(this) == msg.sender, "Function can only be called by Gatekeeper");
         require(newOwner != address(0), "cannot set owner to zero address");
         bytes32 oldParticipant = participantHash(operator, packPermissionLevel(ownerPermissions, 1));
         bytes32 newParticipant = participantHash(newOwner, packPermissionLevel(ownerPermissions, 1));
@@ -257,7 +261,8 @@ contract Gatekeeper is DelayedOps, PermissionsLevel {
 
     function unfreeze(address sender, uint16 senderPermsLevel)
     hasPermissions(sender, canUnfreeze, senderPermsLevel)
-    public {
+    external {
+        require(address(this) == msg.sender, "Function can only be called by Gatekeeper");
         frozenLevel = 0;
         frozenUntil = 0;
         emit UnfreezeCompleted();
