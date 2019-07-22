@@ -13,6 +13,7 @@ contract DelayedOps {
 
     event DelayedOperation(bytes batchMetadata, uint256 opsNonce, bytes operation, uint dueTime);
     event DelayedOperationCancelled(address sender, bytes32 hash);
+    event DelayedOperationComplete(uint256 opsNonce);
 
     /**
      * Implementations must validate that given operation is allowed to proceed or revert otherwise.
@@ -65,6 +66,7 @@ contract DelayedOps {
             (success, revertMsg) = address(this).call(singleOp);
             require(success, string(revertMsg));
         }
+        emit DelayedOperationComplete(nonce);
     }
 
     function nextParam(bytes memory batch, uint pos) public pure returns (bytes memory ret, uint nextPos) {

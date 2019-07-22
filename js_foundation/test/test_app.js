@@ -38,6 +38,7 @@ context('VaultContractInteractor Integration Test', function () {
         "2698fa61dae5644ab6f9a2af59da9f9447d7c41c35ca9633db0bf2b0ad0ed872" + // S
         "1c"; // V
 
+    let fund = 1000000;
 
     let operatorA;
     let operatorB;
@@ -109,8 +110,6 @@ context('VaultContractInteractor Integration Test', function () {
             assert.equal(ownerEvents.length, 0);
             let freezeParams = await interactor.getFreezeParameters();
             assert.deepEqual(freezeParams, {frozenLevel: 0, frozenUntil: 0});
-            let scheduledOperations = await interactor.getScheduledOperations();
-            assert.equal(scheduledOperations.length, 0);
         });
 
         it("the newly deployed vault should accept the initial configuration", async function () {
@@ -146,8 +145,8 @@ context('VaultContractInteractor Integration Test', function () {
 
     context("using initialized and configured vault", function () {
 
-        before(function () {
-            // TODO: fund the vault
+        before(async function () {
+            await web3.eth.sendTransaction({from: accounts[0], to: interactor.vault.address, value: fund});
         });
 
         it("can schedule to change participants in the vault and later apply it", async function () {
@@ -264,6 +263,30 @@ context('VaultContractInteractor Integration Test', function () {
             assert.deepEqual(freezeParameters2, {frozenLevel: 0, frozenUntil: 0});
         });
 
+        it("can transfer different types of assets", async function () {
+            let ethBalance = await interactor.getBalance();
+            assert.equal(ethBalance, fund);
+            let receipt1 = await interactor.sendEther({destination: accounts[5], value: 1000});
+            ethBalance = await interactor.getBalance();
+            assert.equal(ethBalance, fund);
+
+            let delayedOpEvents = await interactor.getDelayedOperationsEventsForVault({
+                fromBlock: receipt1.blockNumber,
+                toBlock: receipt1.blockNumber
+            });
+
+            assert.equal(delayedOpEvents.length, 1);
+            // TODO: fix when delay per level is implemented
+            await safeChannelUtils.increaseTime(1000 * 60 * 60 * 24, web3);
+            await interactor.applyTransfer({
+                operation: delayedOpEvents[0].operation,
+                nonce: delayedOpEvents[0].opsNonce
+            });
+            ethBalance = await interactor.getBalance();
+            assert.equal(ethBalance, fund - 1000);
+
+        });
+
         it("can change owner", async function () {
             let receipt1 = await interactor.scheduleChangeOwner(operatorB.address);
             let delayedOpEvents = await interactor.getDelayedOperationsEvents({
@@ -288,11 +311,6 @@ context('VaultContractInteractor Integration Test', function () {
                 admin23,
                 admin_level2_acc2.expect()];
             await safeChannelUtils.validateConfig(participants, interactor.gatekeeper);
-
-        });
-
-        it.skip("can transfer different types of assets", async function () {
-            assert.fail()
         });
 
 

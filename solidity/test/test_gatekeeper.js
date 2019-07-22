@@ -610,7 +610,7 @@ contract('Gatekeeper', async function (accounts) {
         await utils.asyncForEach(getNonBoosters(), async (signingParty) => {
             let encodedABI = gatekeeper.contract.methods.unfreeze(signingParty.address, signingParty.permLevel).encodeABI();
             let encodedPacked = utils.encodePackedBatch([encodedABI]);
-            let encodedHash = testUtils.getTransactionHash(encodedPacked);
+            let encodedHash = utils.getTransactionHash(encodedPacked);
             let signature = await utils.signMessage(encodedHash, web3, {from: signingParty.address});
             await expect(
                 gatekeeper.boostedConfigChange(adminB1.permLevel,
@@ -635,7 +635,7 @@ contract('Gatekeeper', async function (accounts) {
         // Schedule a boosted unfreeze by a high level admin
         let encodedABI = gatekeeper.contract.methods.unfreeze(operatorA.address, operatorA.permLevel).encodeABI();
         let encodedPacked = utils.encodePackedBatch([encodedABI]);
-        let encodedHash = testUtils.getTransactionHash(encodedPacked);
+        let encodedHash = utils.getTransactionHash(encodedPacked);
         let signature = await utils.signMessage(encodedHash, web3, {from: operatorA.address});
         let res1 = await gatekeeper.boostedConfigChange(
             adminB1.permLevel,
@@ -692,8 +692,8 @@ contract('Gatekeeper', async function (accounts) {
             // Schedule a boosted unfreeze by a high level admin
             let encodedABI = gatekeeper.contract.methods.unfreeze(operatorA.address, operatorA.permLevel).encodeABI();
             let encodedPacked = utils.encodePackedBatch([encodedABI]);
-            let encodedHash = testUtils.getTransactionHash(encodedPacked);
-            let signature = await testUtils.signMessage(encodedHash, web3, {from: operatorA.address});
+            let encodedHash = utils.getTransactionHash(encodedPacked);
+            let signature = await utils.signMessage(encodedHash, web3, {from: operatorA.address});
             let res1 = await gatekeeper.boostedConfigChange(
                 adminB1.permLevel,
                 operatorA.permLevel,
