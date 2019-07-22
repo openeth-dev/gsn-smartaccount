@@ -39,7 +39,8 @@ context('VaultContractInteractor Integration Test', function () {
         "1c"; // V
 
 
-    let operator;
+    let operatorA;
+    let operatorB;
     let admin23 = new Participant(account23, PermissionsModel.getAdminPermissions(), 1, "admin23");
     let admin_level2_acc2;
 
@@ -47,7 +48,8 @@ context('VaultContractInteractor Integration Test', function () {
         let provider = new Web3.providers.HttpProvider(ethNodeUrl);
         web3 = new Web3(provider);
         accounts = await web3.eth.getAccounts();
-        operator = new Participant(accounts[0], PermissionsModel.getOwnerPermissions(), 1, "operator");
+        operatorA = new Participant(accounts[0], PermissionsModel.getOwnerPermissions(), 1, "operatorA");
+        operatorB = new Participant(accounts[1], PermissionsModel.getOwnerPermissions(), 1, "operatorA");
         admin_level2_acc2 = new Participant(accounts[2], PermissionsModel.getAdminPermissions(), 2, "admin_level2_acc2");
         let vaultFactoryABI = require('../src/js/generated/VaultFactory');
         let vaultFactoryBin = fs.readFileSync("./src/js/generated/VaultFactory.bin");
@@ -150,7 +152,7 @@ context('VaultContractInteractor Integration Test', function () {
 
         it("can schedule to change participants in the vault and later apply it", async function () {
             let participants = [
-                operator.expect(),
+                operatorA.expect(),
                 admin23.expect(),
                 admin_level2_acc2];
             await safeChannelUtils.validateConfig(participants, interactor.gatekeeper);
@@ -193,7 +195,7 @@ context('VaultContractInteractor Integration Test', function () {
             let addedEvents = await interactor.getParticipantAddedEvents(blockOptions);
             assert.equal(addedEvents.length, 1);
             participants = [
-                operator.expect(),
+                operatorA.expect(),
                 admin23,
                 admin_level2_acc2.expect()];
             await safeChannelUtils.validateConfig(participants, interactor.gatekeeper);
@@ -238,7 +240,7 @@ context('VaultContractInteractor Integration Test', function () {
             let receipt2 = await adminsInteractor.scheduleBoostedConfigChange({
                 operation: signedRequest.operation,
                 signature: signedRequest.signature,
-                signerPermsLevel: operator.permLevel
+                signerPermsLevel: operatorA.permLevel
             });
 
             let delayedOpEvents = await interactor.getDelayedOperationsEvents({
@@ -262,8 +264,31 @@ context('VaultContractInteractor Integration Test', function () {
             assert.deepEqual(freezeParameters2, {frozenLevel: 0, frozenUntil: 0});
         });
 
-        it.skip("can change owner", async function () {
-            assert.fail()
+        it("can change owner", async function () {
+            let receipt1 = await interactor.scheduleChangeOwner(operatorB.address);
+            let delayedOpEvents = await interactor.getDelayedOperationsEvents({
+                fromBlock: receipt1.blockNumber,
+                toBlock: receipt1.blockNumber
+            });
+            assert.equal(delayedOpEvents.length, 1);
+
+            // TODO: fix when delay per level is implemented
+            await safeChannelUtils.increaseTime(1000 * 60 * 60 * 24, web3);
+            let receipt2 = await interactor.applyBatch(delayedOpEvents[0].operation, delayedOpEvents[0].opsNonce);
+
+            let ownerChangedEvents = await interactor.getOwnerChangedEvents(
+                {
+                    fromBlock: receipt2.blockNumber,
+                    toBlock: receipt2.blockNumber
+                });
+            assert.equal(ownerChangedEvents.length, 1);
+            let participants = [
+                operatorA,
+                operatorB.expect(),
+                admin23,
+                admin_level2_acc2.expect()];
+            await safeChannelUtils.validateConfig(participants, interactor.gatekeeper);
+
         });
 
         it.skip("can transfer different types of assets", async function () {
