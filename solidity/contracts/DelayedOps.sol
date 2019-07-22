@@ -53,7 +53,7 @@ contract DelayedOps {
         bytes32 hash = delayedOpHash(batchMetadata, nonce, batch);
         uint dueTime = pending[hash];
         require(dueTime != 0, "applyDelayedOps called for non existing delayed op");
-        require(now > dueTime, "applyDelayedOps called before due time");
+        require(now >= dueTime, "applyDelayedOps called before due time");
 
         // break up the batch into separate method calls, validated and execute each one separately
         uint pos = 0;

@@ -116,12 +116,16 @@ contract Gatekeeper is DelayedOps, PermissionsLevel {
         emit GatekeeperInitialized(address(vault), initialParticipants);
     }
 
-    //TODO:
     function validateOperation(bytes memory blob, bytes memory singleOp) internal {
         (address senderClaim, uint16 senderPermsLevelClaim) = abi.decode(blob, (address, uint16));
+        bytes4 selector = LibBytes.readBytes4(singleOp, 0);
+        require( selector == this.addParticipant.selector
+        || selector == this.removeParticipant.selector
+        || selector == this.changeOwner.selector
+        || selector == this.unfreeze.selector, "Invalid method access");
         address senderParam = address(LibBytes.readUint256(singleOp, 4));
-        uint256 senderPermsLevelParam = LibBytes.readUint256(singleOp, 36);
         require(senderClaim == senderParam, "claimed sender is incorrect");
+        uint256 senderPermsLevelParam = LibBytes.readUint256(singleOp, 36);
         require(senderPermsLevelClaim == senderPermsLevelParam, "claimed permissions are incorrect");
     }
 
@@ -204,7 +208,7 @@ contract Gatekeeper is DelayedOps, PermissionsLevel {
     function applyBatch(
         address scheduler, uint16 schedulerPermsLevel,
         address booster, uint16 boosterPermsLevel,
-        bytes memory operation, uint16 senderPermsLevel, uint256 nonce)
+        bytes memory batch, uint16 senderPermsLevel, uint256 nonce)
     nonFrozen(senderPermsLevel)
     public {
         if (booster != address(0))
@@ -216,7 +220,7 @@ contract Gatekeeper is DelayedOps, PermissionsLevel {
         }
         requireParticipant(msg.sender, senderPermsLevel);
         bytes memory batchMetadata = abi.encode(scheduler, schedulerPermsLevel, booster, boosterPermsLevel);
-        applyDelayedOps(batchMetadata, nonce, operation);
+        applyDelayedOps(batchMetadata, nonce, batch);
     }
 
     function applyTransfer(bytes memory operation, uint256 nonce, uint16 senderPermsLevel)
