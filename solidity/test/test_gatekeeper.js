@@ -3,9 +3,11 @@ const Vault = artifacts.require("./Vault.sol");
 const Chai = require('chai');
 const Web3 = require('web3');
 const ABI = require('ethereumjs-abi');
-const EthereumjsUtil = require('ethereumjs-util')
+const EthereumjsUtil = require('ethereumjs-util');
 
-const utils = require('./utils');
+const testUtils = require('./utils');
+const utils = require('../src/js/SafeChannelUtils');
+const Participant = require('../src/js/Participant');
 
 const expect = Chai.expect;
 
@@ -75,30 +77,6 @@ async function applyDelayed({res, log}, sender, gatekeeper, booster, scheduler, 
         senderPermsLevel,
         nonce,
         {from: sender.address});
-}
-
-class Participant {
-    constructor(address, permissions, level, name) {
-        this.address = address;
-        this.permissions = permissions;
-        this.level = level;
-        this.name = name;
-        this.permLevel = utils.packPermissionLevel(permissions, level);
-        this.isParticipant = false;
-    }
-
-    expectError(error) {
-        let clone = Object.assign({}, this);
-        clone.expectError = error;
-        return clone;
-    }
-
-    expect() {
-        let clone = Object.assign({}, this);
-        clone.isParticipant = true;
-        return clone;
-
-    }
 }
 
 function getExpectedMetadata(sender, booster) {
@@ -282,7 +260,7 @@ contract('Gatekeeper', async function (accounts) {
         let balanceSenderBefore = parseInt(await web3.eth.getBalance(vault.address));
         let balanceRecieverBefore = parseInt(await web3.eth.getBalance(destinationAddresss));
         assert.isAbove(balanceSenderBefore, amount);
-        await utils.increaseTime(timeGap);
+        await utils.increaseTime(timeGap, web3);
 
         let res = await gatekeeper.applyTransfer(addedLog.operation, addedLog.opsNonce, operatorA.permLevel, {from: operatorA.address});
         let log = res.logs[0];
@@ -328,7 +306,7 @@ contract('Gatekeeper', async function (accounts) {
 
     /* Rejected config change */
     it("should allow the watchdog to cancel a delayed config transaction", async function () {
-        let log = await utils.extractLastDelayedOpsEvent(gatekeeper);
+        let log = await testUtils.extractLastDelayedOpsEvent(gatekeeper);
         let hash = getDelayedOpHashFromEvent(log);
         let res2 = await gatekeeper.cancelOperation(watchdogA.permLevel, hash, {from: watchdogA.address});
         let log2 = res2.logs[0];
@@ -347,7 +325,7 @@ contract('Gatekeeper', async function (accounts) {
         let res = await callDelayed(removeParticipant, gatekeeper, callArguments, operatorA.address);
         let log = res.logs[0];
         assert.equal(log.event, "DelayedOperation");
-        await utils.increaseTime(timeGap);
+        await utils.increaseTime(timeGap, web3);
         await expect(
             applyDelayed({res}, operatorA, gatekeeper)
         ).to.be.revertedWith("there is no such participant");
@@ -359,7 +337,7 @@ contract('Gatekeeper', async function (accounts) {
         await expect(
             applyDelayed({res}, operatorA, gatekeeper)
         ).to.be.revertedWith("called before due time");
-        await utils.increaseTime(timeGap);
+        await utils.increaseTime(timeGap, web3);
         let res2 = await applyDelayed({res}, operatorA, gatekeeper);
         let log2 = res2.logs[0];
         let hash = utils.bufferToHex(utils.participantHash(adminC.address, adminC.permLevel));
@@ -375,7 +353,7 @@ contract('Gatekeeper', async function (accounts) {
         let res = await callDelayed(removeParticipant, gatekeeper, callArguments, operatorA.address);
         let log = res.logs[0];
         assert.equal(log.event, "DelayedOperation");
-        await utils.increaseTime(timeGap);
+        await utils.increaseTime(timeGap, web3);
         let res2 = await applyDelayed({res}, operatorA, gatekeeper);
         assert.equal(res2.logs[0].event, "ParticipantRemoved");
         await utils.validateConfig(
@@ -395,7 +373,7 @@ contract('Gatekeeper', async function (accounts) {
             applyDelayed({res}, operatorA, gatekeeper)
         ).to.be.revertedWith("called before due time");
 
-        await utils.increaseTime(timeGap);
+        await utils.increaseTime(timeGap, web3);
 
         let res2 = await applyDelayed({res}, operatorA, gatekeeper);
 
@@ -412,7 +390,7 @@ contract('Gatekeeper', async function (accounts) {
         // is defined as an account with 'ownerPermissions'
         let callArguments = [operatorA.address, operatorA.permLevel, wrongaddr.address, wrongaddr.permLevel];
         let res1 = await callDelayed(addParticipant, gatekeeper, callArguments, operatorA.address);
-        await utils.increaseTime(timeGap);
+        await utils.increaseTime(timeGap, web3);
         await applyDelayed({res: res1}, operatorA, gatekeeper);
         // as per spec file, another 'operator' can be added as a participant, but cannot use it's permissions
         await utils.validateConfig([wrongaddr.expect()], gatekeeper);
@@ -425,7 +403,7 @@ contract('Gatekeeper', async function (accounts) {
         // Clean up
         let callArgumentsCleanUp = [operatorA.address, operatorA.permLevel, utils.participantHash(wrongaddr.address, wrongaddr.permLevel)];
         let res2 = await callDelayed(removeParticipant, gatekeeper, callArgumentsCleanUp, operatorA.address);
-        await utils.increaseTime(timeGap);
+        await utils.increaseTime(timeGap, web3);
         await applyDelayed({res: res2}, operatorA, gatekeeper);
         await utils.validateConfig([wrongaddr], gatekeeper);
     });
@@ -436,7 +414,7 @@ contract('Gatekeeper', async function (accounts) {
         let participants = [operatorA.expect(), operatorB];
         await utils.validateConfig(participants, gatekeeper);
         let res = await gatekeeper.scheduleChangeOwner(adminA.permLevel, operatorB.address, {from: adminA.address});
-        await utils.increaseTime(timeGap);
+        await utils.increaseTime(timeGap, web3);
         await applyDelayed({res}, adminA, gatekeeper);
         participants = [operatorA, operatorB.expect()];
         await utils.validateConfig(participants, gatekeeper);
@@ -447,7 +425,7 @@ contract('Gatekeeper', async function (accounts) {
         let participants = [operatorA, operatorB.expect()];
         await utils.validateConfig(participants, gatekeeper);
         let res = await gatekeeper.scheduleChangeOwner(operatorA.permLevel, operatorA.address, {from: operatorB.address});
-        await utils.increaseTime(timeGap);
+        await utils.increaseTime(timeGap, web3);
         await applyDelayed({res}, operatorB, gatekeeper);
         participants = [operatorA.expect(), operatorB];
         await utils.validateConfig(participants, gatekeeper);
@@ -560,7 +538,7 @@ contract('Gatekeeper', async function (accounts) {
         {
             let callArguments = [operatorA.address, operatorA.permLevel, watchdogB.address, watchdogB.permLevel];
             let res0 = await callDelayed(addParticipant, gatekeeper, callArguments, operatorA.address);
-            await utils.increaseTime(timeGap);
+            await utils.increaseTime(timeGap, web3);
             await applyDelayed({res: res0}, operatorA, gatekeeper);
         }
 
@@ -632,8 +610,8 @@ contract('Gatekeeper', async function (accounts) {
         await utils.asyncForEach(getNonBoosters(), async (signingParty) => {
             let encodedABI = gatekeeper.contract.methods.unfreeze(signingParty.address, signingParty.permLevel).encodeABI();
             let encodedPacked = utils.encodePackedBatch([encodedABI]);
-            let encodedHash = utils.getTransactionHash(encodedPacked);
-            let signature = await utils.signMessage(encodedHash, web3, {from: signingParty.address});
+            let encodedHash = testUtils.getTransactionHash(encodedPacked);
+            let signature = await testUtils.signMessage(encodedHash, web3, {from: signingParty.address});
             await expect(
                 gatekeeper.boostedConfigChange(adminB1.permLevel,
                     signingParty.permLevel,
@@ -657,8 +635,8 @@ contract('Gatekeeper', async function (accounts) {
         // Schedule a boosted unfreeze by a high level admin
         let encodedABI = gatekeeper.contract.methods.unfreeze(operatorA.address, operatorA.permLevel).encodeABI();
         let encodedPacked = utils.encodePackedBatch([encodedABI]);
-        let encodedHash = utils.getTransactionHash(encodedPacked);
-        let signature = await utils.signMessage(encodedHash, web3, {from: operatorA.address});
+        let encodedHash = testUtils.getTransactionHash(encodedPacked);
+        let signature = await testUtils.signMessage(encodedHash, web3, {from: operatorA.address});
         let res1 = await gatekeeper.boostedConfigChange(
             adminB1.permLevel,
             operatorA.permLevel,
@@ -670,7 +648,7 @@ contract('Gatekeeper', async function (accounts) {
         assert.equal(log1.event, "DelayedOperation");
 
         // Execute the scheduled unfreeze
-        await utils.increaseTime(timeGap);
+        await utils.increaseTime(timeGap, web3);
 
         // Operator still cannot send money, not time-caused unfreeze
         await expect(
@@ -714,8 +692,8 @@ contract('Gatekeeper', async function (accounts) {
             // Schedule a boosted unfreeze by a high level admin
             let encodedABI = gatekeeper.contract.methods.unfreeze(operatorA.address, operatorA.permLevel).encodeABI();
             let encodedPacked = utils.encodePackedBatch([encodedABI]);
-            let encodedHash = utils.getTransactionHash(encodedPacked);
-            let signature = await utils.signMessage(encodedHash, web3, {from: operatorA.address});
+            let encodedHash = testUtils.getTransactionHash(encodedPacked);
+            let signature = await testUtils.signMessage(encodedHash, web3, {from: operatorA.address});
             let res1 = await gatekeeper.boostedConfigChange(
                 adminB1.permLevel,
                 operatorA.permLevel,
@@ -754,7 +732,7 @@ contract('Gatekeeper', async function (accounts) {
         let encodedPacked = utils.encodePackedBatch([encodedABI]);
         let res = await gatekeeper.changeConfiguration(operatorA.permLevel, encodedPacked);
 
-        await utils.increaseTime(timeGap);
+        await utils.increaseTime(timeGap, web3);
 
         // operatorA cannot apply it - the 'sender' claimed is not the real sender
         await expect(
