@@ -11,8 +11,12 @@ const ParticipantRemovedEvent = require('./events/ParticipantRemovedEvent');
 const GatekeeperInitializedEvent = require('./events/GatekeeperInitializedEvent');
 const OwnerChangedEvent = require('./events/OwnerChangedEvent');
 const DelayedOperationEvent = require('./events/DelayedOperationEvent');
+const DelayedOperationCancelledEvent = require('./events/DelayedOperationCancelledEvent');
+const DelayedOperationComplete = require('./events/DelayedOperationCompleteEvent');
 const LevelFrozenEvent = require("./events/LevelFrozenEvent");
 const UnfreezeCompletedEvent = require("./events/UnfreezeCompletedEvent");
+const TransactionCompletedEvent = require("./events/TransactionCompletedEvent");
+const TransactionPendingEvent = require("./events/TransactionPendingEvent");
 
 const TransactionReceipt = require("./TransactionReceipt");
 
@@ -40,6 +44,10 @@ const ownerChangedEvent = "OwnerChanged";
 const levelFrozenEvent = "LevelFrozen";
 const unfreezeCompletedEvent = "UnfreezeCompleted";
 const delayedOperationEvent = "DelayedOperation";
+const delayedOperationCompleteEvent = "DelayedOperationComplete";
+const delayedOperationCancelledEvent = "DelayedOperationCancelled";
+const transactionPendingEvent = "TransactionPending";
+const transactionCompletedEvent = "TransactionCompleted";
 
 
 class VaultContractInteractor {
@@ -199,8 +207,22 @@ class VaultContractInteractor {
         return new TransactionReceipt(web3receipt);
     }
 
-    async sendEther() {
+    async applyTransfer({operation, nonce}) {
+        let web3receipt = await this.gatekeeper.applyTransfer(
+            operation,
+            nonce,
+            this._myPermLevel(),
+            {from: this.account});
+        return new TransactionReceipt(web3receipt);
+    }
 
+    async sendEther({destination, value}) {
+        let web3receipt = await this.gatekeeper.sendEther(
+            destination,
+            value,
+            this._myPermLevel(),
+            {from: this.account});
+        return new TransactionReceipt(web3receipt);
     }
 
     async sendToken() {
@@ -228,13 +250,22 @@ class VaultContractInteractor {
         });
     }
 
+    async getFreezeParameters() {
+        let frozenLevel = (await this.gatekeeper.frozenLevel()).toNumber();
+        let frozenUntil = (await this.gatekeeper.frozenUntil()).toNumber();
+        return {frozenLevel, frozenUntil};
+    }
+
+
+    // ******* read from blockchain - events
+
     async getGatekeeperInitializedEvent() {
         if (!this.gatekeeper || !this.vault) {
             return null;
         }
         if (!this.initialConfigEvent) {
             let allBlocksEver = {fromBlock: 0, toBlock: 'latest'};
-            let initialConfigEvents = await this.gatekeeper.getPastEvents(gatekeeperInitializedEvent, allBlocksEver);
+            let initialConfigEvents = await this._getEvents(this.gatekeeper, gatekeeperInitializedEvent, allBlocksEver, GatekeeperInitializedEvent);
             if (initialConfigEvents.length === 0) {
                 return null;
             }
@@ -242,76 +273,72 @@ class VaultContractInteractor {
                 throw new Error("Multiple 'GatekeeperInitialized' events emitted by this contract, it's impossible!");
             }
 
-            this.initialConfigEvent = new GatekeeperInitializedEvent(initialConfigEvents[0]);
+            this.initialConfigEvent = initialConfigEvents[0];
         }
         return this.initialConfigEvent
     }
 
 
     async getParticipantAddedEvents(options) {
-        let events = await this.gatekeeper.getPastEvents(participantAddedEvent, options || this._getAllBlocksSinceVault());
-        return events.map(e => {
-            return new ParticipantAddedEvent(e);
-        })
+        return await this._getEvents(this.gatekeeper, participantAddedEvent, options, ParticipantAddedEvent);
     }
 
     async getParticipantRemovedEvents(options) {
-        let events = await this.gatekeeper.getPastEvents(participantRemovedEvent, options || this._getAllBlocksSinceVault());
-        return events.map(e => {
-            return new ParticipantRemovedEvent(e);
-        })
-    }
-
-    async getDelayedOperationsEvents(options) {
-        let events = await this.gatekeeper.getPastEvents(delayedOperationEvent, options || this._getAllBlocksSinceVault());
-        return events.map(e => {
-            return new DelayedOperationEvent(e);
-        })
+        return await this._getEvents(this.gatekeeper, participantRemovedEvent, options, ParticipantRemovedEvent);
     }
 
     async getOwnerChangedEvents(options) {
-        let events = await this.gatekeeper.getPastEvents(ownerChangedEvent, options || this._getAllBlocksSinceVault());
-        return events.map(e => {
-            return new OwnerChangedEvent(e);
-        })
+        return await this._getEvents(this.gatekeeper, ownerChangedEvent, options, OwnerChangedEvent);
     }
 
     async getLevelFrozenEvents(options) {
-        let events = await this.gatekeeper.getPastEvents(levelFrozenEvent, options || this._getAllBlocksSinceVault());
-        return events.map(e => {
-            return new LevelFrozenEvent(e);
-        })
+        return await this._getEvents(this.gatekeeper, levelFrozenEvent, options, LevelFrozenEvent);
     }
 
     async getUnfreezeCompletedEvents(options) {
-        let events = await this.gatekeeper.getPastEvents(unfreezeCompletedEvent, options || this._getAllBlocksSinceVault());
-        return events.map(e => {
-            return new UnfreezeCompletedEvent(e);
-        })
+        return await this._getEvents(this.gatekeeper, unfreezeCompletedEvent, options, UnfreezeCompletedEvent);
     }
 
-    async getFreezeParameters() {
-        let frozenLevel = (await this.gatekeeper.frozenLevel()).toNumber();
-        let frozenUntil = (await this.gatekeeper.frozenUntil()).toNumber();
-        return {frozenLevel, frozenUntil};
+    async getDelayedOperationsEvents(options) {
+        return await this._getEvents(this.gatekeeper, delayedOperationEvent, options, DelayedOperationEvent);
     }
 
-    async getScheduledOperations() {
-        return [];
+    async getDelayedOperationsEventsForVault(options) {
+        return await this._getEvents(this.vault, delayedOperationEvent, options, DelayedOperationEvent);
     }
+
+    async getDelayedOperationsCancelledEvents(options) {
+        return await this._getEvents(this.gatekeeper, delayedOperationCancelledEvent, options, DelayedOperationCancelledEvent);
+    }
+
+    async getDelayedOperationsCancelledEventsForVault(options) {
+        return await this._getEvents(this.vault, delayedOperationCancelledEvent, options, DelayedOperationCancelledEvent);
+    }
+
+    async getDelayedOperationsCompleteEvents(options) {
+        return await this._getEvents(this.gatekeeper, delayedOperationCompleteEvent, options, DelayedOperationComplete);
+    }
+
+    // TODO: Do we need this event? Maybe could use the one from DelayedOps
+    async getTransactionCompletedEvents(options) {
+        return await this._getEvents(this.vault, transactionCompletedEvent, options, TransactionCompletedEvent);
+    }
+
+    async getTransactionPendingEvents(options) {
+        return await this._getEvents(this.vault, transactionPendingEvent, options, TransactionPendingEvent);
+    }
+
 
     // ******* read from blockchain - vault
-
-    async getScheduledTransfers() {
-
-    }
 
     async getPastTransfers() {
 
     }
 
     async getBalance(tokenAddress) {
-
+        if (!tokenAddress) {
+            return parseInt(await this.web3.eth.getBalance(this.vault.address));
+        }
     }
 
 
@@ -374,6 +401,14 @@ class VaultContractInteractor {
             toBlock: 'latest'
         };
     }
+
+    async _getEvents(contract, eventName, options, constructor) {
+        let events = await contract.getPastEvents(eventName, options || this._getAllBlocksSinceVault());
+        return events.map(e => {
+            return new constructor(e);
+        })
+    }
+
 }
 
 module.exports = VaultContractInteractor;
