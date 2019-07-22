@@ -1,8 +1,16 @@
 const ABI = require('ethereumjs-abi');
+const Web3Utils = require('web3-utils');
+const EthUtils = require('ethereumjs-util');
 const assert = require('chai').assert;
+
+
+function removeHexPrefix(hex) {
+    return hex.replace(/^0x/, '');
+}
 
 module.exports = {
 
+    // Only used in tests
     increaseTime: function (time, web3) {
         return new Promise((resolve, reject) => {
             web3.currentProvider.send({
@@ -20,6 +28,7 @@ module.exports = {
         })
     },
 
+    // Only used in tests
     evmMine: function (web3) {
         return new Promise((resolve, reject) => {
             web3.currentProvider.send({
@@ -59,6 +68,7 @@ module.exports = {
         return ABI.soliditySHA3(["address", "uint16"], [admin, permLevel])
     },
 
+    // Only used in tests
     validateConfig: async function (participants, gatekeeper) {
         await this.asyncForEach(participants, async (participant) => {
             let adminHash = this.bufferToHex(this.participantHash(participant.address, participant.permLevel));
@@ -76,9 +86,43 @@ module.exports = {
         return "0x" + ((levelInt << 11) + permInt).toString(16);
     },
 
+    // Only used in tests
     asyncForEach: async function (array, callback) {
         for (let index = 0; index < array.length; index++) {
             await callback(array[index], index, array);
         }
+    },
+
+    getTransactionHash(txBuffer) {
+        return Web3Utils.sha3('0x' + txBuffer.toString("hex"))
+    },
+
+    async signMessage(hash, web3, {from}) {
+        let sig_;
+        try {
+            sig_ = await new Promise((resolve, reject) => {
+                try {
+                    web3.eth.personal.sign(hash, from, (err, res) => {
+                        if (err) reject(err);
+                        else resolve(res)
+                    })
+                } catch (e) {
+                    reject(e)
+                }
+            })
+
+        } catch (e) {
+            sig_ = await new Promise((resolve, reject) => {
+                web3.eth.sign(hash, from, (err, res) => {
+                    if (err) reject(err);
+                    else resolve(res)
+                })
+            })
+        }
+
+        let signature = EthUtils.fromRpcSig(sig_);
+        // noinspection UnnecessaryLocalVariableJS
+        let sig = Web3Utils.bytesToHex(signature.r) + removeHexPrefix(Web3Utils.bytesToHex(signature.s)) + removeHexPrefix(Web3Utils.toHex(signature.v));
+        return sig;
     }
 };
