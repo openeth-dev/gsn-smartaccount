@@ -15,7 +15,6 @@ const LevelFrozenEvent = require("./events/LevelFrozenEvent");
 const UnfreezeCompletedEvent = require("./events/UnfreezeCompletedEvent");
 
 const TransactionReceipt = require("./TransactionReceipt");
-const PermissionsModel = require("./PermissionsModel");
 
 const safeChannelUtils = require("../../../solidity/src/js/SafeChannelUtils");
 
@@ -42,22 +41,6 @@ const levelFrozenEvent = "LevelFrozen";
 const unfreezeCompletedEvent = "UnfreezeCompleted";
 const delayedOperationEvent = "DelayedOperation";
 
-
-function getAllBlocksSinceVault() {
-    let fromBlock = 0;
-    if (this.initialConfigEvent) {
-        fromBlock = this.initialConfigEvent.blockNumber;
-    }
-    return {
-        fromBlock: fromBlock,
-        toBlock: 'latest'
-    };
-}
-
-// TODO: this is an unnecessary shorthand
-function packPermLevel(participant) {
-    return safeChannelUtils.packPermissionLevel(participant.permissions, participant.level)
-}
 
 class VaultContractInteractor {
 
@@ -180,8 +163,9 @@ class VaultContractInteractor {
         return new TransactionReceipt(web3receipt.receipt);
     }
 
-    async changeOwner() {
-
+    async scheduleChangeOwner(newOwner) {
+        let web3receipt = await this.gatekeeper.scheduleChangeOwner(this._myPermLevel(), newOwner, {from: this.account});
+        return new TransactionReceipt(web3receipt);
     }
 
     async cancelOperation() {
@@ -251,9 +235,13 @@ class VaultContractInteractor {
         if (!this.initialConfigEvent) {
             let allBlocksEver = {fromBlock: 0, toBlock: 'latest'};
             let initialConfigEvents = await this.gatekeeper.getPastEvents(gatekeeperInitializedEvent, allBlocksEver);
-            if (initialConfigEvents.length !== 1) {
+            if (initialConfigEvents.length === 0) {
                 return null;
             }
+            if (initialConfigEvents.length > 1) {
+                throw new Error("Multiple 'GatekeeperInitialized' events emitted by this contract, it's impossible!");
+            }
+
             this.initialConfigEvent = new GatekeeperInitializedEvent(initialConfigEvents[0]);
         }
         return this.initialConfigEvent
@@ -261,42 +249,42 @@ class VaultContractInteractor {
 
 
     async getParticipantAddedEvents(options) {
-        let events = await this.gatekeeper.getPastEvents(participantAddedEvent, options || getAllBlocksSinceVault.call(this));
+        let events = await this.gatekeeper.getPastEvents(participantAddedEvent, options || this._getAllBlocksSinceVault());
         return events.map(e => {
             return new ParticipantAddedEvent(e);
         })
     }
 
     async getParticipantRemovedEvents(options) {
-        let events = await this.gatekeeper.getPastEvents(participantRemovedEvent, options || getAllBlocksSinceVault.call(this));
+        let events = await this.gatekeeper.getPastEvents(participantRemovedEvent, options || this._getAllBlocksSinceVault());
         return events.map(e => {
             return new ParticipantRemovedEvent(e);
         })
     }
 
     async getDelayedOperationsEvents(options) {
-        let events = await this.gatekeeper.getPastEvents(delayedOperationEvent, options || getAllBlocksSinceVault.call(this));
+        let events = await this.gatekeeper.getPastEvents(delayedOperationEvent, options || this._getAllBlocksSinceVault());
         return events.map(e => {
             return new DelayedOperationEvent(e);
         })
     }
 
     async getOwnerChangedEvents(options) {
-        let events = await this.gatekeeper.getPastEvents(ownerChangedEvent, options || getAllBlocksSinceVault.call(this));
+        let events = await this.gatekeeper.getPastEvents(ownerChangedEvent, options || this._getAllBlocksSinceVault());
         return events.map(e => {
             return new OwnerChangedEvent(e);
         })
     }
 
     async getLevelFrozenEvents(options) {
-        let events = await this.gatekeeper.getPastEvents(levelFrozenEvent, options || getAllBlocksSinceVault.call(this));
+        let events = await this.gatekeeper.getPastEvents(levelFrozenEvent, options || this._getAllBlocksSinceVault());
         return events.map(e => {
             return new LevelFrozenEvent(e);
         })
     }
 
     async getUnfreezeCompletedEvents(options) {
-        let events = await this.gatekeeper.getPastEvents(unfreezeCompletedEvent, options || getAllBlocksSinceVault.call(this));
+        let events = await this.gatekeeper.getPastEvents(unfreezeCompletedEvent, options || this._getAllBlocksSinceVault());
         return events.map(e => {
             return new UnfreezeCompletedEvent(e);
         })
@@ -356,7 +344,7 @@ class VaultContractInteractor {
     _populateWithAddOperations(participantsToAdd, operations) {
         participantsToAdd.forEach(participant => {
             let address = participant.address;
-            let permLevel = packPermLevel(participant);
+            let permLevel = safeChannelUtils.packPermissionLevel(participant.permissions, participant.level);
             let method = this.gatekeeper.contract.methods.addParticipant;
             let operation = this._encodeOperation([address, permLevel], method);
             operations.push(operation);
@@ -374,6 +362,17 @@ class VaultContractInteractor {
 
     _myPermLevel() {
         return safeChannelUtils.packPermissionLevel(this.permissions, this.level);
+    }
+
+    _getAllBlocksSinceVault() {
+        let fromBlock = 0;
+        if (this.initialConfigEvent) {
+            fromBlock = this.initialConfigEvent.blockNumber;
+        }
+        return {
+            fromBlock: fromBlock,
+            toBlock: 'latest'
+        };
     }
 }
 
