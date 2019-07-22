@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "scripts": {
     "test": "mocha",
-    "ci": "npx run-with-testrpc -p 8544 -a 15 'mocha'"
+    "ci": "npx run-with-testrpc -a 15 'mocha'"
   },
   "dependencies": {
     "chai": "^4.2.0",
