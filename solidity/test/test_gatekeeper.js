@@ -446,6 +446,19 @@ contract('Gatekeeper', async function (accounts) {
         await utils.validateConfigParticipants(participants, gatekeeper);
     });
 
+    it(`should revert non whitelisted delayed ops when validating operation`, async function () {
+        let callArgumentsFreeze = [operatorA.permLevel, level, timeGap];
+        let encodedABI = gatekeeper.contract.methods.freeze(...callArgumentsFreeze).encodeABI();
+        let encodedPacked = utils.encodePackedBatch([encodedABI]);
+        let res = await gatekeeper.changeConfiguration(callArgumentsFreeze[0], encodedPacked, {from: operatorA.address})
+        let delay = (await gatekeeper.delays(level)).toNumber();
+        await utils.increaseTime(delay,web3);
+        await expect(
+            applyDelayed({res}, operatorA, gatekeeper)
+        ).to.be.revertedWith("Invalid method access");
+
+    });
+
     /* Owner finds the phone after losing it */
     it("should allow the owner to cancel an owner change");
 
