@@ -30,7 +30,6 @@ contract Gatekeeper is DelayedOps, PermissionsLevel {
 
     Vault vault;
 
-    uint256 delay = 1 hours;
     uint256[] public delays;
 
     function getDelays() public view returns(uint256[] memory) {
@@ -51,7 +50,7 @@ contract Gatekeeper is DelayedOps, PermissionsLevel {
     // ********** Access control modifiers below this point
 
     function nonFrozenInternal(uint16 senderPermsLevel, string memory errorMessage) internal {
-        (, uint8 senderLevel) = extractPermissionLevel(senderPermsLevel);
+        uint8 senderLevel = extractLevel(senderPermsLevel);
         require(now > frozenUntil || senderLevel > frozenLevel, errorMessage);
     }
 
@@ -105,9 +104,9 @@ contract Gatekeeper is DelayedOps, PermissionsLevel {
             participants[initialParticipants[i]] = true;
         }
         for (uint8 i = 0; i < initialDelays.length; i++) {
-            require(initialDelays[i] < maxDelay);
+            require(initialDelays[i] < maxDelay, "Delay too long");
         }
-        //        TODO: implement delays
+        //TODO: implement delays
         delays = initialDelays;
         vault = vaultParam;
 
@@ -134,7 +133,7 @@ contract Gatekeeper is DelayedOps, PermissionsLevel {
     public
     {
         uint until = now + interval;
-        (, uint8 senderLevel) = extractPermissionLevel(senderPermsLevel);
+        uint8 senderLevel = extractLevel(senderPermsLevel);
         require(levelToFreeze <= senderLevel, "cannot freeze level that is higher than caller");
         require(levelToFreeze > frozenLevel, "cannot freeze level that is lower than already frozen");
         require(interval <= maxFreeze, "cannot freeze level for this long");
@@ -169,7 +168,7 @@ contract Gatekeeper is DelayedOps, PermissionsLevel {
     hasPermissions(sender, canChangeConfig, senderPermsLevel)
     internal {
         bytes memory batchMetadata = abi.encode(sender, senderPermsLevel, booster, boosterPermsLevel);
-        scheduleDelayedBatch(batchMetadata, delay, batch);
+        scheduleDelayedBatch(batchMetadata, delays[extractLevel(senderPermsLevel)], batch);
     }
 
     function scheduleChangeOwner(uint16 senderPermsLevel, address newOwner)
@@ -178,7 +177,7 @@ contract Gatekeeper is DelayedOps, PermissionsLevel {
     public {
         bytes memory batchMetadata = abi.encode(msg.sender, senderPermsLevel, address(0), uint16(0));
         bytes memory delayedTransaction = abi.encodeWithSelector(this.changeOwner.selector, msg.sender, senderPermsLevel, newOwner);
-        scheduleDelayedBatch(batchMetadata, delay, encodeDelayed(delayedTransaction));
+        scheduleDelayedBatch(batchMetadata, delays[extractLevel(senderPermsLevel)], encodeDelayed(delayedTransaction));
     }
 
     function cancelTransfer(uint16 senderPermsLevel, bytes32 hash)
@@ -199,7 +198,7 @@ contract Gatekeeper is DelayedOps, PermissionsLevel {
     hasPermissions(msg.sender, canSpend, senderPermsLevel)
     nonFrozen(senderPermsLevel)
     public {
-        vault.scheduleDelayedEtherTransfer(delay, destination, value);
+        vault.scheduleDelayedEtherTransfer(delays[extractLevel(senderPermsLevel)], destination, value);
     }
 
     function applyBatch(

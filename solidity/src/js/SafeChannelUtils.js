@@ -69,12 +69,19 @@ module.exports = {
     },
 
     // Only used in tests
-    validateConfig: async function (participants, gatekeeper) {
+    validateConfigParticipants: async function (participants, gatekeeper) {
         await this.asyncForEach(participants, async (participant) => {
             let adminHash = this.bufferToHex(this.participantHash(participant.address, participant.permLevel));
             let isAdmin = await gatekeeper.participants(adminHash);
             assert.equal(participant.isParticipant, isAdmin, `admin ${participant.name} isAdmin=${isAdmin}, expected=${participant.isParticipant}`);
         });
+    },
+
+    validateConfigDelays: async function (delays, gatekeeper) {
+        for (let i = 0; i < delays.length; i++) {
+            let delay = await gatekeeper.delays(i);
+            assert.equal(delay,delays[i]);
+        }
     },
 
     packPermissionLevel(permissions, level) {

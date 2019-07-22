@@ -56,6 +56,10 @@ contract PermissionsLevel {
         // 32 levels ought to be enough for anybody©
     }
 
+    function extractLevel(uint16 permLev) pure internal returns (uint8 level) {
+    (,level) = extractPermissionLevel(permLev);
+    }
+
     function packPermissionLevel(uint16 permissions, uint8 level) pure internal returns (uint16 permLev) {
         require(permissions <= 0x07FF, "permissions overflow");
         require(level <= 0x1F, "level overflow");
