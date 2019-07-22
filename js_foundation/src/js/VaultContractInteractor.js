@@ -11,6 +11,8 @@ const ParticipantRemovedEvent = require('./events/ParticipantRemovedEvent');
 const GatekeeperInitializedEvent = require('./events/GatekeeperInitializedEvent');
 const OwnerChangedEvent = require('./events/OwnerChangedEvent');
 const DelayedOperationEvent = require('./events/DelayedOperationEvent');
+const LevelFrozenEvent = require("./events/LevelFrozenEvent");
+const UnfreezeCompletedEvent = require("./events/UnfreezeCompletedEvent");
 
 const TransactionReceipt = require("./TransactionReceipt");
 const PermissionsModel = require("./PermissionsModel");
@@ -52,9 +54,6 @@ function getAllBlocksSinceVault() {
     };
 }
 
-function myPermLevel() {
-    return safeChannelUtils.packPermissionLevel(PermissionsModel.getOwnerPermissions(), 1);
-}
 // TODO: this is an unnecessary shorthand
 function packPermLevel(participant) {
     return safeChannelUtils.packPermissionLevel(participant.permissions, participant.level)
@@ -66,15 +65,17 @@ class VaultContractInteractor {
      * Factory method to create a new interactor object instance.
      * TODO: accept provider instead of 'account' to support different scenarios
      * @param account
+     * @param permissions
+     * @param level
      * @param ethNodeUrl
      * @param gatekeeperAddress
      * @param vaultAddress
      * @param vaultFactoryAddress
      * @returns {VaultContractInteractor}
      */
-    static async connect(account, ethNodeUrl, gatekeeperAddress, vaultAddress, vaultFactoryAddress) {
+    static async connect(account, permissions, level, ethNodeUrl, gatekeeperAddress, vaultAddress, vaultFactoryAddress) {
         let provider = new Web3.providers.HttpProvider(ethNodeUrl);
-
+        let web3 = new Web3(provider);
         GatekeeperContract.setProvider(provider);
         VaultContract.setProvider(provider);
         VaultFactoryContract.setProvider(provider);
@@ -91,12 +92,15 @@ class VaultContractInteractor {
         assert.exists(vaultFactoryAddress, "it is illegal to initialize the interactor without vault factory");
         let vaultFactory = await VaultFactoryContract.at(vaultFactoryAddress);
 
-        let interactor = new VaultContractInteractor(account, gatekeeper, vault, vaultFactory);
+        let interactor = new VaultContractInteractor(web3, account, permissions, level, gatekeeper, vault, vaultFactory);
         await interactor.getGatekeeperInitializedEvent();
         return interactor;
     }
 
-    constructor(account, gatekeeper, vault, vaultFactory) {
+    constructor(web3, account, permissions, level, gatekeeper, vault, vaultFactory) {
+        this.web3 = web3;
+        this.permissions = permissions;
+        this.level = level;
         this.account = account;
         this.gatekeeper = gatekeeper;
         this.vault = vault;
@@ -147,43 +151,33 @@ class VaultContractInteractor {
         await this.gatekeeper.initialConfig(this.vault.address, participants, delays, {from: this.account});
     }
 
-    // TODO: refactor
     // TODO 2 : accept hashes here in 'toAdd'/'remove'! Should not perform 'pack' stuff. Just till contract 'add'
-    async changeConfiguration({participantsToAdd, participantsToRemove, newOwner, unfreeze}) {
-        let operations = [];
-        if (participantsToAdd) {
-            participantsToAdd.forEach(participant => {
-                let address = participant.address;
-                let permLevel = packPermLevel(participant);
-                let method = this.gatekeeper.contract.methods.addParticipant;
-                let operation = this.encodeOperation([address, permLevel], method);
-                operations.push(operation);
-            });
-        }
-        if (participantsToRemove) {
-            participantsToRemove.forEach(participant => {
-                let method = this.gatekeeper.contract.methods.removeParticipant;
-                let operation = this.encodeOperation([participant.hash], method);
-                operations.push(operation);
-            });
-        }
-        if (newOwner) {
-            operations.push();
-        }
-        if (unfreeze) {
-            operations.push();
-        }
+    // Unfreeze currently cannot be called here as it always requires boost.
+    // Change owner can be batched here but not required by the spec, so won't bother
+    async changeConfiguration({participantsToAdd, participantsToRemove, unfreeze}) {
+        let operations = this._getOperations(participantsToAdd, participantsToRemove, unfreeze);
         let encodedPacked = safeChannelUtils.encodePackedBatch(operations);
-        let web3receipt = await this.gatekeeper.changeConfiguration(myPermLevel(), encodedPacked, {from: this.account});
+        let web3receipt = await this.gatekeeper.changeConfiguration(this._myPermLevel(), encodedPacked, {from: this.account});
         return new TransactionReceipt(web3receipt.receipt)
     }
 
-    async boostedConfigChange() {
-
+    async signBoostedConfigChange({participantsToAdd, participantsToRemove, unfreeze}) {
+        let operations = this._getOperations(participantsToAdd, participantsToRemove, unfreeze);
+        let encodedPacked = safeChannelUtils.encodePackedBatch(operations);
+        let encodedHash = safeChannelUtils.getTransactionHash(encodedPacked);
+        let signature = await safeChannelUtils.signMessage(encodedHash, this.web3, {from: this.account});
+        return {operation: safeChannelUtils.bufferToHex(encodedPacked), signature: signature};
     }
 
-    async freeze() {
+    async scheduleBoostedConfigChange({operation, signature, signerPermsLevel}) {
+        let web3receipt = await this.gatekeeper.boostedConfigChange(
+            this._myPermLevel(), signerPermsLevel, operation, signature, {from: this.account});
+        return new TransactionReceipt(web3receipt.receipt);
+    }
 
+    async freeze(level, interval) {
+        let web3receipt = await this.gatekeeper.freeze(this._myPermLevel(), level, interval, {from: this.account});
+        return new TransactionReceipt(web3receipt.receipt);
     }
 
     async changeOwner() {
@@ -206,8 +200,8 @@ class VaultContractInteractor {
             boosterPermsLevel = booster.permLevel;
         }
         let schedulerAddress = this.account;
-        let schedulerPermsLevel = myPermLevel();
-        let senderPermsLevel = myPermLevel();
+        let schedulerPermsLevel = this._myPermLevel();
+        let senderPermsLevel = this._myPermLevel();
 
         let web3receipt = await this.gatekeeper.applyBatch(
             schedulerAddress,
@@ -266,7 +260,6 @@ class VaultContractInteractor {
     }
 
 
-    // TODO: extract method
     async getParticipantAddedEvents(options) {
         let events = await this.gatekeeper.getPastEvents(participantAddedEvent, options || getAllBlocksSinceVault.call(this));
         return events.map(e => {
@@ -275,7 +268,7 @@ class VaultContractInteractor {
     }
 
     async getParticipantRemovedEvents(options) {
-        let events = await this.gatekeeper.getPastEvents(participantAddedEvent, options || getAllBlocksSinceVault.call(this));
+        let events = await this.gatekeeper.getPastEvents(participantRemovedEvent, options || getAllBlocksSinceVault.call(this));
         return events.map(e => {
             return new ParticipantRemovedEvent(e);
         })
@@ -295,8 +288,24 @@ class VaultContractInteractor {
         })
     }
 
+    async getLevelFrozenEvents(options) {
+        let events = await this.gatekeeper.getPastEvents(levelFrozenEvent, options || getAllBlocksSinceVault.call(this));
+        return events.map(e => {
+            return new LevelFrozenEvent(e);
+        })
+    }
+
+    async getUnfreezeCompletedEvents(options) {
+        let events = await this.gatekeeper.getPastEvents(unfreezeCompletedEvent, options || getAllBlocksSinceVault.call(this));
+        return events.map(e => {
+            return new UnfreezeCompletedEvent(e);
+        })
+    }
+
     async getFreezeParameters() {
-        return null;
+        let frozenLevel = (await this.gatekeeper.frozenLevel()).toNumber();
+        let frozenUntil = (await this.gatekeeper.frozenUntil()).toNumber();
+        return {frozenLevel, frozenUntil};
     }
 
     async getScheduledOperations() {
@@ -317,14 +326,55 @@ class VaultContractInteractor {
 
     }
 
-    encodeOperation(extraArgs, method) {
+
+    //**************** Internal methods - should not expose (not supported in ES6)
+
+
+    _getOperations(participantsToAdd, participantsToRemove, unfreeze) {
+        let operations = [];
+        if (participantsToAdd) {
+            this._populateWithAddOperations(participantsToAdd, operations);
+        }
+        if (participantsToRemove) {
+            this._populateWithRemoveOperations(participantsToRemove, operations);
+        }
+        if (unfreeze) {
+            let unfreezeOp = this._encodeOperation([], this.gatekeeper.contract.methods.unfreeze);
+            operations.push(unfreezeOp)
+        }
+        return operations;
+    }
+
+    _populateWithRemoveOperations(participantsToRemove, operations) {
+        participantsToRemove.forEach(participant => {
+            let method = this.gatekeeper.contract.methods.removeParticipant;
+            let operation = this._encodeOperation([participant.hash], method);
+            operations.push(operation);
+        });
+    }
+
+    _populateWithAddOperations(participantsToAdd, operations) {
+        participantsToAdd.forEach(participant => {
+            let address = participant.address;
+            let permLevel = packPermLevel(participant);
+            let method = this.gatekeeper.contract.methods.addParticipant;
+            let operation = this._encodeOperation([address, permLevel], method);
+            operations.push(operation);
+        });
+    }
+
+    _encodeOperation(extraArgs, method) {
         let callArguments = [
             this.account,
-            myPermLevel(),
+            this._myPermLevel(),
             ...extraArgs
         ];
         return method(...callArguments).encodeABI()
-    };
+    }
+
+    _myPermLevel() {
+        return safeChannelUtils.packPermissionLevel(this.permissions, this.level);
+    }
 }
 
 module.exports = VaultContractInteractor;

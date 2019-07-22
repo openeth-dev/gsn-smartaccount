@@ -1,4 +1,3 @@
-const sinon = require("sinon");
 const {assert, expect} = require('chai');
 const fs = require('fs');
 
@@ -13,6 +12,7 @@ const ParticipantAddedEvent = require("../src/js/events/ParticipantAddedEvent");
 const ParticipantRemovedEvent = require("../src/js/events/ParticipantRemovedEvent");
 const OwnerChangedEvent = require("../src/js/events/OwnerChangedEvent");
 const GatekeeperInitializedEvent = require("../src/js/events/GatekeeperInitializedEvent");
+const LevelFrozenEvent = require("../src/js/events/LevelFrozenEvent");
 
 const TransactionReceipt = require("../src/js/TransactionReceipt");
 const ConfigurationDelta = require("../src/js/ConfigurationDelta");
@@ -26,18 +26,29 @@ context('VaultContractInteractor Integration Test', function () {
     let interactor;
 
     let account23 = "0xcdc1e53bdc74bbf5b5f715d6327dca5785e228b4";
-    let account24 = "0xf5d1eaf516ef3b0582609622a221656872b82f78";
+
+    let expectedUnfreezeOperation = "0x" +
+        "0000000000000000000000000000000000000000000000000000000000000044" + // length
+        "34cef0f1" + // keccak("unfreeze...")
+        "00000000000000000000000090f8bf6a479f320ead074411a4b0e7944ea8c9c1" + // sender
+        "0000000000000000000000000000000000000000000000000000000000000d3f";  // permLevel
+
+    let expectedUnfreezeSignature = "0x" +
+        "9ff890ec63d0b07099892bda49d21e59797204b8ddafd9c03f79f3df68069eef" + // R
+        "2698fa61dae5644ab6f9a2af59da9f9447d7c41c35ca9633db0bf2b0ad0ed872" + // S
+        "1c"; // V
 
 
     let operator;
     let admin23 = new Participant(account23, PermissionsModel.getAdminPermissions(), 1, "admin23");
-    let admin24 = new Participant(account24, PermissionsModel.getAdminPermissions(), 1, "admin24");
+    let admin_level2_acc2;
 
     before(async function () {
         let provider = new Web3.providers.HttpProvider(ethNodeUrl);
         web3 = new Web3(provider);
         accounts = await web3.eth.getAccounts();
         operator = new Participant(accounts[0], PermissionsModel.getOwnerPermissions(), 1, "operator");
+        admin_level2_acc2 = new Participant(accounts[2], PermissionsModel.getAdminPermissions(), 2, "admin_level2_acc2");
         let vaultFactoryABI = require('../src/js/generated/VaultFactory');
         let vaultFactoryBin = fs.readFileSync("./src/js/generated/VaultFactory.bin");
         let vaultFactoryContract = TruffleContract({
@@ -49,7 +60,14 @@ context('VaultContractInteractor Integration Test', function () {
         vaultFactoryContract.setProvider(provider);
         let vaultFactory = await vaultFactoryContract.new({from: accounts[0]});
         vaultFactoryAddress = vaultFactory.address;
-        interactor = await Interactor.connect(accounts[0], ethNodeUrl, undefined, undefined, vaultFactoryAddress);
+        interactor = await Interactor.connect(
+            accounts[0],
+            PermissionsModel.getOwnerPermissions(),
+            1,
+            ethNodeUrl,
+            undefined,
+            undefined,
+            vaultFactoryAddress);
     });
 
     // write tests are quite boring as each should be just a wrapper around a Web3 operation, which
@@ -88,7 +106,7 @@ context('VaultContractInteractor Integration Test', function () {
             let ownerEvents = await interactor.getOwnerChangedEvents();
             assert.equal(ownerEvents.length, 0);
             let freezeParams = await interactor.getFreezeParameters();
-            assert.equal(freezeParams, null);
+            assert.deepEqual(freezeParams, {frozenLevel: 0, frozenUntil: 0});
             let scheduledOperations = await interactor.getScheduledOperations();
             assert.equal(scheduledOperations.length, 0);
         });
@@ -134,12 +152,16 @@ context('VaultContractInteractor Integration Test', function () {
             let participants = [
                 operator.expect(),
                 admin23.expect(),
-                admin24];
+                admin_level2_acc2];
             await safeChannelUtils.validateConfig(participants, interactor.gatekeeper);
 
             let permLevelToRemove = safeChannelUtils.packPermissionLevel(PermissionsModel.getAdminPermissions(), 1);
             let change = new ConfigurationDelta([
-                    {address: account24, permissions: PermissionsModel.getAdminPermissions(), level: 1}
+                    {
+                        address: admin_level2_acc2.address,
+                        permissions: admin_level2_acc2.permissions,
+                        level: admin_level2_acc2.level
+                    }
                 ],
                 [
                     {hash: safeChannelUtils.participantHash(account23, permLevelToRemove)}
@@ -173,13 +195,71 @@ context('VaultContractInteractor Integration Test', function () {
             participants = [
                 operator.expect(),
                 admin23,
-                admin24.expect()];
+                admin_level2_acc2.expect()];
             await safeChannelUtils.validateConfig(participants, interactor.gatekeeper);
 
         });
 
-        it.skip("can freeze and unfreeze", async function () {
-            assert.fail()
+        it("can freeze and unfreeze", async function () {
+            let receipt1 = await interactor.freeze(1, 1000);
+            let levelFrozenEvents = await interactor.getLevelFrozenEvents(
+                {
+                    fromBlock: receipt1.blockNumber,
+                    toBlock: receipt1.blockNumber
+                });
+            assert.equal(levelFrozenEvents.length, 1);
+
+            let freezeParameters = await interactor.getFreezeParameters();
+
+
+            let block = await web3.eth.getBlock(receipt1.blockNumber);
+            let expectedFrozenUntil = block.timestamp + 1000;
+
+            // check that event and contract state are correct and consistent
+            assert.equal(levelFrozenEvents[0].frozenLevel, 1);
+            assert.equal(levelFrozenEvents[0].frozenUntil, expectedFrozenUntil);
+            assert.equal(freezeParameters.frozenLevel, 1);
+            assert.equal(freezeParameters.frozenUntil, expectedFrozenUntil);
+
+            let signedRequest = await interactor.signBoostedConfigChange({unfreeze: true});
+            assert.equal(signedRequest.operation, expectedUnfreezeOperation);
+            assert.equal(signedRequest.signature, expectedUnfreezeSignature);
+
+            // To unfreeze, need to create a different 'interactor' - used by the admin of a higher level
+            let adminsInteractor = await Interactor.connect(
+                admin_level2_acc2.address,
+                admin_level2_acc2.permissions,
+                admin_level2_acc2.level,
+                ethNodeUrl,
+                interactor.gatekeeper.address,
+                interactor.vault.address,
+                vaultFactoryAddress
+            );
+            let receipt2 = await adminsInteractor.scheduleBoostedConfigChange({
+                operation: signedRequest.operation,
+                signature: signedRequest.signature,
+                signerPermsLevel: operator.permLevel
+            });
+
+            let delayedOpEvents = await interactor.getDelayedOperationsEvents({
+                fromBlock: receipt2.blockNumber,
+                toBlock: receipt2.blockNumber
+            });
+            assert.equal(delayedOpEvents.length, 1);
+            // TODO: fix when delay per level is implemented
+            await safeChannelUtils.increaseTime(1000 * 60 * 60 * 24, web3);
+            let receipt3 = await interactor.applyBatch(delayedOpEvents[0].operation, delayedOpEvents[0].opsNonce, admin_level2_acc2);
+
+            let unfreezeCompleteEvents = await interactor.getUnfreezeCompletedEvents(
+                {
+                    fromBlock: receipt3.blockNumber,
+                    toBlock: receipt3.blockNumber
+                });
+
+            assert.equal(unfreezeCompleteEvents.length, 1);
+
+            let freezeParameters2 = await interactor.getFreezeParameters();
+            assert.deepEqual(freezeParameters2, {frozenLevel: 0, frozenUntil: 0});
         });
 
         it.skip("can change owner", async function () {
