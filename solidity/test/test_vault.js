@@ -1,6 +1,7 @@
 const Web3 = require('web3');
 const Chai = require('chai');
 const utils = require('./utils');
+const truffleUtils = require('../src/js/SafeChannelUtils');
 
 const expect = Chai.expect;
 
@@ -32,7 +33,7 @@ contract('Vault', function (accounts) {
         let balance = parseInt(await web3.eth.getBalance(vault.address));
         assert.equal(balance, 0);
 
-        await utils.increaseTime(3600 * 24 * 2 + 10);
+        await truffleUtils.increaseTime(3600 * 24 * 2 + 10, web3);
 
         await expect(
             vault.applyDelayedTransfer(log.args.operation, log.args.opsNonce)
@@ -64,7 +65,7 @@ contract('Vault', function (accounts) {
             vault.applyDelayedTransfer(log1.args.operation, log1.args.opsNonce.toString())
         ).to.be.revertedWith("applyDelayedOps called before due time");
 
-        await utils.increaseTime(delay + 10);
+        await truffleUtils.increaseTime(delay + 10, web3);
 
         let balanceSenderBefore = parseInt(await web3.eth.getBalance(vault.address));
         let balanceReceiverBefore = parseInt(await web3.eth.getBalance(destination));
@@ -119,7 +120,7 @@ contract('Vault', function (accounts) {
             vault.applyDelayedTransfer(log1.args.operation, log1.args.opsNonce.toString())
         ).to.be.revertedWith("applyDelayedOps called before due time");
 
-        await utils.increaseTime(delay + 10);
+        await truffleUtils.increaseTime(delay + 10, web3);
 
         let balanceSenderBefore = (await erc20.balanceOf(vault.address)).toNumber();
         let balanceReceiverBefore = (await erc20.balanceOf(destination)).toNumber();

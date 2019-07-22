@@ -27,8 +27,12 @@ jobs:
             - v1-dependencies-
 
       - run:         
-          name: yarn-install
+          name: yarn-install in solidity project
           command: cd solidity && yarn install
+
+      - run:         
+          name: yarn-install in js_foundation project
+          command: cd js_foundation && yarn install
 
       - save_cache:
           paths:
@@ -39,4 +43,4 @@ jobs:
       # run tests!
       - run: 
           name: solidity-test
-          command: cd solidity && yarn ci
+          command: cd solidity && yarn ci && cd .. && node js_foundation/extract_abi.js && cd js_foundation && yarn ci 

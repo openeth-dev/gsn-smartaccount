@@ -5,7 +5,8 @@ const fs = require('fs');
 const Web3 = require('web3');
 const TruffleContract = require("truffle-contract");
 
-const truffleUtils = require("../../solidity/test/utils");
+const safeChannelUtils = require("../../solidity/src/js/SafeChannelUtils");
+const Participant = require("../../solidity/src/js/Participant");
 
 const Interactor = require("../src/js/VaultContractInteractor.js");
 const ParticipantAddedEvent = require("../src/js/events/ParticipantAddedEvent");
@@ -27,10 +28,16 @@ context('VaultContractInteractor Integration Test', function () {
     let account23 = "0xcdc1e53bdc74bbf5b5f715d6327dca5785e228b4";
     let account24 = "0xf5d1eaf516ef3b0582609622a221656872b82f78";
 
+
+    let operator;
+    let admin23 = new Participant(account23, PermissionsModel.getAdminPermissions(), 1, "admin23");
+    let admin24 = new Participant(account24, PermissionsModel.getAdminPermissions(), 1, "admin24");
+
     before(async function () {
         let provider = new Web3.providers.HttpProvider(ethNodeUrl);
         web3 = new Web3(provider);
         accounts = await web3.eth.getAccounts();
+        operator = new Participant(accounts[0], PermissionsModel.getOwnerPermissions(), 1, "operator");
         let vaultFactoryABI = require('../src/js/generated/VaultFactory');
         let vaultFactoryBin = fs.readFileSync("./src/js/generated/VaultFactory.bin");
         let vaultFactoryContract = TruffleContract({
@@ -87,7 +94,7 @@ context('VaultContractInteractor Integration Test', function () {
         });
 
         it("the newly deployed vault should accept the initial configuration", async function () {
-            let anyAdmin = "0x" + truffleUtils.participantHash(account23, truffleUtils.packPermissionLevel(PermissionsModel.getAdminPermissions(), 1)).toString('hex');
+            let anyAdmin = "0x" + safeChannelUtils.participantHash(account23, safeChannelUtils.packPermissionLevel(PermissionsModel.getAdminPermissions(), 1)).toString('hex');
             let participantsHashes = [
                 anyAdmin,
                 "0xbb",
@@ -124,10 +131,19 @@ context('VaultContractInteractor Integration Test', function () {
         });
 
         it("can schedule to change participants in the vault and later apply it", async function () {
+            let participants = [
+                operator.expect(),
+                admin23.expect(),
+                admin24];
+            await safeChannelUtils.validateConfig(participants, interactor.gatekeeper);
+
+            let permLevelToRemove = safeChannelUtils.packPermissionLevel(PermissionsModel.getAdminPermissions(), 1);
             let change = new ConfigurationDelta([
                     {address: account24, permissions: PermissionsModel.getAdminPermissions(), level: 1}
                 ],
-                []);
+                [
+                    {hash: safeChannelUtils.participantHash(account23, permLevelToRemove)}
+                ]);
             let receipt1 = await interactor.changeConfiguration(change);
             let blockOptions = {
                 fromBlock: receipt1.blockNumber,
@@ -145,7 +161,7 @@ context('VaultContractInteractor Integration Test', function () {
             let delays = await interactor.getDelays();
             let time = delays[1] + 100;
             // TODO: fix when delay per level is implemented
-            await truffleUtils.increaseTime(1000 * 60 * 60 * 24, web3);
+            await safeChannelUtils.increaseTime(1000 * 60 * 60 * 24, web3);
 
             let receipt2 = await interactor.applyBatch(delayedOpEvents[0].operation, delayedOpEvents[0].opsNonce);
             blockOptions = {
@@ -153,27 +169,31 @@ context('VaultContractInteractor Integration Test', function () {
                 toBlock: receipt2.blockNumber
             };
             let addedEvents = await interactor.getParticipantAddedEvents(blockOptions);
-            assert.equal(addedEvents.length, 1)
-            // TODO: implement config validation as in truffle project
+            assert.equal(addedEvents.length, 1);
+            participants = [
+                operator.expect(),
+                admin23,
+                admin24.expect()];
+            await safeChannelUtils.validateConfig(participants, interactor.gatekeeper);
 
         });
 
-        it("can freeze and unfreeze", async function () {
+        it.skip("can freeze and unfreeze", async function () {
             assert.fail()
         });
 
-        it("can change owner", async function () {
+        it.skip("can change owner", async function () {
             assert.fail()
         });
 
-        it("can transfer different types of assets", async function () {
+        it.skip("can transfer different types of assets", async function () {
             assert.fail()
         });
 
 
         // ****** read tests
 
-        context("reading directly from the contract's state", function () {
+        context.skip("reading directly from the contract's state", function () {
             it("read operator", async function () {
                 assert.fail()
             });
@@ -183,7 +203,7 @@ context('VaultContractInteractor Integration Test', function () {
         });
 
 
-        context("reading by parsing the event logs", function () {
+        context.skip("reading by parsing the event logs", function () {
             it("read participant hashes", async function () {
                 assert.fail()
             });

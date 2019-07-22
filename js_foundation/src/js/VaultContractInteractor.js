@@ -15,8 +15,7 @@ const DelayedOperationEvent = require('./events/DelayedOperationEvent');
 const TransactionReceipt = require("./TransactionReceipt");
 const PermissionsModel = require("./PermissionsModel");
 
-// TODO: not use this module! Create a 'shared' module!!!
-const truffleUtils = require("../../../solidity/test/utils");
+const safeChannelUtils = require("../../../solidity/src/js/SafeChannelUtils");
 
 let GatekeeperContract = TruffleContract({
     contractName: "Gatekeeper",
@@ -54,7 +53,11 @@ function getAllBlocksSinceVault() {
 }
 
 function myPermLevel() {
-    return truffleUtils.packPermissionLevel(PermissionsModel.getOwnerPermissions(), 1);
+    return safeChannelUtils.packPermissionLevel(PermissionsModel.getOwnerPermissions(), 1);
+}
+// TODO: this is an unnecessary shorthand
+function packPermLevel(participant) {
+    return safeChannelUtils.packPermissionLevel(participant.permissions, participant.level)
 }
 
 class VaultContractInteractor {
@@ -145,31 +148,32 @@ class VaultContractInteractor {
     }
 
     // TODO: refactor
+    // TODO 2 : accept hashes here in 'toAdd'/'remove'! Should not perform 'pack' stuff. Just till contract 'add'
     async changeConfiguration({participantsToAdd, participantsToRemove, newOwner, unfreeze}) {
         let operations = [];
         if (participantsToAdd) {
-            operations.push(...participantsToAdd.map(participant => {
-                let callArguments = [
-                    this.account,
-                    myPermLevel(),
-                    participant.address,
-                    truffleUtils.packPermissionLevel(participant.permissions, participant.level)
-                ];
-                return this.gatekeeper.contract.methods.addParticipant(...callArguments).encodeABI()
-            }));
+            participantsToAdd.forEach(participant => {
+                let address = participant.address;
+                let permLevel = packPermLevel(participant);
+                let method = this.gatekeeper.contract.methods.addParticipant;
+                let operation = this.encodeOperation([address, permLevel], method);
+                operations.push(operation);
+            });
         }
-        // if (participantsToRemove) {
-        //     operations.push(participantsToAdd.map(function (participant) {
-        //         return "0x00"
-        //     }));
-        // }
+        if (participantsToRemove) {
+            participantsToRemove.forEach(participant => {
+                let method = this.gatekeeper.contract.methods.removeParticipant;
+                let operation = this.encodeOperation([participant.hash], method);
+                operations.push(operation);
+            });
+        }
         if (newOwner) {
             operations.push();
         }
         if (unfreeze) {
             operations.push();
         }
-        let encodedPacked = truffleUtils.encodePackedBatch(operations);
+        let encodedPacked = safeChannelUtils.encodePackedBatch(operations);
         let web3receipt = await this.gatekeeper.changeConfiguration(myPermLevel(), encodedPacked, {from: this.account});
         return new TransactionReceipt(web3receipt.receipt)
     }
@@ -313,6 +317,14 @@ class VaultContractInteractor {
 
     }
 
+    encodeOperation(extraArgs, method) {
+        let callArguments = [
+            this.account,
+            myPermLevel(),
+            ...extraArgs
+        ];
+        return method(...callArguments).encodeABI()
+    };
 }
 
 module.exports = VaultContractInteractor;
