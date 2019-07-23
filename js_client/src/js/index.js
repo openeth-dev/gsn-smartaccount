@@ -2,16 +2,24 @@ kotlin = require('kotlin')
 // kotlin = require('./kotlin.js')
 // const KotlinSdk = require("../../../kotlin_sdk/build/classes/kotlin/js/main/kotlin_sdk");
 const KotlinSdk = require("./kotlin_sdk");
-const App = require("../../../js_foundation/src/js/index");
+const Interactor = require("../../../js_foundation/src/js/VaultContractInteractor");
 
+const Web3 = require('web3');
 
 class Application {
-    async main(){
-        let app = new App("0x0c868eE11E1a54DAfbaa87Fd4c100Cb7BAf14522", "0xe4bc4dcd6655eaec6387cf221623237518f35dd5");
-        let kotlinSdk = new KotlinSdk.com.tabookey.kotlin_sdk.Sdk(app);
-        let receipt = kotlinSdk.doStuff();
+    async main() {
+        let ethNodeUrl = 'http://localhost:8545';
+        let provider = new Web3.providers.HttpProvider(ethNodeUrl);
+        let web3 = new Web3(provider);
+        let interactor = new Interactor(web3);//web3, account, permissions, level, gatekeeper, vault, vaultFactory) {
+        let interactorWrapped = KotlinSdk.com.tabookey.kotlin_sdk.wrap_c8t7sw$(interactor);
+        let kotlinSdk = new KotlinSdk.com.tabookey.kotlin_sdk.Sdk(interactorWrapped);
+        console.log("AAAA")
+        let receipt = kotlinSdk.getOperatorBlaBla((str) => {
+            console.log(str)
+        });
+        console.log("BBB")
         console.log(receipt);
-        console.log(await receipt);
     }
 }
 

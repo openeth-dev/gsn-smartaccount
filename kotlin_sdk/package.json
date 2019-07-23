@@ -1,18 +1,14 @@
 {
-  "name": "js_client",
+  "name": "kotlin_sdk",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "js_foundation": "file:../js_foundation",
-    "kotlin": "1.3.31",
-    "web3": "^1.0.0-beta.37",
-    "kotlinx-coroutines-core": "^1.3.0-RC"
+    "kotlinx-coroutines-core": "^1.2.2"
   }
 }

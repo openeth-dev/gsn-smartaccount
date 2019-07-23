@@ -3,6 +3,9 @@ plugins {
 }
 repositories {
     mavenCentral()
+    maven {
+        url "https://repo.spring.io/libs-release/"
+    }
 }
 group 'com.example'
 version '0.0.1'
@@ -28,14 +31,25 @@ kotlin {
     // For MacOS, should be changed to e.g. macosX64
     // For Windows, should be changed to e.g. mingwX64
 //    macosX64("macos")
+
+    def coroutinesVersion = "1.3.0-M2"
+
     sourceSets {
-        commonMain {
-            dependencies {
-                implementation kotlin('stdlib-common')
-            }
+        commonMain.dependencies {
+            implementation "org.jetbrains.kotlin:kotlin-stdlib-common:1.3.31"
+            implementation "org.jetbrains.kotlin:kotlin-reflect:1.3.31" //used in Log implementation
+            implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core-common:$coroutinesVersion"
         }
+//        commonMain {
+//            dependencies {
+//                implementation kotlin('stdlib-common')
+//                implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core-common:1.3.0-RC'
+//            }
+//        }
         commonTest {
             dependencies {
+                implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core-common:$coroutinesVersion"
+                implementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:$coroutinesVersion"
                 implementation kotlin('test-common')
                 implementation kotlin('test-annotations-common')
             }
@@ -43,17 +57,21 @@ kotlin {
         jvmMain {
             dependencies {
                 implementation kotlin('stdlib-jdk8')
+                implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.1.1"
             }
         }
         jvmTest {
             dependencies {
                 implementation kotlin('test')
                 implementation kotlin('test-junit')
+//                implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.1.1"
             }
         }
         jsMain {
             dependencies {
                 implementation kotlin('stdlib-js')
+                implementation group: 'org.jetbrains.kotlinx', name: 'kotlinx-html-js', version: '0.6.11'
+                implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core-js:1.3.0-RC'
             }
         }
         jsTest {
@@ -65,5 +83,10 @@ kotlin {
 //        }
 //        macosTest {
 //        }
+    }
+}
+compileKotlinJs {
+    kotlinOptions {
+        freeCompilerArgs += "-Xallow-kotlin-package"
     }
 }
