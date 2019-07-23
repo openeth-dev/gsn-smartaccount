@@ -15,3 +15,6 @@ rootProject.name = 'kotlin_sdk'
 
 
 enableFeaturePreview('GRADLE_METADATA')
+
+include ':java_foundation'
+project(':java_foundation').projectDir = new File('../java_foundation/')

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/java_client/java_client.iml" filepath="$PROJECT_DIR$/java_client/java_client.iml" />
+      <module fileurl="file://$PROJECT_DIR$/js_client/js_client.iml" filepath="$PROJECT_DIR$/js_client/js_client.iml" />
+      <module fileurl="file://$PROJECT_DIR$/js_foundation/js_foundation.iml" filepath="$PROJECT_DIR$/js_foundation/js_foundation.iml" />
+      <module fileurl="file://$PROJECT_DIR$/solidity/solidity.iml" filepath="$PROJECT_DIR$/solidity/solidity.iml" />
+    </modules>
+  </component>
+</project>
