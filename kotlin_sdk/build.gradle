@@ -16,7 +16,7 @@ repositories {
         url "https://repo.spring.io/libs-release/"
     }
 }
-group 'com.example'
+group 'com.tabookey'
 version '0.0.1'
 
 apply plugin: 'maven-publish'
@@ -57,6 +57,7 @@ kotlin {
         }
         jvmMain {
             dependencies {
+                implementation project(':java_foundation')
                 implementation kotlin('stdlib-jdk8')
                 implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.1.1"
             }
@@ -121,6 +122,5 @@ task installKotlinNpm(type: NpmTask) {
 
 task runMocha(type: NodeTask, dependsOn: [compileTestKotlinJs, installKotlinNpm, installMocha, populateNodeModules]) {
     script = file('node_modules/mocha/bin/mocha')
-    println ">> >>" + compileTestKotlinJs.outputFile
     args = [compileTestKotlinJs.outputFile]
 }
