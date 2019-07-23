@@ -1,3 +1,12 @@
+buildscript {
+    repositories {
+        maven { url "https://plugins.gradle.org/m2/" }
+    }
+    dependencies {
+        classpath 'com.moowork.gradle:gradle-node-plugin:1.2.0'
+    }
+}
+
 plugins {
     id 'kotlin-multiplatform' version '1.3.31'
 }
@@ -11,41 +20,33 @@ group 'com.example'
 version '0.0.1'
 
 apply plugin: 'maven-publish'
+apply plugin: 'com.moowork.node'
 
 kotlin {
     jvm()
+    js().compilations.test {
+        kotlinOptions {
+            moduleKind = "umd"
+        }
+    }
     js().compilations.main {
         kotlinOptions {
             moduleKind = "commonjs"
             sourceMap = true
             sourceMapEmbedSources = "always"
         }
-//        defaultSourceSet {
-//            dependsOn commonMain
-//            dependencies {
-//                implementation kotlin('stdlib-js')
-//            }
     }
-    // For ARM, should be changed to iosArm32 or iosArm64
-    // For Linux, should be changed to e.g. linuxX64
-    // For MacOS, should be changed to e.g. macosX64
-    // For Windows, should be changed to e.g. mingwX64
-//    macosX64("macos")
 
     def coroutinesVersion = "1.3.0-M2"
 
     sourceSets {
-        commonMain.dependencies {
-            implementation "org.jetbrains.kotlin:kotlin-stdlib-common:1.3.31"
-            implementation "org.jetbrains.kotlin:kotlin-reflect:1.3.31" //used in Log implementation
-            implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core-common:$coroutinesVersion"
+        commonMain {
+            dependencies {
+                implementation "org.jetbrains.kotlin:kotlin-reflect:1.3.31" //used in Log implementation
+                implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core-common:$coroutinesVersion"
+                implementation kotlin('stdlib-common')
+            }
         }
-//        commonMain {
-//            dependencies {
-//                implementation kotlin('stdlib-common')
-//                implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core-common:1.3.0-RC'
-//            }
-//        }
         commonTest {
             dependencies {
                 implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core-common:$coroutinesVersion"
@@ -89,4 +90,37 @@ compileKotlinJs {
     kotlinOptions {
         freeCompilerArgs += "-Xallow-kotlin-package"
     }
+}
+
+// Workaround the problem with Node downloading
+repositories.whenObjectAdded {
+    if (it instanceof IvyArtifactRepository) {
+        metadataSources {
+            artifact()
+        }
+    }
+}
+
+node {
+    download = true
+}
+
+task populateNodeModules(type: Copy, dependsOn: compileKotlinJs) {
+    from "./node_modules"
+    from compileKotlinJs.destinationDir
+    into "${buildDir}/node_modules"
+}
+
+task installMocha(type: NpmTask) {
+    args = ['install', 'mocha']
+}
+
+task installKotlinNpm(type: NpmTask) {
+    args = ['install', 'kotlinx-coroutines-core', 'kotlin', 'kotlin-test']
+}
+
+task runMocha(type: NodeTask, dependsOn: [compileTestKotlinJs, installKotlinNpm, installMocha, populateNodeModules]) {
+    script = file('node_modules/mocha/bin/mocha')
+    println ">> >>" + compileTestKotlinJs.outputFile
+    args = [compileTestKotlinJs.outputFile]
 }

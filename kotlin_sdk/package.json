@@ -9,6 +9,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "kotlin": "^1.3.41",
     "kotlinx-coroutines-core": "^1.2.2"
   }
 }
