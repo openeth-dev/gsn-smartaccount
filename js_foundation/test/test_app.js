@@ -154,7 +154,7 @@ context('VaultContractInteractor Integration Test', function () {
                 operatorA.expect(),
                 admin23.expect(),
                 admin_level2_acc2];
-            await safeChannelUtils.validateConfig(participants, interactor.gatekeeper);
+            await safeChannelUtils.validateConfigParticipants(participants, interactor.gatekeeper);
 
             let permLevelToRemove = safeChannelUtils.packPermissionLevel(PermissionsModel.getAdminPermissions(), 1);
             let change = new ConfigurationDelta([
@@ -197,7 +197,7 @@ context('VaultContractInteractor Integration Test', function () {
                 operatorA.expect(),
                 admin23,
                 admin_level2_acc2.expect()];
-            await safeChannelUtils.validateConfig(participants, interactor.gatekeeper);
+            await safeChannelUtils.validateConfigParticipants(participants, interactor.gatekeeper);
 
         });
 
@@ -310,7 +310,7 @@ context('VaultContractInteractor Integration Test', function () {
                 operatorB.expect(),
                 admin23,
                 admin_level2_acc2.expect()];
-            await safeChannelUtils.validateConfig(participants, interactor.gatekeeper);
+            await safeChannelUtils.validateConfigParticipants(participants, interactor.gatekeeper);
         });
 
 

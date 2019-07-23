@@ -19,10 +19,12 @@ contract('Vault', function (accounts) {
     let fundedAmount = amount * 3;
     let delay = 77;
     let from = accounts[0];
+    let mockGK = accounts[0]
     let destination = accounts[1];
 
     before(async function () {
-        vault = await Vault.deployed();
+        // vault = await Vault.deployed();
+        vault = await Vault.new(mockGK);
         erc20 = await DAI.new();
     });
 
