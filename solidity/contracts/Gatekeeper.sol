@@ -4,6 +4,7 @@ import "./DelayedOps.sol";
 import "./Vault.sol";
 import "./PermissionsLevel.sol";
 import "openzeppelin-solidity/contracts/cryptography/ECDSA.sol";
+import "openzeppelin-solidity/contracts/token/ERC20/ERC20.sol";
 
 contract Gatekeeper is DelayedOps, PermissionsLevel {
     using ECDSA for bytes32;
@@ -203,6 +204,13 @@ contract Gatekeeper is DelayedOps, PermissionsLevel {
     nonFrozen(senderPermsLevel)
     public {
         vault.scheduleDelayedEtherTransfer(delays[extractLevel(senderPermsLevel)], destination, value);
+    }
+
+    function sendERC20(address payable destination, uint value, uint16 senderPermsLevel, ERC20 token)
+    hasPermissions(msg.sender, canSpend, senderPermsLevel)
+    nonFrozen(senderPermsLevel)
+    public {
+        vault.scheduleDelayedERC20Transfer(delays[extractLevel(senderPermsLevel)], destination, value, token);
     }
 
     function applyBatch(
