@@ -20,9 +20,16 @@ contract Vault is DelayedOps {
 
     address public gatekeeper;
 
-    constructor(address gatekeeperAddress) public{
-        gatekeeper = gatekeeperAddress;
+    modifier gatekeeperOnly() {
+        require(msg.sender == gatekeeper, "Only Gatekeeper can access vault functions");
+        _;
     }
+
+    constructor(address gk) public {
+        gatekeeper = gk;
+    }
+
+    // ***** End TDD temp methods
 
     function() payable external {
         emit FundsReceived(msg.sender, msg.value);
@@ -36,25 +43,25 @@ contract Vault is DelayedOps {
 
     // TODO: test to check 'gatekeeperOnly' logic here!
     // Note: nonce should be passed
-    function scheduleDelayedEtherTransfer(uint256 delay, address destination, uint256 value) public {
+    function scheduleDelayedEtherTransfer(uint256 delay, address destination, uint256 value) public gatekeeperOnly {
         // Alexf: There is no tragedy in using 'encodeWithSelector' here, I believe. Vault's API should not change much.
         bytes memory delayedTransaction = abi.encodeWithSelector(this.transferETH.selector, msg.sender, opsNonce, destination, value);
         scheduleDelayedBatch(abi.encode(msg.sender, bytes32(opsNonce)), delay, encodeDelayed(delayedTransaction));
         emit TransactionPending(destination, value, ERC20(address(0)), delay, opsNonce);
     }
 
-    function scheduleDelayedTokenTransfer(uint256 delay, address destination, uint256 value, ERC20 token) public {
+    function scheduleDelayedTokenTransfer(uint256 delay, address destination, uint256 value, ERC20 token) public gatekeeperOnly {
         bytes memory delayedTransaction = abi.encodeWithSelector(this.transferERC20.selector, msg.sender, opsNonce, destination, value, address(token));
         scheduleDelayedBatch(abi.encode(msg.sender, bytes32(opsNonce)), delay, encodeDelayed(delayedTransaction));
         emit TransactionPending(destination, value, token, delay, opsNonce);
     }
 
-    function cancelTransfer(bytes32 hash) public {
+    function cancelTransfer(bytes32 hash) public gatekeeperOnly {
         cancelDelayedOp(hash);
     }
 
     // TODO: sender of all operations in vault is a gatekeeper!!!
-    function applyDelayedTransfer(bytes memory operation, uint256 nonce) public {
+    function applyDelayedTransfer(bytes memory operation, uint256 nonce) public gatekeeperOnly {
         // "nonce, nonce" is not an error. It will be used by both the DelayedOps to ensure uniqueness of a transaction,
         // as well as it will be passed as an 'extraData' field to be emitted by the Vault itself.
         // TODO: probably less hacky to add it as a parameter. May need it for smth else later.
@@ -70,12 +77,14 @@ contract Vault is DelayedOps {
     */
     // TODO: test to check only 'this' can call here
     function transferETH(address /*sender*/, uint256 opsNonce, address payable destination, uint256 value) public {
+        require(msg.sender == address(this),"Function can only be called by Vault");
         require(value < address(this).balance, "Cannot transfer more then vault's balance");
         destination.transfer(value);
         emit TransactionCompleted(destination, value, ERC20(address(0)), opsNonce);
     }
 
     function transferERC20(address /*sender*/, uint256 opsNonce, address payable destination, uint256 value, ERC20 token) public {
+        require(msg.sender == address(this),"Function can only be called by Vault");
         token.transfer(destination, value);
         emit TransactionCompleted(destination, value, token, opsNonce);
     }

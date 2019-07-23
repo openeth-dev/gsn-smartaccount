@@ -8,7 +8,9 @@ module.exports = async function (deployer) {
     await deployer.deploy(Contract);
     console.log("Deploying Gatekeeper");
     let gatekeeper = await deployer.deploy(Gatekeeper);
+	console.log("Gatekeeper",Gatekeeper.address);
     console.log("Deploying Vault");
     await deployer.deploy(Vault, gatekeeper.address);
-    await deployer.deploy(VaultFactory);
+    console.log("Vault",Vault.address);
+    await deployer.deploy(VaultFactory,{gas:8000000});
 };
