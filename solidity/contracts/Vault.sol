@@ -46,7 +46,6 @@ contract Vault is DelayedOps {
 
     // ********** Immediate operations below this point
 
-    // TODO: test to check 'gatekeeperOnly' logic here!
     // Note: nonce should be passed
     function scheduleDelayedEtherTransfer(uint256 delay, address destination, uint256 value) public gatekeeperOnly {
         // Alexf: There is no tragedy in using 'encodeWithSelector' here, I believe. Vault's API should not change much.
@@ -55,7 +54,7 @@ contract Vault is DelayedOps {
         emit TransactionPending(destination, value, ERC20(address(0)), delay, opsNonce);
     }
 
-    function scheduleDelayedTokenTransfer(uint256 delay, address destination, uint256 value, ERC20 token) public gatekeeperOnly {
+    function scheduleDelayedERC20Transfer(uint256 delay, address destination, uint256 value, ERC20 token) public gatekeeperOnly {
         bytes memory delayedTransaction = abi.encodeWithSelector(this.transferERC20.selector, msg.sender, opsNonce, destination, value, address(token));
         scheduleDelayedBatch(abi.encode(msg.sender, bytes32(opsNonce)), delay, encodeDelayed(delayedTransaction));
         emit TransactionPending(destination, value, token, delay, opsNonce);
@@ -65,7 +64,6 @@ contract Vault is DelayedOps {
         cancelDelayedOp(hash);
     }
 
-    // TODO: sender of all operations in vault is a gatekeeper!!!
     function applyDelayedTransfer(bytes memory operation, uint256 nonce) public gatekeeperOnly {
         // "nonce, nonce" is not an error. It will be used by both the DelayedOps to ensure uniqueness of a transaction,
         // as well as it will be passed as an 'extraData' field to be emitted by the Vault itself.
@@ -80,7 +78,6 @@ contract Vault is DelayedOps {
     /*
     * @param opsNonce - uint256 field is enforced by the 'delayed' protocol. We store the delayed op's nonce to identify events.
     */
-    // TODO: test to check only 'this' can call here
     function transferETH(address /*sender*/, uint256 opsNonce, address payable destination, uint256 value)
     thisOnly
     external {

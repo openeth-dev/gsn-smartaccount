@@ -1,6 +1,6 @@
 const Web3 = require('web3');
 const Chai = require('chai');
-const utils = require('./utils');
+const testUtils = require('./utils');
 const truffleUtils = require('../src/js/SafeChannelUtils');
 
 const expect = Chai.expect;
@@ -90,29 +90,12 @@ contract('Vault', function (accounts) {
     });
 
     it("funding the vault with ERC20 tokens", async function () {
-        let supply = (await erc20.totalSupply()).toNumber();
-        let vaultBalanceBefore = await erc20.balanceOf(vault.address);
-        let account0BalanceBefore = await erc20.balanceOf(from);
-        assert.equal(0, vaultBalanceBefore.toNumber());
-        assert.equal(supply, account0BalanceBefore.toNumber());
-
-        let res = await erc20.transfer(vault.address, fundedAmount);
-
-        assert.equal(res.logs[0].event, "Transfer");
-        assert.equal(res.logs[0].args.value, fundedAmount);
-        assert.equal(res.logs[0].args.from, from);
-        assert.equal(res.logs[0].args.to, vault.address);
-
-        let vaultBalanceAfter = await erc20.balanceOf(vault.address);
-        let account0BalanceAfter = await erc20.balanceOf(from);
-        assert.equal(fundedAmount, vaultBalanceAfter.toNumber());
-        assert.equal(supply - fundedAmount, account0BalanceAfter.toNumber())
-
+        await testUtils.fundVaultWithERC20(vault,erc20,fundedAmount,from);
     });
 
     it("should allow to create a delayed ERC20 transaction and execute it after delay expires", async function () {
 
-        let res1 = await vault.scheduleDelayedTokenTransfer(delay, destination, amount, erc20.address);
+        let res1 = await vault.scheduleDelayedERC20Transfer(delay, destination, amount, erc20.address);
 
         let log1 = res1.logs[0];
         let log2 = res1.logs[1];
