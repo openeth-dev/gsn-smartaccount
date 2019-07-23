@@ -1,8 +1,15 @@
 package com.tabookey.kotlin_sdk
 
-class Sdk(val app: IApp) {
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.async
+import kotlin.js.JsName
 
-    fun doStuff(): Receipt {
-        return app.emitMessageWrapped("Hello", 7)
+class Sdk(val interactor: VaultContractInteractor) {
+    @JsName("getOperatorBlaBla")
+    fun getOperatorBlaBla(block: (String) -> Unit) {
+        GlobalScope.async {
+            val operatorSync = interactor.getOperatorSync()
+            block(operatorSync)
+        }
     }
 }

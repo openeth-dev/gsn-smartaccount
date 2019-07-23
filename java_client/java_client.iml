@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<module type="JAVA_MODULE" version="4">
-  <component name="ExternalSystem" linkedProjectPath="$MODULE_DIR$/../kotlin_sdk" rootProjectPath="$MODULE_DIR$/../kotlin_sdk" />
+<module external.linked.project.path="$MODULE_DIR$/../kotlin_sdk" external.root.project.path="$MODULE_DIR$/../kotlin_sdk" type="JAVA_MODULE" version="4">
   <component name="FacetManager">
     <facet type="kotlin-language" name="Kotlin">
       <configuration version="3" platform="JVM 1.8" useProjectSettings="false">
@@ -20,8 +19,6 @@
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
-    <orderEntry type="module" module-name="com.example.kotlin_sdk.commonMain" />
-    <orderEntry type="module" module-name="com.example.kotlin_sdk.jvmMain" />
     <orderEntry type="library" name="Gradle: org.jetbrains.kotlin:kotlin-stdlib:1.3.31" level="project" />
     <orderEntry type="module" module-name="java_foundation" />
   </component>
