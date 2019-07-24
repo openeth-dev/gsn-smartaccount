@@ -785,29 +785,16 @@ contract('Gatekeeper', async function (accounts) {
     it("should revert an attempt to apply an operation claiming wrong permissions");
 
     describe("Delayed operations should only be called from Gatekeeper", async function () {
-       it("should revert addParticipant", async function () {
-           await expect(
-           gatekeeper.addParticipant(operatorA.address, operatorA.permLevel, adminB1.address, adminB1.permLevel)
-           ).to.be.revertedWith("Function can only be called by Gatekeeper")
-       });
 
-        it("should revert removeParticipant", async function () {
-            await expect(
-                gatekeeper.removeParticipant(operatorA.address, operatorA.permLevel, adminB1.address)
-            ).to.be.revertedWith("Function can only be called by Gatekeeper")
-        });
-
-        it("should revert changeOwner", async function () {
-            await expect(
-                gatekeeper.changeOwner(operatorA.address, operatorA.permLevel, operatorB.address)
-            ).to.be.revertedWith("Function can only be called by Gatekeeper")
-        });
-
-        it("should revert unfreeze", async function () {
-            await expect(
-                gatekeeper.unfreeze(operatorA.address, operatorA.permLevel)
-            ).to.be.revertedWith("Function can only be called by Gatekeeper")
-        });
+        it("should revert all methods", async function () {
+           await utils.asyncForEach([{method:"addParticipant", args:[operatorA.address, operatorA.permLevel, adminB1.address, adminB1.permLevel]},
+                {method:"removeParticipant", args:[operatorA.address, operatorA.permLevel, adminB1.address]},
+                {method:"changeOwner", args:[operatorA.address, operatorA.permLevel, operatorB.address]},
+                {method:"unfreeze", args:[operatorA.address, operatorA.permLevel]}], async function(o){
+               console.log("method", o.method)
+                await expect( gatekeeper[o.method](...o.args)).to.be.revertedWith("Function can only be called by Gatekeeper")
+            });
+        })
     });
 
 

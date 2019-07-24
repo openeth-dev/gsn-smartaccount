@@ -78,9 +78,9 @@ module.exports = {
     },
 
     validateConfigDelays: async function (delays, gatekeeper) {
+        let onchainDelays = await gatekeeper.getDelays();
         for (let i = 0; i < delays.length; i++) {
-            let delay = await gatekeeper.delays(i);
-            assert.equal(delay,delays[i]);
+            assert.equal(onchainDelays[i],delays[i]);
         }
     },
 
