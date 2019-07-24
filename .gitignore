@@ -26,6 +26,7 @@ node_modules
 /.idea/misc.xml
 /.idea/vcs.xml
 /.idea/workspace.xml
+/java_foundation/src/main/java/com/tabookey/foundation/generated/
 java_client/.gradle/
 java_client/gradle/
 java_client/gradlew
