@@ -60,7 +60,8 @@ function compileFile(contractFile, c) {
 contractsToExtract.forEach(c => {
 
     let contractFile = contractsFolder + "/" + c + ".sol";
-    let outAbiFile = outAbiFolder + "/" + c + ".js";
+    let outNodeFile = outAbiFolder + "/" + c + ".js";
+    let outAbiFile = outAbiFolder + "/" + c + ".json";
     let outBinFile = outAbiFolder + "/" + c + ".bin";
     //TODO: Cannot depend on timestamps when working with interdependent contracts
     /*
@@ -76,9 +77,11 @@ contractsToExtract.forEach(c => {
     */
     let {abi, binary} = compileFile(contractFile, c);
 
-    fs.writeFileSync(outAbiFile, "module.exports=" + abi);
+    fs.writeFileSync(outAbiFile, abi);
+    fs.writeFileSync(outNodeFile, "module.exports=" + abi);
     fs.writeFileSync(outBinFile, binary);
     console.log("written \"" + outAbiFile + "\"")
+    console.log("written \"" + outNodeFile + "\"")
     console.log("written \"" + outBinFile + "\"")
 });
 

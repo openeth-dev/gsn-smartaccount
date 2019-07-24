@@ -4,9 +4,9 @@
     <facet type="kotlin-language" name="Kotlin">
       <configuration version="3" platform="JavaScript " useProjectSettings="false" isTestModule="true" externalProjectId="kotlin_sdk">
         <sourceSets>
+          <sourceSet>com.tabookey.kotlin_sdk.commonMain</sourceSet>
           <sourceSet>com.tabookey.kotlin_sdk.commonTest</sourceSet>
           <sourceSet>com.tabookey.kotlin_sdk.jsMain</sourceSet>
-          <sourceSet>com.tabookey.kotlin_sdk.commonMain</sourceSet>
         </sourceSets>
         <newMppModelJpsModuleKind>COMPILATION_AND_SOURCE_SET_HOLDER</newMppModelJpsModuleKind>
         <compilerSettings />
