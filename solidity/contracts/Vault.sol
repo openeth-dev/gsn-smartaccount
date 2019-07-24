@@ -25,6 +25,11 @@ contract Vault is DelayedOps {
         _;
     }
 
+    modifier thisOnly() {
+        require(address(this) == msg.sender, "Function can only be called by Vault");
+        _;
+    }
+
     constructor(address gk) public {
         gatekeeper = gk;
     }
@@ -76,15 +81,16 @@ contract Vault is DelayedOps {
     * @param opsNonce - uint256 field is enforced by the 'delayed' protocol. We store the delayed op's nonce to identify events.
     */
     // TODO: test to check only 'this' can call here
-    function transferETH(address /*sender*/, uint256 opsNonce, address payable destination, uint256 value) public {
-        require(msg.sender == address(this),"Function can only be called by Vault");
+    function transferETH(address /*sender*/, uint256 opsNonce, address payable destination, uint256 value)
+    thisOnly
+    external {
         require(value < address(this).balance, "Cannot transfer more then vault's balance");
         destination.transfer(value);
         emit TransactionCompleted(destination, value, ERC20(address(0)), opsNonce);
     }
 
-    function transferERC20(address /*sender*/, uint256 opsNonce, address payable destination, uint256 value, ERC20 token) public {
-        require(msg.sender == address(this),"Function can only be called by Vault");
+    function transferERC20(address /*sender*/, uint256 opsNonce, address payable destination, uint256 value, ERC20 token) thisOnly
+    external {
         token.transfer(destination, value);
         emit TransactionCompleted(destination, value, token, opsNonce);
     }
