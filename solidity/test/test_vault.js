@@ -128,7 +128,39 @@ contract('Vault', function (accounts) {
         assert.equal(balanceReceiverAfter, balanceReceiverBefore + amount);
     });
 
-    it("should allow to cancel the transaction before delay expires");
+    it("should allow to cancel ETH transaction before delay expires", async function () {
+        let res1 = await vault.scheduleDelayedEtherTransfer(delay, destination, amount);
+
+        let log1 = res1.logs[0];
+        let log2 = res1.logs[1];
+        assert.equal("DelayedOperation", log1.event);
+        assert.equal("TransactionPending", log2.event);
+        await expect(
+            vault.applyDelayedTransfer(log1.args.operation, log1.args.opsNonce.toString())
+        ).to.be.revertedWith("applyDelayedOps called before due time");
+
+        let hash = await vault.delayedOpHash(log1.args.batchMetadata, log1.args.opsNonce,log1.args.operation)
+        res1 = await vault.cancelTransfer(hash)
+        assert.equal("DelayedOperationCancelled", res1.logs[0].event);
+
+    });
+
+    it("should allow to cancel ERC20 transaction before delay expires", async function () {
+        let res1 = await vault.scheduleDelayedERC20Transfer(delay, destination, amount, erc20.address);
+
+        let log1 = res1.logs[0];
+        let log2 = res1.logs[1];
+        assert.equal("DelayedOperation", log1.event);
+        assert.equal("TransactionPending", log2.event);
+        await expect(
+            vault.applyDelayedTransfer(log1.args.operation, log1.args.opsNonce.toString())
+        ).to.be.revertedWith("applyDelayedOps called before due time");
+
+        let hash = await vault.delayedOpHash(log1.args.batchMetadata, log1.args.opsNonce,log1.args.operation)
+        res1 = await vault.cancelTransfer(hash)
+        assert.equal("DelayedOperationCancelled", res1.logs[0].event);
+
+    });
 
     /* Negative flows */
 
