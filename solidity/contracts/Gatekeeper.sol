@@ -18,9 +18,6 @@ contract Gatekeeper is PermissionsLevel {
 
     //***** events
 
-    // TODO: remove after merge with Vault w/o DelayedOps
-    event DelayedOperation(bytes batchMetadata, uint256 opsNonce, bytes operation, uint dueTime);
-
     event ConfigPending(bytes32 indexed transactionHash, address sender, uint16 senderPermsLevel, address booster, uint16 boosterPermsLevel, uint256 stateId, uint8[] actions, bytes32[] actionsArguments);
     event ConfigCancelled(bytes32 indexed transactionHash, address sender);
 
@@ -45,7 +42,7 @@ contract Gatekeeper is PermissionsLevel {
 
     Vault vault;
 
-    mapping(bytes32 => uint) pendingChanges;
+    mapping(bytes32 => uint256) pendingChanges;
     uint256[] public delays;
 
     function getDelays() public view returns (uint256[] memory) {
@@ -84,15 +81,15 @@ contract Gatekeeper is PermissionsLevel {
             "not a real operator");
     }
 
-    function requireParticipant(address participant, uint16 permsLevel) internal {
+    modifier participantOnly(address participant, uint16 permsLevel) {
         require(participants[Utilities.participantHash(participant, permsLevel)], "not participant");
+        _;
     }
 
     // Modifiers are added to the stack, so I hit 'stack too deep' a lot. This should be easier on compiler to digest.
-    function hasPermissionsInternal(address sender, uint16 neededPermissions, uint16 senderPermsLevel) internal {
+    function hasPermissionsInternal(address sender, uint16 neededPermissions, uint16 senderPermsLevel) participantOnly(sender,senderPermsLevel) internal {
 
-        (uint16 senderPermissions, uint8 senderLevel) = extractPermissionLevel(senderPermsLevel);
-        requireParticipant(sender, senderPermsLevel);
+        uint16 senderPermissions= extractPermission(senderPermsLevel);
         requireOneOperator(sender, senderPermissions);
         string memory errorMessage = "not allowed";
         // TODO: fix error messages to include more debug info
@@ -112,6 +109,7 @@ contract Gatekeeper is PermissionsLevel {
     uint constant maxLevels = 10;
     uint constant maxDelay = 365 days;
     uint constant maxFreeze = 365 days;
+
 
     function initialConfig(Vault vaultParam, bytes32[] memory initialParticipants, uint256[] memory initialDelays) public {
         require(operator == address(0), "already initialized");
@@ -243,6 +241,7 @@ contract Gatekeeper is PermissionsLevel {
         address scheduler, uint16 schedulerPermsLevel,
         address booster, uint16 boosterPermsLevel,
         uint16 senderPermsLevel)
+    participantOnly(msg.sender, senderPermsLevel)
     nonFrozen(senderPermsLevel)
     public {
         if (booster != address(0))
@@ -264,8 +263,9 @@ contract Gatekeeper is PermissionsLevel {
     }
 
     function applyTransfer(bytes memory operation, uint256 nonce, uint16 senderPermsLevel)
+    participantOnly(msg.sender, senderPermsLevel)
+    nonFrozen(senderPermsLevel)
     public {
-        requireParticipant(msg.sender, senderPermsLevel);
         // TODO: test!!!
         vault.applyDelayedTransfer(operation, nonce);
     }
