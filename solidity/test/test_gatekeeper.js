@@ -311,7 +311,6 @@ contract('Gatekeeper', async function (accounts) {
         let nonceInExtraData = Buffer.from("0000000000000000000000000000000000000000000000000000000000000001","hex");
         let expectedMetadata = "0x" + ABI.rawEncode(["address", "bytes32"], [gatekeeper.address, nonceInExtraData]).toString("hex");
         assert.equal(log.args.batchMetadata, expectedMetadata);
-        // TODO: go through gatekeeper::applyTransfer
         let encodedABI = vault.contract.methods.transferERC20(gatekeeper.address, nonceInExtraData, destinationAddresss, amount, erc20.address).encodeABI();
         let encodedPacked = utils.bufferToHex(utils.encodePackedBatch([encodedABI]));
         assert.equal(log.args.operation, encodedPacked);
