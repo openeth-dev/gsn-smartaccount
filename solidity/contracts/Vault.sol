@@ -81,7 +81,7 @@ contract Vault is DelayedOps {
     function transferETH(address /*sender*/, uint256 opsNonce, address payable destination, uint256 value)
     thisOnly
     external {
-        require(value < address(this).balance, "Cannot transfer more then vault's balance");
+        require(value <= address(this).balance, "Cannot transfer more then vault's balance");
         destination.transfer(value);
         emit TransactionCompleted(destination, value, address(0), opsNonce);
     }
@@ -89,6 +89,7 @@ contract Vault is DelayedOps {
     function transferERC20(address /*sender*/, uint256 opsNonce, address payable destination, uint256 value, ERC20 token)
     thisOnly
     external {
+        require(value <= token.balanceOf(address(this)), "Cannot transfer more then vault's balance");
         token.transfer(destination, value);
         emit TransactionCompleted(destination, value, address(token), opsNonce);
     }
