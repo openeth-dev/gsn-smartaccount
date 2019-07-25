@@ -66,15 +66,15 @@ contract Gatekeeper is DelayedOps, PermissionsLevel {
             "not a real operator");
     }
 
-    function requireParticipant(address participant, uint16 permsLevel) internal {
+    modifier participantOnly(address participant, uint16 permsLevel) {
         require(participants[participantHash(participant, permsLevel)], "not participant");
+        _;
     }
 
     // Modifiers are added to the stack, so I hit 'stack too deep' a lot. This should be easier on compiler to digest.
-    function hasPermissionsInternal(address sender, uint16 neededPermissions, uint16 senderPermsLevel) internal {
+    function hasPermissionsInternal(address sender, uint16 neededPermissions, uint16 senderPermsLevel) participantOnly(sender,senderPermsLevel) internal {
 
-        (uint16 senderPermissions, uint8 senderLevel) = extractPermissionLevel(senderPermsLevel);
-        requireParticipant(sender, senderPermsLevel);
+        uint16 senderPermissions= extractPermission(senderPermsLevel);
         requireOneOperator(sender, senderPermissions);
         string memory errorMessage = "not allowed";
         // TODO: fix error messages to include more debug info
@@ -99,6 +99,7 @@ contract Gatekeeper is DelayedOps, PermissionsLevel {
     uint constant maxLevels = 10;
     uint constant maxDelay = 365 days;
     uint constant maxFreeze = 365 days;
+
 
     function initialConfig(Vault vaultParam, bytes32[] memory initialParticipants, uint256[] memory initialDelays) public {
         require(operator == address(0), "already initialized");
@@ -224,6 +225,7 @@ contract Gatekeeper is DelayedOps, PermissionsLevel {
         address scheduler, uint16 schedulerPermsLevel,
         address booster, uint16 boosterPermsLevel,
         bytes memory batch, uint16 senderPermsLevel, uint256 nonce)
+    participantOnly(msg.sender, senderPermsLevel)
     nonFrozen(senderPermsLevel)
     public {
         if (booster != address(0))
@@ -233,14 +235,14 @@ contract Gatekeeper is DelayedOps, PermissionsLevel {
         else {
             nonFrozenInternal(schedulerPermsLevel, "scheduler level is frozen");
         }
-        requireParticipant(msg.sender, senderPermsLevel);
         bytes memory batchMetadata = abi.encode(scheduler, schedulerPermsLevel, booster, boosterPermsLevel);
         applyDelayedOps(batchMetadata, nonce, batch);
     }
 
     function applyTransfer(bytes memory operation, uint256 nonce, uint16 senderPermsLevel)
+    participantOnly(msg.sender, senderPermsLevel)
+    nonFrozen(senderPermsLevel)
     public {
-        requireParticipant(msg.sender, senderPermsLevel);
         // TODO: test!!!
         vault.applyDelayedTransfer(operation, nonce);
     }

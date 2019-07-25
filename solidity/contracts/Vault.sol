@@ -86,7 +86,8 @@ contract Vault is DelayedOps {
         emit TransactionCompleted(destination, value, address(0), opsNonce);
     }
 
-    function transferERC20(address /*sender*/, uint256 opsNonce, address payable destination, uint256 value, ERC20 token) thisOnly
+    function transferERC20(address /*sender*/, uint256 opsNonce, address payable destination, uint256 value, ERC20 token)
+    thisOnly
     external {
         token.transfer(destination, value);
         emit TransactionCompleted(destination, value, address(token), opsNonce);
