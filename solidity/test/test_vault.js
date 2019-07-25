@@ -11,12 +11,12 @@ Chai.use(require('bn-chai')(web3.utils.toBN));
 const Vault = artifacts.require("./Vault.sol");
 const DAI = artifacts.require("./DAI.sol");
 
-contract('Vault', function (accounts) {
+contract.only('Vault', function (accounts) {
 
     let vault;
     let erc20;
     let amount = 100;
-    let fundedAmount = amount * 3;
+    let fundedAmount = amount;
     let delay = 77;
     let from = accounts[0];
     let mockGK = accounts[0]
@@ -42,7 +42,18 @@ contract('Vault', function (accounts) {
         ).to.be.revertedWith("Cannot transfer more then vault's balance");
     });
 
-    it("should fail to execute a delayed ERC20 transfer transaction if not enough funds");
+    it("should fail to execute a delayed ERC20 transfer transaction if not enough funds", async function () {
+        let res = await vault.scheduleDelayedERC20Transfer(delay, destination, amount, erc20.address);
+        let log = res.logs[0];
+        let balance = parseInt(await web3.eth.getBalance(vault.address));
+        assert.equal(balance, 0);
+
+        await truffleUtils.increaseTime(3600 * 24 * 2 + 10, web3);
+
+        await expect(
+            vault.applyDelayedTransfer(log.args.operation, log.args.opsNonce)
+        ).to.be.revertedWith("Cannot transfer more then vault's balance");
+    });
 
 
     /* Positive flows */
