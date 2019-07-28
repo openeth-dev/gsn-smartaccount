@@ -217,10 +217,12 @@ class VaultContractInteractor {
     }
 
     async sendEther({destination, value}) {
+        let levelDelay = (await this.getDelays())[1];
         let web3receipt = await this.gatekeeper.sendEther(
             destination,
             value,
             this._myPermLevel(),
+            levelDelay,
             {from: this.account});
         return new TransactionReceipt(web3receipt);
     }

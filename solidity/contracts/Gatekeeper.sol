@@ -24,7 +24,7 @@ contract Gatekeeper is DelayedOps, PermissionsLevel {
     // ***********************************
 
     //***** events from other contracts for truffle
-    event TransactionCompleted(address destination, uint value, ERC20 erc20token, uint256 nonce);
+    event TransactionCompleted(address destination, uint value, address erc20token, uint256 nonce);
     event OperationCancelled(address sender, bytes32 hash);
     //***** </events>
 
@@ -140,7 +140,7 @@ contract Gatekeeper is DelayedOps, PermissionsLevel {
     nonFrozen(senderPermsLevel)
     public
     {
-        uint until = now + interval;
+        uint until = SafeMath.add(now, interval);
         uint8 senderLevel = extractLevel(senderPermsLevel);
         require(levelToFreeze <= senderLevel, "cannot freeze level that is higher than caller");
         require(levelToFreeze > frozenLevel, "cannot freeze level that is lower than already frozen");
@@ -202,11 +202,22 @@ contract Gatekeeper is DelayedOps, PermissionsLevel {
         cancelDelayedOp(hash);
     }
 
-    function sendEther(address payable destination, uint value, uint16 senderPermsLevel)
+    function sendEther(address payable destination, uint value, uint16 senderPermsLevel, uint256 delay)
     hasPermissions(msg.sender, canSpend, senderPermsLevel)
     nonFrozen(senderPermsLevel)
     public {
-        vault.scheduleDelayedEtherTransfer(delays[extractLevel(senderPermsLevel)], destination, value);
+        uint256 levelDelay = delays[extractLevel(senderPermsLevel)];
+        require( levelDelay <= delay && delay <= maxDelay, "Invalid delay given");
+        vault.scheduleDelayedEtherTransfer(delay, destination, value);
+    }
+
+    function sendERC20(address payable destination, uint value, uint16 senderPermsLevel, uint256 delay, address token)
+    hasPermissions(msg.sender, canSpend, senderPermsLevel)
+    nonFrozen(senderPermsLevel)
+    public {
+        uint256 levelDelay = delays[extractLevel(senderPermsLevel)];
+        require( levelDelay <= delay && delay <= maxDelay, "Invalid delay given");
+        vault.scheduleDelayedERC20Transfer(delay, destination, value, token);
     }
 
     function applyBatch(

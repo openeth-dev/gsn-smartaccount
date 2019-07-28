@@ -1,6 +1,7 @@
 pragma solidity ^0.5.8;
 
 import "@0x/contracts-utils/contracts/src/LibBytes.sol";
+import "openzeppelin-solidity/contracts/math/SafeMath.sol";
 
 /**
  * Base contract for delayed operations.
@@ -34,7 +35,7 @@ contract DelayedOps {
         require(delayTime > 0, "validateOperation: should have positive delayTime");
         bytes32 hash = delayedOpHash(batchMetadata, opsNonce, batch);
         require(pending[hash] == 0, "repeated delayed op");
-        uint dueTime = now + delayTime;
+        uint dueTime = SafeMath.add(now, delayTime);
         pending[hash] = dueTime;
         emit DelayedOperation(batchMetadata, opsNonce, batch, dueTime);
         opsNonce = opsNonce + 1;
