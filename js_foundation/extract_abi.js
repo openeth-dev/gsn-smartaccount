@@ -80,8 +80,8 @@ contractsToExtract.forEach(c => {
     fs.writeFileSync(outAbiFile, abi);
     fs.writeFileSync(outNodeFile, "module.exports=" + abi);
     fs.writeFileSync(outBinFile, binary);
-    console.log("written \"" + outAbiFile + "\"")
-    console.log("written \"" + outNodeFile + "\"")
-    console.log("written \"" + outBinFile + "\"")
+    console.log("written \"" + outAbiFile + "\"");
+    console.log("written \"" + outNodeFile + "\"");
+    console.log("written \"" + outBinFile + "\"");
 });
 
