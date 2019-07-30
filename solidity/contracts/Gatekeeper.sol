@@ -5,10 +5,24 @@ import "./Vault.sol";
 import "./PermissionsLevel.sol";
 import "openzeppelin-solidity/contracts/cryptography/ECDSA.sol";
 
-contract Gatekeeper is DelayedOps, PermissionsLevel {
+contract Gatekeeper is PermissionsLevel {
     using ECDSA for bytes32;
 
+    enum ChangeType {
+        ADD_PARTICIPANT, // arg: participant_hash
+        REMOVE_PARTICIPANT, // arg: participant_hash
+        CHOWN, // arg: address
+        UNFREEZE            // no args
+    }
+
     //***** events
+
+    // TODO: remove after merge with Vault w/o DelayedOps
+    event DelayedOperation(bytes batchMetadata, uint256 opsNonce, bytes operation, uint dueTime);
+
+    event ConfigPending(bytes32 indexed transactionHash, address sender, uint16 senderPermsLevel, address booster, uint16 boosterPermsLevel, uint256 stateId, uint8[] actions, bytes32[] actionsArguments);
+    event ConfigCancelled(bytes32 indexed transactionHash, address sender);
+
     event ParticipantAdded(bytes32 indexed participant);
     event ParticipantRemoved(bytes32 indexed participant);
     event OwnerChanged(address indexed newOwner);
@@ -30,9 +44,10 @@ contract Gatekeeper is DelayedOps, PermissionsLevel {
 
     Vault vault;
 
+    mapping(bytes32 => uint) pendingChanges;
     uint256[] public delays;
 
-    function getDelays() public view returns(uint256[] memory) {
+    function getDelays() public view returns (uint256[] memory) {
         return delays;
     }
 
@@ -41,6 +56,8 @@ contract Gatekeeper is DelayedOps, PermissionsLevel {
 
     uint256 public frozenLevel;
     uint256 public frozenUntil;
+
+    uint256 public stateId;
 
     constructor() public {
 
@@ -90,11 +107,6 @@ contract Gatekeeper is DelayedOps, PermissionsLevel {
         _;
     }
 
-    modifier thisOnly() {
-        require(address(this) == msg.sender, "Function can only be called by Gatekeeper");
-        _;
-    }
-
     uint constant maxParticipants = 20;
     uint constant maxLevels = 10;
     uint constant maxDelay = 365 days;
@@ -120,19 +132,6 @@ contract Gatekeeper is DelayedOps, PermissionsLevel {
         emit GatekeeperInitialized(address(vault), initialParticipants);
     }
 
-    function validateOperation(bytes memory blob, bytes memory singleOp) internal {
-        (address senderClaim, uint16 senderPermsLevelClaim) = abi.decode(blob, (address, uint16));
-        bytes4 selector = LibBytes.readBytes4(singleOp, 0);
-        require( selector == this.addParticipant.selector
-        || selector == this.removeParticipant.selector
-        || selector == this.changeOwner.selector
-        || selector == this.unfreeze.selector, "Invalid method access");
-        address senderParam = address(LibBytes.readUint256(singleOp, 4));
-        require(senderClaim == senderParam, "claimed sender is incorrect");
-        uint256 senderPermsLevelParam = LibBytes.readUint256(singleOp, 36);
-        require(senderPermsLevelClaim == senderPermsLevelParam, "claimed permissions are incorrect");
-    }
-
     // ****** Immediately runnable functions below this point
 
     function freeze(uint16 senderPermsLevel, uint8 levelToFreeze, uint interval)
@@ -153,39 +152,47 @@ contract Gatekeeper is DelayedOps, PermissionsLevel {
         emit LevelFrozen(frozenLevel, frozenUntil, msg.sender);
     }
 
-    function boostedConfigChange(uint16 boosterPermsLevel, uint16 signerPermsLevel,
-        bytes memory batch, bytes memory signature)
+    function boostedConfigChange(uint8[] memory actions, bytes32[] memory args, uint256 targetStateId, uint16 boosterPermsLevel, uint16 signerPermsLevel, bytes memory signature)
     hasPermissions(msg.sender, canExecuteBoosts, boosterPermsLevel)
     nonFrozen(boosterPermsLevel)
     public {
-        address signer = keccak256(batch).toEthSignedMessageHash().recover(signature);
+        // TODO: do this in every method, as a function/modifier
+        require(stateId == targetStateId, "contract state changed since transaction was created");
+        // Signed change doesn't have 'sender' or 'booster' info, as sender == signer and can use different boosters
+        bytes32 changeHash = keccak256(abi.encodePacked(actions, args, stateId));
+        address signer = changeHash.toEthSignedMessageHash().recover(signature);
         hasPermissionsInternal(signer, canSignBoosts, signerPermsLevel);
-        changeConfigurationInternal(signer, signerPermsLevel, msg.sender, boosterPermsLevel, batch);
+        changeConfigurationInternal(actions, args, signer, signerPermsLevel, msg.sender, boosterPermsLevel);
     }
 
-    function changeConfiguration(uint16 senderPermsLevel, bytes memory batch)
+
+    function changeConfiguration(uint8[] memory actions, bytes32[] memory args, uint256 targetStateId, uint16 senderPermsLevel) public
     hasPermissions(msg.sender, canChangeConfig, senderPermsLevel)
     nonFrozen(senderPermsLevel)
-    public
     {
-        changeConfigurationInternal(msg.sender, senderPermsLevel, address(0), 0, batch);
+        // TODO: do this in every method, as a function/modifier
+        require(stateId == targetStateId, "contract state changed since transaction was created");
+        changeConfigurationInternal(actions, args, msg.sender, senderPermsLevel, address(0), 0);
     }
 
-    // Note: 'nonFrozen' is checked in public methods, as we either need to check the real sender, or the booster
-    function changeConfigurationInternal(address sender, uint16 senderPermsLevel, address booster, uint16 boosterPermsLevel, bytes memory batch)
-    hasPermissions(sender, canChangeConfig, senderPermsLevel)
+    function changeConfigurationInternal(uint8[] memory actions, bytes32[] memory args, address sender, uint16 senderPermsLevel, address booster, uint16 boosterPermsLevel)
     internal {
-        bytes memory batchMetadata = abi.encode(sender, senderPermsLevel, booster, boosterPermsLevel);
-        scheduleDelayedBatch(batchMetadata, delays[extractLevel(senderPermsLevel)], batch);
+        bytes32 transactionHash = keccak256(abi.encodePacked(actions, args, stateId, sender, senderPermsLevel, booster, boosterPermsLevel));
+        pendingChanges[transactionHash] = SafeMath.add(now, delays[extractLevel(senderPermsLevel)]);
+        emit ConfigPending(transactionHash, sender, senderPermsLevel, booster, boosterPermsLevel, stateId, actions, args);
+        // TODO: do this in every method, as a function/modifier
+        stateId++;
     }
 
     function scheduleChangeOwner(uint16 senderPermsLevel, address newOwner)
     hasPermissions(msg.sender, canChangeOwner, senderPermsLevel)
     nonFrozen(senderPermsLevel)
     public {
-        bytes memory batchMetadata = abi.encode(msg.sender, senderPermsLevel, address(0), uint16(0));
-        bytes memory delayedTransaction = abi.encodeWithSelector(this.changeOwner.selector, msg.sender, senderPermsLevel, newOwner);
-        scheduleDelayedBatch(batchMetadata, delays[extractLevel(senderPermsLevel)], encodeDelayed(delayedTransaction));
+        uint8[] memory actions = new uint8[](1);
+        actions[0] = uint8(ChangeType.CHOWN);
+        bytes32[] memory args = new bytes32[](1);
+        args[0] = bytes32(uint256(newOwner));
+        changeConfigurationInternal(actions, args, msg.sender, senderPermsLevel, address(0), 0);
     }
 
     function cancelTransfer(uint16 senderPermsLevel, bytes32 hash)
@@ -195,11 +202,21 @@ contract Gatekeeper is DelayedOps, PermissionsLevel {
         vault.cancelTransfer(hash);
     }
 
-    function cancelOperation(uint16 senderPermsLevel, bytes32 hash)
+    function cancelOperation(uint8[] memory actions, bytes32[] memory args, uint256 scheduledStateId, address scheduler, uint16 schedulerPermsLevel, address booster, uint16 boosterPermsLevel, uint16 senderPermsLevel)
     hasPermissions(msg.sender, canCancel, senderPermsLevel)
     nonFrozen(senderPermsLevel)
     public {
-        cancelDelayedOp(hash);
+        bytes32 hash = keccak256(abi.encodePacked(actions, args, scheduledStateId, scheduler, schedulerPermsLevel, booster, boosterPermsLevel));
+        require(pendingChanges[hash] > 0, "cannot cancel, operation does not exist");
+        // TODO: refactor, make function or whatever
+        if (booster != address(0)) {
+            require(extractLevel(boosterPermsLevel) <= extractLevel(senderPermsLevel), "cannot cancel, booster is of higher level");
+        }
+        else {
+            require(extractLevel(schedulerPermsLevel) <= extractLevel(senderPermsLevel), "cannot cancel, scheduler is of higher level");
+        }
+        delete pendingChanges[hash];
+        emit ConfigCancelled(hash, msg.sender);
     }
 
     function sendEther(address payable destination, uint value, uint16 senderPermsLevel, uint256 delay)
@@ -207,7 +224,7 @@ contract Gatekeeper is DelayedOps, PermissionsLevel {
     nonFrozen(senderPermsLevel)
     public {
         uint256 levelDelay = delays[extractLevel(senderPermsLevel)];
-        require( levelDelay <= delay && delay <= maxDelay, "Invalid delay given");
+        require(levelDelay <= delay && delay <= maxDelay, "Invalid delay given");
         vault.scheduleDelayedEtherTransfer(delay, destination, value);
     }
 
@@ -216,14 +233,15 @@ contract Gatekeeper is DelayedOps, PermissionsLevel {
     nonFrozen(senderPermsLevel)
     public {
         uint256 levelDelay = delays[extractLevel(senderPermsLevel)];
-        require( levelDelay <= delay && delay <= maxDelay, "Invalid delay given");
+        require(levelDelay <= delay && delay <= maxDelay, "Invalid delay given");
         vault.scheduleDelayedERC20Transfer(delay, destination, value, token);
     }
 
-    function applyBatch(
+    function applyConfig(
+        uint8[] memory actions, bytes32[] memory args, uint256 scheduledStateId,
         address scheduler, uint16 schedulerPermsLevel,
         address booster, uint16 boosterPermsLevel,
-        bytes memory batch, uint16 senderPermsLevel, uint256 nonce)
+        uint16 senderPermsLevel)
     nonFrozen(senderPermsLevel)
     public {
         if (booster != address(0))
@@ -233,9 +251,15 @@ contract Gatekeeper is DelayedOps, PermissionsLevel {
         else {
             nonFrozenInternal(schedulerPermsLevel, "scheduler level is frozen");
         }
-        requireParticipant(msg.sender, senderPermsLevel);
-        bytes memory batchMetadata = abi.encode(scheduler, schedulerPermsLevel, booster, boosterPermsLevel);
-        applyDelayedOps(batchMetadata, nonce, batch);
+        bytes32 transactionHash = keccak256(abi.encodePacked(actions, args, scheduledStateId, scheduler, schedulerPermsLevel, booster, boosterPermsLevel));
+        uint dueTime = pendingChanges[transactionHash];
+        require(dueTime != 0, "apply called for non existent pending change");
+        require(now >= dueTime, "apply called before due time");
+        for (uint i = 0; i < actions.length; i++) {
+            dispatch(actions[i], args[i], scheduler, schedulerPermsLevel);
+        }
+        // TODO: do this in every method, as a function/modifier
+        stateId++;
     }
 
     function applyTransfer(bytes memory operation, uint256 nonce, uint16 senderPermsLevel)
@@ -245,13 +269,38 @@ contract Gatekeeper is DelayedOps, PermissionsLevel {
         vault.applyDelayedTransfer(operation, nonce);
     }
 
+    function dispatch(uint8 actionInt, bytes32 arg, address sender, uint16 senderPermsLevel) private {
+        ChangeType action = ChangeType(actionInt);
+        if (action == ChangeType.ADD_PARTICIPANT) {
+            addParticipantHash(sender, senderPermsLevel, arg);
+        }
+        else if (action == ChangeType.REMOVE_PARTICIPANT) {
+            removeParticipant(sender, senderPermsLevel, arg);
+        }
+        else if (action == ChangeType.CHOWN) {
+            changeOwner(sender, senderPermsLevel, address(uint256(arg)));
+        }
+        else if (action == ChangeType.UNFREEZE) {
+            unfreeze(sender, senderPermsLevel);
+        }
+        else {
+            revert("operation not supported");
+        }
+    }
+
     // ********** Delayed operations below this point
 
     // TODO: obviously does not conceal the level and identity
+    function addParticipantHash(address sender, uint16 senderPermsLevel, bytes32 hash)
+    hasPermissions(sender, canChangeParticipants, senderPermsLevel)
+    private {
+        participants[hash] = true;
+        emit ParticipantAdded(hash);
+    }
+
     function addParticipant(address sender, uint16 senderPermsLevel, address newParticipant, uint16 permsLevel)
     hasPermissions(sender, canChangeParticipants, senderPermsLevel)
-    thisOnly
-    external {
+    private {
         bytes32 hash = participantHash(newParticipant, permsLevel);
         participants[hash] = true;
         emit ParticipantAdded(hash);
@@ -259,8 +308,7 @@ contract Gatekeeper is DelayedOps, PermissionsLevel {
 
     function removeParticipant(address sender, uint16 senderPermsLevel, bytes32 participant)
     hasPermissions(sender, canChangeParticipants, senderPermsLevel)
-    thisOnly
-    external {
+    private {
         require(participants[participant], "there is no such participant");
         delete participants[participant];
         emit ParticipantRemoved(participant);
@@ -268,8 +316,7 @@ contract Gatekeeper is DelayedOps, PermissionsLevel {
 
     function changeOwner(address sender, uint16 senderPermsLevel, address newOwner)
     hasPermissions(sender, canChangeOwner, senderPermsLevel)
-    thisOnly
-    external {
+    private {
         require(newOwner != address(0), "cannot set owner to zero address");
         bytes32 oldParticipant = participantHash(operator, packPermissionLevel(ownerPermissions, 1));
         bytes32 newParticipant = participantHash(newOwner, packPermissionLevel(ownerPermissions, 1));
@@ -281,8 +328,7 @@ contract Gatekeeper is DelayedOps, PermissionsLevel {
 
     function unfreeze(address sender, uint16 senderPermsLevel)
     hasPermissions(sender, canUnfreeze, senderPermsLevel)
-    thisOnly
-    external {
+    private {
         frozenLevel = 0;
         frozenUntil = 0;
         emit UnfreezeCompleted();

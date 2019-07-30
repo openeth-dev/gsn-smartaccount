@@ -149,7 +149,7 @@ context('VaultContractInteractor Integration Test', function () {
             await web3.eth.sendTransaction({from: accounts[0], to: interactor.vault.address, value: fund});
         });
 
-        it("can schedule to change participants in the vault and later apply it", async function () {
+        it.skip("can schedule to change participants in the vault and later apply it", async function () {
             let participants = [
                 operatorA.expect(),
                 admin23.expect(),
@@ -201,7 +201,7 @@ context('VaultContractInteractor Integration Test', function () {
 
         });
 
-        it("can freeze and unfreeze", async function () {
+        it.skip("can freeze and unfreeze", async function () {
             let receipt1 = await interactor.freeze(1, 1000);
             let levelFrozenEvents = await interactor.getLevelFrozenEvents(
                 {
@@ -287,7 +287,7 @@ context('VaultContractInteractor Integration Test', function () {
 
         });
 
-        it("can change owner", async function () {
+        it.skip("can change owner", async function () {
             let receipt1 = await interactor.scheduleChangeOwner(operatorB.address);
             let delayedOpEvents = await interactor.getDelayedOperationsEvents({
                 fromBlock: receipt1.blockNumber,

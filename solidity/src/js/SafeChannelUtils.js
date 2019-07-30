@@ -60,6 +60,13 @@ module.exports = {
         return "0x" + buffer.toString("hex");
     },
 
+    delayedOpHashNew: function (actions, args, stateId, sender, senderPermsLevel, booster, boosterPermsLevel) {
+        return ABI.soliditySHA3(
+            ["uint8[]", "bytes32[]", "uint256", "address", "uint16", "address", "uint16"],
+            [actions, args, stateId, sender, senderPermsLevel, booster, boosterPermsLevel])
+    },
+
+    // TODO: remove
     delayedOpHash: function (batchMetadata, nonce, batch) {
         return ABI.soliditySHA3(["bytes", "uint256", "bytes"], [batchMetadata, nonce, batch])
     },
@@ -80,7 +87,7 @@ module.exports = {
     validateConfigDelays: async function (delays, gatekeeper) {
         let onchainDelays = await gatekeeper.getDelays();
         for (let i = 0; i < delays.length; i++) {
-            assert.equal(onchainDelays[i],delays[i]);
+            assert.equal(onchainDelays[i], delays[i]);
         }
     },
 

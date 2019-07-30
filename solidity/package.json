@@ -25,7 +25,7 @@
   },
   "dependencies": {
     "bn-chai": "^1.0.1",
-    "ethereumjs-abi": "latest",
+    "ethereumjs-abi": "file:ethereumjs-abi-0.6.4.tgz",
     "ethereumjs-util": "^6.1.0",
     "openzeppelin-solidity": "^2.3.0",
     "web3-utils": "^1.0.0"
