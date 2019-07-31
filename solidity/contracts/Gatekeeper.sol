@@ -272,7 +272,7 @@ contract Gatekeeper is PermissionsLevel {
     function dispatch(uint8 actionInt, bytes32 arg, address sender, uint16 senderPermsLevel) private {
         ChangeType action = ChangeType(actionInt);
         if (action == ChangeType.ADD_PARTICIPANT) {
-            addParticipantHash(sender, senderPermsLevel, arg);
+            addParticipant(sender, senderPermsLevel, arg);
         }
         else if (action == ChangeType.REMOVE_PARTICIPANT) {
             removeParticipant(sender, senderPermsLevel, arg);
@@ -291,17 +291,9 @@ contract Gatekeeper is PermissionsLevel {
     // ********** Delayed operations below this point
 
     // TODO: obviously does not conceal the level and identity
-    function addParticipantHash(address sender, uint16 senderPermsLevel, bytes32 hash)
+    function addParticipant(address sender, uint16 senderPermsLevel, bytes32 hash)
     hasPermissions(sender, canChangeParticipants, senderPermsLevel)
     private {
-        participants[hash] = true;
-        emit ParticipantAdded(hash);
-    }
-
-    function addParticipant(address sender, uint16 senderPermsLevel, address newParticipant, uint16 permsLevel)
-    hasPermissions(sender, canChangeParticipants, senderPermsLevel)
-    private {
-        bytes32 hash = participantHash(newParticipant, permsLevel);
         participants[hash] = true;
         emit ParticipantAdded(hash);
     }
