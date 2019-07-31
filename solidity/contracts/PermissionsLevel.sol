@@ -44,10 +44,6 @@ contract PermissionsLevel {
 
     }
 
-    function participantHash(address participant, uint16 permsLevel) public pure returns (bytes32) {
-        return keccak256(abi.encodePacked(participant, permsLevel));
-    }
-
     // TODO: increase size
     function extractPermissionLevel(uint16 permLev) pure internal returns (uint16 permissions, uint8 level) {
         permissions = permLev & 0x07FF;

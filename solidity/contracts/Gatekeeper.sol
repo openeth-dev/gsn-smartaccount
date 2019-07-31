@@ -3,6 +3,7 @@ pragma solidity ^0.5.5;
 import "./DelayedOps.sol";
 import "./Vault.sol";
 import "./PermissionsLevel.sol";
+import "./Utilities.sol";
 import "openzeppelin-solidity/contracts/cryptography/ECDSA.sol";
 
 contract Gatekeeper is PermissionsLevel {
@@ -84,7 +85,7 @@ contract Gatekeeper is PermissionsLevel {
     }
 
     function requireParticipant(address participant, uint16 permsLevel) internal {
-        require(participants[participantHash(participant, permsLevel)], "not participant");
+        require(participants[Utilities.participantHash(participant, permsLevel)], "not participant");
     }
 
     // Modifiers are added to the stack, so I hit 'stack too deep' a lot. This should be easier on compiler to digest.
@@ -127,7 +128,7 @@ contract Gatekeeper is PermissionsLevel {
         vault = vaultParam;
 
         operator = msg.sender;
-        participants[participantHash(operator, packPermissionLevel(ownerPermissions, 1))] = true;
+        participants[Utilities.participantHash(operator, packPermissionLevel(ownerPermissions, 1))] = true;
 
         emit GatekeeperInitialized(address(vault), initialParticipants);
     }
@@ -159,7 +160,7 @@ contract Gatekeeper is PermissionsLevel {
         // TODO: do this in every method, as a function/modifier
         require(stateId == targetStateId, "contract state changed since transaction was created");
         // Signed change doesn't have 'sender' or 'booster' info, as sender == signer and can use different boosters
-        bytes32 changeHash = keccak256(abi.encodePacked(actions, args, stateId));
+        bytes32 changeHash = Utilities.changeHash(actions, args, stateId);
         address signer = changeHash.toEthSignedMessageHash().recover(signature);
         hasPermissionsInternal(signer, canSignBoosts, signerPermsLevel);
         changeConfigurationInternal(actions, args, signer, signerPermsLevel, msg.sender, boosterPermsLevel);
@@ -177,7 +178,7 @@ contract Gatekeeper is PermissionsLevel {
 
     function changeConfigurationInternal(uint8[] memory actions, bytes32[] memory args, address sender, uint16 senderPermsLevel, address booster, uint16 boosterPermsLevel)
     internal {
-        bytes32 transactionHash = keccak256(abi.encodePacked(actions, args, stateId, sender, senderPermsLevel, booster, boosterPermsLevel));
+        bytes32 transactionHash = Utilities.transactionHash(actions, args, stateId, sender, senderPermsLevel, booster, boosterPermsLevel);
         pendingChanges[transactionHash] = SafeMath.add(now, delays[extractLevel(senderPermsLevel)]);
         emit ConfigPending(transactionHash, sender, senderPermsLevel, booster, boosterPermsLevel, stateId, actions, args);
         // TODO: do this in every method, as a function/modifier
@@ -206,7 +207,7 @@ contract Gatekeeper is PermissionsLevel {
     hasPermissions(msg.sender, canCancel, senderPermsLevel)
     nonFrozen(senderPermsLevel)
     public {
-        bytes32 hash = keccak256(abi.encodePacked(actions, args, scheduledStateId, scheduler, schedulerPermsLevel, booster, boosterPermsLevel));
+        bytes32 hash =  Utilities.transactionHash(actions, args, scheduledStateId, scheduler, schedulerPermsLevel, booster, boosterPermsLevel);
         require(pendingChanges[hash] > 0, "cannot cancel, operation does not exist");
         // TODO: refactor, make function or whatever
         if (booster != address(0)) {
@@ -251,7 +252,7 @@ contract Gatekeeper is PermissionsLevel {
         else {
             nonFrozenInternal(schedulerPermsLevel, "scheduler level is frozen");
         }
-        bytes32 transactionHash = keccak256(abi.encodePacked(actions, args, scheduledStateId, scheduler, schedulerPermsLevel, booster, boosterPermsLevel));
+        bytes32 transactionHash =  Utilities.transactionHash(actions, args, scheduledStateId, scheduler, schedulerPermsLevel, booster, boosterPermsLevel);
         uint dueTime = pendingChanges[transactionHash];
         require(dueTime != 0, "apply called for non existent pending change");
         require(now >= dueTime, "apply called before due time");
@@ -310,8 +311,8 @@ contract Gatekeeper is PermissionsLevel {
     hasPermissions(sender, canChangeOwner, senderPermsLevel)
     private {
         require(newOwner != address(0), "cannot set owner to zero address");
-        bytes32 oldParticipant = participantHash(operator, packPermissionLevel(ownerPermissions, 1));
-        bytes32 newParticipant = participantHash(newOwner, packPermissionLevel(ownerPermissions, 1));
+        bytes32 oldParticipant = Utilities.participantHash(operator, packPermissionLevel(ownerPermissions, 1));
+        bytes32 newParticipant = Utilities.participantHash(newOwner, packPermissionLevel(ownerPermissions, 1));
         participants[newParticipant] = true;
         delete participants[oldParticipant];
         operator = newOwner;
