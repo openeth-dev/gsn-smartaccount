@@ -11,7 +11,10 @@ Chai.use(require('bn-chai')(web3.utils.toBN));
 const Vault = artifacts.require("./Vault.sol");
 const DAI = artifacts.require("./DAI.sol");
 
-contract.only('Vault', function (accounts) {
+const zeroAddr = "0".repeat(40)
+const deadface = "0x00000000000000000000000000000000deadface"
+
+contract('Vault', function (accounts) {
 
     let vault;
     let erc20;
@@ -30,28 +33,31 @@ contract.only('Vault', function (accounts) {
 
 
     it("should fail to execute a delayed transfer transaction if not enough funds", async function () {
-        let res = await vault.scheduleDelayedEtherTransfer(delay, destination, amount);
+        let res = await vault.scheduleDelayedTransfer(delay, destination, amount, zeroAddr);
         let log = res.logs[0];
+        assert.equal(log.event, "TransactionPending");
         let balance = parseInt(await web3.eth.getBalance(vault.address));
         assert.equal(balance, 0);
 
         await truffleUtils.increaseTime(3600 * 24 * 2 + 10, web3);
 
+        console.log("log:", log)
         await expect(
-            vault.applyDelayedTransfer(log.args.operation, log.args.opsNonce)
+            vault.applyDelayedTransfer(log.args.delay, log.args.destination, log.args.value, log.args.erc20token, log.args.nonce, accounts[0])
         ).to.be.revertedWith("Cannot transfer more then vault's balance");
     });
 
     it("should fail to execute a delayed ERC20 transfer transaction if not enough funds", async function () {
-        let res = await vault.scheduleDelayedERC20Transfer(delay, destination, amount, erc20.address);
+        let res = await vault.scheduleDelayedTransfer(delay, destination, amount, erc20.address);
         let log = res.logs[0];
+        assert.equal(log.event, "TransactionPending");
         let balance = parseInt(await web3.eth.getBalance(vault.address));
         assert.equal(balance, 0);
 
         await truffleUtils.increaseTime(3600 * 24 * 2 + 10, web3);
 
         await expect(
-            vault.applyDelayedTransfer(log.args.operation, log.args.opsNonce)
+            vault.applyDelayedTransfer(log.args.delay, log.args.destination, log.args.value, log.args.erc20token, log.args.nonce, accounts[0])
         ).to.be.revertedWith("Cannot transfer more then vault's balance");
     });
 
@@ -68,30 +74,28 @@ contract.only('Vault', function (accounts) {
     });
 
     it("should allow to create a delayed ETH transaction and execute it after delay expires", async function () {
-        let res1 = await vault.scheduleDelayedEtherTransfer(delay, destination, amount);
+        let res1 = await vault.scheduleDelayedTransfer(delay, destination, amount, zeroAddr);
 
         let log1 = res1.logs[0];
-        let log2 = res1.logs[1];
-        assert.equal("DelayedOperation", log1.event);
-        assert.equal("TransactionPending", log2.event);
+        assert.equal("TransactionPending", log1.event);
         await expect(
-            vault.applyDelayedTransfer(log1.args.operation, log1.args.opsNonce.toString())
-        ).to.be.revertedWith("applyDelayedOps called before due time");
+            vault.applyDelayedTransfer(log1.args.delay, log1.args.destination, log1.args.value, log1.args.erc20token, log1.args.nonce, accounts[0])
+        ).to.be.revertedWith("applyDelayedTransfer called before due time");
 
         await truffleUtils.increaseTime(delay + 10, web3);
 
         let balanceSenderBefore = parseInt(await web3.eth.getBalance(vault.address));
         let balanceReceiverBefore = parseInt(await web3.eth.getBalance(destination));
 
-        let opsNonce = log1.args.opsNonce.toString();
-        let res2 = await vault.applyDelayedTransfer(log1.args.operation, opsNonce);
+        let nonce = log1.args.nonce.toString();
+        let res2 = await vault.applyDelayedTransfer(log1.args.delay, log1.args.destination, log1.args.value, log1.args.erc20token, log1.args.nonce, accounts[0]);
         let log3 = res2.logs[0];
 
         assert.equal(log3.event, "TransactionCompleted");
         assert.equal(log3.args.destination, destination);
         assert.equal(log3.args.value, amount);
         assert.equal(log3.args.erc20token, 0);
-        assert.equal(log3.args.nonce, opsNonce);
+        assert.equal(log3.args.nonce, nonce);
 
         let balanceSenderAfter = parseInt(await web3.eth.getBalance(vault.address));
         let balanceReceiverAfter = parseInt(await web3.eth.getBalance(destination));
@@ -106,23 +110,21 @@ contract.only('Vault', function (accounts) {
 
     it("should allow to create a delayed ERC20 transaction and execute it after delay expires", async function () {
 
-        let res1 = await vault.scheduleDelayedERC20Transfer(delay, destination, amount, erc20.address);
+        let res1 = await vault.scheduleDelayedTransfer(delay, destination, amount, erc20.address);
 
         let log1 = res1.logs[0];
-        let log2 = res1.logs[1];
-        assert.equal("DelayedOperation", log1.event);
-        assert.equal("TransactionPending", log2.event);
+        assert.equal("TransactionPending", log1.event);
         await expect(
-            vault.applyDelayedTransfer(log1.args.operation, log1.args.opsNonce.toString())
-        ).to.be.revertedWith("applyDelayedOps called before due time");
+            vault.applyDelayedTransfer(log1.args.delay, log1.args.destination, log1.args.value, log1.args.erc20token, log1.args.nonce, accounts[0])
+        ).to.be.revertedWith("applyDelayedTransfer called before due time");
 
         await truffleUtils.increaseTime(delay + 10, web3);
 
         let balanceSenderBefore = (await erc20.balanceOf(vault.address)).toNumber();
         let balanceReceiverBefore = (await erc20.balanceOf(destination)).toNumber();
 
-        let opsNonce = log1.args.opsNonce.toString();
-        let res2 = await vault.applyDelayedTransfer(log1.args.operation, opsNonce);
+        let nonce = log1.args.nonce.toString();
+        let res2 = await vault.applyDelayedTransfer(log1.args.delay, log1.args.destination, log1.args.value, log1.args.erc20token, log1.args.nonce, accounts[0]);
         let log3 = res2.logs[0];
         let log4 = res2.logs[1];
 
@@ -131,7 +133,7 @@ contract.only('Vault', function (accounts) {
         assert.equal(log4.args.destination, destination);
         assert.equal(log4.args.value, amount);
         assert.equal(log4.args.erc20token, erc20.address);
-        assert.equal(log4.args.nonce, opsNonce);
+        assert.equal(log4.args.nonce, nonce);
 
         let balanceSenderAfter = (await erc20.balanceOf(vault.address)).toNumber();
         let balanceReceiverAfter = (await erc20.balanceOf(destination)).toNumber();
@@ -140,36 +142,32 @@ contract.only('Vault', function (accounts) {
     });
 
     it("should allow to cancel ETH transaction before delay expires", async function () {
-        let res1 = await vault.scheduleDelayedEtherTransfer(delay, destination, amount);
+        let res1 = await vault.scheduleDelayedTransfer(delay, destination, amount, zeroAddr);
 
         let log1 = res1.logs[0];
-        let log2 = res1.logs[1];
-        assert.equal("DelayedOperation", log1.event);
-        assert.equal("TransactionPending", log2.event);
+        assert.equal("TransactionPending", log1.event);
         await expect(
-            vault.applyDelayedTransfer(log1.args.operation, log1.args.opsNonce.toString())
-        ).to.be.revertedWith("applyDelayedOps called before due time");
+            vault.applyDelayedTransfer(log1.args.delay, log1.args.destination, log1.args.value, log1.args.erc20token, log1.args.nonce, accounts[0])
+        ).to.be.revertedWith("applyDelayedTransfer called before due time");
 
-        let hash = await vault.delayedOpHash(log1.args.batchMetadata, log1.args.opsNonce,log1.args.operation)
-        res1 = await vault.cancelTransfer(hash)
-        assert.equal("DelayedOperationCancelled", res1.logs[0].event);
+
+        // let hash = await vault.delayedOpHash(log1.args.batchMetadata, log1.args.opsNonce,log1.args.operation)
+        res1 = await vault.cancelTransfer(log1.args.delay, log1.args.destination, log1.args.value, log1.args.erc20token, log1.args.nonce, accounts[0])
+        assert.equal("TransactionCancelled", res1.logs[0].event);
 
     });
 
     it("should allow to cancel ERC20 transaction before delay expires", async function () {
-        let res1 = await vault.scheduleDelayedERC20Transfer(delay, destination, amount, erc20.address);
+        let res1 = await vault.scheduleDelayedTransfer(delay, destination, amount, erc20.address);
 
         let log1 = res1.logs[0];
-        let log2 = res1.logs[1];
-        assert.equal("DelayedOperation", log1.event);
-        assert.equal("TransactionPending", log2.event);
+        assert.equal("TransactionPending", log1.event);
         await expect(
-            vault.applyDelayedTransfer(log1.args.operation, log1.args.opsNonce.toString())
-        ).to.be.revertedWith("applyDelayedOps called before due time");
+            vault.applyDelayedTransfer(log1.args.delay, log1.args.destination, log1.args.value, log1.args.erc20token, log1.args.nonce, accounts[0])
+        ).to.be.revertedWith("applyDelayedTransfer called before due time");
 
-        let hash = await vault.delayedOpHash(log1.args.batchMetadata, log1.args.opsNonce,log1.args.operation)
-        res1 = await vault.cancelTransfer(hash)
-        assert.equal("DelayedOperationCancelled", res1.logs[0].event);
+        res1 = await vault.cancelTransfer(log1.args.delay, log1.args.destination, log1.args.value, log1.args.erc20token, log1.args.nonce, accounts[0])
+        assert.equal("TransactionCancelled", res1.logs[0].event);
 
     });
 

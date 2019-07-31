@@ -194,11 +194,11 @@ contract Gatekeeper is PermissionsLevel {
         changeConfigurationInternal(actions, args, msg.sender, senderPermsLevel, address(0), 0);
     }
 
-    function cancelTransfer(uint16 senderPermsLevel, bytes32 hash)
+    function cancelTransfer(uint16 senderPermsLevel, uint256 delay, address destination, uint256 value, address token, uint256 nonce )
     hasPermissions(msg.sender, canCancel, senderPermsLevel)
     nonFrozen(senderPermsLevel)
     public {
-        vault.cancelTransfer(hash);
+        vault.cancelTransfer(delay, destination, value, token, nonce, msg.sender);
     }
 
     function cancelOperation(uint8[] memory actions, bytes32[] memory args, uint256 scheduledStateId, address scheduler, uint16 schedulerPermsLevel, address booster, uint16 boosterPermsLevel, uint16 senderPermsLevel)
@@ -224,7 +224,7 @@ contract Gatekeeper is PermissionsLevel {
     public {
         uint256 levelDelay = delays[extractLevel(senderPermsLevel)];
         require(levelDelay <= delay && delay <= maxDelay, "Invalid delay given");
-        vault.scheduleDelayedEtherTransfer(delay, destination, value);
+        vault.scheduleDelayedTransfer(delay, destination, value, address(0));
     }
 
     function sendERC20(address payable destination, uint value, uint16 senderPermsLevel, uint256 delay, address token)
@@ -233,7 +233,7 @@ contract Gatekeeper is PermissionsLevel {
     public {
         uint256 levelDelay = delays[extractLevel(senderPermsLevel)];
         require(levelDelay <= delay && delay <= maxDelay, "Invalid delay given");
-        vault.scheduleDelayedERC20Transfer(delay, destination, value, token);
+        vault.scheduleDelayedTransfer(delay, destination, value, token);
     }
 
     function applyConfig(
@@ -262,12 +262,12 @@ contract Gatekeeper is PermissionsLevel {
         stateId++;
     }
 
-    function applyTransfer(bytes memory operation, uint256 nonce, uint16 senderPermsLevel)
+    function applyTransfer(uint256 delay, address payable destination, uint256 value, address token, uint256 nonce, uint16 senderPermsLevel)
     participantOnly(msg.sender, senderPermsLevel)
     nonFrozen(senderPermsLevel)
     public {
         // TODO: test!!!
-        vault.applyDelayedTransfer(operation, nonce);
+        vault.applyDelayedTransfer(delay, destination, value, token, nonce, msg.sender);
     }
 
     function dispatch(uint8 actionInt, bytes32 arg, address sender, uint16 senderPermsLevel) private {

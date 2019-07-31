@@ -242,7 +242,7 @@ contract('Gatekeeper', async function (accounts) {
         // Vault sees the transaction as originating from Gatekeeper
         // and it does not know or care which participant initiated it
         let nonceInExtraData = Buffer.from("0000000000000000000000000000000000000000000000000000000000000000", "hex");
-        let expectedMetadata = "0x" + ABI.rawEncode(["address", "bytes32"], [gatekeeper.address, nonceInExtraData]).toString("hex");
+        let expectedMetadata = "0x0000000000000000000000000000000000000000000000000000000000000000"//"0x" + ABI.rawEncode(["address", "bytes32"], [gatekeeper.address, nonceInExtraData]).toString("hex");
         assert.equal(log.args.batchMetadata, expectedMetadata);
         // TODO: go through gatekeeper::applyTransfer
         let encodedABI = vault.contract.methods.transferETH(gatekeeper.address, nonceInExtraData, destinationAddress, amount).encodeABI();
@@ -288,7 +288,7 @@ contract('Gatekeeper', async function (accounts) {
         // Vault sees the transaction as originating from Gatekeeper
         // and it does not know or care which participant initiated it
         let nonceInExtraData = Buffer.from("0000000000000000000000000000000000000000000000000000000000000001", "hex");
-        let expectedMetadata = "0x" + ABI.rawEncode(["address", "bytes32"], [gatekeeper.address, nonceInExtraData]).toString("hex");
+        let expectedMetadata = "0x0000000000000000000000000000000000000000000000000000000000000000"//"0x" + ABI.rawEncode(["address", "bytes32"], [gatekeeper.address, nonceInExtraData]).toString("hex");
         assert.equal(log.args.batchMetadata, expectedMetadata);
         let encodedABI = vault.contract.methods.transferERC20(gatekeeper.address, nonceInExtraData, destinationAddress, amount, erc20.address).encodeABI();
         let encodedPacked = utils.bufferToHex(utils.encodePackedBatch([encodedABI]));
