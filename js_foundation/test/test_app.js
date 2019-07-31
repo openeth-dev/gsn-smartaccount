@@ -52,14 +52,29 @@ context('VaultContractInteractor Integration Test', function () {
         operatorA = new Participant(accounts[0], PermissionsModel.getOwnerPermissions(), 1, "operatorA");
         operatorB = new Participant(accounts[1], PermissionsModel.getOwnerPermissions(), 1, "operatorA");
         admin_level2_acc2 = new Participant(accounts[2], PermissionsModel.getAdminPermissions(), 2, "admin_level2_acc2");
+        let utilitiesABI = require('../src/js/generated/Utilities');
+        let utilitiesBin = fs.readFileSync("./src/js/generated/Utilities.bin");
+        let utilitiesContract = TruffleContract({
+            // TODO: calculate this value
+            // NOTE: this string is later passed to a regex constructor when resolving, escape everything
+            contractName: "\\$7e3e5a7c0842c8a92aaa4508b6debdcba8\\$",
+            abi: utilitiesABI,
+            binary: utilitiesBin,
+            // address: vaultFactoryAddress
+        });
+        utilitiesContract.setProvider(provider);
+        let utilitiesLibrary = await utilitiesContract.new({from: accounts[0]});
+        utilitiesContract.address = utilitiesLibrary.address;
         let vaultFactoryABI = require('../src/js/generated/VaultFactory');
         let vaultFactoryBin = fs.readFileSync("./src/js/generated/VaultFactory.bin");
         let vaultFactoryContract = TruffleContract({
             contractName: "VaultFactory",
             abi: vaultFactoryABI,
             binary: vaultFactoryBin,
-            address: vaultFactoryAddress
+            // address: vaultFactoryAddress
         });
+        vaultFactoryContract.setNetwork(utilitiesContract.network_id);
+        vaultFactoryContract.link(utilitiesContract);
         vaultFactoryContract.setProvider(provider);
         let vaultFactory = await vaultFactoryContract.new({from: accounts[0]});
         vaultFactoryAddress = vaultFactory.address;
