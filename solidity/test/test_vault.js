@@ -11,8 +11,7 @@ Chai.use(require('bn-chai')(web3.utils.toBN));
 const Vault = artifacts.require("./Vault.sol");
 const DAI = artifacts.require("./DAI.sol");
 
-const zeroAddr = "0".repeat(40)
-const deadface = "0x00000000000000000000000000000000deadface"
+const zeroAddr  = "0x0000000000000000000000000000000000000000";
 
 contract('Vault', function (accounts) {
 

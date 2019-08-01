@@ -8,6 +8,7 @@ module.exports = async function (deployer) {
     await deployer.deploy(Utilities);
     deployer.link(Utilities, VaultFactory);
     deployer.link(Utilities, Gatekeeper);
+    deployer.link(Utilities, Vault);
     await deployer.deploy(VaultFactory, {gas: 80000000});
     // I think there is a bug in truffle, trying to deploy Gatekeeper first causes an error for no reason
     console.log("Deploying Gatekeeper");

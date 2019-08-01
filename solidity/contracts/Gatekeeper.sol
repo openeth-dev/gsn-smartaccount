@@ -1,6 +1,5 @@
 pragma solidity ^0.5.5;
 
-import "./DelayedOps.sol";
 import "./Vault.sol";
 import "./PermissionsLevel.sol";
 import "./Utilities.sol";
@@ -31,14 +30,8 @@ contract Gatekeeper is PermissionsLevel {
     //*****
 
     // TODO:
-    //  2. Delay per level control (if supported in BizPoC-2)
     //  5. Remove 'sender' form non-delayed calls
     // ***********************************
-
-    //***** events from other contracts for truffle
-    event TransactionCompleted(address destination, uint value, address erc20token, uint256 nonce);
-    event OperationCancelled(address sender, bytes32 hash);
-    //***** </events>
 
     Vault vault;
 

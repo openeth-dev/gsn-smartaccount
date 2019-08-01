@@ -66,13 +66,12 @@ module.exports = {
             [actions, args, stateId, sender, senderPermsLevel, booster, boosterPermsLevel])
     },
 
-    // TODO: remove
-    delayedOpHash: function (batchMetadata, nonce, batch) {
-        return ABI.soliditySHA3(["bytes", "uint256", "bytes"], [batchMetadata, nonce, batch])
-    },
-
     participantHash: function (admin, permLevel) {
         return ABI.soliditySHA3(["address", "uint16"], [admin, permLevel])
+    },
+
+    scheduledVaultTxHash: function (sender, nonce, delay, destination, value, token) {
+        return ABI.soliditySHA3(["address", "uint256", "uint256", "address", "uint256", "address"],[sender, nonce, delay, destination, value, token])
     },
 
     // Only used in tests

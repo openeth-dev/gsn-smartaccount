@@ -278,7 +278,7 @@ context('VaultContractInteractor Integration Test', function () {
             assert.deepEqual(freezeParameters2, {frozenLevel: 0, frozenUntil: 0});
         });
 
-        it("can transfer different types of assets", async function () {
+        it.skip("can transfer different types of assets", async function () {
             let ethBalance = await interactor.getBalance();
             assert.equal(ethBalance, fund);
             let receipt1 = await interactor.sendEther({destination: accounts[5], value: 1000});

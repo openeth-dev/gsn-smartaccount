@@ -17,4 +17,9 @@ library Utilities {
     function participantHash(address participant, uint16 permsLevel) public pure returns (bytes32) {
         return keccak256(abi.encodePacked(participant, permsLevel));
     }
+
+    function vaultTransferHash(address sender, uint256 scheduledNonce, uint256 delay, address destination, uint256 value, address token) public pure returns (bytes32) {
+        return keccak256(abi.encodePacked(sender, scheduledNonce, delay, destination, value, token));
+    }
+
 }

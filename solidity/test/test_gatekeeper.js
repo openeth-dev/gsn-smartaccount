@@ -1,5 +1,6 @@
 const Gatekeeper = artifacts.require("./Gatekeeper.sol");
 const Vault = artifacts.require("./Vault.sol");
+const Utilities = artifacts.require("./Utilities.sol");
 const DAI = artifacts.require("./DAI.sol");
 const Chai = require('chai');
 const Web3 = require('web3');
@@ -19,7 +20,7 @@ const hourInSec = 60 * minuteInSec;
 const dayInSec = 24 * hourInSec;
 const yearInSec = 365 * dayInSec;
 
-function getDelayedOpHashFromEvent(log) {
+async function getDelayedOpHashFromEvent(log, utilities) {
     let actions = log.args.actions;
     let args = log.args.actionsArguments;
     let stateId = log.args.stateId;
@@ -27,7 +28,7 @@ function getDelayedOpHashFromEvent(log) {
     let schedulerPermsLevel = log.args.senderPermsLevel;
     let boosterAddress = log.args.booster;
     let boosterPermsLevel = log.args.boosterPermsLevel;
-    return utils.delayedOpHashNew(actions, args, stateId, schedulerAddress, schedulerPermsLevel, boosterAddress, boosterPermsLevel);
+    return (await utilities.transactionHash(actions, args, stateId, schedulerAddress, schedulerPermsLevel, boosterAddress, boosterPermsLevel));//utils.delayedOpHashNew(actions, args, stateId, schedulerAddress, schedulerPermsLevel, boosterAddress, boosterPermsLevel);
 }
 
 const ChangeType = Object.freeze({
@@ -85,6 +86,7 @@ contract('Gatekeeper', async function (accounts) {
 
     let gatekeeper;
     let vault;
+    let utilities;
     let erc20;
     let fundedAmount = 300;
     let from = accounts[0];
@@ -118,8 +120,14 @@ contract('Gatekeeper', async function (accounts) {
     let watchdogPermissions;
 
     before(async function () {
+        // Merge events so Gatekeeper knows about Vault’s events
+        Object.keys(Vault.events).forEach(function(topic) {
+            Gatekeeper.network.events[topic] = Vault.events[topic];
+        });
+
         gatekeeper = await Gatekeeper.deployed();
         vault = await Vault.deployed();
+        utilities = await Utilities.deployed();
         erc20 = await DAI.new();
         web3 = new Web3(gatekeeper.contract.currentProvider);
         ownerPermissions = utils.bufferToHex(await gatekeeper.ownerPermissions());
@@ -237,17 +245,15 @@ contract('Gatekeeper', async function (accounts) {
         let res = await gatekeeper.sendEther(destinationAddress, amount, operatorA.permLevel, initialDelays[1]);
         expectedDelayedEventsCount++;
         let log = res.logs[0];
-        assert.equal(log.event, "DelayedOperation");
+        assert.equal(log.event, "TransactionPending");
         assert.equal(log.address, vault.address);
-        // Vault sees the transaction as originating from Gatekeeper
-        // and it does not know or care which participant initiated it
-        let nonceInExtraData = Buffer.from("0000000000000000000000000000000000000000000000000000000000000000", "hex");
-        let expectedMetadata = "0x0000000000000000000000000000000000000000000000000000000000000000"//"0x" + ABI.rawEncode(["address", "bytes32"], [gatekeeper.address, nonceInExtraData]).toString("hex");
-        assert.equal(log.args.batchMetadata, expectedMetadata);
-        // TODO: go through gatekeeper::applyTransfer
-        let encodedABI = vault.contract.methods.transferETH(gatekeeper.address, nonceInExtraData, destinationAddress, amount).encodeABI();
-        let encodedPacked = utils.bufferToHex(utils.encodePackedBatch([encodedABI]));
-        assert.equal(log.args.operation, encodedPacked);
+        assert.equal(log.args.destination, destinationAddress);
+        assert.equal(log.args.value, amount);
+        assert.equal(log.args.erc20token, zeroAddress );
+        assert.equal(log.args.delay, initialDelays[1]);
+        let hash = "0x" + utils.scheduledVaultTxHash(gatekeeper.address, log.args.nonce, log.args.delay, log.args.destination, log.args.value, log.args.erc20token).toString("hex");
+        let dueTime = await vault.pending(hash)
+        assert.isAbove(dueTime.toNumber(), 0)
     });
 
     it("just funding the vault", async function () {
@@ -256,13 +262,12 @@ contract('Gatekeeper', async function (accounts) {
 
     it("should allow the owner to execute a delayed transfer transaction after delay", async function () {
 
-        let addedLog = await getLastEvent(vault.contract, "DelayedOperation", expectedDelayedEventsCount);
+        let addedLog = await getLastEvent(vault.contract, "TransactionPending", expectedDelayedEventsCount);
         let balanceSenderBefore = parseInt(await web3.eth.getBalance(vault.address));
         let balanceReceiverBefore = parseInt(await web3.eth.getBalance(destinationAddress));
         assert.isAbove(balanceSenderBefore, amount);
         await utils.increaseTime(timeGap, web3);
-
-        let res = await gatekeeper.applyTransfer(addedLog.operation, addedLog.opsNonce, operatorA.permLevel, {from: operatorA.address});
+        let res = await gatekeeper.applyTransfer(addedLog.delay, addedLog.destination, addedLog.value, addedLog.erc20token, addedLog.nonce, operatorA.permLevel, {from: operatorA.address});
         let log = res.logs[0];
 
         assert.equal(log.event, "TransactionCompleted");
@@ -283,29 +288,35 @@ contract('Gatekeeper', async function (accounts) {
         let res = await gatekeeper.sendERC20(destinationAddress, amount, operatorA.permLevel, initialDelays[1], erc20.address);
         expectedDelayedEventsCount++;
         let log = res.logs[0];
-        assert.equal(log.event, "DelayedOperation");
+        assert.equal(log.event, "TransactionPending");
         assert.equal(log.address, vault.address);
-        // Vault sees the transaction as originating from Gatekeeper
-        // and it does not know or care which participant initiated it
-        let nonceInExtraData = Buffer.from("0000000000000000000000000000000000000000000000000000000000000001", "hex");
-        let expectedMetadata = "0x0000000000000000000000000000000000000000000000000000000000000000"//"0x" + ABI.rawEncode(["address", "bytes32"], [gatekeeper.address, nonceInExtraData]).toString("hex");
-        assert.equal(log.args.batchMetadata, expectedMetadata);
-        let encodedABI = vault.contract.methods.transferERC20(gatekeeper.address, nonceInExtraData, destinationAddress, amount, erc20.address).encodeABI();
-        let encodedPacked = utils.bufferToHex(utils.encodePackedBatch([encodedABI]));
-        assert.equal(log.args.operation, encodedPacked);
+        assert.equal(log.args.destination, destinationAddress);
+        assert.equal(log.args.value, amount);
+        assert.equal(log.args.erc20token, erc20.address );
+        assert.equal(log.args.delay, initialDelays[1]);
+
+        let hash = "0x" + utils.scheduledVaultTxHash(gatekeeper.address, log.args.nonce, log.args.delay, log.args.destination, log.args.value, log.args.erc20token).toString("hex");
+        let dueTime = await vault.pending(hash)
+        assert.isAbove(dueTime.toNumber(), 0)
     });
 
     it("should allow the owner to execute a delayed erc20 transfer transaction after delay", async function () {
 
-        let addedLog = await getLastEvent(vault.contract, "DelayedOperation", expectedDelayedEventsCount);
+        let addedLog = await getLastEvent(vault.contract, "TransactionPending", expectedDelayedEventsCount);
         let balanceSenderBefore = (await erc20.balanceOf(vault.address)).toNumber();
         let balanceReceiverBefore = (await erc20.balanceOf(destinationAddress)).toNumber();
         assert.isAbove(balanceSenderBefore, amount);
         await utils.increaseTime(timeGap, web3);
 
-        let res = await gatekeeper.applyTransfer(addedLog.operation, addedLog.opsNonce, operatorA.permLevel, {from: operatorA.address});
-        let log = res.logs[0];
+        let res = await gatekeeper.applyTransfer(addedLog.delay, addedLog.destination, addedLog.value, addedLog.erc20token, addedLog.nonce, operatorA.permLevel, {from: operatorA.address});
 
+        let log = res.logs[0];
+        assert.equal(log.event, "Transfer");
+        assert.equal(log.args.value, amount);
+        assert.equal(log.args.from, vault.address);
+        assert.equal(log.args.to, addedLog.destination);
+
+        log = res.logs[1];
         assert.equal(log.event, "TransactionCompleted");
         assert.equal(log.args.destination, destinationAddress);
         assert.equal(log.args.value, amount);
@@ -344,7 +355,7 @@ contract('Gatekeeper', async function (accounts) {
 
     it("should revert when trying to cancel a transfer transaction that does not exist", async function () {
         await expect(
-            gatekeeper.cancelTransfer(watchdogA.permLevel, "0x123123", {from: watchdogA.address})
+            gatekeeper.cancelTransfer(watchdogA.permLevel, 0, zeroAddress, 0, zeroAddress, 0, {from: watchdogA.address})
         ).to.be.revertedWith("cannot cancel, operation does not exist");
     });
 
@@ -375,11 +386,11 @@ contract('Gatekeeper', async function (accounts) {
     /* Rejected config change */
     it("should allow the watchdog to cancel a delayed config transaction", async function () {
         let log = await testUtils.extractLastConfigPendingEvent(gatekeeper);
-        let hash = getDelayedOpHashFromEvent(log);
+        let hash = await getDelayedOpHashFromEvent(log, utilities);
         let res2 = await cancelDelayed({log}, watchdogA, gatekeeper);
         let log2 = res2.logs[0];
         assert.equal(log2.event, "ConfigCancelled");
-        assert.equal(log2.args.transactionHash, "0x" + hash.toString("hex"));
+        assert.equal(log2.args.transactionHash, hash);
         assert.equal(log2.args.sender, watchdogA.address);
 
         await utils.validateConfigParticipants(
@@ -530,37 +541,41 @@ contract('Gatekeeper', async function (accounts) {
     /* Owner’s phone controlled by a malicious operator */
     it("should not allow the owner to cancel an owner change if an admin locks him out");
 
-    // TODO: enable and fix on merge with Vault w/o delayed ops
-    it.skip(`should allow the cancellers to cancel a delayed transfer transaction`, async function () {
+    it(`should allow the cancellers to cancel a delayed transfer transaction`, async function () {
         await utils.asyncForEach(
             [operatorA, watchdogA],
             async (participant) => {
                 let res1 = await gatekeeper.sendEther(destinationAddress, amount, operatorA.permLevel, initialDelays[1]);
                 expectedDelayedEventsCount++;
-                let hash = getDelayedOpHashFromEvent(res1.logs[0]);
-                let res2 = await gatekeeper.cancelTransfer(participant.permLevel, hash, {from: participant.address});
-                let log = res2.logs[0];
-                assert.equal(log.event, "DelayedOperationCancelled");
-                assert.equal(log.address, vault.address);
-                assert.equal(log.args.hash, "0x" + hash.toString("hex"));
-                assert.equal(log.args.sender, gatekeeper.address);
+                let log1 = res1.logs[0];
+                let res2 = await gatekeeper.cancelTransfer(participant.permLevel, log1.args.delay, log1.args.destination, log1.args.value,
+                    log1.args.erc20token, log1.args.nonce, {from: participant.address});
+                let log2 = res2.logs[0];
+                assert.equal(log2.event, "TransactionCancelled");
+                assert.equal(log2.address, log1.address);
+                assert.equal(log2.args.destination, log1.args.destination);
+                assert.equal(log2.args.value.toNumber(), log1.args.value.toNumber());
+                assert.equal(log2.args.erc20token, log1.args.erc20token);
+                assert.equal(log2.args.nonce.toNumber(), log1.args.nonce.toNumber());
             });
     });
 
-    // TODO: enable and fix on merge with Vault w/o delayed ops
-    it.skip(`should allow the cancellers to cancel a delayed ERC20 transfer transaction`, async function () {
+    it(`should allow the cancellers to cancel a delayed ERC20 transfer transaction`, async function () {
         await utils.asyncForEach(
             [operatorA, watchdogA],
             async (participant) => {
                 let res1 = await gatekeeper.sendERC20(destinationAddress, amount, operatorA.permLevel, initialDelays[1], erc20.address);
                 expectedDelayedEventsCount++;
-                let hash = getDelayedOpHashFromEvent(res1.logs[0]);
-                let res2 = await gatekeeper.cancelTransfer(participant.permLevel, hash, {from: participant.address});
-                let log = res2.logs[0];
-                assert.equal(log.event, "DelayedOperationCancelled");
-                assert.equal(log.address, vault.address);
-                assert.equal(log.args.hash, "0x" + hash.toString("hex"));
-                assert.equal(log.args.sender, gatekeeper.address);
+                let log1 = res1.logs[0];
+                let res2 = await gatekeeper.cancelTransfer(participant.permLevel, log1.args.delay, log1.args.destination, log1.args.value,
+                    log1.args.erc20token, log1.args.nonce, {from: participant.address});
+                let log2 = res2.logs[0];
+                assert.equal(log2.event, "TransactionCancelled");
+                assert.equal(log2.address, log1.address);
+                assert.equal(log2.args.destination, log1.args.destination);
+                assert.equal(log2.args.value.toNumber(), log1.args.value.toNumber());
+                assert.equal(log2.args.erc20token, log1.args.erc20token);
+                assert.equal(log2.args.nonce.toNumber(), log1.args.nonce.toNumber());
             });
     });
 
@@ -715,7 +730,7 @@ contract('Gatekeeper', async function (accounts) {
         ).to.be.revertedWith(reason);
 
         await expect(
-            gatekeeper.cancelTransfer(watchdogA.permLevel, "0x123123", {from: watchdogA.address}),
+            gatekeeper.cancelTransfer(watchdogA.permLevel, 0, zeroAddress, 0, zeroAddress, 0, {from: watchdogA.address}),
             "cancelTransfer did not revert correctly"
             + ` with expected reason: "${reason}"`
         ).to.be.revertedWith(reason);
@@ -739,7 +754,7 @@ contract('Gatekeeper', async function (accounts) {
             let actions = [ChangeType.UNFREEZE];
             let args = ["0x0"];
             let stateId = await gatekeeper.stateId();
-            let encodedHash = utils.getTransactionHash(ABI.solidityPack(["uint8[]", "bytes32[]", "uint256"], [actions, args, stateId]));
+            let encodedHash = await utilities.changeHash(actions, args, stateId);//utils.getTransactionHash(ABI.solidityPack(["uint8[]", "bytes32[]", "uint256"], [actions, args, stateId]));
             let signature = await utils.signMessage(encodedHash, web3, {from: signingParty.address});
             await expect(
                 gatekeeper.boostedConfigChange(
@@ -768,7 +783,7 @@ contract('Gatekeeper', async function (accounts) {
         let actions = [ChangeType.UNFREEZE];
         let args = ["0x0"];
         let stateId = await gatekeeper.stateId();
-        let encodedHash = utils.getTransactionHash(ABI.solidityPack(["uint8[]", "bytes32[]", "uint256"], [actions, args, stateId]));
+        let encodedHash = await utilities.changeHash(actions, args, stateId);//utils.getTransactionHash(ABI.solidityPack(["uint8[]", "bytes32[]", "uint256"], [actions, args, stateId]));
         let signature = await utils.signMessage(encodedHash, web3, {from: operatorA.address});
         let res1 = await gatekeeper.boostedConfigChange(actions, args, stateId, adminB1.permLevel, operatorA.permLevel, signature, {from: adminB1.address});
         let log1 = res1.logs[0];
@@ -792,12 +807,12 @@ contract('Gatekeeper', async function (accounts) {
 
         let res2 = await gatekeeper.sendEther(destinationAddress, amount, operatorA.permLevel, initialDelays[1]);
         let log2 = res2.logs[0];
-        assert.equal(log2.event, "DelayedOperation");
+        assert.equal(log2.event, "TransactionPending");
         assert.equal(log2.address, vault.address);
 
         let res4 = await gatekeeper.sendERC20(destinationAddress, amount, operatorA.permLevel, initialDelays[1], erc20.address);
         let log4 = res4.logs[0];
-        assert.equal(log4.event, "DelayedOperation");
+        assert.equal(log4.event, "TransactionPending");
         assert.equal(log4.address, vault.address);
 
     });
@@ -832,7 +847,7 @@ contract('Gatekeeper', async function (accounts) {
             let actions = [ChangeType.UNFREEZE];
             let args = ["0x0"];
             let stateId = await gatekeeper.stateId();
-            let encodedHash = utils.getTransactionHash(ABI.solidityPack(["uint8[]", "bytes32[]", "uint256"], [actions, args, stateId]));
+            let encodedHash = await utilities.changeHash(actions, args, stateId);//utils.getTransactionHash(ABI.solidityPack(["uint8[]", "bytes32[]", "uint256"], [actions, args, stateId]));
             let signature = await utils.signMessage(encodedHash, web3, {from: operatorA.address});
             let res1 = await gatekeeper.boostedConfigChange(
                 actions,
@@ -877,7 +892,7 @@ contract('Gatekeeper', async function (accounts) {
         await utils.increaseTime(timeGap, web3);
         // adminA cannot apply it - will not find it by hash
         await expect(
-            gatekeeper.applyConfig([changeType], [changeArgs], stateId, adminA.address, adminA.permLevel, zeroAddress, 0, adminA.address)
+            gatekeeper.applyConfig([changeType], [changeArgs], stateId, adminA.address, adminA.permLevel, zeroAddress, 0, adminA.permLevel, {from:adminA.address})
         ).to.be.revertedWith("apply called for non existent pending change");
 
     });
