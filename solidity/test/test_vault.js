@@ -21,11 +21,11 @@ contract('Vault', function (accounts) {
     let fundedAmount = amount;
     let delay = 77;
     let from = accounts[0];
-    let mockGK = accounts[0]
+    let mockGK = accounts[0];
+    let notGK = accounts[1];
     let destination = accounts[1];
 
     before(async function () {
-        // vault = await Vault.deployed();
         vault = await Vault.new(mockGK);
         erc20 = await DAI.new();
     });
@@ -150,7 +150,6 @@ contract('Vault', function (accounts) {
         ).to.be.revertedWith("applyDelayedTransfer called before due time");
 
 
-        // let hash = await vault.delayedOpHash(log1.args.batchMetadata, log1.args.opsNonce,log1.args.operation)
         res1 = await vault.cancelTransfer(log1.args.delay, log1.args.destination, log1.args.value, log1.args.erc20token, log1.args.nonce, accounts[0])
         assert.equal("TransactionCancelled", res1.logs[0].event);
 
@@ -175,10 +174,16 @@ contract('Vault', function (accounts) {
 
     it("should not allow to create a pending transactions for an unsupported ERC20 token");
 
-    it.skip("should not allow anyone except the 'gatekeeper' to perform any operation", async function () {
+    it("should not allow anyone except the 'gatekeeper' to perform any operation", async function () {
         await expect(
-            // gatekeeper.cancelTransaction("0x123123")
-        ).to.be.revertedWith("cannot cancel, operation does not exist");
+            vault.scheduleDelayedTransfer(delay, destination, amount, erc20.address, {from: notGK})
+        ).to.be.revertedWith("Only Gatekeeper can access vault functions");
+        await expect(
+            vault.applyDelayedTransfer(delay, destination, amount, erc20.address, 0, zeroAddr, {from: notGK})
+        ).to.be.revertedWith("Only Gatekeeper can access vault functions");
+        await expect(
+            vault.cancelTransfer(delay, destination, amount, erc20.address, 0, zeroAddr, {from: notGK})
+        ).to.be.revertedWith("Only Gatekeeper can access vault functions");
     });
 
     after("write coverage report", async () => {
