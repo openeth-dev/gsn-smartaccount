@@ -3,10 +3,8 @@ pragma solidity ^0.5.5;
 import "./Vault.sol";
 import "./PermissionsLevel.sol";
 import "./Utilities.sol";
-import "openzeppelin-solidity/contracts/cryptography/ECDSA.sol";
 
 contract Gatekeeper is PermissionsLevel {
-    using ECDSA for bytes32;
 
     enum ChangeType {
         ADD_PARTICIPANT, // arg: participant_hash
@@ -80,9 +78,9 @@ contract Gatekeeper is PermissionsLevel {
     }
 
     // Modifiers are added to the stack, so I hit 'stack too deep' a lot. This should be easier on compiler to digest.
-    function hasPermissionsInternal(address sender, uint16 neededPermissions, uint16 senderPermsLevel) participantOnly(sender,senderPermsLevel) internal {
+    function requirePermissions(address sender, uint16 neededPermissions, uint16 senderPermsLevel) participantOnly(sender, senderPermsLevel) internal {
 
-        uint16 senderPermissions= extractPermission(senderPermsLevel);
+        uint16 senderPermissions = extractPermission(senderPermsLevel);
         requireOneOperator(sender, senderPermissions);
         string memory errorMessage = "not allowed";
         // TODO: fix error messages to include more debug info
@@ -91,11 +89,6 @@ contract Gatekeeper is PermissionsLevel {
             errorMessage = "boost not allowed";
         }
         requirePermissions(neededPermissions, senderPermissions, errorMessage);
-    }
-
-    modifier hasPermissions(address sender, uint16 neededPermissions, uint16 senderPermsLevel) {
-        hasPermissionsInternal(sender, neededPermissions, senderPermsLevel);
-        _;
     }
 
     uint constant maxParticipants = 20;
@@ -127,10 +120,10 @@ contract Gatekeeper is PermissionsLevel {
     // ****** Immediately runnable functions below this point
 
     function freeze(uint16 senderPermsLevel, uint8 levelToFreeze, uint interval)
-    hasPermissions(msg.sender, canFreeze, senderPermsLevel)
     nonFrozen(senderPermsLevel)
     public
     {
+        requirePermissions(msg.sender, canFreeze, senderPermsLevel);
         uint until = SafeMath.add(now, interval);
         uint8 senderLevel = extractLevel(senderPermsLevel);
         require(levelToFreeze <= senderLevel, "cannot freeze level that is higher than caller");
@@ -145,28 +138,30 @@ contract Gatekeeper is PermissionsLevel {
     }
 
     function boostedConfigChange(uint8[] memory actions, bytes32[] memory args, uint256 targetStateId, uint16 boosterPermsLevel, uint16 signerPermsLevel, bytes memory signature)
-    hasPermissions(msg.sender, canExecuteBoosts, boosterPermsLevel)
     nonFrozen(boosterPermsLevel)
     public {
+        requirePermissions(msg.sender, canExecuteBoosts, boosterPermsLevel);
         // TODO: do this in every method, as a function/modifier
         require(stateId == targetStateId, "contract state changed since transaction was created");
-        // Signed change doesn't have 'sender' or 'booster' info, as sender == signer and can use different boosters
-        bytes32 changeHash = Utilities.changeHash(actions, args, stateId);
-        address signer = changeHash.toEthSignedMessageHash().recover(signature);
-        hasPermissionsInternal(signer, canSignBoosts, signerPermsLevel);
+        address signer = Utilities.recoverConfigSigner(actions, args, stateId, signature);
+        //        TODO: fix test to work with this line:
+        //        requirePermissions(signer, canSignBoosts | canChangeConfig, signerPermsLevel);
+        requirePermissions(signer, canSignBoosts, signerPermsLevel);
+        requirePermissions(signer, canChangeConfig, signerPermsLevel);
         changeConfigurationInternal(actions, args, signer, signerPermsLevel, msg.sender, boosterPermsLevel);
     }
 
 
     function changeConfiguration(uint8[] memory actions, bytes32[] memory args, uint256 targetStateId, uint16 senderPermsLevel) public
-    hasPermissions(msg.sender, canChangeConfig, senderPermsLevel)
     nonFrozen(senderPermsLevel)
     {
+        requirePermissions(msg.sender, canChangeConfig, senderPermsLevel);
         // TODO: do this in every method, as a function/modifier
         require(stateId == targetStateId, "contract state changed since transaction was created");
         changeConfigurationInternal(actions, args, msg.sender, senderPermsLevel, address(0), 0);
     }
 
+    // Note: this internal method is not wrapped with 'requirePermissions' as it may be called by the 'changeOwner'
     function changeConfigurationInternal(uint8[] memory actions, bytes32[] memory args, address sender, uint16 senderPermsLevel, address booster, uint16 boosterPermsLevel)
     internal {
         bytes32 transactionHash = Utilities.transactionHash(actions, args, stateId, sender, senderPermsLevel, booster, boosterPermsLevel);
@@ -177,9 +172,9 @@ contract Gatekeeper is PermissionsLevel {
     }
 
     function scheduleChangeOwner(uint16 senderPermsLevel, address newOwner)
-    hasPermissions(msg.sender, canChangeOwner, senderPermsLevel)
     nonFrozen(senderPermsLevel)
     public {
+        requirePermissions(msg.sender, canChangeOwner, senderPermsLevel);
         uint8[] memory actions = new uint8[](1);
         actions[0] = uint8(ChangeType.CHOWN);
         bytes32[] memory args = new bytes32[](1);
@@ -187,18 +182,18 @@ contract Gatekeeper is PermissionsLevel {
         changeConfigurationInternal(actions, args, msg.sender, senderPermsLevel, address(0), 0);
     }
 
-    function cancelTransfer(uint16 senderPermsLevel, uint256 delay, address destination, uint256 value, address token, uint256 nonce )
-    hasPermissions(msg.sender, canCancel, senderPermsLevel)
+    function cancelTransfer(uint16 senderPermsLevel, uint256 delay, address destination, uint256 value, address token, uint256 nonce)
     nonFrozen(senderPermsLevel)
     public {
+        requirePermissions(msg.sender, canCancel, senderPermsLevel);
         vault.cancelTransfer(delay, destination, value, token, nonce, msg.sender);
     }
 
     function cancelOperation(uint8[] memory actions, bytes32[] memory args, uint256 scheduledStateId, address scheduler, uint16 schedulerPermsLevel, address booster, uint16 boosterPermsLevel, uint16 senderPermsLevel)
-    hasPermissions(msg.sender, canCancel, senderPermsLevel)
     nonFrozen(senderPermsLevel)
     public {
-        bytes32 hash =  Utilities.transactionHash(actions, args, scheduledStateId, scheduler, schedulerPermsLevel, booster, boosterPermsLevel);
+        requirePermissions(msg.sender, canCancel, senderPermsLevel);
+        bytes32 hash = Utilities.transactionHash(actions, args, scheduledStateId, scheduler, schedulerPermsLevel, booster, boosterPermsLevel);
         require(pendingChanges[hash] > 0, "cannot cancel, operation does not exist");
         // TODO: refactor, make function or whatever
         if (booster != address(0)) {
@@ -212,18 +207,18 @@ contract Gatekeeper is PermissionsLevel {
     }
 
     function sendEther(address payable destination, uint value, uint16 senderPermsLevel, uint256 delay)
-    hasPermissions(msg.sender, canSpend, senderPermsLevel)
     nonFrozen(senderPermsLevel)
     public {
+        requirePermissions(msg.sender, canSpend, senderPermsLevel);
         uint256 levelDelay = delays[extractLevel(senderPermsLevel)];
         require(levelDelay <= delay && delay <= maxDelay, "Invalid delay given");
         vault.scheduleDelayedTransfer(delay, destination, value, address(0));
     }
 
     function sendERC20(address payable destination, uint value, uint16 senderPermsLevel, uint256 delay, address token)
-    hasPermissions(msg.sender, canSpend, senderPermsLevel)
     nonFrozen(senderPermsLevel)
     public {
+        requirePermissions(msg.sender, canSpend, senderPermsLevel);
         uint256 levelDelay = delays[extractLevel(senderPermsLevel)];
         require(levelDelay <= delay && delay <= maxDelay, "Invalid delay given");
         vault.scheduleDelayedTransfer(delay, destination, value, token);
@@ -244,7 +239,7 @@ contract Gatekeeper is PermissionsLevel {
         else {
             nonFrozenInternal(schedulerPermsLevel, "scheduler level is frozen");
         }
-        bytes32 transactionHash =  Utilities.transactionHash(actions, args, scheduledStateId, scheduler, schedulerPermsLevel, booster, boosterPermsLevel);
+        bytes32 transactionHash = Utilities.transactionHash(actions, args, scheduledStateId, scheduler, schedulerPermsLevel, booster, boosterPermsLevel);
         uint dueTime = pendingChanges[transactionHash];
         require(dueTime != 0, "apply called for non existent pending change");
         require(now >= dueTime, "apply called before due time");
@@ -286,23 +281,23 @@ contract Gatekeeper is PermissionsLevel {
 
     // TODO: obviously does not conceal the level and identity
     function addParticipant(address sender, uint16 senderPermsLevel, bytes32 hash)
-    hasPermissions(sender, canChangeParticipants, senderPermsLevel)
     private {
+        requirePermissions(sender, canChangeParticipants, senderPermsLevel);
         participants[hash] = true;
         emit ParticipantAdded(hash);
     }
 
     function removeParticipant(address sender, uint16 senderPermsLevel, bytes32 participant)
-    hasPermissions(sender, canChangeParticipants, senderPermsLevel)
     private {
+        requirePermissions(sender, canChangeParticipants, senderPermsLevel);
         require(participants[participant], "there is no such participant");
         delete participants[participant];
         emit ParticipantRemoved(participant);
     }
 
     function changeOwner(address sender, uint16 senderPermsLevel, address newOwner)
-    hasPermissions(sender, canChangeOwner, senderPermsLevel)
     private {
+        requirePermissions(sender, canChangeOwner, senderPermsLevel);
         require(newOwner != address(0), "cannot set owner to zero address");
         bytes32 oldParticipant = Utilities.participantHash(operator, packPermissionLevel(ownerPermissions, 1));
         bytes32 newParticipant = Utilities.participantHash(newOwner, packPermissionLevel(ownerPermissions, 1));
@@ -313,8 +308,8 @@ contract Gatekeeper is PermissionsLevel {
     }
 
     function unfreeze(address sender, uint16 senderPermsLevel)
-    hasPermissions(sender, canUnfreeze, senderPermsLevel)
     private {
+        requirePermissions(sender, canUnfreeze, senderPermsLevel);
         frozenLevel = 0;
         frozenUntil = 0;
         emit UnfreezeCompleted();
