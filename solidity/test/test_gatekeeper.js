@@ -4,7 +4,6 @@ const Utilities = artifacts.require("./Utilities.sol");
 const DAI = artifacts.require("./DAI.sol");
 const Chai = require('chai');
 const Web3 = require('web3');
-const ABI = require('ethereumjs-abi');
 
 const testUtils = require('./utils');
 const utils = require('../src/js/SafeChannelUtils');
@@ -121,7 +120,7 @@ contract('Gatekeeper', async function (accounts) {
 
     before(async function () {
         // Merge events so Gatekeeper knows about Vault’s events
-        Object.keys(Vault.events).forEach(function(topic) {
+        Object.keys(Vault.events).forEach(function (topic) {
             Gatekeeper.network.events[topic] = Vault.events[topic];
         });
 
@@ -249,10 +248,10 @@ contract('Gatekeeper', async function (accounts) {
         assert.equal(log.address, vault.address);
         assert.equal(log.args.destination, destinationAddress);
         assert.equal(log.args.value, amount);
-        assert.equal(log.args.erc20token, zeroAddress );
+        assert.equal(log.args.erc20token, zeroAddress);
         assert.equal(log.args.delay, initialDelays[1]);
         let hash = "0x" + utils.scheduledVaultTxHash(gatekeeper.address, log.args.nonce, log.args.delay, log.args.destination, log.args.value, log.args.erc20token).toString("hex");
-        let dueTime = await vault.pending(hash)
+        let dueTime = await vault.pending(hash);
         assert.isAbove(dueTime.toNumber(), 0)
     });
 
@@ -292,11 +291,11 @@ contract('Gatekeeper', async function (accounts) {
         assert.equal(log.address, vault.address);
         assert.equal(log.args.destination, destinationAddress);
         assert.equal(log.args.value, amount);
-        assert.equal(log.args.erc20token, erc20.address );
+        assert.equal(log.args.erc20token, erc20.address);
         assert.equal(log.args.delay, initialDelays[1]);
 
         let hash = "0x" + utils.scheduledVaultTxHash(gatekeeper.address, log.args.nonce, log.args.delay, log.args.destination, log.args.value, log.args.erc20token).toString("hex");
-        let dueTime = await vault.pending(hash)
+        let dueTime = await vault.pending(hash);
         assert.isAbove(dueTime.toNumber(), 0)
     });
 
@@ -580,28 +579,38 @@ contract('Gatekeeper', async function (accounts) {
     });
 
     function getNonSpenders() {
-        return getNonConfigChangers();
+        let canSpend = 1 << 0;
+        return [
+            adminA.expectError(`permissions missing: ${canSpend}`),
+            watchdogA.expectError(`permissions missing: ${canSpend}`),
+            wrongaddr.expectError("not participant")
+        ];
     }
 
     function getNonChowners() {
+        let canChangeOwner = 1 << 10;
         return [
-            watchdogA.expectError("not allowed"),
+            watchdogA.expectError(`permissions missing: ${canChangeOwner}`),
             wrongaddr.expectError("not participant")
         ];
     }
 
     function getNonConfigChangers() {
+        let canUnfreeze = 1 << 3;
+        let canChangeParticipants = 1 << 4;
+        let canChangeOwner = 1 << 10;
         return [
-            adminA.expectError("not allowed"),
-            watchdogA.expectError("not allowed"),
+            adminA.expectError(`permissions missing: ${canChangeParticipants + canUnfreeze}`),
+            watchdogA.expectError(`permissions missing: ${canChangeOwner + canChangeParticipants + canUnfreeze}`),
             wrongaddr.expectError("not participant")
         ];
     }
 
     function getNonBoosters() {
+        let canSignBoosts = 1 << 8;
         return [
-            adminA.expectError("boost not allowed"),
-            watchdogA.expectError("boost not allowed"),
+            adminA.expectError(`permissions missing: ${canSignBoosts}`),
+            watchdogA.expectError(`permissions missing: ${canSignBoosts}`),
             wrongaddr.expectError("not participant")
         ];
     }
@@ -892,7 +901,7 @@ contract('Gatekeeper', async function (accounts) {
         await utils.increaseTime(timeGap, web3);
         // adminA cannot apply it - will not find it by hash
         await expect(
-            gatekeeper.applyConfig([changeType], [changeArgs], stateId, adminA.address, adminA.permLevel, zeroAddress, 0, adminA.permLevel, {from:adminA.address})
+            gatekeeper.applyConfig([changeType], [changeArgs], stateId, adminA.address, adminA.permLevel, zeroAddress, 0, adminA.permLevel, {from: adminA.address})
         ).to.be.revertedWith("apply called for non existent pending change");
 
     });

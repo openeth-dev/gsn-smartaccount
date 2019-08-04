@@ -44,26 +44,8 @@ module.exports = {
         })
     },
 
-    encodePackedBatch: function (encodedCalls) {
-        let types = [];
-        let values = [];
-        for (let i = 0; i < encodedCalls.length; i++) {
-            let encodedBuffer = Buffer.from(encodedCalls[i].slice(2), "hex");
-            let encodedCallLengts = encodedBuffer.length;
-            types = types.concat(["uint256", "bytes"]);
-            values = values.concat([encodedCallLengts, encodedBuffer]);
-        }
-        return ABI.solidityPack(types, values);
-    },
-
     bufferToHex: function (buffer) {
         return "0x" + buffer.toString("hex");
-    },
-
-    delayedOpHashNew: function (actions, args, stateId, sender, senderPermsLevel, booster, boosterPermsLevel) {
-        return ABI.soliditySHA3(
-            ["uint8[]", "bytes32[]", "uint256", "address", "uint16", "address", "uint16"],
-            [actions, args, stateId, sender, senderPermsLevel, booster, boosterPermsLevel])
     },
 
     participantHash: function (admin, permLevel) {
@@ -104,10 +86,6 @@ module.exports = {
         for (let index = 0; index < array.length; index++) {
             await callback(array[index], index, array);
         }
-    },
-
-    getTransactionHash(txBuffer) {
-        return Web3Utils.sha3('0x' + txBuffer.toString("hex"))
     },
 
     async signMessage(hash, web3, {from}) {
