@@ -60,12 +60,18 @@ module.exports = {
         return "0x" + buffer.toString("hex");
     },
 
-    delayedOpHash: function (batchMetadata, nonce, batch) {
-        return ABI.soliditySHA3(["bytes", "uint256", "bytes"], [batchMetadata, nonce, batch])
+    delayedOpHashNew: function (actions, args, stateId, sender, senderPermsLevel, booster, boosterPermsLevel) {
+        return ABI.soliditySHA3(
+            ["uint8[]", "bytes32[]", "uint256", "address", "uint16", "address", "uint16"],
+            [actions, args, stateId, sender, senderPermsLevel, booster, boosterPermsLevel])
     },
 
     participantHash: function (admin, permLevel) {
         return ABI.soliditySHA3(["address", "uint16"], [admin, permLevel])
+    },
+
+    scheduledVaultTxHash: function (sender, nonce, delay, destination, value, token) {
+        return ABI.soliditySHA3(["address", "uint256", "uint256", "address", "uint256", "address"],[sender, nonce, delay, destination, value, token])
     },
 
     // Only used in tests
@@ -80,7 +86,7 @@ module.exports = {
     validateConfigDelays: async function (delays, gatekeeper) {
         let onchainDelays = await gatekeeper.getDelays();
         for (let i = 0; i < delays.length; i++) {
-            assert.equal(onchainDelays[i],delays[i]);
+            assert.equal(onchainDelays[i], delays[i]);
         }
     },
 

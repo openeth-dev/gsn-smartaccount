@@ -1,10 +1,12 @@
 pragma solidity ^0.5.5;
 
-import "./DelayedOps.sol";
 import "openzeppelin-solidity/contracts/token/ERC20/ERC20.sol";
+import "./Utilities.sol";
 
+contract Vault {
 
-contract Vault is DelayedOps {
+    uint256 public nonce;
+    mapping (bytes32 => uint256) public pending;
 
     //****** events from erc20
     event Transfer(address indexed from, address indexed to, uint256 value);
@@ -14,19 +16,14 @@ contract Vault is DelayedOps {
 
     event FundsReceived(address sender, uint256 value);
 
-    // hash is no longer exposed beyond the 'DelayedOps', so instead use 'nonce' for unique ID
     event TransactionPending(address destination, uint value, address erc20token, uint delay, uint256 nonce);
-    event TransactionCompleted(address destination, uint value, address erc20token, uint256 nonce);
+    event TransactionCompleted(address destination, uint value, address erc20token, uint256 nonce, address sender);
+    event TransactionCancelled(address destination, uint value, address erc20token, uint256 nonce, address sender);
 
     address public gatekeeper;
 
     modifier gatekeeperOnly() {
         require(msg.sender == gatekeeper, "Only Gatekeeper can access vault functions");
-        _;
-    }
-
-    modifier thisOnly() {
-        require(address(this) == msg.sender, "Function can only be called by Vault");
         _;
     }
 
@@ -40,37 +37,36 @@ contract Vault is DelayedOps {
         emit FundsReceived(msg.sender, msg.value);
     }
 
-
-    function validateOperation(bytes memory blob, bytes memory singleOp) internal {}
-
-
     // ********** Immediate operations below this point
 
-    // Note: nonce should be passed
-    function scheduleDelayedEtherTransfer(uint256 delay, address destination, uint256 value) public gatekeeperOnly {
-        // Alexf: There is no tragedy in using 'encodeWithSelector' here, I believe. Vault's API should not change much.
-        bytes memory delayedTransaction = abi.encodeWithSelector(this.transferETH.selector, msg.sender, opsNonce, destination, value);
-        scheduleDelayedBatch(abi.encode(msg.sender, bytes32(opsNonce)), delay, encodeDelayed(delayedTransaction));
-        emit TransactionPending(destination, value, address(0), delay, opsNonce);
+    function scheduleDelayedTransfer(uint256 delay, address destination, uint256 value, address token) public gatekeeperOnly {
+        bytes32 hash = Utilities.vaultTransferHash(msg.sender, nonce, delay, destination, value, token);
+        require(pending[hash] == 0, "Transfer already scheduled");
+        uint256 dueTime = SafeMath.add(now, delay);
+        pending[hash] = dueTime;
+        emit TransactionPending(destination, value, token, delay, nonce);
+        nonce++;
     }
 
-    function scheduleDelayedERC20Transfer(uint256 delay, address destination, uint256 value, address token) public gatekeeperOnly {
-        bytes memory delayedTransaction = abi.encodeWithSelector(this.transferERC20.selector, msg.sender, opsNonce, destination, value, token);
-        scheduleDelayedBatch(abi.encode(msg.sender, bytes32(opsNonce)), delay, encodeDelayed(delayedTransaction));
-        emit TransactionPending(destination, value, token, delay, opsNonce);
+    function cancelTransfer(uint256 delay, address destination, uint256 value, address token, uint256 scheduledNonce, address who) public gatekeeperOnly {
+        bytes32 hash = Utilities.vaultTransferHash(msg.sender, scheduledNonce, delay, destination, value, token);
+        require(pending[hash] > 0, "cannot cancel, operation does not exist");
+        delete pending[hash];
+        emit TransactionCancelled(destination, value, token, scheduledNonce, who);
     }
 
-    function cancelTransfer(bytes32 hash) public gatekeeperOnly {
-        cancelDelayedOp(hash);
-    }
+    function applyDelayedTransfer(uint256 delay, address payable destination, uint256 value, address token, uint256 scheduledNonce, address who) public gatekeeperOnly {
+        bytes32 hash = Utilities.vaultTransferHash(msg.sender, scheduledNonce, delay, destination, value, token);
+        uint dueTime = pending[hash];
+        require(dueTime != 0, "applyDelayedTransfer called for non existing transfer");
+        require(now >= dueTime, "applyDelayedTransfer called before due time");
 
-    function applyDelayedTransfer(bytes memory operation, uint256 nonce) public gatekeeperOnly {
-        // "nonce, nonce" is not an error. It will be used by both the DelayedOps to ensure uniqueness of a transaction,
-        // as well as it will be passed as an 'extraData' field to be emitted by the Vault itself.
-        // TODO: probably less hacky to add it as a parameter. May need it for smth else later.
-        applyDelayedOps(abi.encode(msg.sender, bytes32(nonce)), nonce, operation);
+        if (token == address(0)) {
+            transferETH(destination,value, scheduledNonce, who);
+        }else {
+            transferERC20(destination, value, scheduledNonce, who, ERC20(token));
+        }
     }
-
 
     // ********** Delayed operations below this point
 
@@ -78,18 +74,18 @@ contract Vault is DelayedOps {
     /*
     * @param opsNonce - uint256 field is enforced by the 'delayed' protocol. We store the delayed op's nonce to identify events.
     */
-    function transferETH(address /*sender*/, uint256 opsNonce, address payable destination, uint256 value)
-    thisOnly
-    external {
-        require(value < address(this).balance, "Cannot transfer more then vault's balance");
+    function transferETH(address payable destination, uint256 value, uint256 scheduledNonce, address who)
+    private {
+        require(value <= address(this).balance, "Cannot transfer more then vault's balance");
         destination.transfer(value);
-        emit TransactionCompleted(destination, value, address(0), opsNonce);
+        emit TransactionCompleted(destination, value, address(0), scheduledNonce, who);
     }
 
-    function transferERC20(address /*sender*/, uint256 opsNonce, address payable destination, uint256 value, ERC20 token) thisOnly
-    external {
+    function transferERC20(address payable destination, uint256 value, uint256 scheduledNonce, address who, ERC20 token)
+    private {
+        require(value <= token.balanceOf(address(this)), "Cannot transfer more then vault's balance");
         token.transfer(destination, value);
-        emit TransactionCompleted(destination, value, address(token), opsNonce);
+        emit TransactionCompleted(destination, value, address(token), scheduledNonce, who);
     }
 
 }
