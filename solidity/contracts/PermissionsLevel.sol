@@ -1,5 +1,7 @@
 pragma solidity ^0.5.5;
 
+import "./Assert.sol";
+
 contract PermissionsLevel {
 
     uint16 constant public canSpend = 1 << 0;
@@ -34,8 +36,11 @@ contract PermissionsLevel {
     uint16 public adminPermissions = canChangeOwner | canExecuteBoosts;
     uint16 public watchdogPermissions = canCancel | canFreeze;
 
-    function requirePermissions(uint16 neededPermissions, uint16 senderPermissions, string memory error) view internal {
-        require(neededPermissions & senderPermissions == neededPermissions, error);
+    function requirePermissions(uint16 neededPermissions, uint16 senderPermissions) view internal {
+        uint16 missingPermissions = neededPermissions & (senderPermissions ^ uint16(- 1));
+        string memory error = Assert.concat("permissions missing: ", missingPermissions);
+        require(missingPermissions == 0, error);
+        require(missingPermissions < 0x07FF, "permissions overflow"); // TODO: increase size of perm+level to drop this packing/unpacking hell
         require(
             senderPermissions == ownerPermissions ||
             senderPermissions == adminPermissions ||
@@ -53,7 +58,7 @@ contract PermissionsLevel {
     }
 
     function extractLevel(uint16 permLev) pure internal returns (uint8 level) {
-    (,level) = extractPermissionLevel(permLev);
+        (, level) = extractPermissionLevel(permLev);
     }
 
     function extractPermission(uint16 permLev) pure internal returns (uint16 permission) {
