@@ -936,8 +936,14 @@ contract('Gatekeeper', async function (accounts) {
         let changeType = ChangeType.ADD_PARTICIPANT;
         let changeArgs = utils.participantHash(adminB1.address, adminB1.permLevel);
 
-        await expect( gatekeeper.changeConfiguration([changeType], [changeArgs], stateId - 1, operatorA.permLevel)
+        await expect(gatekeeper.changeConfiguration([changeType], [changeArgs], stateId - 1, operatorA.permLevel)
         ).to.be.revertedWith("contract state changed since transaction was created")
+    });
+
+    it("should save the block number of the deployment transaction", async function () {
+        // not much to check here - can't know the block number
+        let deployedBlock = (await gatekeeper.deployedBlock()).toNumber();
+        assert.isAbove(deployedBlock, 0);
     });
 
     after("write coverage report", async () => {
