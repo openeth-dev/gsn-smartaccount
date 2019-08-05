@@ -7,6 +7,7 @@ const Web3 = require('web3');
 
 const testUtils = require('./utils');
 const utils = require('../src/js/SafeChannelUtils');
+const Permissions = utils.Permissions;
 const Participant = require('../src/js/Participant');
 
 const expect = Chai.expect;
@@ -588,43 +589,32 @@ contract('Gatekeeper', async function (accounts) {
     });
 
     function getNonSpenders() {
-        let canSpend = 1 << 0;
         return [
-            adminA.expectError(`permissions missing: ${canSpend}`),
-            watchdogA.expectError(`permissions missing: ${canSpend}`),
+            adminA.expectError(`permissions missing: ${Permissions.CanSpend}`),
+            watchdogA.expectError(`permissions missing: ${Permissions.CanSpend}`),
             wrongaddr.expectError("not participant")
         ];
     }
 
     function getNonChowners() {
-        let canChangeOwner = 1 << 10;
         return [
-            watchdogA.expectError(`permissions missing: ${canChangeOwner}`),
+            watchdogA.expectError(`permissions missing: ${Permissions.CanChangeOwner}`),
             wrongaddr.expectError("not participant")
         ];
     }
 
     function getNonConfigChangers() {
-        let canUnfreeze = 1 << 3;
-        let canChangeParticipants = 1 << 4;
-        let canChangeOwner = 1 << 10;
         return [
-            adminA.expectError(`permissions missing: ${canChangeParticipants + canUnfreeze}`),
-            watchdogA.expectError(`permissions missing: ${canChangeOwner + canChangeParticipants + canUnfreeze}`),
+            adminA.expectError(`permissions missing: ${Permissions.CanChangeParticipants + Permissions.CanUnfreeze}`),
+            watchdogA.expectError(`permissions missing: ${Permissions.CanChangeConfig}`),
             wrongaddr.expectError("not participant")
         ];
     }
 
     function getNonBoostees() {
-
-        let canUnfreeze = 1 << 3;
-        let canChangeParticipants = 1 << 4;
-        let canChangeOwner = 1 << 10;
-        let canChangeConfig = canUnfreeze | canChangeParticipants | canChangeOwner;
-        let canSignBoosts = 1 << 8;
         return [
-            adminA.expectError(`permissions missing: ${canSignBoosts + canUnfreeze + canChangeParticipants}`),
-            watchdogA.expectError(`permissions missing: ${canSignBoosts + canChangeConfig}`),
+            adminA.expectError(`permissions missing: ${Permissions.CanSignBoosts + Permissions.CanUnfreeze + Permissions.CanChangeParticipants}`),
+            watchdogA.expectError(`permissions missing: ${Permissions.CanSignBoosts + Permissions.CanChangeConfig}`),
             wrongaddr.expectError("not participant")
         ];
     }
