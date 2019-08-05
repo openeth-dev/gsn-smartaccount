@@ -51,8 +51,10 @@ contract Gatekeeper is PermissionsLevel {
 
     uint256 public stateNonce;
 
-    constructor() public {
+    uint256 public deployedBlock;
 
+    constructor() public {
+        deployedBlock = block.number;
     }
 
 
