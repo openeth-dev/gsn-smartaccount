@@ -241,7 +241,8 @@ contract('Gatekeeper', async function (accounts) {
     // TODO: this is an integration test (uses 2 contracts)
     // This is better to separate these into a separate file
     it("should allow the owner to create a delayed ether transfer transaction", async function () {
-        let res = await gatekeeper.sendEther(destinationAddress, amount, operatorA.permLevel, initialDelays[1]);
+        let stateId = await gatekeeper.stateNonce();
+        let res = await gatekeeper.sendEther(destinationAddress, amount, operatorA.permLevel, initialDelays[1], stateId);
         expectedDelayedEventsCount++;
         let log = res.logs[0];
         assert.equal(log.event, "TransactionPending");
@@ -284,7 +285,8 @@ contract('Gatekeeper', async function (accounts) {
     });
 
     it("should allow the owner to create a delayed erc20 transfer transaction", async function () {
-        let res = await gatekeeper.sendERC20(destinationAddress, amount, operatorA.permLevel, initialDelays[1], erc20.address);
+        let stateId = await gatekeeper.stateNonce();
+        let res = await gatekeeper.sendERC20(destinationAddress, amount, operatorA.permLevel, initialDelays[1], erc20.address, stateId);
         expectedDelayedEventsCount++;
         let log = res.logs[0];
         assert.equal(log.event, "TransactionPending");
@@ -329,21 +331,23 @@ contract('Gatekeeper', async function (accounts) {
     describe("custom delay tests", async function () {
         let maxDelay = 365 * yearInSec;
         it("should revert delayed ETH transfer due to invalid delay", async function () {
+            let stateId = await gatekeeper.stateNonce();
             await expect(
-                gatekeeper.sendEther(destinationAddress, amount, operatorA.permLevel, initialDelays[0])
+                gatekeeper.sendEther(destinationAddress, amount, operatorA.permLevel, initialDelays[0], stateId)
             ).to.be.revertedWith("Invalid delay given");
             await expect(
-                gatekeeper.sendEther(destinationAddress, amount, operatorA.permLevel, maxDelay + 1)
+                gatekeeper.sendEther(destinationAddress, amount, operatorA.permLevel, maxDelay + 1, stateId)
             ).to.be.revertedWith("Invalid delay given");
 
         });
 
         it("should revert delayed ERC20 transfer due to invalid delay", async function () {
+            let stateId = await gatekeeper.stateNonce();
             await expect(
-                gatekeeper.sendERC20(destinationAddress, amount, operatorA.permLevel, initialDelays[0], erc20.address)
+                gatekeeper.sendERC20(destinationAddress, amount, operatorA.permLevel, initialDelays[0], erc20.address, stateId)
             ).to.be.revertedWith("Invalid delay given");
             await expect(
-                gatekeeper.sendERC20(destinationAddress, amount, operatorA.permLevel, maxDelay + 1, erc20.address)
+                gatekeeper.sendERC20(destinationAddress, amount, operatorA.permLevel, maxDelay + 1, erc20.address, stateId)
             ).to.be.revertedWith("Invalid delay given");
 
         });
@@ -362,7 +366,7 @@ contract('Gatekeeper', async function (accounts) {
 
         let actions = [ChangeType.ADD_PARTICIPANT];
         let args = [utils.participantHash(adminB1.address, adminB1.permLevel)];
-        let stateId = await gatekeeper.stateId();
+        let stateId = await gatekeeper.stateNonce();
         let res = await gatekeeper.changeConfiguration(actions, args, stateId, operatorA.permLevel);
         let log = res.logs[0];
         assert.equal(log.event, "ConfigPending");
@@ -402,7 +406,7 @@ contract('Gatekeeper', async function (accounts) {
     it("should revert an attempt to delete admin that is not a part of the config", async function () {
         let actions = [ChangeType.REMOVE_PARTICIPANT];
         let args = [utils.participantHash(adminC.address, adminC.permLevel)];
-        let stateId = await gatekeeper.stateId();
+        let stateId = await gatekeeper.stateNonce();
         let res = await gatekeeper.changeConfiguration(actions, args, stateId, operatorA.permLevel);
         let log = res.logs[0];
         assert.equal(log.event, "ConfigPending");
@@ -415,7 +419,7 @@ contract('Gatekeeper', async function (accounts) {
     it("should allow the owner to add an admin after a delay", async function () {
         let actions = [ChangeType.ADD_PARTICIPANT];
         let args = [utils.participantHash(adminC.address, adminC.permLevel)];
-        let stateId = await gatekeeper.stateId();
+        let stateId = await gatekeeper.stateNonce();
         let res = await gatekeeper.changeConfiguration(actions, args, stateId, operatorA.permLevel);
 
         await expect(
@@ -435,7 +439,7 @@ contract('Gatekeeper', async function (accounts) {
     it("should allow the owner to delete an admin after a delay", async function () {
         let actions = [ChangeType.REMOVE_PARTICIPANT];
         let args = [utils.participantHash(adminC.address, adminC.permLevel)];
-        let stateId = await gatekeeper.stateId();
+        let stateId = await gatekeeper.stateNonce();
         let res = await gatekeeper.changeConfiguration(actions, args, stateId, operatorA.permLevel);
         let log = res.logs[0];
         assert.equal(log.event, "ConfigPending");
@@ -450,7 +454,7 @@ contract('Gatekeeper', async function (accounts) {
 
     /* Admin replaced */
     it("should allow the owner to replace an admin after a delay", async function () {
-        let stateId = await gatekeeper.stateId();
+        let stateId = await gatekeeper.stateNonce();
         let changeType1 = ChangeType.ADD_PARTICIPANT;
         let changeArg1 = utils.participantHash(adminB1.address, adminB1.permLevel);
         let changeType2 = ChangeType.REMOVE_PARTICIPANT;
@@ -478,7 +482,7 @@ contract('Gatekeeper', async function (accounts) {
         // is defined as an account with 'ownerPermissions'
         let actions = [ChangeType.ADD_PARTICIPANT];
         let args = [utils.participantHash(wrongaddr.address, wrongaddr.permLevel)];
-        let stateId = await gatekeeper.stateId();
+        let stateId = await gatekeeper.stateNonce();
         let res1 = await gatekeeper.changeConfiguration(actions, args, stateId, operatorA.permLevel);
 
         await utils.increaseTime(timeGap, web3);
@@ -488,7 +492,7 @@ contract('Gatekeeper', async function (accounts) {
 
         actions = [ChangeType.ADD_PARTICIPANT];
         args = [utils.participantHash(wrongaddr.address, wrongaddr.permLevel)];
-        stateId = await gatekeeper.stateId();
+        stateId = await gatekeeper.stateNonce();
         await expect(
             gatekeeper.changeConfiguration(actions, args, stateId, operatorA.permLevel, {from: wrongaddr.address})
         ).to.be.revertedWith("not a real operator");
@@ -496,7 +500,7 @@ contract('Gatekeeper', async function (accounts) {
         // Clean up
         actions = [ChangeType.REMOVE_PARTICIPANT];
         args = [utils.participantHash(wrongaddr.address, wrongaddr.permLevel)];
-        stateId = await gatekeeper.stateId();
+        stateId = await gatekeeper.stateNonce();
         let res2 = await gatekeeper.changeConfiguration(actions, args, stateId, operatorA.permLevel);
         await utils.increaseTime(timeGap, web3);
         await applyDelayed({res: res2}, operatorA, gatekeeper);
@@ -508,7 +512,8 @@ contract('Gatekeeper', async function (accounts) {
     it("should allow the admin to replace the owner after a delay", async function () {
         let participants = [operatorA.expect(), operatorB];
         await utils.validateConfigParticipants(participants, gatekeeper);
-        let res = await gatekeeper.scheduleChangeOwner(adminA.permLevel, operatorB.address, {from: adminA.address});
+        let stateId = await gatekeeper.stateNonce();
+        let res = await gatekeeper.scheduleChangeOwner(adminA.permLevel, operatorB.address, stateId, {from: adminA.address});
         await utils.increaseTime(timeGap, web3);
         await applyDelayed({res}, adminA, gatekeeper);
         participants = [operatorA, operatorB.expect()];
@@ -519,7 +524,8 @@ contract('Gatekeeper', async function (accounts) {
     it("should allow the owner to replace the owner after a delay", async function () {
         let participants = [operatorA, operatorB.expect()];
         await utils.validateConfigParticipants(participants, gatekeeper);
-        let res = await gatekeeper.scheduleChangeOwner(operatorA.permLevel, operatorA.address, {from: operatorB.address});
+        let stateId = await gatekeeper.stateNonce();
+        let res = await gatekeeper.scheduleChangeOwner(operatorA.permLevel, operatorA.address, stateId, {from: operatorB.address});
         await utils.increaseTime(timeGap, web3);
         await applyDelayed({res}, operatorB, gatekeeper);
         participants = [operatorA.expect(), operatorB];
@@ -544,7 +550,8 @@ contract('Gatekeeper', async function (accounts) {
         await utils.asyncForEach(
             [operatorA, watchdogA],
             async (participant) => {
-                let res1 = await gatekeeper.sendEther(destinationAddress, amount, operatorA.permLevel, initialDelays[1]);
+                let stateId = await gatekeeper.stateNonce();
+                let res1 = await gatekeeper.sendEther(destinationAddress, amount, operatorA.permLevel, initialDelays[1], stateId);
                 expectedDelayedEventsCount++;
                 let log1 = res1.logs[0];
                 let res2 = await gatekeeper.cancelTransfer(participant.permLevel, log1.args.delay, log1.args.destination, log1.args.value,
@@ -563,7 +570,8 @@ contract('Gatekeeper', async function (accounts) {
         await utils.asyncForEach(
             [operatorA, watchdogA],
             async (participant) => {
-                let res1 = await gatekeeper.sendERC20(destinationAddress, amount, operatorA.permLevel, initialDelays[1], erc20.address);
+                let stateId = await gatekeeper.stateNonce();
+                let res1 = await gatekeeper.sendERC20(destinationAddress, amount, operatorA.permLevel, initialDelays[1], erc20.address, stateId);
                 expectedDelayedEventsCount++;
                 let log1 = res1.logs[0];
                 let res2 = await gatekeeper.cancelTransfer(participant.permLevel, log1.args.delay, log1.args.destination, log1.args.value,
@@ -606,19 +614,25 @@ contract('Gatekeeper', async function (accounts) {
         ];
     }
 
-    function getNonBoosters() {
+    function getNonBoostees() {
+
+        let canUnfreeze = 1 << 3;
+        let canChangeParticipants = 1 << 4;
+        let canChangeOwner = 1 << 10;
+        let canChangeConfig = canUnfreeze | canChangeParticipants | canChangeOwner;
         let canSignBoosts = 1 << 8;
         return [
-            adminA.expectError(`permissions missing: ${canSignBoosts}`),
-            watchdogA.expectError(`permissions missing: ${canSignBoosts}`),
+            adminA.expectError(`permissions missing: ${canSignBoosts + canUnfreeze + canChangeParticipants}`),
+            watchdogA.expectError(`permissions missing: ${canSignBoosts + canChangeConfig}`),
             wrongaddr.expectError("not participant")
         ];
     }
 
     it(`should not allow non-chowners to change owner`, async function () {
+        let stateId = await gatekeeper.stateNonce();
         await utils.asyncForEach(getNonChowners(), async (participant) => {
             await expect(
-                gatekeeper.scheduleChangeOwner(participant.permLevel, adminC.address, {from: participant.address})
+                gatekeeper.scheduleChangeOwner(participant.permLevel, adminC.address, stateId, {from: participant.address})
             ).to.be.revertedWith(participant.expectError);
             console.log(`${participant.name} + scheduleChangeOwner + ${participant.expectError}`)
         });
@@ -626,10 +640,10 @@ contract('Gatekeeper', async function (accounts) {
 
     /* Admin replaced - opposite  & Owner loses phone - opposite */
     it(`should not allow non-config-changers to add or remove admins or watchdogs`, async function () {
+        let stateId = await gatekeeper.stateNonce();
         await utils.asyncForEach(getNonConfigChangers(), async (participant) => {
             let actions = [ChangeType.ADD_PARTICIPANT];
             let args = [utils.participantHash(adminC.address, adminC.permLevel)];
-            let stateId = await gatekeeper.stateId();
             await expect(
                 gatekeeper.changeConfiguration(actions, args, stateId, participant.permLevel, {from: participant.address})
             ).to.be.revertedWith(participant.expectError);
@@ -646,21 +660,23 @@ contract('Gatekeeper', async function (accounts) {
     });
 
     it(`should not allow non-spenders to create a delayed transfer transaction`, async function () {
+        let stateId = await gatekeeper.stateNonce();
         await utils.asyncForEach(getNonSpenders(), async (participant) => {
             await expect(
-                gatekeeper.sendEther(destinationAddress, amount, participant.permLevel, initialDelays[1], {from: participant.address})
+                gatekeeper.sendEther(destinationAddress, amount, participant.permLevel, initialDelays[1], stateId, {from: participant.address})
             ).to.be.revertedWith(participant.expectError);
-            console.log(`${participant.name} + destinationAddresss + ${participant.expectError}`)
+            console.log(`${participant.name} + sendEther + ${participant.expectError}`)
 
         });
     });
 
     it(`should not allow non-spenders to create a delayed ERC20 transfer transaction`, async function () {
+        let stateId = await gatekeeper.stateNonce();
         await utils.asyncForEach(getNonSpenders(), async (participant) => {
             await expect(
-                gatekeeper.sendERC20(destinationAddress, amount, participant.permLevel, initialDelays[1], erc20.address, {from: participant.address})
+                gatekeeper.sendERC20(destinationAddress, amount, participant.permLevel, initialDelays[1], erc20.address, stateId, {from: participant.address})
             ).to.be.revertedWith(participant.expectError);
-            console.log(`${participant.name} + destinationAddresss + ${participant.expectError}`)
+            console.log(`${participant.name} + sendERC20 + ${participant.expectError}`)
 
         });
     });
@@ -675,11 +691,11 @@ contract('Gatekeeper', async function (accounts) {
 
     // TODO: separate into 'isFrozen' check and a separate tests for each disabled action while frozen
     it("should allow the watchdog to freeze all participants below its level", async function () {
+        let stateId = await gatekeeper.stateNonce();
         let res0;
         {
             let actions = [ChangeType.ADD_PARTICIPANT];
             let args = [utils.participantHash(watchdogB.address, watchdogB.permLevel)];
-            let stateId = await gatekeeper.stateId();
             res0 = await gatekeeper.changeConfiguration(actions, args, stateId, operatorA.permLevel);
             await utils.increaseTime(timeGap, web3);
             await applyDelayed({res: res0}, operatorA, gatekeeper);
@@ -705,19 +721,19 @@ contract('Gatekeeper', async function (accounts) {
 
         // Operator cannot send money any more
         let reason = "level is frozen";
+        stateId = await gatekeeper.stateNonce();
         await expect(
-            gatekeeper.sendEther(destinationAddress, amount, operatorA.permLevel, initialDelays[1], {from: operatorA.address})
+            gatekeeper.sendEther(destinationAddress, amount, operatorA.permLevel, initialDelays[1], stateId, {from: operatorA.address})
         ).to.be.revertedWith(reason);
 
         await expect(
-            gatekeeper.sendERC20(destinationAddress, amount, operatorA.permLevel, initialDelays[1], erc20.address, {from: operatorA.address})
+            gatekeeper.sendERC20(destinationAddress, amount, operatorA.permLevel, initialDelays[1], erc20.address, stateId, {from: operatorA.address})
         ).to.be.revertedWith(reason);
 
         // On lower levels:
         // Operator cannot change configuration any more
         let actions = [ChangeType.ADD_PARTICIPANT];
         let args = [utils.participantHash(adminC.address, adminC.permLevel)];
-        let stateId = await gatekeeper.stateId();
         await expect(
             gatekeeper.changeConfiguration(actions, args, stateId, operatorA.permLevel),
             "addParticipant did not revert correctly"
@@ -726,7 +742,7 @@ contract('Gatekeeper', async function (accounts) {
 
         // Admin cannot change owner any more
         await expect(
-            gatekeeper.scheduleChangeOwner(adminA.permLevel, adminC.address, {from: adminA.address}),
+            gatekeeper.scheduleChangeOwner(adminA.permLevel, adminC.address, stateId, {from: adminA.address}),
             "scheduleChangeOwner did not revert correctly"
             + ` with expected reason: "${reason}"`
         ).to.be.revertedWith(reason);
@@ -746,7 +762,7 @@ contract('Gatekeeper', async function (accounts) {
 
         // On the level of the freezer or up:
         // Admin can still call 'change owner'
-        let res2 = await gatekeeper.scheduleChangeOwner(adminB2.permLevel, operatorB.address, {from: adminB2.address});
+        let res2 = await gatekeeper.scheduleChangeOwner(adminB2.permLevel, operatorB.address, stateId, {from: adminB2.address});
 
         // Watchdog can still cancel stuff
         let res3 = await cancelDelayed({res: res2}, watchdogB, gatekeeper);
@@ -758,11 +774,11 @@ contract('Gatekeeper', async function (accounts) {
 
     it("should not allow non-boosters to unfreeze", async function () {
 
-        await utils.asyncForEach(getNonBoosters(), async (signingParty) => {
+        await utils.asyncForEach(getNonBoostees(), async (signingParty) => {
 
             let actions = [ChangeType.UNFREEZE];
             let args = ["0x0"];
-            let stateId = await gatekeeper.stateId();
+            let stateId = await gatekeeper.stateNonce();
             let encodedHash = await utilities.changeHash(actions, args, stateId);//utils.getTransactionHash(ABI.solidityPack(["uint8[]", "bytes32[]", "uint256"], [actions, args, stateId]));
             let signature = await utils.signMessage(encodedHash, web3, {from: signingParty.address});
             await expect(
@@ -791,7 +807,7 @@ contract('Gatekeeper', async function (accounts) {
         // Schedule a boosted unfreeze by a high level admin
         let actions = [ChangeType.UNFREEZE];
         let args = ["0x0"];
-        let stateId = await gatekeeper.stateId();
+        let stateId = await gatekeeper.stateNonce();
         let encodedHash = await utilities.changeHash(actions, args, stateId);//utils.getTransactionHash(ABI.solidityPack(["uint8[]", "bytes32[]", "uint256"], [actions, args, stateId]));
         let signature = await utils.signMessage(encodedHash, web3, {from: operatorA.address});
         let res1 = await gatekeeper.boostedConfigChange(actions, args, stateId, adminB1.permLevel, operatorA.permLevel, signature, {from: adminB1.address});
@@ -804,22 +820,24 @@ contract('Gatekeeper', async function (accounts) {
 
         // Operator still cannot send money, not time-caused unfreeze
         await expect(
-            gatekeeper.sendEther(destinationAddress, amount, operatorA.permLevel, initialDelays[1], {from: operatorA.address})
+            gatekeeper.sendEther(destinationAddress, amount, operatorA.permLevel, initialDelays[1], stateId, {from: operatorA.address})
         ).to.be.revertedWith("level is frozen");
         await expect(
-            gatekeeper.sendERC20(destinationAddress, amount, operatorA.permLevel, initialDelays[1], erc20.address, {from: operatorA.address})
+            gatekeeper.sendERC20(destinationAddress, amount, operatorA.permLevel, initialDelays[1], erc20.address, stateId, {from: operatorA.address})
         ).to.be.revertedWith("level is frozen");
         let res3 = await applyDelayed({log: log1}, adminB1, gatekeeper);
         let log3 = res3.logs[0];
 
         assert.equal(log3.event, "UnfreezeCompleted");
 
-        let res2 = await gatekeeper.sendEther(destinationAddress, amount, operatorA.permLevel, initialDelays[1]);
+        stateId = await gatekeeper.stateNonce();
+        let res2 = await gatekeeper.sendEther(destinationAddress, amount, operatorA.permLevel, initialDelays[1], stateId);
         let log2 = res2.logs[0];
         assert.equal(log2.event, "TransactionPending");
         assert.equal(log2.address, vault.address);
 
-        let res4 = await gatekeeper.sendERC20(destinationAddress, amount, operatorA.permLevel, initialDelays[1], erc20.address);
+        stateId = await gatekeeper.stateNonce();
+        let res4 = await gatekeeper.sendERC20(destinationAddress, amount, operatorA.permLevel, initialDelays[1], erc20.address, stateId);
         let log4 = res4.logs[0];
         assert.equal(log4.event, "TransactionPending");
         assert.equal(log4.address, vault.address);
@@ -832,7 +850,7 @@ contract('Gatekeeper', async function (accounts) {
             // Schedule a totally valid config change
             let actions = [ChangeType.ADD_PARTICIPANT];
             let args = [utils.participantHash(adminB1.address, adminB1.permLevel)];
-            let stateId = await gatekeeper.stateId();
+            let stateId = await gatekeeper.stateNonce();
             let res1 = await gatekeeper.changeConfiguration(actions, args, stateId, operatorA.permLevel);
 
             // Freeze the scheduler's rank
@@ -855,7 +873,7 @@ contract('Gatekeeper', async function (accounts) {
 
             let actions = [ChangeType.UNFREEZE];
             let args = ["0x0"];
-            let stateId = await gatekeeper.stateId();
+            let stateId = await gatekeeper.stateNonce();
             let encodedHash = await utilities.changeHash(actions, args, stateId);//utils.getTransactionHash(ABI.solidityPack(["uint8[]", "bytes32[]", "uint256"], [actions, args, stateId]));
             let signature = await utils.signMessage(encodedHash, web3, {from: operatorA.address});
             let res1 = await gatekeeper.boostedConfigChange(
@@ -892,7 +910,7 @@ contract('Gatekeeper', async function (accounts) {
 
     it("should revert an attempt to apply an operation under some other participant's name", async function () {
         // Schedule config change by operator, and claim to be an admin when applying
-        let stateId = await gatekeeper.stateId();
+        let stateId = await gatekeeper.stateNonce();
         let changeType = ChangeType.ADD_PARTICIPANT;
         let changeArgs = utils.participantHash(adminB1.address, adminB1.permLevel);
 
@@ -910,6 +928,16 @@ contract('Gatekeeper', async function (accounts) {
 
     it("should revert an attempt to apply a boosted operation claiming wrong permissions");
     it("should revert an attempt to apply an operation claiming wrong permissions");
+
+
+    it("should revert an attempt to schedule a transaction if the target state nonce is incorrect", async function () {
+        let stateId = await gatekeeper.stateNonce();
+        let changeType = ChangeType.ADD_PARTICIPANT;
+        let changeArgs = utils.participantHash(adminB1.address, adminB1.permLevel);
+
+        await expect( gatekeeper.changeConfiguration([changeType], [changeArgs], stateId - 1, operatorA.permLevel)
+        ).to.be.revertedWith("contract state changed since transaction was created")
+    });
 
     after("write coverage report", async () => {
         await global.postCoverage()
