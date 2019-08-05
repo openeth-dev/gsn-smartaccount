@@ -12,6 +12,7 @@ const Vault = artifacts.require("./Vault.sol");
 const DAI = artifacts.require("./DAI.sol");
 
 const zeroAddr  = "0x0000000000000000000000000000000000000000";
+const ETH_TOKEN_ADDRESS  = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
 
 contract('Vault', function (accounts) {
 
@@ -32,7 +33,7 @@ contract('Vault', function (accounts) {
 
 
     it("should fail to execute a delayed transfer transaction if not enough funds", async function () {
-        let res = await vault.scheduleDelayedTransfer(delay, destination, amount, zeroAddr);
+        let res = await vault.scheduleDelayedTransfer(delay, destination, amount, ETH_TOKEN_ADDRESS);
         let log = res.logs[0];
         assert.equal(log.event, "TransactionPending");
         let balance = parseInt(await web3.eth.getBalance(vault.address));
@@ -73,7 +74,7 @@ contract('Vault', function (accounts) {
     });
 
     it("should allow to create a delayed ETH transaction and execute it after delay expires", async function () {
-        let res1 = await vault.scheduleDelayedTransfer(delay, destination, amount, zeroAddr);
+        let res1 = await vault.scheduleDelayedTransfer(delay, destination, amount, ETH_TOKEN_ADDRESS);
 
         let log1 = res1.logs[0];
         assert.equal("TransactionPending", log1.event);
@@ -141,7 +142,7 @@ contract('Vault', function (accounts) {
     });
 
     it("should allow to cancel ETH transaction before delay expires", async function () {
-        let res1 = await vault.scheduleDelayedTransfer(delay, destination, amount, zeroAddr);
+        let res1 = await vault.scheduleDelayedTransfer(delay, destination, amount, ETH_TOKEN_ADDRESS);
 
         let log1 = res1.logs[0];
         assert.equal("TransactionPending", log1.event);

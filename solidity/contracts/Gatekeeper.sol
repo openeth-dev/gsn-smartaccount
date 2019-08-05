@@ -6,6 +6,9 @@ import "./Utilities.sol";
 
 contract Gatekeeper is PermissionsLevel {
 
+    // Nice idea to use mock token address for ETH instead of 'address(0)'
+    address constant internal ETH_TOKEN_ADDRESS = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+
     enum ChangeType {
         ADD_PARTICIPANT, // arg: participant_hash
         REMOVE_PARTICIPANT, // arg: participant_hash
@@ -211,7 +214,7 @@ contract Gatekeeper is PermissionsLevel {
         requireCorrectState(targetStateNonce);
         uint256 levelDelay = delays[extractLevel(senderPermsLevel)];
         require(levelDelay <= delay && delay <= maxDelay, "Invalid delay given");
-        vault.scheduleDelayedTransfer(delay, destination, value, address(0));
+        vault.scheduleDelayedTransfer(delay, destination, value, ETH_TOKEN_ADDRESS);
         stateNonce++;
     }
 

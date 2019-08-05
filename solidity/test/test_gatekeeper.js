@@ -93,6 +93,7 @@ contract('Gatekeeper', async function (accounts) {
     let freezerLevel = 2;
     let highLevel = 3;
     let zeroAddress = "0x0000000000000000000000000000000000000000";
+    let ETH_TOKEN_ADDRESS = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
     let destinationAddress = accounts[2];
     let timeGap = 60 * 60 * 24 * 2 + 10;
     let initialDelays;
@@ -249,7 +250,7 @@ contract('Gatekeeper', async function (accounts) {
         assert.equal(log.address, vault.address);
         assert.equal(log.args.destination, destinationAddress);
         assert.equal(log.args.value, amount);
-        assert.equal(log.args.erc20token, zeroAddress);
+        assert.equal(log.args.erc20token, ETH_TOKEN_ADDRESS);
         assert.equal(log.args.delay, initialDelays[1]);
         let hash = "0x" + utils.scheduledVaultTxHash(gatekeeper.address, log.args.nonce, log.args.delay, log.args.destination, log.args.value, log.args.erc20token).toString("hex");
         let dueTime = await vault.pending(hash);
