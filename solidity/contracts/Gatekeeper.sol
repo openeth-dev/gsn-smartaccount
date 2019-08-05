@@ -60,31 +60,31 @@ contract Gatekeeper is PermissionsLevel {
 
     // ********** Access control modifiers below this point
 
-    function requireNotFrozen(uint16 senderPermsLevel, string memory errorMessage) internal {
+    function requireNotFrozen(uint16 senderPermsLevel, string memory errorMessage) view internal {
         uint8 senderLevel = extractLevel(senderPermsLevel);
         require(now > frozenUntil || senderLevel > frozenLevel, errorMessage);
     }
 
-    function requireNotFrozen(uint16 senderPermsLevel) internal {
+    function requireNotFrozen(uint16 senderPermsLevel) view internal {
         requireNotFrozen(senderPermsLevel, "level is frozen");
     }
 
-    function requireOneOperator(address participant, uint16 permissions) internal {
+    function requireOneOperator(address participant, uint16 permissions) view internal {
         require(
             permissions != ownerPermissions ||
             participant == operator,
             "not a real operator");
     }
 
-    function requireParticipant(address participant, uint16 permsLevel) internal {
+    function requireParticipant(address participant, uint16 permsLevel) view internal {
         require(participants[Utilities.participantHash(participant, permsLevel)], "not participant");
     }
 
-    function requirePermissions(address sender, uint16 neededPermissions, uint16 senderPermsLevel) internal {
+    function requirePermissions(address sender, uint16 neededPermissions, uint16 senderPermsLevel) view internal {
         requireParticipant(sender, senderPermsLevel);
         uint16 senderPermissions = extractPermission(senderPermsLevel);
         requireOneOperator(sender, senderPermissions);
-        requirePermissions(neededPermissions, senderPermissions);
+        comparePermissions(neededPermissions, senderPermissions);
     }
 
     function requireCorrectState(uint256 targetStateNonce) internal {
