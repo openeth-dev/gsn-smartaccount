@@ -5,6 +5,9 @@ import "./Utilities.sol";
 
 contract Vault {
 
+    // Nice idea to use mock token address for ETH instead of 'address(0)'
+    address constant internal ETH_TOKEN_ADDRESS = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+
     uint256 public nonce;
     mapping (bytes32 => uint256) public pending;
 
@@ -61,7 +64,7 @@ contract Vault {
         require(dueTime != 0, "applyDelayedTransfer called for non existing transfer");
         require(now >= dueTime, "applyDelayedTransfer called before due time");
 
-        if (token == address(0)) {
+        if (token == ETH_TOKEN_ADDRESS) {
             transferETH(destination,value, scheduledNonce, who);
         }else {
             transferERC20(destination, value, scheduledNonce, who, ERC20(token));
