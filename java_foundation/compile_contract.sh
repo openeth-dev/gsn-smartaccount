@@ -15,7 +15,7 @@ abifile=`echo $binfile|sed -e 's/[.]bin/.json/'`
 
 echo -n "$binfile: "
 
-../web3j/build/tools/web3j-4.3.2-SNAPSHOT/bin/web3j solidity generate -b $binfile -a $abifile -p com.tabookey.foundation.generated -o $GEN
+../web3j_tabookey/build/tools/web3j-4.3.2-SNAPSHOT/bin/web3j solidity generate -b $binfile -a $abifile -p com.tabookey.foundation.generated -o $GEN
 
 echo $PIPESTATUS|grep -q 0
 
