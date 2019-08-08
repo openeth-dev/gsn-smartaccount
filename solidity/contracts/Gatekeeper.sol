@@ -120,18 +120,18 @@ contract Gatekeeper is PermissionsLevel {
 
     // ****** Immediately runnable functions below this point
 
-    function freeze(uint16 senderPermsLevel, uint8 levelToFreeze, uint interval)
+    function freeze(uint16 senderPermsLevel, uint8 levelToFreeze, uint duration)
     public
     {
         requirePermissions(msg.sender, canFreeze, senderPermsLevel);
         requireNotFrozen(senderPermsLevel);
-        uint until = SafeMath.add(now, interval);
+        uint until = SafeMath.add(now, duration);
         uint8 senderLevel = extractLevel(senderPermsLevel);
         require(levelToFreeze <= senderLevel, "cannot freeze level that is higher than caller");
         require(levelToFreeze > frozenLevel, "cannot freeze level that is lower than already frozen");
-        require(interval <= maxFreeze, "cannot freeze level for this long");
+        require(duration <= maxFreeze, "cannot freeze level for this long");
         require(frozenUntil <= until, "cannot freeze level for less than already frozen");
-        require(interval > 0, "cannot freeze level for zero time");
+        require(duration > 0, "cannot freeze level for zero time");
 
         frozenLevel = levelToFreeze;
         frozenUntil = until;

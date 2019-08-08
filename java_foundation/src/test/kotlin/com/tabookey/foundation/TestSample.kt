@@ -1,7 +1,5 @@
 package com.tabookey.foundation
 
-import com.tabookey.foundation.generated.Gatekeeper
-import com.tabookey.foundation.generated.Vault
 import com.tabookey.foundation.generated.VaultFactory
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeAll
@@ -35,10 +33,45 @@ class TestSample {
 
     companion object {
 
+        val ownerCreds = Credentials.create("6edf5e2ae718c0abf4be350792b0b5352cda8341ec10ce6b0d77230b92ae17c3") // address 0x1715abd5086a19e770c53b87739820922f2275c3
+        val admin1Creds = Credentials.create("84d4ae57ada4a3619df875aaecd67a06463805e2db4cacdec81a962b79e79390") // address 0x682a4e669793dda85eccc1838d33a391ac41fd38
+        val watchdog1Creds = Credentials.create("6ea29c4632853bfd778fdca8699ba751292b1ce1dacb6f91cc42cbd44031e970") // address 0xd2ca23837ab36a83fc1a4f41ee4c17d9f5300f88
+
+        lateinit var ownerPermsLevel: String
+        lateinit var adminPermsLevel: String
+        lateinit var watchdogPermsLevel: String
+
+
+
         lateinit var vaultFactory: VaultFactory
-        lateinit var vault: Vault
-        lateinit var gatekeeper: Gatekeeper
-        lateinit var interactor: VaultContractInteractor
+        lateinit var ownerInteractor: VaultContractInteractor
+        lateinit var adminInteractor: VaultContractInteractor
+        lateinit var watchdogInteractor: VaultContractInteractor
+
+        lateinit var vaultAddress: String
+        lateinit var gkAddress: String
+
+        fun packPermissionLevel(permissions: String, level: String): String {
+            val permInt = permissions.toInt()
+            val levelInt = level.toInt()
+
+            assert(permInt <= 0x07FF)
+            assert(levelInt <= 0x1F)
+            return "0x" + ((levelInt shl 11) + permInt).toString(16)
+        }
+
+        fun deployGatekeeper(web3j: Web3j) {
+            val response = ownerInteractor.deployNewGatekeeper()
+            assertEquals(response.gatekeeper.length, 42)
+            gkAddress = response.gatekeeper
+            assertEquals(response.vault.length, 42)
+            vaultAddress = response.vault
+
+            val throws: Throwable = assertThrows("deployed the gatekeeper twice") {
+                ownerInteractor.deployNewGatekeeper()
+            }
+            assertEquals("vault already deployed", throws.message)
+        }
 
         @BeforeAll
         @JvmStatic
@@ -51,32 +84,46 @@ class TestSample {
             val creds = Credentials.create(ganachePrivateKey)
             val gasProvider = StaticGasProvider(BigInteger.valueOf(1), BigInteger.valueOf(10_000_000L))
             vaultFactory = VaultFactory.deploy(web3j, creds, gasProvider).send()
-            interactor = VaultContractInteractor.connect(vaultFactory = vaultFactory, web3j = web3j, credentials = creds)
-        }
-    }
+            ownerInteractor = VaultContractInteractor.connect(vaultFactoryAddress = vaultFactory.contractAddress, web3j = web3j, credentials = creds)
+            deployGatekeeper(web3j)
+            adminInteractor = VaultContractInteractor.connect(vaultFactoryAddress = vaultFactory.contractAddress,
+                    web3j = web3j, gkAddress = gkAddress, vaultAddress = vaultAddress, credentials = admin1Creds)
+            watchdogInteractor = VaultContractInteractor.connect(vaultFactoryAddress = vaultFactory.contractAddress,
+                    web3j = web3j, gkAddress = gkAddress, vaultAddress = vaultAddress, credentials = watchdog1Creds)
 
-    @Test
-    @DisplayName("deploys a new vault, but only if not initialized")
-    fun deployGatekeeper() {
-        val response = interactor.deployNewGatekeeper()
-        assertEquals(response.gatekeeper.length, 42)
-        assertEquals(response.vault.length, 42)
+            ownerPermsLevel = packPermissionLevel(ownerInteractor.ownerPermissions(),"1")
+            adminPermsLevel = packPermissionLevel(adminInteractor.adminPermissions(),"1")
+            watchdogPermsLevel = packPermissionLevel(watchdogInteractor.watchdogPermissions(),"1")
 
-        val throws: Throwable = assertThrows("deployed the gatekeeper twice") {
-            interactor.deployNewGatekeeper()
         }
-        assertEquals("vault already deployed", throws)
     }
 
     @Test
     @DisplayName("the newly deployed vault should accept the initial configuration")
     fun setInitialConfiguration(){
 
-        val vaultAddress = vault.contractAddress
         val initialParticipants = listOf<String>()
         val initialDelays = listOf<String>()
-        interactor.initialConfig(vaultAddress, initialParticipants, initialDelays)
+        ownerInteractor.initialConfig(ownerInteractor.vaultAddress!!, initialParticipants, initialDelays)
 
     }
+
+    @Test
+    @DisplayName("should add admin & watchdog")
+    fun addParticipants() {
+    }
+
+    @Test
+    @DisplayName("should freeze")
+    fun freeze() {
+        adminInteractor.freeze()
+    }
+
+    @Test
+    @DisplayName("should boost config change")
+    fun boostedConfigChange() {
+    }
+
+
 
 }
