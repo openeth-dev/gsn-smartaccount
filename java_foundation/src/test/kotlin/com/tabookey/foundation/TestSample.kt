@@ -1,24 +1,30 @@
 package com.tabookey.foundation
 
+import com.tabookey.foundation.generated.Gatekeeper
 import com.tabookey.foundation.generated.VaultFactory
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.MethodOrderer.OrderAnnotation
+import org.junit.jupiter.api.Order
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.TestMethodOrder
 import org.junit.jupiter.api.assertThrows
+import org.web3j.abi.datatypes.Type
 import org.web3j.crypto.Credentials
+import org.web3j.crypto.Hash
 import org.web3j.protocol.Web3j
-import org.web3j.protocol.http.HttpService
-import org.web3j.tx.gas.StaticGasProvider
+import org.web3j.utils.Numeric
 import java.math.BigInteger
 
+@TestMethodOrder(OrderAnnotation::class)
 class TestSample {
 
-    class Participant(){
+    class Participant() {
 
     }
 
-    fun validateConfiguration(participants: List<Participant>){
+    fun validateConfiguration(participants: List<Participant>) {
 //        await this.asyncForEach(participants, async (participant) => {
 //            let adminHash = this.bufferToHex(this.participantHash(participant.address, participant.permLevel));
 //            let isAdmin = await gatekeeper.participants(adminHash);
@@ -33,90 +39,151 @@ class TestSample {
 
     companion object {
 
-        val ownerCreds = Credentials.create("6edf5e2ae718c0abf4be350792b0b5352cda8341ec10ce6b0d77230b92ae17c3") // address 0x1715abd5086a19e770c53b87739820922f2275c3
+        val owner1Creds = Credentials.create("6edf5e2ae718c0abf4be350792b0b5352cda8341ec10ce6b0d77230b92ae17c3") // address 0x1715abd5086a19e770c53b87739820922f2275c3
         val admin1Creds = Credentials.create("84d4ae57ada4a3619df875aaecd67a06463805e2db4cacdec81a962b79e79390") // address 0x682a4e669793dda85eccc1838d33a391ac41fd38
         val watchdog1Creds = Credentials.create("6ea29c4632853bfd778fdca8699ba751292b1ce1dacb6f91cc42cbd44031e970") // address 0xd2ca23837ab36a83fc1a4f41ee4c17d9f5300f88
+        val owner2Creds = Credentials.create("44e361aeeecf499d80a465d19bd766496bcc0921fb4c5747a9237cc27b77145e") // address 0x0a30bbc1f9a522dbab1052076ef2219ca3f7f198
+        val admin2Creds = Credentials.create("1b8c88c194a422828ffa18fb56844ab42cd80c2ae7d0bd91b84f0250c052e892") // address 0xc927ca0011a135183a9588cd406423c528104676
+        val watchdog2Creds = Credentials.create("a775bcfc9c7509a6a1111a103a84ceb5c0a5e37d38c2ce6fd438305e60398cd2") // address 0x8d29024054ec702d3fc30147436d22824ee7cf5a
 
-        lateinit var ownerPermsLevel: String
-        lateinit var adminPermsLevel: String
-        lateinit var watchdogPermsLevel: String
+        lateinit var owner1PermsLevel: String
+        lateinit var admin1PermsLevel: String
+        lateinit var watchdog1PermsLevel: String
+        lateinit var owner2PermsLevel: String
+        lateinit var admin2PermsLevel: String
+        lateinit var watchdog2PermsLevel: String
 
+        lateinit var owner1Hash: String
+        lateinit var admin1Hash: String
+        lateinit var watchdog1Hash: String
+        lateinit var owner2Hash: String
+        lateinit var admin2Hash: String
+        lateinit var watchdog2Hash: String
 
 
         lateinit var vaultFactory: VaultFactory
-        lateinit var ownerInteractor: VaultContractInteractor
-        lateinit var adminInteractor: VaultContractInteractor
-        lateinit var watchdogInteractor: VaultContractInteractor
+        lateinit var owner1Interactor: VaultContractInteractor
+        lateinit var admin1Interactor: VaultContractInteractor
+        lateinit var watchdog1Interactor: VaultContractInteractor
+        lateinit var owner2Interactor: VaultContractInteractor
+        lateinit var admin2Interactor: VaultContractInteractor
+        lateinit var watchdog2Interactor: VaultContractInteractor
 
         lateinit var vaultAddress: String
         lateinit var gkAddress: String
 
-        fun packPermissionLevel(permissions: String, level: String): String {
-            val permInt = permissions.toInt()
-            val levelInt = level.toInt()
-
-            assert(permInt <= 0x07FF)
-            assert(levelInt <= 0x1F)
-            return "0x" + ((levelInt shl 11) + permInt).toString(16)
-        }
+        val zeroAddress = "0x0000000000000000000000000000000000000000"
 
         fun deployGatekeeper(web3j: Web3j) {
-            val response = ownerInteractor.deployNewGatekeeper()
+            val response = owner1Interactor.deployNewGatekeeper()
             assertEquals(response.gatekeeper.length, 42)
             gkAddress = response.gatekeeper
             assertEquals(response.vault.length, 42)
             vaultAddress = response.vault
 
             val throws: Throwable = assertThrows("deployed the gatekeeper twice") {
-                ownerInteractor.deployNewGatekeeper()
+                owner1Interactor.deployNewGatekeeper()
             }
             assertEquals("vault already deployed", throws.message)
         }
+
 
         @BeforeAll
         @JvmStatic
         fun before() {
             println("hello!")
-            val url = "http://localhost:8545"
-            val httpService = HttpService(url)
-            val web3j = Web3j.build(httpService)
-            val ganachePrivateKey = "4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d"
-            val creds = Credentials.create(ganachePrivateKey)
-            val gasProvider = StaticGasProvider(BigInteger.valueOf(1), BigInteger.valueOf(10_000_000L))
-            vaultFactory = VaultFactory.deploy(web3j, creds, gasProvider).send()
-            ownerInteractor = VaultContractInteractor.connect(vaultFactoryAddress = vaultFactory.contractAddress, web3j = web3j, credentials = creds)
-            deployGatekeeper(web3j)
-            adminInteractor = VaultContractInteractor.connect(vaultFactoryAddress = vaultFactory.contractAddress,
-                    web3j = web3j, gkAddress = gkAddress, vaultAddress = vaultAddress, credentials = admin1Creds)
-            watchdogInteractor = VaultContractInteractor.connect(vaultFactoryAddress = vaultFactory.contractAddress,
-                    web3j = web3j, gkAddress = gkAddress, vaultAddress = vaultAddress, credentials = watchdog1Creds)
 
-            ownerPermsLevel = packPermissionLevel(ownerInteractor.ownerPermissions(),"1")
-            adminPermsLevel = packPermissionLevel(adminInteractor.adminPermissions(),"1")
-            watchdogPermsLevel = packPermissionLevel(watchdogInteractor.watchdogPermissions(),"1")
+            vaultFactory = VaultFactory.deploy(web3j, deployCreds, gasProvider).send()
+            owner1Interactor = VaultContractInteractor.connect(vaultFactoryAddress = vaultFactory.contractAddress, web3j = web3j, credentials = owner1Creds)
+            // fund owner
+            moneyTransfer(web3j, deployCreds.address, owner1Creds.address, "1000000000000000000".toBigInteger())
+            deployGatekeeper(web3j)
+            admin1Interactor = VaultContractInteractor.connect(vaultFactoryAddress = vaultFactory.contractAddress,
+                    web3j = web3j, gkAddress = gkAddress, vaultAddress = vaultAddress, credentials = admin1Creds)
+            watchdog1Interactor = VaultContractInteractor.connect(vaultFactoryAddress = vaultFactory.contractAddress,
+                    web3j = web3j, gkAddress = gkAddress, vaultAddress = vaultAddress, credentials = watchdog1Creds)
+            owner2Interactor = VaultContractInteractor.connect(vaultFactoryAddress = vaultFactory.contractAddress, gkAddress = gkAddress, vaultAddress = vaultAddress, web3j = web3j, credentials = owner2Creds)
+            // fund owner
+            moneyTransfer(web3j, deployCreds.address, owner2Creds.address, "1000000000000000000".toBigInteger())
+            admin2Interactor = VaultContractInteractor.connect(vaultFactoryAddress = vaultFactory.contractAddress,
+                    web3j = web3j, gkAddress = gkAddress, vaultAddress = vaultAddress, credentials = admin2Creds)
+            watchdog2Interactor = VaultContractInteractor.connect(vaultFactoryAddress = vaultFactory.contractAddress,
+                    web3j = web3j, gkAddress = gkAddress, vaultAddress = vaultAddress, credentials = watchdog2Creds)
+
+            owner1PermsLevel = packPermissionLevel(owner1Interactor.ownerPermissions(), "1")
+            admin1PermsLevel = packPermissionLevel(admin1Interactor.adminPermissions(), "1")
+            watchdog1PermsLevel = packPermissionLevel(watchdog1Interactor.watchdogPermissions(), "1")
+            owner2PermsLevel = packPermissionLevel(owner2Interactor.ownerPermissions(), "2")
+            admin2PermsLevel = packPermissionLevel(admin2Interactor.adminPermissions(), "2")
+            watchdog2PermsLevel = packPermissionLevel(watchdog2Interactor.watchdogPermissions(), "2")
+
+            owner1Hash = Numeric.toHexString(Hash.sha3(Numeric.hexStringToByteArray(owner1Creds.address) + Numeric.hexStringToByteArray(owner1PermsLevel)))
+            admin1Hash = Numeric.toHexString(Hash.sha3(Numeric.hexStringToByteArray(admin1Creds.address) + Numeric.hexStringToByteArray(admin1PermsLevel)))
+            watchdog1Hash = Numeric.toHexString(Hash.sha3(Numeric.hexStringToByteArray(watchdog1Creds.address) + Numeric.hexStringToByteArray(watchdog1PermsLevel)))
+            owner2Hash = Numeric.toHexString(Hash.sha3(Numeric.hexStringToByteArray(owner2Creds.address) + Numeric.hexStringToByteArray(owner2PermsLevel)))
+            admin2Hash = Numeric.toHexString(Hash.sha3(Numeric.hexStringToByteArray(admin2Creds.address) + Numeric.hexStringToByteArray(admin2PermsLevel)))
+            watchdog2Hash = Numeric.toHexString(Hash.sha3(Numeric.hexStringToByteArray(watchdog2Creds.address) + Numeric.hexStringToByteArray(watchdog2PermsLevel)))
 
         }
     }
 
     @Test
+    @Order(1)
     @DisplayName("the newly deployed vault should accept the initial configuration")
-    fun setInitialConfiguration(){
+    fun setInitialConfiguration() {
 
-        val initialParticipants = listOf<String>()
-        val initialDelays = listOf<String>()
-        ownerInteractor.initialConfig(ownerInteractor.vaultAddress!!, initialParticipants, initialDelays)
+        val initialParticipants = listOf<String>(admin1Hash, watchdog1Hash
+                /*Numeric.toHexString(owner1Hash)*/) // owner is set automatically as msg.sender in the contract
+        val initialDelays = (1..10).map { (it * dayInSec).toString() }
+
+        assert(!owner1Interactor.isParticipant(owner1Hash))
+        assert(!owner1Interactor.isParticipant(admin1Hash))
+        assert(!owner1Interactor.isParticipant(watchdog1Hash))
+
+        val txHash = owner1Interactor.initialConfig(owner1Interactor.vaultAddress()!!, initialParticipants, initialDelays)
+        val receipt = web3j.ethGetTransactionReceipt(txHash).send().transactionReceipt.get()
+        val events = Gatekeeper.staticGetGatekeeperInitializedEvents(receipt)
+        assert(events.size == 1)
+        assert(events[0].vault == vaultAddress)
+
+        assert(owner1Interactor.isParticipant(owner1Hash))
+        assert(owner1Interactor.isParticipant(admin1Hash))
+        assert(owner1Interactor.isParticipant(watchdog1Hash))
 
     }
 
     @Test
-    @DisplayName("should add admin & watchdog")
-    fun addParticipants() {
+    @DisplayName("should schedule change configuration - add admin")
+    fun scheduleAddAdmin() {
+        val actionAddAdmin = VaultContractInteractor.ChangeType.ADD_PARTICIPANT.stringValue
+        val actions = listOf(actionAddAdmin)
+        val args = listOf(admin2Hash)
+        val expectedNonce = owner1Interactor.stateNonce()
+        val txHash = owner1Interactor.changeConfiguration(actions, args, expectedNonce, owner1PermsLevel)
+        val receipt = web3j.ethGetTransactionReceipt(txHash).send().transactionReceipt.get()
+        val events = Gatekeeper.staticGetConfigPendingEvents(receipt)
+        assert(events.size == 1)
+        // TODO: fix this shit
+//        val actionWTF = events[0].actions[0] as Uint8
+        val actionWTF = events[0].actions[0] as Type<BigInteger>
+        assertEquals(actions[0], actionWTF.value.toString())
+        val argWTF = events[0].actionsArguments[0] as Type<ByteArray>
+        assertEquals(args[0], Numeric.toHexString(argWTF.value))
+
+        assertEquals(expectedNonce,  events[0].stateId.toString())
+        assertEquals(owner1PermsLevel,  events[0].senderPermsLevel.toString(16))
+        assertEquals(owner1Creds.address,  events[0].sender)
+        // keccak256(abi.encodePacked(actions, args, stateId, sender, senderPermsLevel, booster, boosterPermsLevel));
+//        val scheduledTxHash = Hash.sha3(actions[0].toByteArray() + Numeric.hexStringToByteArray(args[0]) +
+//                Numeric.hexStringToByteArray(expectedNonce) + Numeric.hexStringToByteArray(owner1Creds.address) + owner1PermsLevel.toByteArray() + Numeric.hexStringToByteArray(zeroAddress)+ 0.toByte())
+//        assertEquals(Numeric.toHexString(scheduledTxHash),  Numeric.toHexString(events[0].transactionHash))
+
     }
 
     @Test
     @DisplayName("should freeze")
     fun freeze() {
-        adminInteractor.freeze()
+//        admin1Interactor.freeze()
     }
 
     @Test
@@ -124,6 +191,20 @@ class TestSample {
     fun boostedConfigChange() {
     }
 
+    @Test
+    @DisplayName("should change owner")
+    fun changeOwner() {
+    }
+
+    @Test
+    @DisplayName("should cancel transfer")
+    fun cancelTransfer() {
+    }
+
+    @Test
+    @DisplayName("should cancel config change")
+    fun cancelOperation() {
+    }
 
 
 }
