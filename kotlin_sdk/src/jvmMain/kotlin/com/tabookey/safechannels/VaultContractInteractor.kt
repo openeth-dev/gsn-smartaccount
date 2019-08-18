@@ -1,13 +1,10 @@
-package com.tabookey.kotlin_sdk
+package com.tabookey.safechannels
 
 import com.tabookey.foundation.Asdas
-import com.tabookey.foundation.Sasasa
-
 actual class VaultContractInteractor {
 
     actual fun getGatekeeperAddress(): String {
         val a = Asdas()
-        val b = Sasasa()
         TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
     }
 

@@ -1,4 +1,5 @@
 buildscript {
+    ext.web3j_version = '4.3.2-SNAPSHOT'
     repositories {
         maven { url "https://plugins.gradle.org/m2/" }
     }
@@ -15,6 +16,8 @@ repositories {
     maven {
         url "https://repo.spring.io/libs-release/"
     }
+    jcenter()
+    mavenLocal()
 }
 group 'com.tabookey'
 version '0.0.1'
@@ -67,6 +70,11 @@ kotlin {
             dependencies {
                 implementation kotlin('test')
                 implementation kotlin('test-junit')
+                implementation 'org.mockito:mockito-core:2.28.2'
+                implementation ( "org.web3j:core:$web3j_version" ) {
+                    exclude group:"com.github.jnr"
+                    changing = true
+                }
 //                implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.1.1"
             }
         }
