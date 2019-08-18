@@ -11,7 +11,7 @@ pluginManagement {
         }
     }
 }
-rootProject.name = 'kotlin_sdk'
+rootProject.name = 'safechannels'
 
 
 enableFeaturePreview('GRADLE_METADATA')
