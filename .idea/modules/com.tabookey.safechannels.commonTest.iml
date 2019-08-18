@@ -2,7 +2,7 @@
 <module version="4">
   <component name="FacetManager">
     <facet type="kotlin-language" name="Kotlin">
-      <configuration version="3" platform="Common (experimental) " useProjectSettings="false" isTestModule="false" externalProjectId="kotlin_sdk">
+      <configuration version="3" platform="Common (experimental) " useProjectSettings="false" isTestModule="true" externalProjectId="safechannels">
         <newMppModelJpsModuleKind>SOURCE_SET_HOLDER</newMppModelJpsModuleKind>
         <compilerSettings />
         <compilerArguments>

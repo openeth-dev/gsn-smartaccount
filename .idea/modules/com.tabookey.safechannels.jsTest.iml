@@ -2,16 +2,16 @@
 <module version="4">
   <component name="FacetManager">
     <facet type="kotlin-language" name="Kotlin">
-      <configuration version="3" platform="JavaScript " useProjectSettings="false" isTestModule="true" externalProjectId="kotlin_sdk">
+      <configuration version="3" platform="JavaScript " useProjectSettings="false" isTestModule="true" externalProjectId="safechannels">
         <sourceSets>
-          <sourceSet>com.tabookey.kotlin_sdk.commonTest</sourceSet>
-          <sourceSet>com.tabookey.kotlin_sdk.jsMain</sourceSet>
-          <sourceSet>com.tabookey.kotlin_sdk.commonMain</sourceSet>
+          <sourceSet>com.tabookey.safechannels.commonTest</sourceSet>
+          <sourceSet>com.tabookey.safechannels.commonMain</sourceSet>
+          <sourceSet>com.tabookey.safechannels.jsMain</sourceSet>
         </sourceSets>
         <newMppModelJpsModuleKind>COMPILATION_AND_SOURCE_SET_HOLDER</newMppModelJpsModuleKind>
         <compilerSettings />
         <compilerArguments>
-          <option name="outputFile" value="$MODULE_DIR$/../../kotlin_sdk/build/classes/kotlin/js/test/kotlin_sdk_test.js" />
+          <option name="outputFile" value="$MODULE_DIR$/../../kotlin_sdk/build/classes/kotlin/js/test/safechannels_test.js" />
           <option name="noStdlib" value="true" />
           <option name="sourceMap" value="true" />
           <option name="metaInfo" value="true" />
