@@ -1,4 +1,4 @@
-package com.tabookey.kotlin_sdk
+package com.tabookey.safechannels
 
 expect class VaultContractInteractor {
 
