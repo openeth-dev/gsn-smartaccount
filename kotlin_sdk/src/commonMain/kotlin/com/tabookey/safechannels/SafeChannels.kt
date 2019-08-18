@@ -12,6 +12,8 @@ class SafeChannels(
         private val storage: VaultStorageInterface
 ) {
 
+    private val addressBook = AddressBook(storage)
+
     companion object {
         fun createVaultFactory(address: String): VaultFactoryContractInteractor {
             return VaultFactoryContractInteractor()
@@ -69,7 +71,7 @@ class SafeChannels(
     }
 
     fun getAddressBook(): AddressBook {
-        TODO()
+        return addressBook
     }
 
 }

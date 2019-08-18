@@ -5,4 +5,4 @@ class ERC20Token(
         address: String,
         name: String,
         val decimals: Int,
-        val symbol: String) : AddressBookEntry(id, address, name)
+        val symbol: String) : AddressBookEntry(id, address, name, AddressContactType.ERC20)

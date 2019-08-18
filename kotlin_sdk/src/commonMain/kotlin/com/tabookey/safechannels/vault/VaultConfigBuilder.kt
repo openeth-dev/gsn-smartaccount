@@ -21,7 +21,8 @@ class VaultConfigBuilder : VaultInstance(VaultState()) {
 
     // all config tasks here, i.e. like this one
     fun addParticipant(participant: AddressBookEntry, permissions: VaultPermissions): VaultConfigBuilder {
-        TODO()
+        vaultState.addLocalChange(LocalVaultChange.addParticipant(participant, permissions))
+        return this
     }
 
     fun removeParticipant(participant: AddressBookEntry): VaultConfigBuilder {
