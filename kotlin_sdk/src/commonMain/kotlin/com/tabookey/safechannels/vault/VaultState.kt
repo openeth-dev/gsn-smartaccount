@@ -5,6 +5,7 @@ package com.tabookey.safechannels.vault
  */
 class VaultState {
 
+    private var id: Int? = null;
     private val localChanges = ArrayList<LocalVaultChange>()
     private val pendingChanges = ArrayList<PendingChange>()
 
