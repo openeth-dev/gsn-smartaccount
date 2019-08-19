@@ -1,6 +1,7 @@
 package com.tabookey.safechannels
 
 import com.tabookey.safechannels.addressbook.AddressBookEntry
+import com.tabookey.safechannels.addressbook.SafechannelContact
 import com.tabookey.safechannels.vault.VaultState
 import com.tabookey.safechannels.vault.VaultStorageInterface
 import org.web3j.crypto.ECKeyPair
@@ -15,25 +16,29 @@ open class InMemoryStorage : VaultStorageInterface {
 
     private val keypairs = HashMap<Int, ECKeyPair>()
     private val vaultsStates = HashMap<Int, VaultState>()
-    private val addressBook = HashMap<Int, AddressBookEntry>()
+    private val addressBook = HashMap<String, SafechannelContact>()
 
     private var keypairsId = 0
     private var vaultsStatesId = 0
     private var addressBookId = 0
 
-    override fun putAddressBookEntry(entry: AddressBookEntry): Int {
-        addressBook[addressBookId] = entry
-        return addressBookId++
+    override fun putAddressBookEntry(contact: SafechannelContact) {
+        addressBook[contact.guid] = contact
     }
 
-    override fun getAddressBookEntries(): List<AddressBookEntry> {
+    override fun getAddressBookEntries(): List<SafechannelContact> {
         return addressBook.values.toList()
     }
     /**
      * The state of the vault, both local and cached from blockchain, must be stored. Not the instance itself.
-     * Note that [com.tabookey.safechannels.vault.VaultInstance] adds the Vault's API method and 'wraps' the state.
+     * Note that [com.tabookey.safechannels.vault.SharedVaultInterface] adds the Vault's API method and 'wraps' the state.
      */
     override fun putVaultState(vault: VaultState): Int {
+        val id = vault.id
+        if (id != null){
+            vaultsStates[id] = vault
+            return id
+        }
         vaultsStates[vaultsStatesId] = vault
         return vaultsStatesId++
     }

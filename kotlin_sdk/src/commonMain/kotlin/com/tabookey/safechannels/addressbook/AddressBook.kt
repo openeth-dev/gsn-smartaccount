@@ -2,23 +2,13 @@ package com.tabookey.safechannels.addressbook
 
 import com.tabookey.safechannels.vault.VaultStorageInterface
 
+/**
+ * All entities in the [AddressBook] are [SafechannelContact] instances.
+ */
 class AddressBook(private val storage: VaultStorageInterface) {
 
-    fun getAllKnownAddresses(): List<AddressBookEntry> {
+    fun getAllEntities(): List<SafechannelContact> {
         return storage.getAddressBookEntries()
-    }
-
-    fun getAllKnownPeople(): List<PhoneBookContact> {
-        val allAddresses = storage.getAddressBookEntries()
-        return allAddresses
-                .filter {
-                    it.contactType == AddressBookEntry.AddressContactType.EOA
-                }
-                .map {
-                    // TODO: like, the idea is that I will read the contacts and its metadata (like contact info) separately. Does it make sense?
-                    val contactInfo = emptyList<String>()
-                    PhoneBookContact(it, contactInfo)
-                }.toList()
     }
 
     // Will we need a better, dynamic filtering here?
@@ -30,14 +20,12 @@ class AddressBook(private val storage: VaultStorageInterface) {
         TODO()
     }
 
-    fun saveNewAddress(
-            displayName: String,
-            ethAddress: String,
-            contactType: AddressBookEntry.AddressContactType): AddressBookEntry {
-        val entry = PhoneBookContact(null, ethAddress, displayName, emptyList())
+    fun addNewContact(
+            contact: SafechannelContact
+    ) {
         // TODO: I cannot be the first one ever to do something like that, what is the pattern to assign ID to the new object? Thx!
-        entry.id = storage.putAddressBookEntry(entry)
-        return entry
+        storage.putAddressBookEntry(contact)
+        return
     }
 
     fun deleteEntry(entry: AddressBookEntry) {

@@ -1,6 +1,7 @@
 package com.tabookey.safechannels.vault
 
 import com.tabookey.safechannels.VaultContractInteractor
+import com.tabookey.safechannels.addressbook.VaultParticipantTuple
 import com.tabookey.safechannels.blockchain.BlockchainTransaction
 
 /**
@@ -11,10 +12,15 @@ import com.tabookey.safechannels.blockchain.BlockchainTransaction
  */
 class DeployedVault(
         val interactor: VaultContractInteractor,
-        val level: Int,
-        val heldPermissions: VaultPermissions,
-        vaultState: VaultState = VaultState()) : VaultInstance(vaultState) {
+        storage: VaultStorageInterface,
+        // Not sure about this 'override val' crap. The idea was to have 'local state'
+        // and 'local vault' be superclasses to corresponding 'deployed state' and 'deployed vault',
+        // but seems over-engineered.
+        override val vaultState: VaultState) : SharedVaultInterface(storage, vaultState) {
 
+    fun getVaultState(): VaultState {
+        return vaultState
+    }
 
     fun subscribeToVaultEvents(callback: (List<VaultEvent>) -> Unit) {
 
