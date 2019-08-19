@@ -8,6 +8,7 @@ class VaultPermissions(private var integerRepresentation: Int) {
 
     companion object {
         val ADMIN_PERMISSIONS = VaultPermissions(777)
+        val OWNER_PERMISSIONS = VaultPermissions(777)
     }
 
     fun addPermission(permission: Permission){

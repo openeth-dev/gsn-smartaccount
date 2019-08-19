@@ -1,6 +1,7 @@
 package com.tabookey.safechannels.vault
 
 import com.tabookey.safechannels.addressbook.AddressBookEntry
+import com.tabookey.safechannels.addressbook.SafechannelContact
 
 interface VaultStorageInterface {
 
@@ -11,15 +12,12 @@ interface VaultStorageInterface {
 
     fun putVaultState(vault: VaultState): Int
 
-    /**
-     * @return id of the new entry
-     */
-    fun putAddressBookEntry(entry: AddressBookEntry): Int
+    fun putAddressBookEntry(contact: SafechannelContact)
 
     // It is up to the SDK to construct the
     fun getAllVaultsStates(): List<VaultState>
 
-    fun getAddressBookEntries(): List<AddressBookEntry>
+    fun getAddressBookEntries(): List<SafechannelContact>
 
     fun getStuff()
     fun putStuff()

@@ -21,8 +21,11 @@ class SafeChannels(
     }
 
     fun vaultConfigBuilder(): VaultConfigBuilder {
-        val vaultConfigBuilder = VaultConfigBuilder()
-        storage.putVaultState(vaultConfigBuilder.getVaultState())
+        val ownedAccounts = listAllOwnedAccounts()
+        val owner = ownedAccounts[0]
+        val vaultConfigBuilder = VaultConfigBuilder(owner, storage, emptyList())
+        val state = storage.putVaultState(vaultConfigBuilder.getVaultLocalState())
+        vaultConfigBuilder.vaultState.id = state
         return vaultConfigBuilder
     }
 
@@ -61,9 +64,19 @@ class SafeChannels(
         TODO()
     }
 
-    fun listAllVaults(): List<VaultInstance> {
+    /**
+     * Well, this returns a collection that mixes types. Not perfect.
+     */
+    fun listAllVaults(): List<SharedVaultInterface> {
         val allVaultsStates = storage.getAllVaultsStates()
-        return allVaultsStates.map { VaultInstance(it) }
+        return allVaultsStates.map { vaultState ->
+            if (vaultState.isDeployed) {
+                val interactor = VaultContractInteractor(vaultState.address!!, vaultState.activeParticipant!!)
+                DeployedVault(interactor, storage, vaultState)
+            } else {
+                VaultConfigBuilder(storage, vaultState)
+            }
+        }
     }
 
     fun removeVault(vault: DeployedVault) {
