@@ -3,8 +3,8 @@ package com.tabookey.safechannels
 import com.tabookey.duplicated.VaultParticipantTuple
 import com.tabookey.duplicated.VaultPermissions
 import com.tabookey.foundation.InteractorsFactory
+import com.tabookey.foundation.VaultFactoryContractInteractor
 import com.tabookey.safechannels.addressbook.SafechannelContact
-import com.tabookey.safechannels.platforms.VaultFactoryContractInteractor
 import com.tabookey.safechannels.vault.LocalChangeType
 import com.tabookey.safechannels.vault.VaultStorageInterface
 import org.junit.Before
@@ -14,6 +14,7 @@ import org.web3j.crypto.Credentials
 import org.web3j.protocol.Web3j
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFails
 
 class SafeChannelsUnitTests {
 
@@ -21,7 +22,7 @@ class SafeChannelsUnitTests {
     // Mockito does not know about Kotlin's nullable types
     private fun <T> any() = Mockito.any() as T
 
-    val anyAddress = "0xd216153c06e857cd7f72665e0af1d7d82172f494"
+    private val anyAddress = "0xd216153c06e857cd7f72665e0af1d7d82172f494"
 
     private lateinit var vaultFactoryContractInteractor: VaultFactoryContractInteractor
     private lateinit var storage: VaultStorageInterface
@@ -95,11 +96,18 @@ class SafeChannelsUnitTests {
         verify(storage, times(1)).putAddressBookEntry(any())
         addresses = addressBook.getAllEntities()
         assertEquals(1, addresses.size)
-
     }
 
     @Test
-    fun `should configure and deploy vault to the blockchain with correct configuration`() {
+    fun `should not allow creation of the builder when no keypair exists`(){
+        val throwable = assertFails {
+            sdk.vaultConfigBuilder(anyAddress)
+        }
+        assertEquals("Unknown account passed as owner", throwable.message)
+    }
+
+    @Test
+    fun `should allow to configure the vault before deploying it to the blockchain`() {
         val kredentials = sdk.createKeypair()
         val vaultConfigBuilder = sdk.vaultConfigBuilder(kredentials.getAddress())
         val contact = SafechannelContact("guid, shmuid", "Contact One")
@@ -111,19 +119,19 @@ class SafeChannelsUnitTests {
         vaultConfigBuilder.addParticipant(participant, adminPermissions)
         // TODO: maybe it should not allow creation of new builder if no account is created
 
-        // Local state corresponds to the expected state
         val localChanges = sdk.listAllVaults()[0].getVaultLocalState().localChanges
         assertEquals(3, localChanges.size)
-        val initializeChange = localChanges[0]
-        val changeOwnerChange = localChanges[1]
-        val addParticipantChange = localChanges[2]
 
+        val initializeChange = localChanges[0]
         assertEquals(LocalChangeType.INITIALIZE, initializeChange.changeType)
 
+        val changeOwnerChange = localChanges[1]
         assertEquals(LocalChangeType.CHOWN, changeOwnerChange.changeType)
 
+        val addParticipantChange = localChanges[2]
         assertEquals(LocalChangeType.ADD_PARTICIPANT, addParticipantChange.changeType)
         assertEquals(anyAddress, addParticipantChange.participant)
+
         assertEquals(adminPermissions, addParticipantChange.permissions)
     }
 
