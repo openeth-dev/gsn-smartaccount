@@ -160,6 +160,7 @@ contract Gatekeeper is PermissionsLevel {
         changeConfigurationInternal(actions, args, msg.sender, senderPermsLevel, address(0), 0);
     }
 
+    event WTF(bytes encodedPacked);
     // Note: this internal method is not wrapped with 'requirePermissions' as it may be called by the 'changeOwner'
     function changeConfigurationInternal(
         uint8[] memory actions, bytes32[] memory args,
@@ -168,6 +169,7 @@ contract Gatekeeper is PermissionsLevel {
         bytes32 transactionHash = Utilities.transactionHash(actions, args, stateNonce, sender, senderPermsLevel, booster, boosterPermsLevel);
         pendingChanges[transactionHash] = SafeMath.add(now, delays[extractLevel(senderPermsLevel)]);
         emit ConfigPending(transactionHash, sender, senderPermsLevel, booster, boosterPermsLevel, stateNonce, actions, args);
+        emit WTF(abi.encodePacked(actions, args, stateNonce, sender, senderPermsLevel, booster, boosterPermsLevel));
         stateNonce++;
     }
 
