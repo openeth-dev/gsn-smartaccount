@@ -1,5 +1,7 @@
 package com.tabookey.foundation
 
+import org.web3j.abi.TypeEncoder
+import org.web3j.abi.datatypes.Type
 import org.web3j.crypto.Credentials
 import org.web3j.protocol.Web3j
 import org.web3j.protocol.core.DefaultBlockParameterName
@@ -120,4 +122,12 @@ fun moneyTransfer(web3j: Web3j, from: String, to: String, wei : BigInteger ) {
 
     val res = web3j.ethSendTransaction(transaction).send()
     res.transactionHash ?: throw Exception(res.error.message)
+}
+
+fun encodePacked(parameters: List<Type<Any>>): String {
+    var sb: StringBuilder = StringBuilder("")
+    parameters.forEach {
+        sb.append(TypeEncoder.encodePacked(it))
+    }
+    return sb.toString()
 }

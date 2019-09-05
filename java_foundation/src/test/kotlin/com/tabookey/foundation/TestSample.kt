@@ -10,7 +10,18 @@ import org.junit.jupiter.api.Order
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestMethodOrder
 import org.junit.jupiter.api.assertThrows
+import org.web3j.abi.TypeDecoder
+import org.web3j.abi.TypeEncoder
+import org.web3j.abi.TypeReference
+import org.web3j.abi.datatypes.Address
+import org.web3j.abi.datatypes.DynamicArray
+import org.web3j.abi.datatypes.DynamicBytes
+import org.web3j.abi.datatypes.Int
 import org.web3j.abi.datatypes.Type
+import org.web3j.abi.datatypes.generated.Bytes32
+import org.web3j.abi.datatypes.generated.Uint16
+import org.web3j.abi.datatypes.generated.Uint256
+import org.web3j.abi.datatypes.generated.Uint8
 import org.web3j.crypto.Credentials
 import org.web3j.crypto.Hash
 import org.web3j.protocol.Web3j
@@ -94,21 +105,23 @@ class TestSample {
             println("hello!")
 
             vaultFactory = VaultFactory.deploy(web3j, deployCreds, gasProvider).send()
-            owner1Interactor = VaultContractInteractor.connect(vaultFactoryAddress = vaultFactory.contractAddress, web3j = web3j, credentials = owner1Creds)
+            owner1Interactor = VaultContractInteractor.connect(vaultFactoryAddress = vaultFactory.contractAddress,
+                    web3j = web3j, credentials = owner1Creds, participantRole = VaultContractInteractor.ParticipantRole.Operator)
             // fund owner
             moneyTransfer(web3j, deployCreds.address, owner1Creds.address, "1000000000000000000".toBigInteger())
             deployGatekeeper(web3j)
             admin1Interactor = VaultContractInteractor.connect(vaultFactoryAddress = vaultFactory.contractAddress,
-                    web3j = web3j, gkAddress = gkAddress, vaultAddress = vaultAddress, credentials = admin1Creds)
+                    web3j = web3j, gkAddress = gkAddress, vaultAddress = vaultAddress, credentials = admin1Creds, participantRole = VaultContractInteractor.ParticipantRole.Admin)
             watchdog1Interactor = VaultContractInteractor.connect(vaultFactoryAddress = vaultFactory.contractAddress,
-                    web3j = web3j, gkAddress = gkAddress, vaultAddress = vaultAddress, credentials = watchdog1Creds)
-            owner2Interactor = VaultContractInteractor.connect(vaultFactoryAddress = vaultFactory.contractAddress, gkAddress = gkAddress, vaultAddress = vaultAddress, web3j = web3j, credentials = owner2Creds)
+                    web3j = web3j, gkAddress = gkAddress, vaultAddress = vaultAddress, credentials = watchdog1Creds, participantRole = VaultContractInteractor.ParticipantRole.Watchdog)
+            owner2Interactor = VaultContractInteractor.connect(vaultFactoryAddress = vaultFactory.contractAddress,
+                    gkAddress = gkAddress, vaultAddress = vaultAddress, web3j = web3j, credentials = owner2Creds, participantRole = VaultContractInteractor.ParticipantRole.Operator)
             // fund owner
             moneyTransfer(web3j, deployCreds.address, owner2Creds.address, "1000000000000000000".toBigInteger())
             admin2Interactor = VaultContractInteractor.connect(vaultFactoryAddress = vaultFactory.contractAddress,
-                    web3j = web3j, gkAddress = gkAddress, vaultAddress = vaultAddress, credentials = admin2Creds)
+                    web3j = web3j, gkAddress = gkAddress, vaultAddress = vaultAddress, credentials = admin2Creds, participantRole = VaultContractInteractor.ParticipantRole.Admin)
             watchdog2Interactor = VaultContractInteractor.connect(vaultFactoryAddress = vaultFactory.contractAddress,
-                    web3j = web3j, gkAddress = gkAddress, vaultAddress = vaultAddress, credentials = watchdog2Creds)
+                    web3j = web3j, gkAddress = gkAddress, vaultAddress = vaultAddress, credentials = watchdog2Creds, participantRole = VaultContractInteractor.ParticipantRole.Watchdog)
 
             owner1PermsLevel = packPermissionLevel(owner1Interactor.ownerPermissions(), "1")
             admin1PermsLevel = packPermissionLevel(admin1Interactor.adminPermissions(), "1")
@@ -153,31 +166,60 @@ class TestSample {
     }
 
     @Test
+    @Order(2)
     @DisplayName("should schedule change configuration - add admin")
     fun scheduleAddAdmin() {
         val actionAddAdmin = VaultContractInteractor.ChangeType.ADD_PARTICIPANT.stringValue
         val actions = listOf(actionAddAdmin)
         val args = listOf(admin2Hash)
         val expectedNonce = owner1Interactor.stateNonce()
-        val txHash = owner1Interactor.changeConfiguration(actions, args, expectedNonce, owner1PermsLevel)
+        val txHash = owner1Interactor.changeConfiguration(actions, args, expectedNonce)
         val receipt = web3j.ethGetTransactionReceipt(txHash).send().transactionReceipt.get()
         val events = Gatekeeper.staticGetConfigPendingEvents(receipt)
+//        val wtfe = Gatekeeper.staticGetWTFEvents(receipt)[0].encodedPacked
+//        println("wtfe: " + Numeric.toHexString(wtfe))
         assert(events.size == 1)
-        // TODO: fix this shit
-//        val actionWTF = events[0].actions[0] as Uint8
-        val actionWTF = events[0].actions[0] as Type<BigInteger>
-        assertEquals(actions[0], actionWTF.value.toString())
-        val argWTF = events[0].actionsArguments[0] as Type<ByteArray>
-        assertEquals(args[0], Numeric.toHexString(argWTF.value))
+        val action = events[0].actions[0] //as Type<BigInteger>
+        assertEquals(actions[0], action.toString())
+        val arg = events[0].actionsArguments[0] //as Type<ByteArray>
+        assertEquals(args[0], Numeric.toHexString(arg))
 
         assertEquals(expectedNonce,  events[0].stateId.toString())
         assertEquals(owner1PermsLevel,  events[0].senderPermsLevel.toString(16))
         assertEquals(owner1Creds.address,  events[0].sender)
-        // keccak256(abi.encodePacked(actions, args, stateId, sender, senderPermsLevel, booster, boosterPermsLevel));
-//        val scheduledTxHash = Hash.sha3(actions[0].toByteArray() + Numeric.hexStringToByteArray(args[0]) +
-//                Numeric.hexStringToByteArray(expectedNonce) + Numeric.hexStringToByteArray(owner1Creds.address) + owner1PermsLevel.toByteArray() + Numeric.hexStringToByteArray(zeroAddress)+ 0.toByte())
-//        assertEquals(Numeric.toHexString(scheduledTxHash),  Numeric.toHexString(events[0].transactionHash))
+        val actionWeb3jType = TypeDecoder.instantiateType("uint8[]", actions) //as DynamicArray<Uint8>
+        val argsWeb3jType = TypeDecoder.instantiateType("bytes32[]", args) //as DynamicArray<Bytes32>
+        val expectedNonceWeb3jType = TypeDecoder.instantiateType("uint256", expectedNonce) //as Uint256
+        val ownerAddressWeb3jType = TypeDecoder.instantiateType("address", owner1Creds.address) //as Address
+        val ownerPermsLevelWeb3jType = TypeDecoder.instantiateType("uint16", owner1PermsLevel) //as Uint16
+        val boosterAddressWeb3jType = TypeDecoder.instantiateType("address", zeroAddress) //as Address
+        val boosterPermsLevelWeb3jType = TypeDecoder.instantiateType("uint16", "0") //as Uint16
 
+        val parameters: List<Type<Any>> = listOf(actionWeb3jType, argsWeb3jType, expectedNonceWeb3jType, ownerAddressWeb3jType, ownerPermsLevelWeb3jType, boosterAddressWeb3jType, boosterPermsLevelWeb3jType)
+
+        val dataToHash = encodePacked(parameters)
+        val scheduledTxHash = Hash.sha3(dataToHash)
+        println("wtfa: " + Numeric.prependHexPrefix(dataToHash))
+        println("actions: " + actions[0])
+        println("args: " + args[0])
+        println("expectedNonce: " + expectedNonce)
+        println("owner1PermsLevel: " + Numeric.toHexString(owner1PermsLevel.toByteArray()))
+        assertEquals(Numeric.prependHexPrefix(scheduledTxHash),  Numeric.toHexString(events[0].transactionHash))
+    }
+
+    @Test
+    @Order(3)
+    @DisplayName("should apply change configuration - add admin")
+    fun applyAddAdmin() {
+        val actionAddAdmin = VaultContractInteractor.ChangeType.ADD_PARTICIPANT.stringValue
+        val actions = listOf(actionAddAdmin)
+        val args = listOf(admin2Hash)
+        val expectedNonce = owner1Interactor.stateNonce()
+        val txHash = owner1Interactor.changeConfiguration(actions, args, expectedNonce)
+        val receipt = web3j.ethGetTransactionReceipt(txHash).send().transactionReceipt.get()
+        val events = Gatekeeper.staticGetConfigPendingEvents(receipt)
+        val wtfe = Gatekeeper.staticGetWTFEvents(receipt)[0].encodedPacked
+        owner1Interactor.applyConfig(actions, args, expectedNonce, owner1Creds.address, owner1PermsLevel, zeroAddress, "0", owner1PermsLevel)
     }
 
     @Test

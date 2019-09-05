@@ -18,13 +18,20 @@ class VaultContractInteractor(
         vaultAddress: String?,
         gkAddress: String?,
         private val web3j: Web3j,
-        private val credentials: Credentials) {
+        private val credentials: Credentials,
+        val participantRole: ParticipantRole) {
 
+    lateinit var permsLevel: String
     enum class ChangeType(val stringValue:String) {
         ADD_PARTICIPANT("0"), // arg: participant_hash
         REMOVE_PARTICIPANT("1"), // arg: participant_hash
         CHOWN("2"), // arg: address
         UNFREEZE("3")            // no args
+    }
+    enum class ParticipantRole {
+        Operator,
+        Admin,
+        Watchdog
     }
 
     private var provider: EstimatedGasProvider = EstimatedGasProvider(web3j, DefaultGasProvider.GAS_PRICE, DefaultGasProvider.GAS_LIMIT)
@@ -37,13 +44,23 @@ class VaultContractInteractor(
         vaultFactory = VaultFactory.load(vaultFactoryAddress, web3j, credentials, provider)
         if (vaultAddress != null)
             vault = Vault.load(vaultAddress, web3j, credentials, provider)
-        if (gkAddress != null)
+        if (gkAddress != null) {
             gk = Gatekeeper.load(gkAddress, web3j, credentials, provider)
+            retrievePermsLevel()
+        }
     }
 
     companion object {
-        fun connect(vaultFactoryAddress: String, vaultAddress: String? = null, gkAddress: String? = null, web3j: Web3j, credentials: Credentials): VaultContractInteractor {
-            return VaultContractInteractor(vaultFactoryAddress, vaultAddress, gkAddress, web3j, credentials)
+        fun connect(vaultFactoryAddress: String, vaultAddress: String? = null, gkAddress: String? = null, web3j: Web3j, credentials: Credentials, participantRole: ParticipantRole): VaultContractInteractor {
+            return VaultContractInteractor(vaultFactoryAddress, vaultAddress, gkAddress, web3j, credentials, participantRole)
+        }
+    }
+
+    private fun retrievePermsLevel() {
+        permsLevel = when(participantRole){
+            ParticipantRole.Operator -> this.ownerPermissions()
+            ParticipantRole.Admin -> this.adminPermissions()
+            ParticipantRole.Watchdog -> this.watchdogPermissions()
         }
     }
 
@@ -57,6 +74,7 @@ class VaultContractInteractor(
         val event = vaultCreatedEvents[0]
         vault = Vault.load(event.vault, web3j, credentials, provider)
         gk = Gatekeeper.load(event.gatekeeper, web3j, credentials, provider)
+        retrievePermsLevel()
 //        vault!!.transferERC20("0xf0d5bc18421fa04d0a2a2ef540ba5a9f04014be3", BigInteger.ONE, Address.DEFAULT.toString(), BigInteger.ONE, Address.DEFAULT.toString()).send()
         return event!!
     }
@@ -100,8 +118,8 @@ class VaultContractInteractor(
 
     }
 
-    fun freeze(senderPermsLevel: String, levelToFreeze: Int, duration: String): String {
-        return gk!!.freeze(Numeric.toBigInt(senderPermsLevel), levelToFreeze.toBigInteger(), duration.toBigInteger()).send().transactionHash
+    fun freeze(levelToFreeze: Int, duration: String): String {
+        return gk!!.freeze(Numeric.toBigInt(this.permsLevel), levelToFreeze.toBigInteger(), duration.toBigInteger()).send().transactionHash
 //        val freezeEvents = gk!!.getLevelFrozenEvents(receipt)
 //        assert(freezeEvents.size == 1)
 //        val event = freezeEvents[0]
@@ -143,27 +161,26 @@ class VaultContractInteractor(
 
     fun changeConfiguration(actions: List<String>,
                             args: List<String>,
-                            expectedNonce: String,
-                            senderPermsLevel: String): String {
+                            expectedNonce: String): String {
         val actionsBigInteger: List<BigInteger> = actions.map { it.toBigInteger(if (Numeric.containsHexPrefix(it)) 16 else 10) }
         val argsByteArray: List<ByteArray> = args.map { Numeric.hexStringToByteArray(it) }
         val expectedNonceBigInteger = expectedNonce.toBigInteger(if (Numeric.containsHexPrefix(expectedNonce)) 16 else 10)
         val receipt = gk!!.changeConfiguration(
-                actionsBigInteger, argsByteArray, expectedNonceBigInteger, Numeric.toBigInt(senderPermsLevel)).send()
+                actionsBigInteger, argsByteArray, expectedNonceBigInteger, Numeric.toBigInt(this.permsLevel)).send()
         return receipt.transactionHash
     }
 
     //function scheduleChangeOwner(uint16 senderPermsLevel, address newOwner, uint256 targetStateNonce) public {
 
-    fun scheduleChangeOwner(senderPermsLevel: String, newOwnerAddress: String, expectedNonce: String): String {
+    fun scheduleChangeOwner(newOwnerAddress: String, expectedNonce: String): String {
         val expectedNonceBigInteger = expectedNonce.toBigInteger(if (Numeric.containsHexPrefix(expectedNonce)) 16 else 10)
-        return gk!!.scheduleChangeOwner(Numeric.toBigInt(senderPermsLevel), newOwnerAddress, expectedNonceBigInteger).send().transactionHash
+        return gk!!.scheduleChangeOwner(Numeric.toBigInt(this.permsLevel), newOwnerAddress, expectedNonceBigInteger).send().transactionHash
     }
 
     //function cancelTransfer(uint16 senderPermsLevel, uint256 delay, address destination, uint256 value, address token, uint256 nonce) public {
 
-    fun cancelTransfer(senderPermsLevel: String, delay: String, destination: String, value: String, tokenAddress: String, nonce: String): String {
-        return gk!!.cancelTransfer(Numeric.toBigInt(senderPermsLevel), delay.toBigInteger(), destination, value.toBigInteger(),
+    fun cancelTransfer(delay: String, destination: String, value: String, tokenAddress: String, nonce: String): String {
+        return gk!!.cancelTransfer(Numeric.toBigInt(this.permsLevel), delay.toBigInteger(), destination, value.toBigInteger(),
                 tokenAddress, nonce.toBigInteger()).send().transactionHash
     }
 
@@ -179,25 +196,24 @@ class VaultContractInteractor(
                         schedulerAddress: String,
                         schedulerPermsLevel: String,
                         boosterAddress: String,
-                        boosterPermsLevel: String,
-                        senderPermsLevel: String): String {
+                        boosterPermsLevel: String): String {
         val actionsBigInteger: List<BigInteger> = actions.map { it.toBigInteger(if (Numeric.containsHexPrefix(it)) 16 else 10) }
         val argsByteArray: List<ByteArray> = args.map { Numeric.hexStringToByteArray(it) }
         val expectedNonceBigInteger = expectedNonce.toBigInteger(if (Numeric.containsHexPrefix(expectedNonce)) 16 else 10)
         return gk!!.cancelOperation(actionsBigInteger, argsByteArray, expectedNonceBigInteger, schedulerAddress, Numeric.toBigInt(schedulerPermsLevel),
-                boosterAddress, Numeric.toBigInt(boosterPermsLevel), Numeric.toBigInt(senderPermsLevel)).send().transactionHash
+                boosterAddress, Numeric.toBigInt(boosterPermsLevel), Numeric.toBigInt(this.permsLevel)).send().transactionHash
 
     }
 
     //function sendEther(address payable destination, uint value, uint16 senderPermsLevel, uint256 delay, uint256 targetStateNonce) public {
 
-    fun sendEther(destination: String, value: String, senderPermsLevel: String, delay: String, expectedNonce: String): String {
-        return gk!!.sendEther(destination, value.toBigInteger(), Numeric.toBigInt(senderPermsLevel), delay.toBigInteger(), expectedNonce.toBigInteger()).send().transactionHash
+    fun sendEther(destination: String, value: String, delay: String, expectedNonce: String): String {
+        return gk!!.sendEther(destination, value.toBigInteger(), Numeric.toBigInt(this.permsLevel), delay.toBigInteger(), expectedNonce.toBigInteger()).send().transactionHash
     }
 
     // function sendERC20(address payable destination, uint value, uint16 senderPermsLevel, uint256 delay, address token, uint256 targetStateNonce) public {
-    fun sendERC20(destination: String, value: String, senderPermsLevel: String, delay: String, tokenAddress: String, expectedNonce: String): String {
-        return gk!!.sendERC20(destination, value.toBigInteger(), Numeric.toBigInt(senderPermsLevel), delay.toBigInteger(), tokenAddress, expectedNonce.toBigInteger()).send().transactionHash
+    fun sendERC20(destination: String, value: String, delay: String, tokenAddress: String, expectedNonce: String): String {
+        return gk!!.sendERC20(destination, value.toBigInteger(), Numeric.toBigInt(this.permsLevel), delay.toBigInteger(), tokenAddress, expectedNonce.toBigInteger()).send().transactionHash
     }
 
     //     function applyConfig(
@@ -212,20 +228,19 @@ class VaultContractInteractor(
                     schedulerAddress: String,
                     schedulerPermsLevel: String,
                     boosterAddress: String,
-                    boosterPermsLevel: String,
-                    senderPermsLevel: String): String {
+                    boosterPermsLevel: String): String {
         val actionsBigInteger: List<BigInteger> = actions.map { it.toBigInteger(if (Numeric.containsHexPrefix(it)) 16 else 10) }
         val argsByteArray: List<ByteArray> = args.map { Numeric.hexStringToByteArray(it) }
         val expectedNonceBigInteger = expectedNonce.toBigInteger(if (Numeric.containsHexPrefix(expectedNonce)) 16 else 10)
         return gk!!.applyConfig(actionsBigInteger, argsByteArray, expectedNonceBigInteger, schedulerAddress, Numeric.toBigInt(schedulerPermsLevel),
-                boosterAddress, Numeric.toBigInt(boosterPermsLevel), Numeric.toBigInt(senderPermsLevel)).send().transactionHash
+                boosterAddress, Numeric.toBigInt(boosterPermsLevel), Numeric.toBigInt(this.permsLevel)).send().transactionHash
     }
 
     //    function applyTransfer(uint256 delay, address payable destination, uint256 value, address token, uint256 nonce, uint16 senderPermsLevel)
     //    public {
 
-    fun applyTransfer(delay: String, destination: String, value: String, tokenAddress: String, nonce: String, senderPermsLevel: String): String {
-        return gk!!.applyTransfer(delay.toBigInteger(), destination, value.toBigInteger(), tokenAddress, nonce.toBigInteger(), Numeric.toBigInt(senderPermsLevel)).send().transactionHash
+    fun applyTransfer(delay: String, destination: String, value: String, tokenAddress: String, nonce: String): String {
+        return gk!!.applyTransfer(delay.toBigInteger(), destination, value.toBigInteger(), tokenAddress, nonce.toBigInteger(), Numeric.toBigInt(this.permsLevel)).send().transactionHash
 
     }
 
@@ -275,6 +290,10 @@ class VaultContractInteractor(
 
     fun deployedBlock(base: Int = 10): String {
         return gk!!.deployedBlock().send().toString(base)
+    }
+
+    fun getEvent(name: String) {
+
     }
 
 
