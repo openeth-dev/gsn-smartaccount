@@ -1,6 +1,7 @@
 package com.tabookey.safechannels.vault
 
-import com.tabookey.safechannels.addressbook.VaultParticipantTuple
+import com.tabookey.duplicated.VaultParticipantTuple
+
 
 /**
  * Includes all data known about the vault (not organized in any way now, needs structure)
@@ -15,6 +16,7 @@ class VaultState {
 
     lateinit var activeParticipant: VaultParticipantTuple
     val address: String? = null
+    val gatekeeperAddress: String? = null
 
     private val _localChanges = ArrayList<LocalVaultChange>()
     private val _pendingChanges = ArrayList<PendingChange>()

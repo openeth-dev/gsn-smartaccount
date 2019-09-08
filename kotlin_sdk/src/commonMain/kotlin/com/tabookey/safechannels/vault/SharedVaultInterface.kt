@@ -1,5 +1,6 @@
 package com.tabookey.safechannels.vault
 
+import com.tabookey.duplicated.VaultPermissions
 import com.tabookey.safechannels.addressbook.AddressBookEntry
 import com.tabookey.safechannels.addressbook.EthereumAddress
 
@@ -9,7 +10,7 @@ import com.tabookey.safechannels.addressbook.EthereumAddress
  * TODO: note: I DO NOT THINK CHAINING IS NEEDED HERE, AS THIS IS NOT A 'DEVELOPER' API AND THIS WILL BE TRIGGERED BY USERS IN UI
  */
 abstract class SharedVaultInterface(
-        val storageInterface: VaultStorageInterface,
+        internal val storage: VaultStorageInterface,
         internal open val vaultState: VaultState) {
 
     fun getVaultLocalState(): VaultState {
@@ -19,7 +20,7 @@ abstract class SharedVaultInterface(
     // all config tasks here, i.e. like this one
     fun addParticipant(participant: EthereumAddress, permissions: VaultPermissions): SharedVaultInterface {
         vaultState.addLocalChange(LocalVaultChange.addParticipant(participant, permissions))
-        storageInterface.putVaultState(vaultState)
+        storage.putVaultState(vaultState)
         return this
     }
 

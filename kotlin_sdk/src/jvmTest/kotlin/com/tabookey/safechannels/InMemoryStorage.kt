@@ -1,9 +1,12 @@
 package com.tabookey.safechannels
 
+import com.tabookey.duplicated.IKredentials
+import com.tabookey.foundation.Kredentials
 import com.tabookey.safechannels.addressbook.AddressBookEntry
 import com.tabookey.safechannels.addressbook.SafechannelContact
 import com.tabookey.safechannels.vault.VaultState
 import com.tabookey.safechannels.vault.VaultStorageInterface
+import org.web3j.crypto.Credentials
 import org.web3j.crypto.ECKeyPair
 import org.web3j.crypto.Keys
 import org.web3j.utils.Numeric
@@ -48,17 +51,18 @@ open class InMemoryStorage : VaultStorageInterface {
     }
 
 
-    override fun getAllOwnedAccounts(): List<String> {
-        return keypairs.values.map { Keys.getAddress(it) }
+    override fun getAllOwnedAccounts(): List<IKredentials> {
+        return keypairs.values.map { Kredentials(Credentials.create(it)) }
     }
 
     /**
      * @return address of the new account
      */
-    override fun generateKeypair(): String {
+    override fun generateKeypair(): IKredentials {
         val kp = Keys.createEcKeyPair()
         keypairs[keypairsId] = kp
-        return Keys.getAddress(kp)
+        return Kredentials(Credentials.create(kp))
+//        return Keys.getAddress(kp)
     }
 
     /**

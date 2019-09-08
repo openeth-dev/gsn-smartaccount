@@ -1,5 +1,7 @@
 package com.tabookey.foundation
 
+import com.tabookey.duplicated.VaultParticipantTuple
+import com.tabookey.duplicated.VaultPermissions
 import com.tabookey.foundation.generated.Gatekeeper
 import com.tabookey.foundation.generated.VaultFactory
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -11,22 +13,11 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestMethodOrder
 import org.junit.jupiter.api.assertThrows
 import org.web3j.abi.TypeDecoder
-import org.web3j.abi.TypeEncoder
-import org.web3j.abi.TypeReference
-import org.web3j.abi.datatypes.Address
-import org.web3j.abi.datatypes.DynamicArray
-import org.web3j.abi.datatypes.DynamicBytes
-import org.web3j.abi.datatypes.Int
 import org.web3j.abi.datatypes.Type
-import org.web3j.abi.datatypes.generated.Bytes32
-import org.web3j.abi.datatypes.generated.Uint16
-import org.web3j.abi.datatypes.generated.Uint256
-import org.web3j.abi.datatypes.generated.Uint8
 import org.web3j.crypto.Credentials
 import org.web3j.crypto.Hash
 import org.web3j.protocol.Web3j
 import org.web3j.utils.Numeric
-import java.math.BigInteger
 
 @TestMethodOrder(OrderAnnotation::class)
 class TestSample {
@@ -71,8 +62,9 @@ class TestSample {
         lateinit var admin2Hash: String
         lateinit var watchdog2Hash: String
 
-
+        lateinit var interactorsFactory: InteractorsFactory
         lateinit var vaultFactory: VaultFactory
+        lateinit var factoryInteractor: VaultFactoryContractInteractor
         lateinit var owner1Interactor: VaultContractInteractor
         lateinit var admin1Interactor: VaultContractInteractor
         lateinit var watchdog1Interactor: VaultContractInteractor
@@ -84,18 +76,23 @@ class TestSample {
         lateinit var gkAddress: String
 
         val zeroAddress = "0x0000000000000000000000000000000000000000"
+        lateinit var deployKredentials : Kredentials
 
         fun deployGatekeeper(web3j: Web3j) {
-            val response = owner1Interactor.deployNewGatekeeper()
-            assertEquals(response.gatekeeper.length, 42)
-            gkAddress = response.gatekeeper
-            assertEquals(response.vault.length, 42)
-            vaultAddress = response.vault
+            deployKredentials = Kredentials(deployCreds)
+            interactorsFactory = InteractorsFactory(web3j)
+            vaultFactory = VaultFactory.deploy(com.tabookey.foundation.web3j, deployCreds, gasProvider).send()
+            factoryInteractor = interactorsFactory.interactorForVaultFactory(deployKredentials, vaultFactory.contractAddress)
+            val response = factoryInteractor.deployNewGatekeeper()
+            assertEquals(response.gatekeeper!!.length, 42)
+            gkAddress = response.gatekeeper!!
+            assertEquals(response.vault!!.length, 42)
+            vaultAddress = response.vault!!
 
-            val throws: Throwable = assertThrows("deployed the gatekeeper twice") {
-                owner1Interactor.deployNewGatekeeper()
-            }
-            assertEquals("vault already deployed", throws.message)
+//            val throws: Throwable = assertThrows("deployed the gatekeeper twice") {
+//                factoryInteractor.deployNewGatekeeper()
+//            }
+//            assertEquals("vault already deployed", throws.message)
         }
 
 
@@ -104,24 +101,33 @@ class TestSample {
         fun before() {
             println("hello!")
 
-            vaultFactory = VaultFactory.deploy(web3j, deployCreds, gasProvider).send()
-            owner1Interactor = VaultContractInteractor.connect(vaultFactoryAddress = vaultFactory.contractAddress,
-                    web3j = web3j, credentials = owner1Creds, participantRole = VaultContractInteractor.ParticipantRole.Operator)
+            val owner1Kredentials = Kredentials(owner1Creds)
+            val admin1Kredentials = Kredentials(admin1Creds)
+            val watchdog1Kredentials = Kredentials(watchdog1Creds)
+            val owner2Kredentials = Kredentials(owner2Creds)
+            val admin2Kredentials = Kredentials(admin2Creds)
+            val watchdog2Kredentials = Kredentials(watchdog2Creds)
+
+            val ownerParticipant = VaultParticipantTuple(VaultPermissions.OWNER_PERMISSIONS, 1, "0xOWNERADDRESS")
+            val adminParticipant = VaultParticipantTuple(VaultPermissions.ADMIN_PERMISSIONS, 1, "0xADMINADDRESS")
+            val watchdogParticipant = VaultParticipantTuple(VaultPermissions.WATCHDOG_PERMISSIONS, 1, "0xWATCHDOGADDRESS")
+
+            deployGatekeeper(web3j)
+            owner1Interactor = interactorsFactory.interactorForVault(deployKredentials, vaultAddress, gkAddress, ownerParticipant)
             // fund owner
             moneyTransfer(web3j, deployCreds.address, owner1Creds.address, "1000000000000000000".toBigInteger())
-            deployGatekeeper(web3j)
-            admin1Interactor = VaultContractInteractor.connect(vaultFactoryAddress = vaultFactory.contractAddress,
-                    web3j = web3j, gkAddress = gkAddress, vaultAddress = vaultAddress, credentials = admin1Creds, participantRole = VaultContractInteractor.ParticipantRole.Admin)
-            watchdog1Interactor = VaultContractInteractor.connect(vaultFactoryAddress = vaultFactory.contractAddress,
-                    web3j = web3j, gkAddress = gkAddress, vaultAddress = vaultAddress, credentials = watchdog1Creds, participantRole = VaultContractInteractor.ParticipantRole.Watchdog)
-            owner2Interactor = VaultContractInteractor.connect(vaultFactoryAddress = vaultFactory.contractAddress,
-                    gkAddress = gkAddress, vaultAddress = vaultAddress, web3j = web3j, credentials = owner2Creds, participantRole = VaultContractInteractor.ParticipantRole.Operator)
+            admin1Interactor = interactorsFactory.interactorForVault(
+                    gkAddress = gkAddress, vaultAddress = vaultAddress, kredentials = admin1Kredentials, participant = adminParticipant)
+            watchdog1Interactor = interactorsFactory.interactorForVault(
+                    gkAddress = gkAddress, vaultAddress = vaultAddress, kredentials = watchdog1Kredentials, participant = watchdogParticipant)
+            owner2Interactor = interactorsFactory.interactorForVault(
+                    gkAddress = gkAddress, vaultAddress = vaultAddress, kredentials = owner2Kredentials, participant = ownerParticipant)
             // fund owner
             moneyTransfer(web3j, deployCreds.address, owner2Creds.address, "1000000000000000000".toBigInteger())
-            admin2Interactor = VaultContractInteractor.connect(vaultFactoryAddress = vaultFactory.contractAddress,
-                    web3j = web3j, gkAddress = gkAddress, vaultAddress = vaultAddress, credentials = admin2Creds, participantRole = VaultContractInteractor.ParticipantRole.Admin)
-            watchdog2Interactor = VaultContractInteractor.connect(vaultFactoryAddress = vaultFactory.contractAddress,
-                    web3j = web3j, gkAddress = gkAddress, vaultAddress = vaultAddress, credentials = watchdog2Creds, participantRole = VaultContractInteractor.ParticipantRole.Watchdog)
+            admin2Interactor = interactorsFactory.interactorForVault(
+                    gkAddress = gkAddress, vaultAddress = vaultAddress, kredentials = admin2Kredentials, participant = adminParticipant)
+            watchdog2Interactor = interactorsFactory.interactorForVault(
+                    gkAddress = gkAddress, vaultAddress = vaultAddress, kredentials = watchdog2Kredentials, participant = watchdogParticipant)
 
             owner1PermsLevel = packPermissionLevel(owner1Interactor.ownerPermissions(), "1")
             admin1PermsLevel = packPermissionLevel(admin1Interactor.adminPermissions(), "1")
@@ -184,9 +190,9 @@ class TestSample {
         val arg = events[0].actionsArguments[0] //as Type<ByteArray>
         assertEquals(args[0], Numeric.toHexString(arg))
 
-        assertEquals(expectedNonce,  events[0].stateId.toString())
-        assertEquals(owner1PermsLevel,  events[0].senderPermsLevel.toString(16))
-        assertEquals(owner1Creds.address,  events[0].sender)
+        assertEquals(expectedNonce, events[0].stateId.toString())
+        assertEquals(owner1PermsLevel, events[0].senderPermsLevel.toString(16))
+        assertEquals(owner1Creds.address, events[0].sender)
         val actionWeb3jType = TypeDecoder.instantiateType("uint8[]", actions) //as DynamicArray<Uint8>
         val argsWeb3jType = TypeDecoder.instantiateType("bytes32[]", args) //as DynamicArray<Bytes32>
         val expectedNonceWeb3jType = TypeDecoder.instantiateType("uint256", expectedNonce) //as Uint256
@@ -204,7 +210,7 @@ class TestSample {
         println("args: " + args[0])
         println("expectedNonce: " + expectedNonce)
         println("owner1PermsLevel: " + Numeric.toHexString(owner1PermsLevel.toByteArray()))
-        assertEquals(Numeric.prependHexPrefix(scheduledTxHash),  Numeric.toHexString(events[0].transactionHash))
+        assertEquals(Numeric.prependHexPrefix(scheduledTxHash), Numeric.toHexString(events[0].transactionHash))
     }
 
     @Test
@@ -218,8 +224,8 @@ class TestSample {
         val txHash = owner1Interactor.changeConfiguration(actions, args, expectedNonce)
         val receipt = web3j.ethGetTransactionReceipt(txHash).send().transactionReceipt.get()
         val events = Gatekeeper.staticGetConfigPendingEvents(receipt)
-        val wtfe = Gatekeeper.staticGetWTFEvents(receipt)[0].encodedPacked
-        owner1Interactor.applyConfig(actions, args, expectedNonce, owner1Creds.address, owner1PermsLevel, zeroAddress, "0", owner1PermsLevel)
+//        val wtfe = Gatekeeper.staticGetWTFEvents(receipt)[0].encodedPacked
+        owner1Interactor.applyConfig(actions, args, expectedNonce, owner1Creds.address, owner1PermsLevel, zeroAddress, "0")
     }
 
     @Test

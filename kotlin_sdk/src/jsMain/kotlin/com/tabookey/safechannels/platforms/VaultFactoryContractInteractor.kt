@@ -1,0 +1,3 @@
+package com.tabookey.safechannels.platforms
+
+actual class VaultFactoryContractInteractor

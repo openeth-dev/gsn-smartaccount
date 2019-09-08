@@ -1,13 +1,13 @@
 package com.tabookey.safechannels.vault
 
-import com.tabookey.safechannels.addressbook.AddressBookEntry
+import com.tabookey.duplicated.IKredentials
 import com.tabookey.safechannels.addressbook.SafechannelContact
 
 interface VaultStorageInterface {
 
-    fun getAllOwnedAccounts(): List<String>
+    fun getAllOwnedAccounts(): List<IKredentials>
 
-    fun generateKeypair(): String
+    fun generateKeypair(): IKredentials
     fun sign(transactionHash: String, address: String): String
 
     fun putVaultState(vault: VaultState): Int

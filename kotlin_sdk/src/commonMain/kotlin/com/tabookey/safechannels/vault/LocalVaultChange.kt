@@ -1,6 +1,6 @@
 package com.tabookey.safechannels.vault
 
-import com.tabookey.safechannels.addressbook.AddressBookEntry
+import com.tabookey.duplicated.VaultPermissions
 import com.tabookey.safechannels.addressbook.EthereumAddress
 
 class LocalVaultChange private constructor(val changeType: LocalChangeType) {
