@@ -1,4 +1,4 @@
-package com.tabookey.safechannels.vault
+package com.tabookey.duplicated
 
 class VaultPermissions(private var integerRepresentation: Int) {
 

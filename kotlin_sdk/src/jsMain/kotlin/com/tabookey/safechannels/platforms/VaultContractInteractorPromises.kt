@@ -1,5 +1,6 @@
 package com.tabookey.safechannels
 
+import com.tabookey.safechannels.platforms.VaultContractInteractor
 import kotlin.js.Promise
 
 @JsName(name = "VaultContractInteractor")
@@ -19,5 +20,5 @@ external class VaultContractInteractorWithPromises {
 }
 
 fun wrap(a: VaultContractInteractorWithPromises): VaultContractInteractor {
-    return com.tabookey.safechannels.VaultContractInteractor(a)
+    return com.tabookey.safechannels.platforms.VaultContractInteractor(a)
 }

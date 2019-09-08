@@ -1,33 +1,34 @@
 package com.tabookey.foundation
 
+import com.tabookey.duplicated.VaultParticipantTuple
 import com.tabookey.foundation.generated.Gatekeeper
 import com.tabookey.foundation.generated.Vault
-import com.tabookey.foundation.generated.VaultFactory
-import org.web3j.abi.datatypes.Address
 import org.web3j.crypto.Credentials
 import org.web3j.protocol.Web3j
-import org.web3j.protocol.core.DefaultBlockParameter
-import org.web3j.protocol.core.methods.response.TransactionReceipt
 import org.web3j.tx.gas.DefaultGasProvider
 import org.web3j.tx.gas.EstimatedGasProvider
 import org.web3j.utils.Numeric
 import java.math.BigInteger
 
 class VaultContractInteractor(
-        vaultFactoryAddress: String,
-        vaultAddress: String?,
-        gkAddress: String?,
+        vaultAddress: String,
+        gkAddress: String,
         private val web3j: Web3j,
         private val credentials: Credentials,
-        val participantRole: ParticipantRole) {
+        val participant: VaultParticipantTuple) {
 
-    lateinit var permsLevel: String
-    enum class ChangeType(val stringValue:String) {
+    private val permsLevel: String
+        get() {
+            return "permsLevel" // TODO: implement this
+        }
+
+    enum class ChangeType(val stringValue: String) {
         ADD_PARTICIPANT("0"), // arg: participant_hash
         REMOVE_PARTICIPANT("1"), // arg: participant_hash
         CHOWN("2"), // arg: address
         UNFREEZE("3")            // no args
     }
+
     enum class ParticipantRole {
         Operator,
         Admin,
@@ -36,71 +37,32 @@ class VaultContractInteractor(
 
     private var provider: EstimatedGasProvider = EstimatedGasProvider(web3j, DefaultGasProvider.GAS_PRICE, DefaultGasProvider.GAS_LIMIT)
 
-    private var vaultFactory: VaultFactory
-    private var vault: Vault? = null
-    private var gk: Gatekeeper? = null
+    private var vault: Vault
+    private var gk: Gatekeeper
 
     init {
-        vaultFactory = VaultFactory.load(vaultFactoryAddress, web3j, credentials, provider)
-        if (vaultAddress != null)
-            vault = Vault.load(vaultAddress, web3j, credentials, provider)
-        if (gkAddress != null) {
-            gk = Gatekeeper.load(gkAddress, web3j, credentials, provider)
-            retrievePermsLevel()
-        }
-    }
-
-    companion object {
-        fun connect(vaultFactoryAddress: String, vaultAddress: String? = null, gkAddress: String? = null, web3j: Web3j, credentials: Credentials, participantRole: ParticipantRole): VaultContractInteractor {
-            return VaultContractInteractor(vaultFactoryAddress, vaultAddress, gkAddress, web3j, credentials, participantRole)
-        }
-    }
-
-    private fun retrievePermsLevel() {
-        permsLevel = when(participantRole){
-            ParticipantRole.Operator -> this.ownerPermissions()
-            ParticipantRole.Admin -> this.adminPermissions()
-            ParticipantRole.Watchdog -> this.watchdogPermissions()
-        }
-    }
-
-    fun deployNewGatekeeper(): VaultFactory.VaultCreatedEventResponse {
-        if (vault != null || gk != null) {
-            throw RuntimeException("vault already deployed")
-        }
-        val receipt = vaultFactory.newVault().send()
-        val vaultCreatedEvents = vaultFactory.getVaultCreatedEvents(receipt)
-        assert(vaultCreatedEvents.size == 1)
-        val event = vaultCreatedEvents[0]
-        vault = Vault.load(event.vault, web3j, credentials, provider)
-        gk = Gatekeeper.load(event.gatekeeper, web3j, credentials, provider)
-        retrievePermsLevel()
-//        vault!!.transferERC20("0xf0d5bc18421fa04d0a2a2ef540ba5a9f04014be3", BigInteger.ONE, Address.DEFAULT.toString(), BigInteger.ONE, Address.DEFAULT.toString()).send()
-        return event!!
+        vault = Vault.load(vaultAddress, web3j, credentials, provider)
+        gk = Gatekeeper.load(gkAddress, web3j, credentials, provider)
     }
 
     fun vaultAddress(): String? {
-        return vault!!.contractAddress
+        return vault.contractAddress
     }
 
     fun gkAddress(): String? {
-        return gk!!.contractAddress
-    }
-
-    fun vaultFactoryAddress(): String {
-        return vaultFactory.contractAddress
+        return gk.contractAddress
     }
 
     fun ownerPermissions(): String {
-        return gk!!.ownerPermissions().send().toString()
+        return gk.ownerPermissions().send().toString()
     }
 
     fun adminPermissions(): String {
-        return gk!!.adminPermissions().send().toString()
+        return gk.adminPermissions().send().toString()
     }
 
     fun watchdogPermissions(): String {
-        return gk!!.watchdogPermissions().send().toString()
+        return gk.watchdogPermissions().send().toString()
     }
 
 
@@ -119,7 +81,7 @@ class VaultContractInteractor(
     }
 
     fun freeze(levelToFreeze: Int, duration: String): String {
-        return gk!!.freeze(Numeric.toBigInt(this.permsLevel), levelToFreeze.toBigInteger(), duration.toBigInteger()).send().transactionHash
+        return gk.freeze(Numeric.toBigInt(this.permsLevel), levelToFreeze.toBigInteger(), duration.toBigInteger()).send().transactionHash
 //        val freezeEvents = gk!!.getLevelFrozenEvents(receipt)
 //        assert(freezeEvents.size == 1)
 //        val event = freezeEvents[0]

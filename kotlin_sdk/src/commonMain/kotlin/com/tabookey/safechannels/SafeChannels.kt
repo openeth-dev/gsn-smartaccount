@@ -1,6 +1,11 @@
 package com.tabookey.safechannels
 
+import com.tabookey.duplicated.IKredentials
+import com.tabookey.duplicated.VaultPermissions
 import com.tabookey.safechannels.addressbook.AddressBook
+import com.tabookey.safechannels.addressbook.EthereumAddress
+import com.tabookey.safechannels.platforms.InteractorsFactory
+import com.tabookey.safechannels.platforms.VaultFactoryContractInteractor
 import com.tabookey.safechannels.vault.*
 
 /**
@@ -8,22 +13,20 @@ import com.tabookey.safechannels.vault.*
  * @param vaultFactoryContractInteractor - is needed to instantiate new vaults
  */
 class SafeChannels(
+        private val interactorsFactory: InteractorsFactory,
         private val vaultFactoryContractInteractor: VaultFactoryContractInteractor,
         private val storage: VaultStorageInterface
 ) {
 
     private val addressBook = AddressBook(storage)
 
-    companion object {
-        fun createVaultFactory(address: String): VaultFactoryContractInteractor {
-            return VaultFactoryContractInteractor()
-        }
-    }
-
-    fun vaultConfigBuilder(): VaultConfigBuilder {
+    fun vaultConfigBuilder(owner: EthereumAddress): VaultConfigBuilder {
         val ownedAccounts = listAllOwnedAccounts()
-        val owner = ownedAccounts[0]
-        val vaultConfigBuilder = VaultConfigBuilder(owner, storage, emptyList())
+        if (!ownedAccounts.map { it.getAddress() }.contains(owner)) {
+            // I think the SDK should start without any accounts for safety reasons.
+            throw RuntimeException("Unknown account passed as owner")
+        }
+        val vaultConfigBuilder = VaultConfigBuilder(interactorsFactory, vaultFactoryContractInteractor, owner, storage, emptyList())
         val state = storage.putVaultState(vaultConfigBuilder.getVaultLocalState())
         vaultConfigBuilder.vaultState.id = state
         return vaultConfigBuilder
@@ -41,7 +44,7 @@ class SafeChannels(
      *
      * @return public key of the newly generated keypair
      */
-    fun createKeypair(): String {
+    fun createKeypair(): IKredentials {
         return storage.generateKeypair()
     }
 
@@ -49,7 +52,7 @@ class SafeChannels(
      * Note: We will need this when we support multiple accounts, account per role, etc.
      * This is better to support multiple accounts from day 1.
      */
-    fun listAllOwnedAccounts(): List<String> {
+    fun listAllOwnedAccounts(): List<IKredentials> {
         return storage.getAllOwnedAccounts()
     }
 
@@ -71,10 +74,16 @@ class SafeChannels(
         val allVaultsStates = storage.getAllVaultsStates()
         return allVaultsStates.map { vaultState ->
             if (vaultState.isDeployed) {
-                val interactor = VaultContractInteractor(vaultState.address!!, vaultState.activeParticipant!!)
+                // TODO: anything but this!!!
+                val kreds = storage.getAllOwnedAccounts().first { it.getAddress() == vaultState.activeParticipant.address }
+                val interactor = interactorsFactory.interactorForVault(
+                        kreds,
+                        vaultState.address!!,
+                        vaultState.gatekeeperAddress!!,
+                        vaultState.activeParticipant)
                 DeployedVault(interactor, storage, vaultState)
             } else {
-                VaultConfigBuilder(storage, vaultState)
+                VaultConfigBuilder(interactorsFactory, vaultFactoryContractInteractor, storage, vaultState)
             }
         }
     }

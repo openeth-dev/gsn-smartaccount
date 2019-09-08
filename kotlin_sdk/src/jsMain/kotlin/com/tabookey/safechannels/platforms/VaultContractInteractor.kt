@@ -1,5 +1,6 @@
-package com.tabookey.safechannels
+package com.tabookey.safechannels.platforms
 
+import com.tabookey.safechannels.VaultContractInteractorWithPromises
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine

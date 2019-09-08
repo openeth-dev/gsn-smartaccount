@@ -1,7 +1,6 @@
 package com.tabookey.safechannels.vault
 
-import com.tabookey.safechannels.VaultContractInteractor
-import com.tabookey.safechannels.addressbook.VaultParticipantTuple
+import com.tabookey.safechannels.platforms.VaultContractInteractor
 import com.tabookey.safechannels.blockchain.BlockchainTransaction
 
 /**

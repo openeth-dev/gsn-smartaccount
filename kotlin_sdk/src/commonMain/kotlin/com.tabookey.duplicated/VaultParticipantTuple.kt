@@ -1,7 +1,4 @@
-package com.tabookey.safechannels.addressbook
-
-import com.tabookey.safechannels.vault.VaultPermissions
-
+package com.tabookey.duplicated
 /**
  *
  */
