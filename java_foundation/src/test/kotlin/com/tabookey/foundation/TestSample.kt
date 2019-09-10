@@ -76,7 +76,7 @@ class TestSample {
         lateinit var gkAddress: String
 
         val zeroAddress = "0x0000000000000000000000000000000000000000"
-        lateinit var deployKredentials : Kredentials
+        lateinit var deployKredentials: Kredentials
 
         fun deployGatekeeper(web3j: Web3j) {
             deployKredentials = Kredentials(deployCreds)
@@ -113,7 +113,7 @@ class TestSample {
             val watchdogParticipant = VaultParticipantTuple(VaultPermissions.WATCHDOG_PERMISSIONS, 1, "0xWATCHDOGADDRESS")
 
             deployGatekeeper(web3j)
-            owner1Interactor = interactorsFactory.interactorForVault(deployKredentials, vaultAddress, gkAddress, ownerParticipant)
+            owner1Interactor = interactorsFactory.interactorForVault(owner1Kredentials, vaultAddress, gkAddress, ownerParticipant)
             // fund owner
             moneyTransfer(web3j, deployCreds.address, owner1Creds.address, "1000000000000000000".toBigInteger())
             admin1Interactor = interactorsFactory.interactorForVault(
@@ -129,19 +129,19 @@ class TestSample {
             watchdog2Interactor = interactorsFactory.interactorForVault(
                     gkAddress = gkAddress, vaultAddress = vaultAddress, kredentials = watchdog2Kredentials, participant = watchdogParticipant)
 
-            owner1PermsLevel = packPermissionLevel(owner1Interactor.ownerPermissions(), "1")
-            admin1PermsLevel = packPermissionLevel(admin1Interactor.adminPermissions(), "1")
-            watchdog1PermsLevel = packPermissionLevel(watchdog1Interactor.watchdogPermissions(), "1")
-            owner2PermsLevel = packPermissionLevel(owner2Interactor.ownerPermissions(), "2")
-            admin2PermsLevel = packPermissionLevel(admin2Interactor.adminPermissions(), "2")
-            watchdog2PermsLevel = packPermissionLevel(watchdog2Interactor.watchdogPermissions(), "2")
+            owner1PermsLevel = owner1Interactor.permsLevel //packPermissionLevel(owner1Interactor.ownerPermissions(), "1")
+            admin1PermsLevel = admin1Interactor.permsLevel //packPermissionLevel(admin1Interactor.adminPermissions(), "1")
+            watchdog1PermsLevel = watchdog1Interactor.permsLevel //packPermissionLevel(watchdog1Interactor.watchdogPermissions(), "1")
+            owner2PermsLevel = owner2Interactor.permsLevel //packPermissionLevel(owner2Interactor.ownerPermissions(), "2")
+            admin2PermsLevel = admin2Interactor.permsLevel //packPermissionLevel(admin2Interactor.adminPermissions(), "2")
+            watchdog2PermsLevel = watchdog2Interactor.permsLevel //packPermissionLevel(watchdog2Interactor.watchdogPermissions(), "2")
 
-            owner1Hash = Numeric.toHexString(Hash.sha3(Numeric.hexStringToByteArray(owner1Creds.address) + Numeric.hexStringToByteArray(owner1PermsLevel)))
-            admin1Hash = Numeric.toHexString(Hash.sha3(Numeric.hexStringToByteArray(admin1Creds.address) + Numeric.hexStringToByteArray(admin1PermsLevel)))
-            watchdog1Hash = Numeric.toHexString(Hash.sha3(Numeric.hexStringToByteArray(watchdog1Creds.address) + Numeric.hexStringToByteArray(watchdog1PermsLevel)))
-            owner2Hash = Numeric.toHexString(Hash.sha3(Numeric.hexStringToByteArray(owner2Creds.address) + Numeric.hexStringToByteArray(owner2PermsLevel)))
-            admin2Hash = Numeric.toHexString(Hash.sha3(Numeric.hexStringToByteArray(admin2Creds.address) + Numeric.hexStringToByteArray(admin2PermsLevel)))
-            watchdog2Hash = Numeric.toHexString(Hash.sha3(Numeric.hexStringToByteArray(watchdog2Creds.address) + Numeric.hexStringToByteArray(watchdog2PermsLevel)))
+            owner1Hash = owner1Interactor.participantHash() //Numeric.toHexString(Hash.sha3(Numeric.hexStringToByteArray(owner1Creds.address) + Numeric.hexStringToByteArray(owner1PermsLevel)))
+            admin1Hash = admin1Interactor.participantHash() //Numeric.toHexString(Hash.sha3(Numeric.hexStringToByteArray(admin1Creds.address) + Numeric.hexStringToByteArray(admin1PermsLevel)))
+            watchdog1Hash = watchdog1Interactor.participantHash() //Numeric.toHexString(Hash.sha3(Numeric.hexStringToByteArray(watchdog1Creds.address) + Numeric.hexStringToByteArray(watchdog1PermsLevel)))
+            owner2Hash = owner2Interactor.participantHash() //Numeric.toHexString(Hash.sha3(Numeric.hexStringToByteArray(owner2Creds.address) + Numeric.hexStringToByteArray(owner2PermsLevel)))
+            admin2Hash = admin2Interactor.participantHash() //Numeric.toHexString(Hash.sha3(Numeric.hexStringToByteArray(admin2Creds.address) + Numeric.hexStringToByteArray(admin2PermsLevel)))
+            watchdog2Hash = watchdog2Interactor.participantHash() //Numeric.toHexString(Hash.sha3(Numeric.hexStringToByteArray(watchdog2Creds.address) + Numeric.hexStringToByteArray(watchdog2PermsLevel)))
 
         }
     }
