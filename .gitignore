@@ -46,3 +46,5 @@ js_foundation/gradlew
 js_foundation/gradlew.bat
 /.idea/modules/
 /.idea/artifacts/
+/.idea/gradle.xml
+/.idea/modules.xml
