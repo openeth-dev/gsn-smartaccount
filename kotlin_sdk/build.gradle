@@ -71,6 +71,7 @@ kotlin {
                 implementation kotlin('test')
                 implementation kotlin('test-junit')
                 implementation 'org.mockito:mockito-core:2.28.2'
+                implementation "com.nhaarman.mockitokotlin2:mockito-kotlin:2.2.0"
                 implementation ( "org.web3j:core:$web3j_version" ) {
                     exclude group:"com.github.jnr"
                     changing = true

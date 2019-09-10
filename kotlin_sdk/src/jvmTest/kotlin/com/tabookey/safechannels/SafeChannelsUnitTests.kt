@@ -1,17 +1,18 @@
 package com.tabookey.safechannels
 
+import com.nhaarman.mockitokotlin2.doReturn
 import com.tabookey.duplicated.VaultParticipantTuple
 import com.tabookey.duplicated.VaultPermissions
 import com.tabookey.foundation.InteractorsFactory
+import com.tabookey.foundation.Response
 import com.tabookey.foundation.VaultFactoryContractInteractor
 import com.tabookey.safechannels.addressbook.SafechannelContact
+
 import com.tabookey.safechannels.vault.LocalChangeType
 import com.tabookey.safechannels.vault.VaultStorageInterface
 import org.junit.Before
-import org.mockito.Mockito
-import org.mockito.Mockito.*
+import com.nhaarman.mockitokotlin2.*
 import org.web3j.crypto.Credentials
-import org.web3j.protocol.Web3j
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFails
@@ -20,7 +21,7 @@ class SafeChannelsUnitTests {
 
     // From: https://medium.com/@elye.project/befriending-kotlin-and-mockito-1c2e7b0ef791
     // Mockito does not know about Kotlin's nullable types
-    private fun <T> any() = Mockito.any() as T
+//    private fun <T> any() = Mockito.any() as T
 
     private val anyAddress = "0xd216153c06e857cd7f72665e0af1d7d82172f494"
 
@@ -28,17 +29,22 @@ class SafeChannelsUnitTests {
     private lateinit var storage: VaultStorageInterface
     private lateinit var interactorsFactory: InteractorsFactory
     private lateinit var sdk: SafeChannels
-    private lateinit var web3j: Web3j
     private lateinit var credentials: Credentials
 
 
     @Before
     fun before() {
         storage = spy(InMemoryStorage())
-        web3j = mock(Web3j::class.java)
-        credentials = mock(Credentials::class.java)
-        vaultFactoryContractInteractor = spy(VaultFactoryContractInteractor("", web3j, credentials))
-        interactorsFactory = spy(InteractorsFactory(web3j))
+        credentials = mock()
+        vaultFactoryContractInteractor = mock {
+            on {
+                deployNewGatekeeper()
+            } doReturn Response("hi", "", "")
+
+        }
+        interactorsFactory = mock {
+//            on
+        }
         sdk = SafeChannels(interactorsFactory, vaultFactoryContractInteractor, storage)
     }
 
@@ -53,7 +59,7 @@ class SafeChannelsUnitTests {
         ownedAccounts = sdk.listAllOwnedAccounts()
         verify(storage).getAllOwnedAccounts()
         assertEquals(1, ownedAccounts.size)
-        assertEquals(account, ownedAccounts[0])
+        assertEquals(account.getAddress(), ownedAccounts[0].getAddress())
     }
 
     @Test
@@ -99,7 +105,7 @@ class SafeChannelsUnitTests {
     }
 
     @Test
-    fun `should not allow creation of the builder when no keypair exists`(){
+    fun `should not allow creation of the builder when no keypair exists`() {
         val throwable = assertFails {
             sdk.vaultConfigBuilder(anyAddress)
         }
@@ -145,5 +151,78 @@ class SafeChannelsUnitTests {
         assertEquals(1, allVaults.size)
         assertEquals(allVaults[0].vaultState.id, deployedVault.vaultState.id)
 
+    }
+
+    // As operator:
+    @Test
+    fun `should add participant to existing vault`() {
+
+    }
+
+    @Test
+    fun `should remove participant from existing vault`() {
+    }
+
+    @Test
+    fun `should send ether`() {
+    }
+
+    @Test
+    fun `should send erc20 token`() {
+    }
+
+    @Test
+    fun `should cancel ether transfer`() {
+    }
+
+    @Test
+    fun `should cancel erc20 token transfer`() {
+    }
+
+    @Test
+    fun `should cancel config changes as owner`() {
+    }
+
+    @Test
+    fun `should perform boosted config change`() {
+    }
+
+    @Test
+    fun `should use recovery-only(level zero) admins to for simplified recovery procedure`() {
+    }
+
+    @Test
+    fun `should freeze recovery-only(level zero) admins`() {
+    }
+
+    // As watchdog:
+    @Test
+    fun `should cancel config changes as watchdog`() {
+    }
+
+    @Test
+    fun `should freeze`() {
+    }
+
+    // As admin:
+    @Test
+    fun `should boost config change`() {
+    }
+
+    @Test
+    fun `should recover operator`() {
+    }
+
+    // Shared tests for guardians:
+    @Test
+    fun `should add vault to watched vaults as participant`() {
+    }
+
+    @Test
+    fun `should remove vault from watched vaults as participant`() {
+    }
+
+    @Test
+    fun `should list all watched vaults`() {
     }
 }

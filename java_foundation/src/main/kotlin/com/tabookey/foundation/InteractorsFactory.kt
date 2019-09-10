@@ -7,7 +7,7 @@ import org.web3j.protocol.Web3j
 open class InteractorsFactory(
         private val web3j: Web3j) {
 
-    fun interactorForVaultFactory(
+    open fun interactorForVaultFactory(
             kredentials: IKredentials,
             vaultFactoryAddress: String
     ): VaultFactoryContractInteractor {
@@ -19,7 +19,7 @@ open class InteractorsFactory(
         throw RuntimeException("Alex, what the fuck are you doing!?")
     }
 
-    fun interactorForVault(
+    open fun interactorForVault(
             kredentials: IKredentials,
             vaultAddress: String,
             gkAddress: String,

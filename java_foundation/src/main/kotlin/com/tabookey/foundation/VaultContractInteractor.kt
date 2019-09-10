@@ -1,9 +1,11 @@
 package com.tabookey.foundation
 
 import com.tabookey.duplicated.VaultParticipantTuple
+import com.tabookey.duplicated.VaultPermissions
 import com.tabookey.foundation.generated.Gatekeeper
 import com.tabookey.foundation.generated.Vault
 import org.web3j.crypto.Credentials
+import org.web3j.crypto.Hash
 import org.web3j.protocol.Web3j
 import org.web3j.tx.gas.DefaultGasProvider
 import org.web3j.tx.gas.EstimatedGasProvider
@@ -17,22 +19,13 @@ class VaultContractInteractor(
         private val credentials: Credentials,
         val participant: VaultParticipantTuple) {
 
-    private val permsLevel: String
-        get() {
-            return "permsLevel" // TODO: implement this
-        }
+    val permsLevel = participant.packPermissionLevel()
 
     enum class ChangeType(val stringValue: String) {
         ADD_PARTICIPANT("0"), // arg: participant_hash
         REMOVE_PARTICIPANT("1"), // arg: participant_hash
         CHOWN("2"), // arg: address
         UNFREEZE("3")            // no args
-    }
-
-    enum class ParticipantRole {
-        Operator,
-        Admin,
-        Watchdog
     }
 
     private var provider: EstimatedGasProvider = EstimatedGasProvider(web3j, DefaultGasProvider.GAS_PRICE, DefaultGasProvider.GAS_LIMIT)
@@ -54,17 +47,26 @@ class VaultContractInteractor(
     }
 
     fun ownerPermissions(): String {
-        return gk.ownerPermissions().send().toString()
+        return VaultPermissions.OWNER_PERMISSIONS.toString()
+        // TODO: add test that these are equal
+//        return gk.ownerPermissions().send().toString()
     }
 
     fun adminPermissions(): String {
-        return gk.adminPermissions().send().toString()
+        return VaultPermissions.ADMIN_PERMISSIONS.toString()
+        // TODO: add test that these are equal
+//        return gk.adminPermissions().send().toString()
     }
 
     fun watchdogPermissions(): String {
-        return gk.watchdogPermissions().send().toString()
+        return VaultPermissions.WATCHDOG_PERMISSIONS.toString()
+        // TODO: add test that these are equal
+//        return gk.watchdogPermissions().send().toString()
     }
 
+    fun participantHash(): String {
+        return Numeric.toHexString(Hash.sha3(Numeric.hexStringToByteArray(credentials.address) + Numeric.hexStringToByteArray(permsLevel)))
+    }
 
     fun initialConfig(vaultAddress: String, initialParticipants: List<String>, initialDelays: List<String>): String {
 
