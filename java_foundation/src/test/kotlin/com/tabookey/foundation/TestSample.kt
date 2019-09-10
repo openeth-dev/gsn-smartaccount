@@ -81,7 +81,7 @@ class TestSample {
         fun deployGatekeeper(web3j: Web3j) {
             deployKredentials = Kredentials(deployCreds)
             interactorsFactory = InteractorsFactory(web3j)
-            vaultFactory = VaultFactory.deploy(com.tabookey.foundation.web3j, deployCreds, gasProvider).send()
+            vaultFactory = VaultFactory.deploy(web3j, deployCreds, gasProvider).send()
             factoryInteractor = interactorsFactory.interactorForVaultFactory(deployKredentials, vaultFactory.contractAddress)
             val response = factoryInteractor.deployNewGatekeeper()
             assertEquals(response.gatekeeper!!.length, 42)
