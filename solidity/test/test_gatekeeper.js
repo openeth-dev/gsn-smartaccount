@@ -28,7 +28,7 @@ async function getDelayedOpHashFromEvent(log, utilities) {
     let schedulerPermsLevel = log.args.senderPermsLevel;
     let boosterAddress = log.args.booster;
     let boosterPermsLevel = log.args.boosterPermsLevel;
-    return (await utilities.transactionHash(actions, args, stateId, schedulerAddress, schedulerPermsLevel, boosterAddress, boosterPermsLevel));//utils.delayedOpHashNew(actions, args, stateId, schedulerAddress, schedulerPermsLevel, boosterAddress, boosterPermsLevel);
+    return (await utilities.transactionHashPublic(actions, args, stateId, schedulerAddress, schedulerPermsLevel, boosterAddress, boosterPermsLevel));//utils.delayedOpHashNew(actions, args, stateId, schedulerAddress, schedulerPermsLevel, boosterAddress, boosterPermsLevel);
 }
 
 const ChangeType = Object.freeze({
