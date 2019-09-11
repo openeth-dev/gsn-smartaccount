@@ -40,6 +40,7 @@ class TestSample {
     }
 
     companion object {
+        var txHash = ""
 
         val owner1Creds = Credentials.create("6edf5e2ae718c0abf4be350792b0b5352cda8341ec10ce6b0d77230b92ae17c3") // address 0x1715abd5086a19e770c53b87739820922f2275c3
         val admin1Creds = Credentials.create("84d4ae57ada4a3619df875aaecd67a06463805e2db4cacdec81a962b79e79390") // address 0x682a4e669793dda85eccc1838d33a391ac41fd38
@@ -179,7 +180,7 @@ class TestSample {
         val actions = listOf(actionAddAdmin)
         val args = listOf(admin2Hash)
         val expectedNonce = owner1Interactor.stateNonce()
-        val txHash = owner1Interactor.changeConfiguration(actions, args, expectedNonce)
+        txHash = owner1Interactor.changeConfiguration(actions, args, expectedNonce)
         val receipt = web3j.ethGetTransactionReceipt(txHash).send().transactionReceipt.get()
         val events = Gatekeeper.staticGetConfigPendingEvents(receipt)
 //        val wtfe = Gatekeeper.staticGetWTFEvents(receipt)[0].encodedPacked
@@ -217,10 +218,11 @@ class TestSample {
     @Order(3)
     @DisplayName("should revert on trying to apply change configuration too early")
     fun applyAddAdminBeforeTime() {
-        val actionAddAdmin = VaultContractInteractor.ChangeType.ADD_PARTICIPANT.stringValue
-        val actions = listOf(actionAddAdmin)
-        val args = listOf(admin2Hash)
-        val expectedNonce = (owner1Interactor.stateNonce().toInt() - 1).toString()
+        val event = owner1Interactor.getConfigPendingEvent(txHash)
+//        val actionAddAdmin = VaultContractInteractor.ChangeType.ADD_PARTICIPANT.stringValue
+        val actions = event.actions //listOf(actionAddAdmin)
+        val args = event.actionsArguments //listOf(admin2Hash)
+        val expectedNonce = event.stateId //(owner1Interactor.stateNonce().toInt() - 1).toString()
 //        val txHash = owner1Interactor.changeConfiguration(actions, args, expectedNonce)
 //        val receipt = web3j.ethGetTransactionReceipt(txHash).send().transactionReceipt.get()
         val delay = owner1Interactor.delays(owner1Interactor.participant.level)
@@ -235,10 +237,11 @@ class TestSample {
     @Order(4)
     @DisplayName("should revert on trying to apply change configuration with incorrect hash")
     fun applyAddAdminWrongNonce() {
-        val actionAddAdmin = VaultContractInteractor.ChangeType.ADD_PARTICIPANT.stringValue
-        val actions = listOf(actionAddAdmin)
-        val args = listOf(admin2Hash)
-        val expectedNonce = (owner1Interactor.stateNonce().toInt() + 2).toString()
+        val event = owner1Interactor.getConfigPendingEvent(txHash)
+//        val actionAddAdmin = VaultContractInteractor.ChangeType.ADD_PARTICIPANT.stringValue
+        val actions = event.actions //listOf(actionAddAdmin)
+        val args = event.actionsArguments //listOf(admin2Hash)
+        val expectedNonce = (event.stateId.toInt() -1).toString() //(owner1Interactor.stateNonce().toInt() - 1).toString()
 //        val txHash = owner1Interactor.changeConfiguration(actions, args, expectedNonce)
 //        val receipt = web3j.ethGetTransactionReceipt(txHash).send().transactionReceipt.get()
         shouldThrow("revert apply called for non existent pending change"){
@@ -250,10 +253,11 @@ class TestSample {
     @Order(5)
     @DisplayName("should apply change configuration - add admin")
     fun applyAddAdmin() {
-        val actionAddAdmin = VaultContractInteractor.ChangeType.ADD_PARTICIPANT.stringValue
-        val actions = listOf(actionAddAdmin)
-        val args = listOf(admin2Hash)
-        val expectedNonce = (owner1Interactor.stateNonce().toInt() - 1).toString()
+        val event = owner1Interactor.getConfigPendingEvent(txHash)
+//        val actionAddAdmin = VaultContractInteractor.ChangeType.ADD_PARTICIPANT.stringValue
+        val actions = event.actions //listOf(actionAddAdmin)
+        val args = event.actionsArguments //listOf(admin2Hash)
+        val expectedNonce = event.stateId //(owner1Interactor.stateNonce().toInt() - 1).toString()
 //        val txHash = owner1Interactor.changeConfiguration(actions, args, expectedNonce)
 //        val receipt = web3j.ethGetTransactionReceipt(txHash).send().transactionReceipt.get()
         val delay = owner1Interactor.delays(owner1Interactor.participant.level)
