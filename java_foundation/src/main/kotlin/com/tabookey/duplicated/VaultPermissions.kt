@@ -29,8 +29,9 @@ class VaultPermissions(private val integerRepresentation: Int) {
 
         fun packPermissionLevel(permissions: VaultPermissions, level: Int): String {
             val permInt = permissions.getValue()
-            assert(permInt <= 0x07FF)
-            assert(level <= 0x1F)
+            if (permInt > 0x07FF || level > 0x1F) {
+                throw RuntimeException("input out of range")
+            }
             return /*"0x" + */((level shl 11) + permInt).toString(16)
         }
     }

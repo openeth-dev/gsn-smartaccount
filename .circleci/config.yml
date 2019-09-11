@@ -26,6 +26,9 @@ jobs:
             # fallback to using the latest cache if no exact match is found
             - v1-dependencies-
 
+      - run:
+          name: validate duplicates
+          command: ./dup_control.sh
       - run:         
           name: yarn-install in solidity project
           command: cd solidity && yarn install
