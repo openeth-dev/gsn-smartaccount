@@ -24,8 +24,7 @@ class VaultConfigBuilder(
             storage: VaultStorageInterface,
             initialDelays: List<Int>) : this(interactorsFactory, factoryContractInteractor, storage, VaultState()) {
 
-        vaultState.addLocalChange(LocalVaultChange.initialize())
-        vaultState.addLocalChange(LocalVaultChange.changeOwner(owner))
+        vaultState.addLocalChange(LocalVaultChange.initialize(owner))
         vaultState.activeParticipant = VaultParticipantTuple(VaultPermissions.OWNER_PERMISSIONS, 1, owner)
     }
 
@@ -34,6 +33,18 @@ class VaultConfigBuilder(
      */
     fun deployVault(): DeployedVault {
         val deploymentResult = factoryContractInteractor.deployNewGatekeeper()
+        // TODO: the state of the deployed vault should represent the desired config
+        vaultState.localChanges.forEach {
+            when (it.changeType){
+                LocalChangeType.INITIALIZE ->  {}//TODO()
+                LocalChangeType.ADD_PARTICIPANT -> {}//TODO()
+                else -> {
+                    throw RuntimeException("Unsupported for non-deployed vaults")
+                } //TODO()
+            }
+        }
+        vaultState.clearChanges()
+
         val participant = vaultState.activeParticipant
         // TODO: anything but this!!!
         val kreds = storage.getAllOwnedAccounts().first { it.getAddress() == vaultState.activeParticipant.address }

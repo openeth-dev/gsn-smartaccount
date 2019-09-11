@@ -1,6 +1,5 @@
-package com.tabookey.safechannels
+package com.tabookey.safechannels.platforms
 
-import com.tabookey.safechannels.platforms.VaultContractInteractor
 import kotlin.js.Promise
 
 @JsName(name = "VaultContractInteractor")

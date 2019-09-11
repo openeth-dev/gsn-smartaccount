@@ -48,3 +48,6 @@ js_foundation/gradlew.bat
 /.idea/artifacts/
 /.idea/gradle.xml
 /.idea/modules.xml
+/.idea/$PRODUCT_WORKSPACE_FILE$
+/.idea/.name
+/.idea/testkotlinjs.iml

@@ -12,6 +12,8 @@ import com.tabookey.safechannels.vault.LocalChangeType
 import com.tabookey.safechannels.vault.VaultStorageInterface
 import org.junit.Before
 import com.nhaarman.mockitokotlin2.*
+import com.tabookey.foundation.VaultContractInteractor
+import com.tabookey.safechannels.vault.DeployedVault
 import org.web3j.crypto.Credentials
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -26,6 +28,7 @@ class SafeChannelsUnitTests {
     private val anyAddress = "0xd216153c06e857cd7f72665e0af1d7d82172f494"
 
     private lateinit var vaultFactoryContractInteractor: VaultFactoryContractInteractor
+    private lateinit var interactor: VaultContractInteractor
     private lateinit var storage: VaultStorageInterface
     private lateinit var interactorsFactory: InteractorsFactory
     private lateinit var sdk: SafeChannels
@@ -42,8 +45,11 @@ class SafeChannelsUnitTests {
             } doReturn Response("hi", "", "")
 
         }
+        interactor = mock<VaultContractInteractor> {
+            on { changeConfiguration(any(), any(), any()) } doReturn "0x_scheduled_tx_hash"
+        }
         interactorsFactory = mock {
-//            on
+            on { interactorForVault(any(), any(), any(), any()) } doReturn interactor
         }
         sdk = SafeChannels(interactorsFactory, vaultFactoryContractInteractor, storage)
     }
@@ -75,14 +81,14 @@ class SafeChannelsUnitTests {
         allVaults = sdk.listAllVaults()
         assertEquals(1, allVaults.size)
         val localChanges = vaultConfigBuilder.getVaultLocalState().localChanges
-        assertEquals(2, localChanges.size)
+        assertEquals(1, localChanges.size)
         assertEquals(LocalChangeType.INITIALIZE, localChanges[0].changeType)
 
         // The data is accessible from a new object that holds the same storage instance
         // TODO: need to replace the in-memory storage with something file-based. In-memory one keeps references to objects so this is not testing much.
         val tempSdk = SafeChannels(interactorsFactory, vaultFactoryContractInteractor, storage)
         val tempLocalChanges = tempSdk.listAllVaults()[0].getVaultLocalState().localChanges
-        assertEquals(2, tempLocalChanges.size)
+        assertEquals(1, tempLocalChanges.size)
         assertEquals(LocalChangeType.INITIALIZE, tempLocalChanges[0].changeType)
     }
 
@@ -126,15 +132,13 @@ class SafeChannelsUnitTests {
         // TODO: maybe it should not allow creation of new builder if no account is created
 
         val localChanges = sdk.listAllVaults()[0].getVaultLocalState().localChanges
-        assertEquals(3, localChanges.size)
+        assertEquals(2, localChanges.size)
 
         val initializeChange = localChanges[0]
         assertEquals(LocalChangeType.INITIALIZE, initializeChange.changeType)
+        assertEquals(kredentials.getAddress(), initializeChange.participant)
 
-        val changeOwnerChange = localChanges[1]
-        assertEquals(LocalChangeType.CHOWN, changeOwnerChange.changeType)
-
-        val addParticipantChange = localChanges[2]
+        val addParticipantChange = localChanges[1]
         assertEquals(LocalChangeType.ADD_PARTICIPANT, addParticipantChange.changeType)
         assertEquals(anyAddress, addParticipantChange.participant)
 
@@ -145,18 +149,40 @@ class SafeChannelsUnitTests {
     fun `should deploy the vault with the corresponding configuration`() {
         val kredentials = sdk.createKeypair()
         val vaultConfigBuilder = sdk.vaultConfigBuilder(kredentials.getAddress())
+        // TODO: more advanced configurations! :-)
         val deployedVault = vaultConfigBuilder.deployVault()
 
         val allVaults = sdk.listAllVaults()
         assertEquals(1, allVaults.size)
         assertEquals(allVaults[0].vaultState.id, deployedVault.vaultState.id)
 
+        val changes = deployedVault.getVaultLocalState().localChanges
+        assertEquals(0, changes.size)
+    }
+
+    private fun quickDeployVault(): DeployedVault {
+        val kredentials = sdk.createKeypair()
+        val vaultConfigBuilder = sdk.vaultConfigBuilder(kredentials.getAddress())
+        return vaultConfigBuilder.deployVault()
     }
 
     // As operator:
     @Test
-    fun `should add participant to existing vault`() {
-
+    fun `should schedule, commit and wait for a config change (adding participant to existing vault)`() {
+        val deployedVault = quickDeployVault()
+        val participantAddress = anyAddress
+        val permissions = VaultPermissions.ADMIN_PERMISSIONS
+        val addedChange = deployedVault.addParticipant(participantAddress, permissions)
+        val localState = deployedVault.getVaultLocalState()
+        val changes = localState.localChanges
+        assertEquals(1, changes.size)
+        val expectedChange = changes[0]
+        assertEquals(LocalChangeType.ADD_PARTICIPANT, expectedChange.changeType)
+        assertEquals(participantAddress, expectedChange.participant)
+        val pendingChange = deployedVault.commitLocalChanges("777")
+        assertEquals("0x_scheduled_tx_hash", pendingChange.transaction.hash)
+        // TODO: use actual values
+        assertEquals(1234, pendingChange.dueBlock)
     }
 
     @Test

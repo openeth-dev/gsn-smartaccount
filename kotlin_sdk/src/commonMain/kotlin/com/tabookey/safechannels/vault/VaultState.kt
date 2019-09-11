@@ -28,4 +28,11 @@ class VaultState {
     fun addLocalChange(change: LocalVaultChange) {
         _localChanges.add(change)
     }
+
+    fun removeChange(change: LocalVaultChange){
+        _localChanges.remove(change)
+    }
+    fun clearChanges(){
+        _localChanges.clear()
+    }
 }
