@@ -1,4 +1,5 @@
 package com.tabookey.safechannels.blockchain
 
-class BlockchainTransaction {
-}
+class BlockchainTransaction (
+        val hash: String
+)

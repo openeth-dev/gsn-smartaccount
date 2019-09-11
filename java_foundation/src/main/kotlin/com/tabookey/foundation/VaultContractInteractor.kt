@@ -12,7 +12,7 @@ import org.web3j.tx.gas.EstimatedGasProvider
 import org.web3j.utils.Numeric
 import java.math.BigInteger
 
-class VaultContractInteractor(
+open class VaultContractInteractor(
         vaultAddress: String,
         gkAddress: String,
         private val web3j: Web3j,
@@ -21,7 +21,7 @@ class VaultContractInteractor(
 
     val permsLevel = participant.packPermissionLevel()
 
-    enum class ChangeType(val stringValue: String) {
+    internal enum class ChangeType(val stringValue: String) {
         ADD_PARTICIPANT("0"), // arg: participant_hash
         REMOVE_PARTICIPANT("1"), // arg: participant_hash
         CHOWN("2"), // arg: address
@@ -123,7 +123,7 @@ class VaultContractInteractor(
     //    function changeConfiguration(uint8[] memory actions, bytes32[] memory args, uint256 targetStateNonce, uint16 senderPermsLevel) public
     //    {
 
-    fun changeConfiguration(actions: List<String>,
+    open fun changeConfiguration(actions: List<String>,
                             args: List<String>,
                             expectedNonce: String): String {
         val actionsBigInteger: List<BigInteger> = actions.map { it.toBigInteger(if (Numeric.containsHexPrefix(it)) 16 else 10) }

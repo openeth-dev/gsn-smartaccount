@@ -10,7 +10,7 @@ import com.tabookey.safechannels.blockchain.BlockchainTransaction
  *                      should be passed in as a constructor parameter
  */
 class DeployedVault(
-        val interactor: VaultContractInteractor,
+        private val interactor: VaultContractInteractor,
         storage: VaultStorageInterface,
         // Not sure about this 'override val' crap. The idea was to have 'local state'
         // and 'local vault' be superclasses to corresponding 'deployed state' and 'deployed vault',
@@ -46,8 +46,20 @@ class DeployedVault(
         TODO()
     }
 
-    fun commitLocalChanges(): PendingChange {
-        TODO()
+    fun commitLocalChanges(expectedNonce: String): PendingChange {
+        val batchedOperation = object {
+            val actions = mutableListOf<String>()
+            val args = mutableListOf<String>()
+        }
+        vaultState.localChanges
+                .forEach {
+                    batchedOperation.actions.add(it.changeType.ordinal.toString())
+                    batchedOperation.args.add(it.getStringArgs())
+                }
+
+        val txHash = interactor.changeConfiguration(batchedOperation.actions, batchedOperation.args, expectedNonce)
+        // TODO: get the event, and read the due block/time from there
+        return PendingChange(BlockchainTransaction(txHash), 1234)
     }
 
     fun importConfigurationChangeForBoost(signedChange: String): LocalVaultChange {

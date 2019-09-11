@@ -18,10 +18,11 @@ abstract class SharedVaultInterface(
     }
 
     // all config tasks here, i.e. like this one
-    fun addParticipant(participant: EthereumAddress, permissions: VaultPermissions): SharedVaultInterface {
-        vaultState.addLocalChange(LocalVaultChange.addParticipant(participant, permissions))
+    fun addParticipant(participant: EthereumAddress, permissions: VaultPermissions): LocalVaultChange {
+        val change = LocalVaultChange.addParticipant(participant, permissions)
+        vaultState.addLocalChange(change)
         storage.putVaultState(vaultState)
-        return this
+        return change
     }
 
     fun removeParticipant(participant: AddressBookEntry): VaultConfigBuilder {
@@ -30,6 +31,7 @@ abstract class SharedVaultInterface(
 
     fun changeOwner(participant: AddressBookEntry): VaultConfigBuilder {
         TODO()
+        // also, in case of not deployed vault/participant, REMOVE and CHOWN are not ADDED TO LIST, but cancel-out the previous ones
     }
 
     fun discardAllChanges() {
