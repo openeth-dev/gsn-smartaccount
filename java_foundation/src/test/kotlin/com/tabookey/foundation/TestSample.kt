@@ -108,9 +108,9 @@ class TestSample {
             val admin2Kredentials = Kredentials(admin2Creds)
             val watchdog2Kredentials = Kredentials(watchdog2Creds)
 
-            val ownerParticipant = VaultParticipantTuple(VaultPermissions.OWNER_PERMISSIONS, 1, "0xOWNERADDRESS")
-            val adminParticipant = VaultParticipantTuple(VaultPermissions.ADMIN_PERMISSIONS, 1, "0xADMINADDRESS")
-            val watchdogParticipant = VaultParticipantTuple(VaultPermissions.WATCHDOG_PERMISSIONS, 1, "0xWATCHDOGADDRESS")
+            val ownerParticipant = VaultParticipantTuple(VaultPermissions.OWNER_PERMISSIONS, 1, owner1Creds.address)
+            val adminParticipant = VaultParticipantTuple(VaultPermissions.ADMIN_PERMISSIONS, 1, admin1Creds.address)
+            val watchdogParticipant = VaultParticipantTuple(VaultPermissions.WATCHDOG_PERMISSIONS, 1, watchdog1Creds.address)
 
             deployGatekeeper(web3j)
             owner1Interactor = interactorsFactory.interactorForVault(owner1Kredentials, vaultAddress, gkAddress, ownerParticipant)
@@ -215,16 +215,49 @@ class TestSample {
 
     @Test
     @Order(3)
+    @DisplayName("should revert on trying to apply change configuration too early")
+    fun applyAddAdminBeforeTime() {
+        val actionAddAdmin = VaultContractInteractor.ChangeType.ADD_PARTICIPANT.stringValue
+        val actions = listOf(actionAddAdmin)
+        val args = listOf(admin2Hash)
+        val expectedNonce = (owner1Interactor.stateNonce().toInt() - 1).toString()
+//        val txHash = owner1Interactor.changeConfiguration(actions, args, expectedNonce)
+//        val receipt = web3j.ethGetTransactionReceipt(txHash).send().transactionReceipt.get()
+        val delay = owner1Interactor.delays(owner1Interactor.participant.level)
+        increaseTime(delay.toLong() - 100 ,web3j)
+
+        shouldThrow("revert apply called before due time"){
+            owner1Interactor.applyConfig(actions, args, expectedNonce, owner1Creds.address, owner1PermsLevel, zeroAddress, "0")
+        }
+    }
+
+    @Test
+    @Order(4)
+    @DisplayName("should revert on trying to apply change configuration with incorrect hash")
+    fun applyAddAdminWrongNonce() {
+        val actionAddAdmin = VaultContractInteractor.ChangeType.ADD_PARTICIPANT.stringValue
+        val actions = listOf(actionAddAdmin)
+        val args = listOf(admin2Hash)
+        val expectedNonce = (owner1Interactor.stateNonce().toInt() + 2).toString()
+//        val txHash = owner1Interactor.changeConfiguration(actions, args, expectedNonce)
+//        val receipt = web3j.ethGetTransactionReceipt(txHash).send().transactionReceipt.get()
+        shouldThrow("revert apply called for non existent pending change"){
+            owner1Interactor.applyConfig(actions, args, expectedNonce, owner1Creds.address, owner1PermsLevel, zeroAddress, "0")
+        }
+    }
+
+    @Test
+    @Order(5)
     @DisplayName("should apply change configuration - add admin")
     fun applyAddAdmin() {
         val actionAddAdmin = VaultContractInteractor.ChangeType.ADD_PARTICIPANT.stringValue
         val actions = listOf(actionAddAdmin)
         val args = listOf(admin2Hash)
-        val expectedNonce = owner1Interactor.stateNonce()
-        val txHash = owner1Interactor.changeConfiguration(actions, args, expectedNonce)
-        val receipt = web3j.ethGetTransactionReceipt(txHash).send().transactionReceipt.get()
-        val events = Gatekeeper.staticGetConfigPendingEvents(receipt)
-//        val wtfe = Gatekeeper.staticGetWTFEvents(receipt)[0].encodedPacked
+        val expectedNonce = (owner1Interactor.stateNonce().toInt() - 1).toString()
+//        val txHash = owner1Interactor.changeConfiguration(actions, args, expectedNonce)
+//        val receipt = web3j.ethGetTransactionReceipt(txHash).send().transactionReceipt.get()
+        val delay = owner1Interactor.delays(owner1Interactor.participant.level)
+        increaseTime(delay.toLong() ,web3j)
         owner1Interactor.applyConfig(actions, args, expectedNonce, owner1Creds.address, owner1PermsLevel, zeroAddress, "0")
     }
 

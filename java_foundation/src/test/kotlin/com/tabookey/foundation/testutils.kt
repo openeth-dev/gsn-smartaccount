@@ -12,6 +12,7 @@ import org.web3j.protocol.http.HttpService
 import org.web3j.tx.gas.StaticGasProvider
 import java.math.BigInteger
 import java.util.*
+import kotlin.reflect.KClass
 
 private var timeOffset = 0L
 private val port = 8545
@@ -131,3 +132,40 @@ fun encodePacked(parameters: List<Type<Any>>): String {
     }
     return sb.toString()
 }
+
+/**
+ * expect an exception with this string as the exception's "toString()"
+ * for case-insensitive search, add (?i) at the beginning of the string.
+ */
+inline fun shouldThrow(msgRegex: String, body: () -> Unit) {
+    _shouldThrow(null, msgRegex, { msgRegex }, body)
+}
+
+//expect an expcetion of this class, with any message
+inline fun shouldThrow(exClass: KClass<out Throwable>, body: () -> Unit) {
+    _shouldThrow(exClass, null, { exClass.toString() }, body)
+}
+
+//expect an exception of the same class as this instance, and a message with the expected message's as substring
+inline fun shouldThrow(exInstance: Throwable, body: () -> Unit) {
+    _shouldThrow(exInstance::class, exInstance.message, { exInstance.toString() }, body)
+}
+
+class ShouldThrowException(msg:String, cause: Throwable?=null) : AssertionError(msg, cause)
+
+inline fun _shouldThrow(expectedClass: KClass<out Throwable>?, expectedMsgRegex: String?, expectedErMsg: () -> String, body: () -> Unit) {
+    try {
+        body()
+        throw ShouldThrowException("Should throw: \"${expectedErMsg()}\" (but threw nothing)")
+    } catch ( s: ShouldThrowException) {
+        throw s
+    } catch (e: Throwable) {
+        if (expectedClass != null && !expectedClass.isInstance(e))
+            throw ShouldThrowException("Should throw ${expectedErMsg()} not \"${throwableToStr(e)}\"")
+        if ( expectedMsgRegex!=null && Regex(expectedMsgRegex).find(e.toString()) == null  )
+            throw ShouldThrowException("Should throw /${expectedErMsg()}/ not \"${throwableToStr(e)}\"", e)
+    }
+
+}
+
+fun throwableToStr(t:Throwable) = t.toString().replace("java.lang.Exception", "Exception")

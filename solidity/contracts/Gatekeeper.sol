@@ -36,7 +36,7 @@ contract Gatekeeper is PermissionsLevel {
 
     Vault vault;
 
-    mapping(bytes32 => uint256) pendingChanges;
+    mapping(bytes32 => uint256) public pendingChanges;
     uint256[] public delays;
 
     function getDelays() public view returns (uint256[] memory) {
