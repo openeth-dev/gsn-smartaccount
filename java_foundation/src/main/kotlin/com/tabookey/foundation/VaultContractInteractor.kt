@@ -197,16 +197,16 @@ open class VaultContractInteractor(
     //        uint16 senderPermsLevel) public {
 
     fun applyConfig(actions: List<String>,
-                    args: List<String>,
+                    args: List<ByteArray>,
                     expectedNonce: String,
                     schedulerAddress: String,
                     schedulerPermsLevel: String,
                     boosterAddress: String,
                     boosterPermsLevel: String): String {
         val actionsBigInteger: List<BigInteger> = actions.map { it.toBigInteger(if (Numeric.containsHexPrefix(it)) 16 else 10) }
-        val argsByteArray: List<ByteArray> = args.map { Numeric.hexStringToByteArray(it) }
+//        val argsByteArray: List<ByteArray> = args.map { Numeric.hexStringToByteArray(it) }
         val expectedNonceBigInteger = expectedNonce.toBigInteger(if (Numeric.containsHexPrefix(expectedNonce)) 16 else 10)
-        return gk!!.applyConfig(actionsBigInteger, argsByteArray, expectedNonceBigInteger, schedulerAddress, Numeric.toBigInt(schedulerPermsLevel),
+        return gk!!.applyConfig(actionsBigInteger, args, expectedNonceBigInteger, schedulerAddress, Numeric.toBigInt(schedulerPermsLevel),
                 boosterAddress, Numeric.toBigInt(boosterPermsLevel), Numeric.toBigInt(this.permsLevel)).send().transactionHash
     }
 
