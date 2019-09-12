@@ -16,7 +16,6 @@ import com.tabookey.foundation.generated.Vault
 import org.web3j.crypto.Credentials
 import org.web3j.crypto.Hash
 import org.web3j.protocol.Web3j
-import org.web3j.protocol.core.methods.response.BaseEventResponse
 import org.web3j.tx.gas.DefaultGasProvider
 import org.web3j.tx.gas.EstimatedGasProvider
 import org.web3j.utils.Numeric
@@ -218,9 +217,8 @@ open class VaultContractInteractor(
 
     }
 
-    //    mapping(bytes32 => uint256) public pendingChanges;
-    fun getDelayOfPendingChange(txHash: String): String {
-        return gk!!.pendingChanges(Numeric.hexStringToByteArray(txHash)).send().toString()
+    open fun getPendingChangeDueTime(configChangeHash: ByteArray): String {
+        return gk.pendingChanges(configChangeHash).send().toString()
     }
 
     //    uint256[] public delays;
@@ -274,7 +272,7 @@ open class VaultContractInteractor(
 
     // Blockchain Events getters - wrappers of web3j to be used in kotlin
 
-    fun getConfigPendingEvent(txHash: String): ConfigPendingEventResponse {
+    open fun getConfigPendingEvent(txHash: String): ConfigPendingEventResponse {
         val receipt = web3j.ethGetTransactionReceipt(txHash).send().transactionReceipt.get()
         val events = Gatekeeper.staticGetConfigPendingEvents(receipt)
         assert(events.size == 1)
