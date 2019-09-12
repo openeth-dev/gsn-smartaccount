@@ -1,7 +1,7 @@
 package com.tabookey.safechannels.vault
 
-import com.tabookey.safechannels.platforms.VaultContractInteractor
 import com.tabookey.safechannels.blockchain.BlockchainTransaction
+import com.tabookey.safechannels.platforms.VaultContractInteractor
 
 /**
  *
@@ -58,8 +58,9 @@ class DeployedVault(
                 }
 
         val txHash = interactor.changeConfiguration(batchedOperation.actions, batchedOperation.args, expectedNonce)
-        // TODO: get the event, and read the due block/time from there
-        return PendingChange(BlockchainTransaction(txHash), 1234)
+        val event = interactor.getConfigPendingEvent(txHash)
+        val dueTime = interactor.getPendingChangeDueTime(event.transactionHash)
+        return PendingChange(BlockchainTransaction(txHash), event, dueTime)
     }
 
     fun importConfigurationChangeForBoost(signedChange: String): LocalVaultChange {

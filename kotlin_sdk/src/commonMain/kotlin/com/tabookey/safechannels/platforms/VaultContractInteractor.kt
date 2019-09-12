@@ -1,12 +1,15 @@
 package com.tabookey.safechannels.platforms
 
+import com.tabookey.duplicated.ConfigPendingEventResponse
+
 expect class VaultContractInteractor {
 
     fun changeConfiguration(actions: List<String>,
                             args: List<String>,
                             expectedNonce: String): String
 
-    // not a real constructor, just a stub of what I think is needed. Cannot really construct 'Credentials' I think, this would mean we have private keys.
-//    fun getGatekeeperAddress(): String
-//    suspend fun getOperatorSync(): String
+    fun getConfigPendingEvent(txHash: String): ConfigPendingEventResponse
+
+    fun getPendingChangeDueTime(configChangeHash: ByteArray): String
+
 }

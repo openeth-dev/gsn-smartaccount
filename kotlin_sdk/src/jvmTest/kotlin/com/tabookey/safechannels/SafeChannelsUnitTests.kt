@@ -1,19 +1,19 @@
 package com.tabookey.safechannels
 
-import com.nhaarman.mockitokotlin2.doReturn
+import com.nhaarman.mockitokotlin2.*
+import com.tabookey.duplicated.ConfigPendingEventResponse
 import com.tabookey.duplicated.VaultParticipantTuple
 import com.tabookey.duplicated.VaultPermissions
 import com.tabookey.foundation.InteractorsFactory
 import com.tabookey.foundation.Response
+import com.tabookey.foundation.VaultContractInteractor
 import com.tabookey.foundation.VaultFactoryContractInteractor
 import com.tabookey.safechannels.addressbook.SafechannelContact
-
+import com.tabookey.safechannels.vault.DeployedVault
 import com.tabookey.safechannels.vault.LocalChangeType
 import com.tabookey.safechannels.vault.VaultStorageInterface
 import org.junit.Before
-import com.nhaarman.mockitokotlin2.*
-import com.tabookey.foundation.VaultContractInteractor
-import com.tabookey.safechannels.vault.DeployedVault
+import org.mockito.ArgumentMatchers.anyString
 import org.web3j.crypto.Credentials
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -179,10 +179,26 @@ class SafeChannelsUnitTests {
         val expectedChange = changes[0]
         assertEquals(LocalChangeType.ADD_PARTICIPANT, expectedChange.changeType)
         assertEquals(participantAddress, expectedChange.participant)
-        val pendingChange = deployedVault.commitLocalChanges("777")
+
+        val transactionChangeHash = ByteArray(0)
+        val expectedStateId = "777"
+        val dueTime = "200"
+        whenever(
+                interactor.getConfigPendingEvent(anyString())
+        ).thenReturn(
+                ConfigPendingEventResponse(
+                        transactionChangeHash,
+                        "", "", "", "",
+                        expectedStateId, mutableListOf(), mutableListOf()
+                )
+        )
+        whenever(
+                interactor.getPendingChangeDueTime(any())
+        ).thenReturn(dueTime)
+        val pendingChange = deployedVault.commitLocalChanges(expectedStateId)
         assertEquals("0x_scheduled_tx_hash", pendingChange.transaction.hash)
-        // TODO: use actual values
-        assertEquals(1234, pendingChange.dueBlock)
+        assertEquals(dueTime, pendingChange.dueTime)
+        assertEquals(expectedStateId, pendingChange.event.stateId)
     }
 
     @Test
