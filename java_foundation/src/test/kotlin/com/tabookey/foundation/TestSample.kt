@@ -287,12 +287,21 @@ class TestSample {
 
         val dataToHash = encodePacked(parameters)
         val scheduledTxHash = Hash.sha3(dataToHash)
-        println("wtfa: " + Numeric.prependHexPrefix(dataToHash))
-        println("actions: " + actions[0])
-        println("args: " + args[0])
-        println("expectedNonce: " + expectedNonce)
-        println("owner1PermsLevel: " + Numeric.toHexString(owner1PermsLevel.toByteArray()))
         assertEquals(Numeric.prependHexPrefix(scheduledTxHash), Numeric.toHexString(event.transactionHash))
+
+        shouldThrow("revert apply called before due time") {
+            owner1Interactor.applyConfig(event.actions, event.actionsArguments, event.stateId, event.sender, event.senderPermsLevel, event.booster, event.boosterPermsLevel)
+        }
+        txHash = owner1Interactor.cancelOpertaion(event.actions, event.actionsArguments, event.stateId, event.sender, event.senderPermsLevel, event.booster, event.boosterPermsLevel)
+        shouldThrow("revert apply called for non existent pending change") {
+            owner1Interactor.applyConfig(event.actions, event.actionsArguments, event.stateId, event.sender, event.senderPermsLevel, event.booster, event.boosterPermsLevel)
+        }
+    }
+
+    @Test
+    @Order(7)
+    @DisplayName("should revert on trying to apply change configuration by frozen level")
+    fun applyWhileFrozen() {
     }
 
     @Test
