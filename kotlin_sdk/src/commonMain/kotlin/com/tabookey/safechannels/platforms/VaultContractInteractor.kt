@@ -5,8 +5,10 @@ import com.tabookey.duplicated.ConfigPendingEventResponse
 expect class VaultContractInteractor {
 
     fun changeConfiguration(actions: List<String>,
-                            args: List<String>,
+                            args: List<ByteArray>,
                             expectedNonce: String): String
+
+    fun sendEther(destination: String, value: String, delay: String, expectedNonce: String): String
 
     fun getConfigPendingEvent(txHash: String): ConfigPendingEventResponse
 

@@ -172,7 +172,7 @@ open class VaultContractInteractor(
 
     //function sendEther(address payable destination, uint value, uint16 senderPermsLevel, uint256 delay, uint256 targetStateNonce) public {
 
-    fun sendEther(destination: String, value: String, delay: String, expectedNonce: String): String {
+    open fun sendEther(destination: String, value: String, delay: String, expectedNonce: String): String {
         return gk.sendEther(destination, value.toBigInteger(), Numeric.toBigInt(this.permsLevel), delay.toBigInteger(), expectedNonce.toBigInteger()).send().transactionHash
     }
 

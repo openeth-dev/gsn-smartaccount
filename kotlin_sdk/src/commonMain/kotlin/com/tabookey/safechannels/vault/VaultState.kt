@@ -1,6 +1,7 @@
 package com.tabookey.safechannels.vault
 
 import com.tabookey.duplicated.VaultParticipantTuple
+import com.tabookey.safechannels.vault.localchanges.LocalVaultChange
 
 
 /**
