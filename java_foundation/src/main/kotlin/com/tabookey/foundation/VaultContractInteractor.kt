@@ -30,12 +30,7 @@ open class VaultContractInteractor(
 
     val permsLevel = participant.packPermissionLevel()
 
-    internal enum class ChangeType(val stringValue: String) {
-        ADD_PARTICIPANT("0"), // arg: participant_hash
-        REMOVE_PARTICIPANT("1"), // arg: participant_hash
-        CHOWN("2"), // arg: address
-        UNFREEZE("3")            // no args
-    }
+
 
     private var provider: EstimatedGasProvider = EstimatedGasProvider(web3j, DefaultGasProvider.GAS_PRICE, DefaultGasProvider.GAS_LIMIT)
 
@@ -87,13 +82,13 @@ open class VaultContractInteractor(
                 BigInteger(it)
             }
         }
-        return gk!!.initialConfig(vaultAddress, initialParticipantsByteArray, initialDelaysBigInteger).send().transactionHash
+        return gk.initialConfig(vaultAddress, initialParticipantsByteArray, initialDelaysBigInteger).send().transactionHash
 
     }
 
     fun freeze(levelToFreeze: Int, duration: String): String {
         return gk.freeze(Numeric.toBigInt(this.permsLevel), levelToFreeze.toBigInteger(), duration.toBigInteger()).send().transactionHash
-//        val freezeEvents = gk!!.getLevelFrozenEvents(receipt)
+//        val freezeEvents = gk.getLevelFrozenEvents(receipt)
 //        assert(freezeEvents.size == 1)
 //        val event = freezeEvents[0]
 //        val block = web3j.ethGetBlockByNumber(DefaultBlockParameter.valueOf(receipt.blockNumber), false).send().block
@@ -108,18 +103,17 @@ open class VaultContractInteractor(
     //    public {
 
     fun boostedConfigChange(actions: List<String>,
-                            args: List<String>,
+                            args: List<ByteArray>,
                             expectedNonce: String,
                             boosterPermsLevel: String,
                             signerPermsLevel: String,
                             signature: String): String {
         val actionsBigInteger: List<BigInteger> = actions.map { it.toBigInteger(if (Numeric.containsHexPrefix(it)) 16 else 10) }
-        val argsByteArray: List<ByteArray> = args.map { Numeric.hexStringToByteArray(it) }
         val expectedNonceBigInteger = expectedNonce.toBigInteger(if (Numeric.containsHexPrefix(expectedNonce)) 16 else 10)
-        return gk!!.boostedConfigChange(
+        return gk.boostedConfigChange(
                 actionsBigInteger,
-                argsByteArray, expectedNonceBigInteger, Numeric.toBigInt(boosterPermsLevel), Numeric.toBigInt(signerPermsLevel), Numeric.hexStringToByteArray(signature)).send().transactionHash
-//        val configPendingEvents = gk!!.getConfigPendingEvents(receipt)
+                args, expectedNonceBigInteger, Numeric.toBigInt(boosterPermsLevel), Numeric.toBigInt(signerPermsLevel), Numeric.hexStringToByteArray(signature)).send().transactionHash
+//        val configPendingEvents = gk.getConfigPendingEvents(receipt)
 //        assert(configPendingEvents.size == 1)
 //        val event = configPendingEvents[0]
 //        assert(actionsBigInteger.equals(event.actions))
@@ -133,13 +127,12 @@ open class VaultContractInteractor(
     //    {
 
     open fun changeConfiguration(actions: List<String>,
-                            args: List<String>,
+                            args: List<ByteArray>,
                             expectedNonce: String): String {
         val actionsBigInteger: List<BigInteger> = actions.map { it.toBigInteger(if (Numeric.containsHexPrefix(it)) 16 else 10) }
-        val argsByteArray: List<ByteArray> = args.map { Numeric.hexStringToByteArray(it) }
         val expectedNonceBigInteger = expectedNonce.toBigInteger(if (Numeric.containsHexPrefix(expectedNonce)) 16 else 10)
-        val receipt = gk!!.changeConfiguration(
-                actionsBigInteger, argsByteArray, expectedNonceBigInteger, Numeric.toBigInt(this.permsLevel)).send()
+        val receipt = gk.changeConfiguration(
+                actionsBigInteger, args, expectedNonceBigInteger, Numeric.toBigInt(this.permsLevel)).send()
         return receipt.transactionHash
     }
 
@@ -147,13 +140,13 @@ open class VaultContractInteractor(
 
     fun scheduleChangeOwner(newOwnerAddress: String, expectedNonce: String): String {
         val expectedNonceBigInteger = expectedNonce.toBigInteger(if (Numeric.containsHexPrefix(expectedNonce)) 16 else 10)
-        return gk!!.scheduleChangeOwner(Numeric.toBigInt(this.permsLevel), newOwnerAddress, expectedNonceBigInteger).send().transactionHash
+        return gk.scheduleChangeOwner(Numeric.toBigInt(this.permsLevel), newOwnerAddress, expectedNonceBigInteger).send().transactionHash
     }
 
     //function cancelTransfer(uint16 senderPermsLevel, uint256 delay, address destination, uint256 value, address token, uint256 nonce) public {
 
     fun cancelTransfer(delay: String, destination: String, value: String, tokenAddress: String, nonce: String): String {
-        return gk!!.cancelTransfer(Numeric.toBigInt(this.permsLevel), delay.toBigInteger(), destination, value.toBigInteger(),
+        return gk.cancelTransfer(Numeric.toBigInt(this.permsLevel), delay.toBigInteger(), destination, value.toBigInteger(),
                 tokenAddress, nonce.toBigInteger()).send().transactionHash
     }
 
@@ -164,16 +157,15 @@ open class VaultContractInteractor(
     //        uint16 senderPermsLevel) public {
 
     fun cancelOpertaion(actions: List<String>,
-                        args: List<String>,
+                        args: List<ByteArray>,
                         expectedNonce: String,
                         schedulerAddress: String,
                         schedulerPermsLevel: String,
                         boosterAddress: String,
                         boosterPermsLevel: String): String {
         val actionsBigInteger: List<BigInteger> = actions.map { it.toBigInteger(if (Numeric.containsHexPrefix(it)) 16 else 10) }
-        val argsByteArray: List<ByteArray> = args.map { Numeric.hexStringToByteArray(it) }
         val expectedNonceBigInteger = expectedNonce.toBigInteger(if (Numeric.containsHexPrefix(expectedNonce)) 16 else 10)
-        return gk!!.cancelOperation(actionsBigInteger, argsByteArray, expectedNonceBigInteger, schedulerAddress, Numeric.toBigInt(schedulerPermsLevel),
+        return gk.cancelOperation(actionsBigInteger, args, expectedNonceBigInteger, schedulerAddress, Numeric.toBigInt(schedulerPermsLevel),
                 boosterAddress, Numeric.toBigInt(boosterPermsLevel), Numeric.toBigInt(this.permsLevel)).send().transactionHash
 
     }
@@ -181,12 +173,12 @@ open class VaultContractInteractor(
     //function sendEther(address payable destination, uint value, uint16 senderPermsLevel, uint256 delay, uint256 targetStateNonce) public {
 
     fun sendEther(destination: String, value: String, delay: String, expectedNonce: String): String {
-        return gk!!.sendEther(destination, value.toBigInteger(), Numeric.toBigInt(this.permsLevel), delay.toBigInteger(), expectedNonce.toBigInteger()).send().transactionHash
+        return gk.sendEther(destination, value.toBigInteger(), Numeric.toBigInt(this.permsLevel), delay.toBigInteger(), expectedNonce.toBigInteger()).send().transactionHash
     }
 
     // function sendERC20(address payable destination, uint value, uint16 senderPermsLevel, uint256 delay, address token, uint256 targetStateNonce) public {
     fun sendERC20(destination: String, value: String, delay: String, tokenAddress: String, expectedNonce: String): String {
-        return gk!!.sendERC20(destination, value.toBigInteger(), Numeric.toBigInt(this.permsLevel), delay.toBigInteger(), tokenAddress, expectedNonce.toBigInteger()).send().transactionHash
+        return gk.sendERC20(destination, value.toBigInteger(), Numeric.toBigInt(this.permsLevel), delay.toBigInteger(), tokenAddress, expectedNonce.toBigInteger()).send().transactionHash
     }
 
     //     function applyConfig(
@@ -205,7 +197,7 @@ open class VaultContractInteractor(
         val actionsBigInteger: List<BigInteger> = actions.map { it.toBigInteger(if (Numeric.containsHexPrefix(it)) 16 else 10) }
 //        val argsByteArray: List<ByteArray> = args.map { Numeric.hexStringToByteArray(it) }
         val expectedNonceBigInteger = expectedNonce.toBigInteger(if (Numeric.containsHexPrefix(expectedNonce)) 16 else 10)
-        return gk!!.applyConfig(actionsBigInteger, args, expectedNonceBigInteger, schedulerAddress, Numeric.toBigInt(schedulerPermsLevel),
+        return gk.applyConfig(actionsBigInteger, args, expectedNonceBigInteger, schedulerAddress, Numeric.toBigInt(schedulerPermsLevel),
                 boosterAddress, Numeric.toBigInt(boosterPermsLevel), Numeric.toBigInt(this.permsLevel)).send().transactionHash
     }
 
@@ -213,7 +205,7 @@ open class VaultContractInteractor(
     //    public {
 
     fun applyTransfer(delay: String, destination: String, value: String, tokenAddress: String, nonce: String): String {
-        return gk!!.applyTransfer(delay.toBigInteger(), destination, value.toBigInteger(), tokenAddress, nonce.toBigInteger(), Numeric.toBigInt(this.permsLevel)).send().transactionHash
+        return gk.applyTransfer(delay.toBigInteger(), destination, value.toBigInteger(), tokenAddress, nonce.toBigInteger(), Numeric.toBigInt(this.permsLevel)).send().transactionHash
 
     }
 
@@ -224,7 +216,7 @@ open class VaultContractInteractor(
     //    uint256[] public delays;
 
     fun delays(index: Int): String {
-        return gk!!.delays(index.toBigInteger()).send().toString()
+        return gk.delays(index.toBigInteger()).send().toString()
 
     }
 
@@ -236,37 +228,37 @@ open class VaultContractInteractor(
     //    mapping(bytes32 => bool) public participants;
 
     fun isParticipant(participantHash: String): Boolean {
-        return gk!!.participants(Numeric.hexStringToByteArray(participantHash)).send()
+        return gk.participants(Numeric.hexStringToByteArray(participantHash)).send()
     }
 
     //    address public operator;
 
     fun operator(): String {
-        return gk!!.operator().send()
+        return gk.operator().send()
     }
 
     //    uint256 public frozenLevel;
 
     fun frozenLevel(): Int {
-        return gk!!.frozenLevel().send().toInt()
+        return gk.frozenLevel().send().toInt()
     }
 
     //    uint256 public frozenUntil;
 
     fun frozenUntil(): String {
-        return gk!!.frozenUntil().send().toString()
+        return gk.frozenUntil().send().toString()
     }
 
     //    uint256 public stateNonce;
 
     fun stateNonce(base: Int = 10): String {
-        return gk!!.stateNonce().send().toString(base)
+        return gk.stateNonce().send().toString(base)
     }
 
     //    uint256 public deployedBlock;
 
     fun deployedBlock(base: Int = 10): String {
-        return gk!!.deployedBlock().send().toString(base)
+        return gk.deployedBlock().send().toString(base)
     }
 
 
@@ -276,7 +268,7 @@ open class VaultContractInteractor(
         val receipt = web3j.ethGetTransactionReceipt(txHash).send().transactionReceipt.get()
         val events = Gatekeeper.staticGetConfigPendingEvents(receipt)
         assert(events.size == 1)
-        return ConfigPendingEventResponse(events[0].transactionHash, events[0].sender, events[0].senderPermsLevel.toString(), events[0].booster, events[0].boosterPermsLevel.toString(), events[0].stateId.toString(), events[0].actions.map { it.toString() }.toMutableList(), events[0].actionsArguments)
+        return ConfigPendingEventResponse(events[0].transactionHash, events[0].sender, events[0].senderPermsLevel.toString(16), events[0].booster, events[0].boosterPermsLevel.toString(16), events[0].stateId.toString(), events[0].actions.map { it.toString() }.toMutableList(), events[0].actionsArguments)
     }
 
     fun getConfigCancelledEvent(txHash: String): ConfigCancelledEventResponse {

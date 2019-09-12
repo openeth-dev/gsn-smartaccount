@@ -1,5 +1,6 @@
 package com.tabookey.foundation
 
+import com.tabookey.duplicated.ChangeType
 import com.tabookey.duplicated.VaultParticipantTuple
 import com.tabookey.duplicated.VaultPermissions
 import com.tabookey.foundation.generated.Gatekeeper
@@ -176,24 +177,104 @@ class TestSample {
     @Order(2)
     @DisplayName("should schedule change configuration - add admin")
     fun scheduleAddAdmin() {
-        val actionAddAdmin = VaultContractInteractor.ChangeType.ADD_PARTICIPANT.stringValue
+        val actionAddAdmin = ChangeType.ADD_PARTICIPANT.stringValue
         val actions = listOf(actionAddAdmin)
-        val args = listOf(admin2Hash)
+        val args = listOf(Numeric.hexStringToByteArray(admin2Hash))
         val expectedNonce = owner1Interactor.stateNonce()
         txHash = owner1Interactor.changeConfiguration(actions, args, expectedNonce)
-        val receipt = web3j.ethGetTransactionReceipt(txHash).send().transactionReceipt.get()
-        val events = Gatekeeper.staticGetConfigPendingEvents(receipt)
 //        val wtfe = Gatekeeper.staticGetWTFEvents(receipt)[0].encodedPacked
 //        println("wtfe: " + Numeric.toHexString(wtfe))
-        assert(events.size == 1)
-        val action = events[0].actions[0] //as Type<BigInteger>
-        assertEquals(actions[0], action.toString())
-        val arg = events[0].actionsArguments[0] //as Type<ByteArray>
-        assertEquals(args[0], Numeric.toHexString(arg))
+        val event = owner1Interactor.getConfigPendingEvent(txHash)
+        val action = event.actions[0]
+        assertEquals(actions[0], action)
+        val arg = event.actionsArguments[0]
+        assertEquals(Numeric.toHexString(args[0]), Numeric.toHexString(arg))
 
-        assertEquals(expectedNonce, events[0].stateId.toString())
-        assertEquals(owner1PermsLevel, events[0].senderPermsLevel.toString(16))
-        assertEquals(owner1Creds.address, events[0].sender)
+        assertEquals(expectedNonce, event.stateId)
+        assertEquals(owner1PermsLevel, event.senderPermsLevel)
+        assertEquals(owner1Creds.address, event.sender)
+        val actionWeb3jType = TypeDecoder.instantiateType("uint8[]", actions)
+        val argsWeb3jType = TypeDecoder.instantiateType("bytes32[]", args)
+        val expectedNonceWeb3jType = TypeDecoder.instantiateType("uint256", expectedNonce)
+        val ownerAddressWeb3jType = TypeDecoder.instantiateType("address", owner1Creds.address)
+        val ownerPermsLevelWeb3jType = TypeDecoder.instantiateType("uint16", owner1PermsLevel)
+        val boosterAddressWeb3jType = TypeDecoder.instantiateType("address", zeroAddress)
+        val boosterPermsLevelWeb3jType = TypeDecoder.instantiateType("uint16", "0")
+
+        val parameters: List<Type<Any>> = listOf(actionWeb3jType, argsWeb3jType, expectedNonceWeb3jType, ownerAddressWeb3jType, ownerPermsLevelWeb3jType, boosterAddressWeb3jType, boosterPermsLevelWeb3jType)
+
+        val dataToHash = encodePacked(parameters)
+        val scheduledTxHash = Hash.sha3(dataToHash)
+        println("wtfa: " + Numeric.prependHexPrefix(dataToHash))
+        println("actions: " + actions[0])
+        println("args: " + args[0])
+        println("expectedNonce: " + expectedNonce)
+        println("owner1PermsLevel: " + Numeric.toHexString(owner1PermsLevel.toByteArray()))
+        assertEquals(Numeric.prependHexPrefix(scheduledTxHash), Numeric.toHexString(event.transactionHash))
+    }
+
+    @Test
+    @Order(3)
+    @DisplayName("should revert on trying to apply change configuration too early")
+    fun applyAddAdminBeforeTime() {
+        val event = owner1Interactor.getConfigPendingEvent(txHash)
+        val actions = event.actions
+        val args = event.actionsArguments
+        val expectedNonce = event.stateId
+        val delay = owner1Interactor.delays(owner1Interactor.participant.level)
+        increaseTime(delay.toLong() - 100, web3j)
+        shouldThrow("revert apply called before due time") {
+            owner1Interactor.applyConfig(actions, args, expectedNonce, owner1Creds.address, owner1PermsLevel, zeroAddress, "0")
+        }
+    }
+
+    @Test
+    @Order(4)
+    @DisplayName("should revert on trying to apply change configuration with incorrect hash")
+    fun applyAddAdminWrongNonce() {
+        val event = owner1Interactor.getConfigPendingEvent(txHash)
+        val actions = event.actions
+        val args = event.actionsArguments
+        val expectedNonce = (event.stateId.toInt() - 1).toString()
+        shouldThrow("revert apply called for non existent pending change") {
+            owner1Interactor.applyConfig(actions, args, expectedNonce, owner1Creds.address, owner1PermsLevel, zeroAddress, "0")
+        }
+    }
+
+    @Test
+    @Order(5)
+    @DisplayName("should apply change configuration - add admin")
+    fun applyAddAdmin() {
+        val event = owner1Interactor.getConfigPendingEvent(txHash)
+//        val actionAddAdmin = VaultContractInteractor.ChangeType.ADD_PARTICIPANT.stringValue
+        val actions = event.actions //listOf(actionAddAdmin)
+        val args = event.actionsArguments //listOf(admin2Hash)
+        val expectedNonce = event.stateId //(owner1Interactor.stateNonce().toInt() - 1).toString()
+//        val txHash = owner1Interactor.changeConfiguration(actions, args, expectedNonce)
+//        val receipt = web3j.ethGetTransactionReceipt(txHash).send().transactionReceipt.get()
+        val delay = owner1Interactor.delays(owner1Interactor.participant.level)
+        increaseTime(delay.toLong(), web3j)
+        owner1Interactor.applyConfig(actions, args, expectedNonce, owner1Creds.address, owner1PermsLevel, zeroAddress, "0")
+    }
+
+    @Test
+    @Order(6)
+    @DisplayName("should schedule and cancel change configuration")
+    fun scheduleAndCancelAddAdmin() {
+        val actionAddAdmin = ChangeType.ADD_PARTICIPANT.stringValue
+        val actions = listOf(actionAddAdmin)
+        val args = listOf(Numeric.hexStringToByteArray(admin2Hash))
+        val expectedNonce = owner1Interactor.stateNonce()
+        txHash = owner1Interactor.changeConfiguration(actions, args, expectedNonce)
+        val event = owner1Interactor.getConfigPendingEvent(txHash)
+        val action = event.actions[0]
+        assertEquals(actions[0], action)
+        val arg = event.actionsArguments[0]
+        assertEquals(Numeric.toHexString(args[0]), Numeric.toHexString(arg))
+
+        assertEquals(expectedNonce, event.stateId)
+        assertEquals(owner1PermsLevel, event.senderPermsLevel)
+        assertEquals(owner1Creds.address, event.sender)
         val actionWeb3jType = TypeDecoder.instantiateType("uint8[]", actions) //as DynamicArray<Uint8>
         val argsWeb3jType = TypeDecoder.instantiateType("bytes32[]", args) //as DynamicArray<Bytes32>
         val expectedNonceWeb3jType = TypeDecoder.instantiateType("uint256", expectedNonce) //as Uint256
@@ -211,58 +292,7 @@ class TestSample {
         println("args: " + args[0])
         println("expectedNonce: " + expectedNonce)
         println("owner1PermsLevel: " + Numeric.toHexString(owner1PermsLevel.toByteArray()))
-        assertEquals(Numeric.prependHexPrefix(scheduledTxHash), Numeric.toHexString(events[0].transactionHash))
-    }
-
-    @Test
-    @Order(3)
-    @DisplayName("should revert on trying to apply change configuration too early")
-    fun applyAddAdminBeforeTime() {
-        val event = owner1Interactor.getConfigPendingEvent(txHash)
-//        val actionAddAdmin = VaultContractInteractor.ChangeType.ADD_PARTICIPANT.stringValue
-        val actions = event.actions //listOf(actionAddAdmin)
-        val args = event.actionsArguments //listOf(admin2Hash)
-        val expectedNonce = event.stateId //(owner1Interactor.stateNonce().toInt() - 1).toString()
-//        val txHash = owner1Interactor.changeConfiguration(actions, args, expectedNonce)
-//        val receipt = web3j.ethGetTransactionReceipt(txHash).send().transactionReceipt.get()
-        val delay = owner1Interactor.delays(owner1Interactor.participant.level)
-        increaseTime(delay.toLong() - 100 ,web3j)
-
-        shouldThrow("revert apply called before due time"){
-            owner1Interactor.applyConfig(actions, args, expectedNonce, owner1Creds.address, owner1PermsLevel, zeroAddress, "0")
-        }
-    }
-
-    @Test
-    @Order(4)
-    @DisplayName("should revert on trying to apply change configuration with incorrect hash")
-    fun applyAddAdminWrongNonce() {
-        val event = owner1Interactor.getConfigPendingEvent(txHash)
-//        val actionAddAdmin = VaultContractInteractor.ChangeType.ADD_PARTICIPANT.stringValue
-        val actions = event.actions //listOf(actionAddAdmin)
-        val args = event.actionsArguments //listOf(admin2Hash)
-        val expectedNonce = (event.stateId.toInt() -1).toString() //(owner1Interactor.stateNonce().toInt() - 1).toString()
-//        val txHash = owner1Interactor.changeConfiguration(actions, args, expectedNonce)
-//        val receipt = web3j.ethGetTransactionReceipt(txHash).send().transactionReceipt.get()
-        shouldThrow("revert apply called for non existent pending change"){
-            owner1Interactor.applyConfig(actions, args, expectedNonce, owner1Creds.address, owner1PermsLevel, zeroAddress, "0")
-        }
-    }
-
-    @Test
-    @Order(5)
-    @DisplayName("should apply change configuration - add admin")
-    fun applyAddAdmin() {
-        val event = owner1Interactor.getConfigPendingEvent(txHash)
-//        val actionAddAdmin = VaultContractInteractor.ChangeType.ADD_PARTICIPANT.stringValue
-        val actions = event.actions //listOf(actionAddAdmin)
-        val args = event.actionsArguments //listOf(admin2Hash)
-        val expectedNonce = event.stateId //(owner1Interactor.stateNonce().toInt() - 1).toString()
-//        val txHash = owner1Interactor.changeConfiguration(actions, args, expectedNonce)
-//        val receipt = web3j.ethGetTransactionReceipt(txHash).send().transactionReceipt.get()
-        val delay = owner1Interactor.delays(owner1Interactor.participant.level)
-        increaseTime(delay.toLong() ,web3j)
-        owner1Interactor.applyConfig(actions, args, expectedNonce, owner1Creds.address, owner1PermsLevel, zeroAddress, "0")
+        assertEquals(Numeric.prependHexPrefix(scheduledTxHash), Numeric.toHexString(event.transactionHash))
     }
 
     @Test
