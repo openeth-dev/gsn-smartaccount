@@ -128,7 +128,7 @@ contract Gatekeeper is PermissionsLevel {
         uint until = SafeMath.add(now, duration);
         uint8 senderLevel = extractLevel(senderPermsLevel);
         require(levelToFreeze <= senderLevel, "cannot freeze level that is higher than caller");
-        require(levelToFreeze > frozenLevel, "cannot freeze level that is lower than already frozen");
+        require(levelToFreeze >= frozenLevel, "cannot freeze level that is lower than already frozen");
         require(duration <= maxFreeze, "cannot freeze level for this long");
         require(frozenUntil <= until, "cannot freeze level for less than already frozen");
         require(duration > 0, "cannot freeze level for zero time");
