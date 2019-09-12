@@ -3,6 +3,8 @@ package com.tabookey.safechannels.vault
 import com.tabookey.duplicated.VaultPermissions
 import com.tabookey.safechannels.addressbook.AddressBookEntry
 import com.tabookey.safechannels.addressbook.EthereumAddress
+import com.tabookey.safechannels.vault.localchanges.AddParticipantChange
+import com.tabookey.safechannels.vault.localchanges.LocalVaultChange
 
 /**
  * This class represents the logic of chaining the change methods calls in order to construct the desired vault state
@@ -20,9 +22,13 @@ abstract class SharedVaultInterface(
     // all config tasks here, i.e. like this one
     fun addParticipant(participant: EthereumAddress, permissions: VaultPermissions): LocalVaultChange {
         val change = LocalVaultChange.addParticipant(participant, permissions)
+        storeChange(change)
+        return change
+    }
+
+    internal fun storeChange(change: LocalVaultChange) {
         vaultState.addLocalChange(change)
         storage.putVaultState(vaultState)
-        return change
     }
 
     fun removeParticipant(participant: AddressBookEntry): VaultConfigBuilder {

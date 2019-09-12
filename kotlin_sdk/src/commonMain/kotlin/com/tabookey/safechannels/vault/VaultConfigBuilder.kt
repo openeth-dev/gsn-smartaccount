@@ -5,6 +5,8 @@ import com.tabookey.duplicated.VaultPermissions
 import com.tabookey.safechannels.platforms.VaultFactoryContractInteractor
 import com.tabookey.safechannels.addressbook.EthereumAddress
 import com.tabookey.safechannels.platforms.InteractorsFactory
+import com.tabookey.safechannels.vault.localchanges.LocalChangeType
+import com.tabookey.safechannels.vault.localchanges.LocalVaultChange
 
 /**
  * Class represents the local state of the Vault before it has been deployed.

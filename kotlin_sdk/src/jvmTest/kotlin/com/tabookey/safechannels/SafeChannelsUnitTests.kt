@@ -10,9 +10,10 @@ import com.tabookey.foundation.VaultContractInteractor
 import com.tabookey.foundation.VaultFactoryContractInteractor
 import com.tabookey.safechannels.addressbook.SafechannelContact
 import com.tabookey.safechannels.vault.DeployedVault
-import com.tabookey.safechannels.vault.LocalChangeType
 import com.tabookey.safechannels.vault.VaultStorageInterface
+import com.tabookey.safechannels.vault.localchanges.*
 import org.junit.Before
+import org.junit.Ignore
 import org.mockito.ArgumentMatchers.anyString
 import org.web3j.crypto.Credentials
 import kotlin.test.Test
@@ -26,6 +27,7 @@ class SafeChannelsUnitTests {
 //    private fun <T> any() = Mockito.any() as T
 
     private val anyAddress = "0xd216153c06e857cd7f72665e0af1d7d82172f494"
+    private val anyStateId = "777"
 
     private lateinit var vaultFactoryContractInteractor: VaultFactoryContractInteractor
     private lateinit var interactor: VaultContractInteractor
@@ -34,6 +36,12 @@ class SafeChannelsUnitTests {
     private lateinit var sdk: SafeChannels
     private lateinit var credentials: Credentials
 
+    private val transactionChangeHash = ByteArray(0)
+    private val configPendingEventResponse = ConfigPendingEventResponse(
+            transactionChangeHash,
+            "", "", "", "",
+            anyStateId, mutableListOf(), mutableListOf()
+    )
 
     @Before
     fun before() {
@@ -134,14 +142,13 @@ class SafeChannelsUnitTests {
         val localChanges = sdk.listAllVaults()[0].getVaultLocalState().localChanges
         assertEquals(2, localChanges.size)
 
-        val initializeChange = localChanges[0]
+        val initializeChange = localChanges[0] as InitializeVaultChange
         assertEquals(LocalChangeType.INITIALIZE, initializeChange.changeType)
         assertEquals(kredentials.getAddress(), initializeChange.participant)
 
-        val addParticipantChange = localChanges[1]
+        val addParticipantChange = localChanges[1] as AddParticipantChange
         assertEquals(LocalChangeType.ADD_PARTICIPANT, addParticipantChange.changeType)
         assertEquals(anyAddress, addParticipantChange.participant)
-
         assertEquals(adminPermissions, addParticipantChange.permissions)
     }
 
@@ -170,100 +177,138 @@ class SafeChannelsUnitTests {
     @Test
     fun `should schedule, commit and wait for a config change (adding participant to existing vault)`() {
         val deployedVault = quickDeployVault()
+        reset(storage) // ignore method calls on a spy storage before the interesting part of the test
+        // First, create a local change request to add a participant
         val participantAddress = anyAddress
         val permissions = VaultPermissions.ADMIN_PERMISSIONS
         val addedChange = deployedVault.addParticipant(participantAddress, permissions)
+        assertEquals(
+                LocalChangeType.ADD_PARTICIPANT,
+                addedChange.changeType,
+                "does not return the correct change object")
         val localState = deployedVault.getVaultLocalState()
-        val changes = localState.localChanges
-        assertEquals(1, changes.size)
-        val expectedChange = changes[0]
+        // Check that the correct vault state was passed the storage
+        verify(storage, times(1)).putVaultState(localState)
+        var changes = localState.localChanges
+        assertEquals(1, changes.size, "local state does not contain the change")
+
+        val expectedChange = changes[0] as AddParticipantChange
         assertEquals(LocalChangeType.ADD_PARTICIPANT, expectedChange.changeType)
         assertEquals(participantAddress, expectedChange.participant)
 
-        val transactionChangeHash = ByteArray(0)
-        val expectedStateId = "777"
+        // Configure the mocks to return the expected values
         val dueTime = "200"
+
         whenever(
                 interactor.getConfigPendingEvent(anyString())
         ).thenReturn(
-                ConfigPendingEventResponse(
-                        transactionChangeHash,
-                        "", "", "", "",
-                        expectedStateId, mutableListOf(), mutableListOf()
-                )
+                configPendingEventResponse
         )
         whenever(
                 interactor.getPendingChangeDueTime(any())
         ).thenReturn(dueTime)
-        val pendingChange = deployedVault.commitLocalChanges(expectedStateId)
+        // Check that SDK returns expected data correctly
+        val pendingChange = deployedVault.commitLocalChanges(anyStateId)[0]
         assertEquals("0x_scheduled_tx_hash", pendingChange.transaction.hash)
         assertEquals(dueTime, pendingChange.dueTime)
-        assertEquals(expectedStateId, pendingChange.event.stateId)
-    }
+        assertEquals(anyStateId, pendingChange.event.stateId)
 
+        changes = deployedVault.getVaultLocalState().localChanges
+        assertEquals(0, changes.size, "committing local changes does not clean up the state")
+    }
+    @Ignore
+    @Test
+    fun `should refuse to apply a change that is not yet due`(){
+
+    }
+    @Ignore
+    @Test
+    fun `should apply a change that is due`(){
+    }
+    @Ignore
     @Test
     fun `should remove participant from existing vault`() {
     }
 
     @Test
     fun `should send ether`() {
-    }
+        val deployedVault = quickDeployVault()
+        val amountToTransfer = "1200000000000000000" // 1.2 ether
+        val destination = anyAddress
+        val localChange = deployedVault.transferEth(amountToTransfer, destination)
+        assertEquals(LocalChangeType.TRANSFER_ETH, localChange.changeType)
 
+        val change = deployedVault.getVaultLocalState().localChanges[0] as EtherTransferChange
+        assertEquals(amountToTransfer, change.amount)
+        assertEquals(destination, change.destination)
+        assertEquals(ETH_TOKEN_ADDRESS, change.token)
+
+        val dueTime = "200"
+        whenever(interactor.sendEther(anyString(), anyString(), anyString(), anyString())).thenReturn("0xether_transfer_hash")
+        whenever(interactor.getConfigPendingEvent(anyString())).thenReturn(configPendingEventResponse)
+        whenever(interactor.getPendingChangeDueTime(any())).thenReturn(dueTime)
+
+        val pendingChange = deployedVault.commitLocalChanges(anyStateId)
+    }
+    @Ignore
     @Test
     fun `should send erc20 token`() {
     }
-
+    @Ignore
     @Test
     fun `should cancel ether transfer`() {
     }
-
+    @Ignore
     @Test
     fun `should cancel erc20 token transfer`() {
     }
-
+    @Ignore
     @Test
     fun `should cancel config changes as owner`() {
     }
-
+    @Ignore
     @Test
     fun `should perform boosted config change`() {
     }
-
+    @Ignore
     @Test
     fun `should use recovery-only(level zero) admins to for simplified recovery procedure`() {
     }
-
+    @Ignore
     @Test
     fun `should freeze recovery-only(level zero) admins`() {
     }
 
     // As watchdog:
+    @Ignore
     @Test
     fun `should cancel config changes as watchdog`() {
     }
-
+    @Ignore
     @Test
     fun `should freeze`() {
     }
 
     // As admin:
+    @Ignore
     @Test
     fun `should boost config change`() {
     }
-
+    @Ignore
     @Test
     fun `should recover operator`() {
     }
 
     // Shared tests for guardians:
+    @Ignore
     @Test
     fun `should add vault to watched vaults as participant`() {
     }
-
+    @Ignore
     @Test
     fun `should remove vault from watched vaults as participant`() {
     }
-
+    @Ignore
     @Test
     fun `should list all watched vaults`() {
     }
