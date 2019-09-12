@@ -12,7 +12,6 @@ import org.junit.jupiter.api.MethodOrderer.OrderAnnotation
 import org.junit.jupiter.api.Order
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestMethodOrder
-import org.junit.jupiter.api.assertThrows
 import org.web3j.abi.TypeDecoder
 import org.web3j.abi.datatypes.Type
 import org.web3j.crypto.Credentials
@@ -205,11 +204,11 @@ class TestSample {
 
         val dataToHash = encodePacked(parameters)
         val scheduledTxHash = Hash.sha3(dataToHash)
-        println("wtfa: " + Numeric.prependHexPrefix(dataToHash))
-        println("actions: " + actions[0])
-        println("args: " + args[0])
-        println("expectedNonce: " + expectedNonce)
-        println("owner1PermsLevel: " + Numeric.toHexString(owner1PermsLevel.toByteArray()))
+//        println("wtfa: " + Numeric.prependHexPrefix(dataToHash))
+//        println("actions: " + actions[0])
+//        println("args: " + args[0])
+//        println("expectedNonce: " + expectedNonce)
+//        println("owner1PermsLevel: " + Numeric.toHexString(owner1PermsLevel.toByteArray()))
         assertEquals(Numeric.prependHexPrefix(scheduledTxHash), Numeric.toHexString(event.transactionHash))
     }
 
@@ -261,33 +260,9 @@ class TestSample {
     @Order(6)
     @DisplayName("should schedule and cancel change configuration")
     fun scheduleAndCancelAddAdmin() {
-        val actionAddAdmin = ChangeType.ADD_PARTICIPANT.stringValue
-        val actions = listOf(actionAddAdmin)
-        val args = listOf(Numeric.hexStringToByteArray(admin2Hash))
-        val expectedNonce = owner1Interactor.stateNonce()
-        txHash = owner1Interactor.changeConfiguration(actions, args, expectedNonce)
+
+        scheduleAddAdmin()
         val event = owner1Interactor.getConfigPendingEvent(txHash)
-        val action = event.actions[0]
-        assertEquals(actions[0], action)
-        val arg = event.actionsArguments[0]
-        assertEquals(Numeric.toHexString(args[0]), Numeric.toHexString(arg))
-
-        assertEquals(expectedNonce, event.stateId)
-        assertEquals(owner1PermsLevel, event.senderPermsLevel)
-        assertEquals(owner1Creds.address, event.sender)
-        val actionWeb3jType = TypeDecoder.instantiateType("uint8[]", actions) //as DynamicArray<Uint8>
-        val argsWeb3jType = TypeDecoder.instantiateType("bytes32[]", args) //as DynamicArray<Bytes32>
-        val expectedNonceWeb3jType = TypeDecoder.instantiateType("uint256", expectedNonce) //as Uint256
-        val ownerAddressWeb3jType = TypeDecoder.instantiateType("address", owner1Creds.address) //as Address
-        val ownerPermsLevelWeb3jType = TypeDecoder.instantiateType("uint16", owner1PermsLevel) //as Uint16
-        val boosterAddressWeb3jType = TypeDecoder.instantiateType("address", zeroAddress) //as Address
-        val boosterPermsLevelWeb3jType = TypeDecoder.instantiateType("uint16", "0") //as Uint16
-
-        val parameters: List<Type<Any>> = listOf(actionWeb3jType, argsWeb3jType, expectedNonceWeb3jType, ownerAddressWeb3jType, ownerPermsLevelWeb3jType, boosterAddressWeb3jType, boosterPermsLevelWeb3jType)
-
-        val dataToHash = encodePacked(parameters)
-        val scheduledTxHash = Hash.sha3(dataToHash)
-        assertEquals(Numeric.prependHexPrefix(scheduledTxHash), Numeric.toHexString(event.transactionHash))
 
         shouldThrow("revert apply called before due time") {
             owner1Interactor.applyConfig(event.actions, event.actionsArguments, event.stateId, event.sender, event.senderPermsLevel, event.booster, event.boosterPermsLevel)
@@ -300,14 +275,65 @@ class TestSample {
 
     @Test
     @Order(7)
-    @DisplayName("should revert on trying to apply change configuration by frozen level")
-    fun applyWhileFrozen() {
+    @DisplayName("should freeze")
+    fun freeze() {
+
+        assert(owner1Interactor.frozenUntil().toInt() == 0)
+        txHash = owner1Interactor.freeze(1, dayInSec.toString())
+        assert(owner1Interactor.frozenUntil().toInt() > 0)
+        shouldThrow("revert level is frozen") {
+            txHash = owner1Interactor.freeze(1, dayInSec.toString())
+        }
+        increaseTime(dayInSec.toLong()-1, web3j)
+        shouldThrow("revert level is frozen") {
+            txHash = owner1Interactor.freeze(1, dayInSec.toString())
+        }
+        increaseTime(2, web3j)
+        shouldThrow("revert cannot freeze level for zero time") {
+            txHash = owner1Interactor.freeze(1, "0")
+        }
+        shouldThrow("revert cannot freeze level for this long") {
+            txHash = owner1Interactor.freeze(1, (366*dayInSec).toString())
+        }
+        shouldThrow("revert cannot freeze level that is lower than already frozen") {
+            txHash = owner1Interactor.freeze(0, dayInSec.toString())
+        }
+        shouldThrow("revert cannot freeze level that is higher than caller") {
+            txHash = owner1Interactor.freeze(owner1Interactor.participant.level+1, dayInSec.toString())
+        }
     }
 
     @Test
-    @DisplayName("should freeze")
-    fun freeze() {
-//        admin1Interactor.freeze()
+    @Order(8)
+    @DisplayName("should unfreeze")
+    fun unfreeze() {
+        val actionUnfreeze = ChangeType.UNFREEZE.stringValue
+        val actions = listOf(actionUnfreeze)
+        val args = listOf(Numeric.hexStringToByteArray(admin2Hash))
+        val expectedNonce = owner1Interactor.stateNonce()
+        txHash = owner1Interactor.changeConfiguration(actions, args, expectedNonce)
+    }
+
+    @Test
+    @Order(9)
+    @DisplayName("should revert on trying to apply change configuration by frozen level")
+    fun applyWhileFrozen() {
+        scheduleAddAdmin()
+        val event = owner1Interactor.getConfigPendingEvent(txHash)
+
+        shouldThrow("revert apply called before due time") {
+            owner1Interactor.applyConfig(event.actions, event.actionsArguments, event.stateId, event.sender, event.senderPermsLevel, event.booster, event.boosterPermsLevel)
+        }
+        txHash = owner1Interactor.freeze(1, dayInSec.toString())
+        shouldThrow("revert level is frozen") {
+            owner1Interactor.applyConfig(event.actions, event.actionsArguments, event.stateId, event.sender, event.senderPermsLevel, event.booster, event.boosterPermsLevel)
+        }
+        increaseTime(dayInSec.toLong()+1, web3j)
+        txHash = owner1Interactor.cancelOpertaion(event.actions, event.actionsArguments, event.stateId, event.sender, event.senderPermsLevel, event.booster, event.boosterPermsLevel)
+        shouldThrow("revert apply called for non existent pending change") {
+            owner1Interactor.applyConfig(event.actions, event.actionsArguments, event.stateId, event.sender, event.senderPermsLevel, event.booster, event.boosterPermsLevel)
+        }
+
     }
 
     @Test
