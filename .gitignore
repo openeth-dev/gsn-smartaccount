@@ -51,3 +51,4 @@ js_foundation/gradlew.bat
 /.idea/$PRODUCT_WORKSPACE_FILE$
 /.idea/.name
 /.idea/testkotlinjs.iml
+.idea/safechannels.iml

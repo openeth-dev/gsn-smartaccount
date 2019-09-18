@@ -156,7 +156,7 @@ open class VaultContractInteractor(
     //        address booster, uint16 boosterPermsLevel,
     //        uint16 senderPermsLevel) public {
 
-    fun cancelOpertaion(actions: List<String>,
+    fun cancelOperation(actions: List<String>,
                         args: List<ByteArray>,
                         expectedNonce: String,
                         schedulerAddress: String,
