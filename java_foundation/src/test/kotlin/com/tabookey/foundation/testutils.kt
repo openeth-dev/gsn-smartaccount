@@ -27,6 +27,7 @@ val web3j = Web3j.build(httpService)
 val ganachePrivateKey = "4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d"
 val deployCreds = Credentials.create(ganachePrivateKey)
 val gasProvider = StaticGasProvider(BigInteger.valueOf(1), BigInteger.valueOf(10_000_000L))
+val zeroAddress = "0x0000000000000000000000000000000000000000"
 
 class NumericResult : Response<String>() {
     val longValue : Long

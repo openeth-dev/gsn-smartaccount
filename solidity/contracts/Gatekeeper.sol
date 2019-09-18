@@ -160,6 +160,7 @@ contract Gatekeeper is PermissionsLevel {
         changeConfigurationInternal(actions, args, msg.sender, senderPermsLevel, address(0), 0);
     }
 
+    //TODO: Remove after debugging
     event WTF(bytes encodedPacked);
     // Note: this internal method is not wrapped with 'requirePermissions' as it may be called by the 'changeOwner'
     function changeConfigurationInternal(
