@@ -17,6 +17,11 @@ open class LocalVaultChange internal constructor(val changeType: LocalChangeType
             }
         }
 
+    open val arg: ByteArray
+    get() {
+        return ByteArray(0)
+    }
+
     companion object {
         fun initialize(newOwner: EthereumAddress): InitializeVaultChange {
             return InitializeVaultChange(newOwner)

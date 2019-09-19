@@ -9,6 +9,7 @@ import com.tabookey.foundation.Response
 import com.tabookey.foundation.VaultContractInteractor
 import com.tabookey.foundation.VaultFactoryContractInteractor
 import com.tabookey.safechannels.addressbook.SafechannelContact
+import com.tabookey.safechannels.extensions.toHexString
 import com.tabookey.safechannels.vault.DeployedVault
 import com.tabookey.safechannels.vault.VaultStorageInterface
 import com.tabookey.safechannels.vault.localchanges.*
@@ -16,6 +17,7 @@ import org.junit.Before
 import org.junit.Ignore
 import org.mockito.ArgumentMatchers.anyString
 import org.web3j.crypto.Credentials
+import java.nio.charset.Charset
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFails
@@ -36,7 +38,7 @@ class SafeChannelsUnitTests {
     private lateinit var sdk: SafeChannels
     private lateinit var credentials: Credentials
 
-    private val transactionChangeHash = ByteArray(0)
+    private val transactionChangeHash = ByteArray(10) { i -> return@ByteArray i.toByte()}
     private val configPendingEventResponse = ConfigPendingEventResponse(
             transactionChangeHash,
             "", "", "", "",
@@ -208,7 +210,7 @@ class SafeChannelsUnitTests {
                 interactor.getPendingChangeDueTime(any())
         ).thenReturn(dueTime)
         // Check that SDK returns expected data correctly
-        val pendingChange = deployedVault.commitLocalChanges(anyStateId)[0]
+        val pendingChange = deployedVault.commitLocalChanges(anyStateId)
         assertEquals("0x_scheduled_tx_hash", pendingChange.transaction.hash)
         assertEquals(dueTime, pendingChange.dueTime)
         assertEquals(anyStateId, pendingChange.event.stateId)
@@ -229,9 +231,14 @@ class SafeChannelsUnitTests {
     @Test
     fun `should remove participant from existing vault`() {
     }
+    // Cannot return null because this is Kotlin (and it is good)
+    @Ignore
+    @Test
+    fun `should throw when trying to commit while not having local changes`() {
+    }
 
     @Test
-    fun `should send ether`() {
+    fun `should schedule ether transfer`() {
         val deployedVault = quickDeployVault()
         val amountToTransfer = "1200000000000000000" // 1.2 ether
         val destination = anyAddress
@@ -248,7 +255,12 @@ class SafeChannelsUnitTests {
         whenever(interactor.getConfigPendingEvent(anyString())).thenReturn(configPendingEventResponse)
         whenever(interactor.getPendingChangeDueTime(any())).thenReturn(dueTime)
 
-        val pendingChange = deployedVault.commitLocalChanges(anyStateId)
+        val pendingChanges = deployedVault.commitLocalTransfers(anyStateId)
+        assertEquals(1, pendingChanges.size)
+        val pendingChange = pendingChanges[0]
+        val expectedHashStr = transactionChangeHash.toHexString()
+        val actualHashStr = pendingChange.event.transactionHash.toHexString()
+        assertEquals(expectedHashStr, actualHashStr, "Transaction hash does not match")
     }
     @Ignore
     @Test
