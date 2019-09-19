@@ -1,0 +1,14 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="SafeChannelsUnitTests" type="JUnit" factoryName="JUnit" nameIsGenerated="true">
+    <module name="com.tabookey.safechannels.jvmTest" />
+    <option name="PACKAGE_NAME" value="com.tabookey.safechannels" />
+    <option name="MAIN_CLASS_NAME" value="com.tabookey.safechannels.SafeChannelsUnitTests" />
+    <option name="METHOD_NAME" value="" />
+    <option name="TEST_OBJECT" value="class" />
+    <option name="PARAMETERS" value="" />
+    <method v="2">
+      <option name="Gradle.BeforeRunTask" enabled="true" tasks="clean" externalProjectPath="$PROJECT_DIR$/kotlin_sdk" vmOptions="" scriptParameters="" />
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>
