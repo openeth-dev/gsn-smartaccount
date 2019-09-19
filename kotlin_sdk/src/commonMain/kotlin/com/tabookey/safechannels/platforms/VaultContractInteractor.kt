@@ -4,7 +4,7 @@ import com.tabookey.duplicated.ConfigPendingEventResponse
 
 expect class VaultContractInteractor {
 
-    fun changeConfiguration(actions: List<String>,
+    suspend fun changeConfiguration(actions: List<String>,
                             args: List<ByteArray>,
                             expectedNonce: String): String
 

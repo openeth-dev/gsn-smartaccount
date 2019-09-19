@@ -59,9 +59,9 @@ class DeployedVault(
      */
     class BatchedOperation {
         val size: Int
-        get(){
-            return actions.size
-        }
+            get() {
+                return actions.size
+            }
         val actions = mutableListOf<String>()
         val args = mutableListOf<ByteArray>()
 
@@ -99,7 +99,7 @@ class DeployedVault(
      * Commits all local config changes there are. Config changes are batched and scheduled in a single transaction
      * @return [PendingChange]
      * */
-    fun commitLocalChanges(expectedNonce: String): PendingChange{
+    suspend fun commitLocalChanges(expectedNonce: String): PendingChange {
         val batchedOperation = BatchedOperation()
         vaultState.localChanges.filter { it.changeType.isConfig }.forEach {
             when (it.changeType) {
@@ -113,7 +113,7 @@ class DeployedVault(
                 else -> throw RuntimeException("Change Type ${it.changeType} shouldn't reach here. This is a bug.")
             }
         }
-        if (batchedOperation.size < 1){
+        if (batchedOperation.size < 1) {
             throw RuntimeException("Zero local changes found.")
         }
 

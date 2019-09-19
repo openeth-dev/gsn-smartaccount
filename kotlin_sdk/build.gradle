@@ -72,8 +72,8 @@ kotlin {
                 implementation kotlin('test-junit')
                 implementation 'org.mockito:mockito-core:2.28.2'
                 implementation "com.nhaarman.mockitokotlin2:mockito-kotlin:2.2.0"
-                implementation ( "org.web3j:core:$web3j_version" ) {
-                    exclude group:"com.github.jnr"
+                implementation("org.web3j:core:$web3j_version") {
+                    exclude group: "com.github.jnr"
                     changing = true
                 }
 //                implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.1.1"
@@ -125,12 +125,27 @@ task populateNodeModules(type: Copy, dependsOn: compileKotlinJs) {
 task installMocha(type: NpmTask) {
     args = ['install', 'mocha']
 }
-
+task packJsFoundation(type: NpmTask) {
+    args = ['pack', '../js_foundation/']
+}
+task installJsFoundation(type: Exec) {
+    commandLine 'npm', 'install', './js_foundation-1.0.0.tgz'
+}
+task node_version(type: NpmTask) {
+    args = ['version']
+}
+// TODO: sanitize JS build scripts
 task installKotlinNpm(type: NpmTask) {
     args = ['install', 'kotlinx-coroutines-core', 'kotlin', 'kotlin-test']
 }
 
-task runMocha(type: NodeTask, dependsOn: [compileTestKotlinJs, installKotlinNpm, installMocha, populateNodeModules]) {
+task runMocha(type: NodeTask, dependsOn:
+        [compileTestKotlinJs,
+         packJsFoundation,
+         installJsFoundation,
+         installKotlinNpm,
+         installMocha,
+         populateNodeModules]) {
     script = file('node_modules/mocha/bin/mocha')
     args = [compileTestKotlinJs.outputFile]
 }

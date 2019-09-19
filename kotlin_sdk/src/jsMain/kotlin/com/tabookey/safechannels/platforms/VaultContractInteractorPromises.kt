@@ -10,6 +10,9 @@ external class VaultContractInteractorWithPromises {
         fun connect(): Promise<VaultContractInteractor>
     }
 
+
+    fun changeConfiguration(actions: List<String>, args: List<ByteArray>, expectedNonce: String): Promise<String>
+
     fun getGatekeeperAddress(): String
 
     fun getOperatorSync(): String

@@ -126,7 +126,7 @@ open class VaultContractInteractor(
     //    function changeConfiguration(uint8[] memory actions, bytes32[] memory args, uint256 targetStateNonce, uint16 senderPermsLevel) public
     //    {
 
-    open fun changeConfiguration(actions: List<String>,
+    open suspend fun changeConfiguration(actions: List<String>,
                             args: List<ByteArray>,
                             expectedNonce: String): String {
         val actionsBigInteger: List<BigInteger> = actions.map { it.toBigInteger(if (Numeric.containsHexPrefix(it)) 16 else 10) }

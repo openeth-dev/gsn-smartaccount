@@ -13,6 +13,7 @@ import com.tabookey.safechannels.extensions.toHexString
 import com.tabookey.safechannels.vault.DeployedVault
 import com.tabookey.safechannels.vault.VaultStorageInterface
 import com.tabookey.safechannels.vault.localchanges.*
+import kotlinx.coroutines.runBlocking
 import org.junit.Before
 import org.junit.Ignore
 import org.mockito.ArgumentMatchers.anyString
@@ -38,7 +39,7 @@ class SafeChannelsUnitTests {
     private lateinit var sdk: SafeChannels
     private lateinit var credentials: Credentials
 
-    private val transactionChangeHash = ByteArray(10) { i -> return@ByteArray i.toByte()}
+    private val transactionChangeHash = ByteArray(10) { i -> return@ByteArray i.toByte() }
     private val configPendingEventResponse = ConfigPendingEventResponse(
             transactionChangeHash,
             "", "", "", "",
@@ -55,9 +56,12 @@ class SafeChannelsUnitTests {
             } doReturn Response("hi", "", "")
 
         }
-        interactor = mock<VaultContractInteractor> {
-            on { changeConfiguration(any(), any(), any()) } doReturn "0x_scheduled_tx_hash"
+
+        interactor = mock {
+
+            on { runBlocking { changeConfiguration(any(), any(), any()) } } doReturn "0x_scheduled_tx_hash"
         }
+
         interactorsFactory = mock {
             on { interactorForVault(any(), any(), any(), any()) } doReturn interactor
         }
@@ -209,28 +213,34 @@ class SafeChannelsUnitTests {
         whenever(
                 interactor.getPendingChangeDueTime(any())
         ).thenReturn(dueTime)
-        // Check that SDK returns expected data correctly
-        val pendingChange = deployedVault.commitLocalChanges(anyStateId)
-        assertEquals("0x_scheduled_tx_hash", pendingChange.transaction.hash)
-        assertEquals(dueTime, pendingChange.dueTime)
-        assertEquals(anyStateId, pendingChange.event.stateId)
+        runBlocking {
+            // Check that SDK returns expected data correctly
+            val pendingChange = deployedVault.commitLocalChanges(anyStateId)
+            assertEquals("0x_scheduled_tx_hash", pendingChange.transaction.hash)
+            assertEquals(dueTime, pendingChange.dueTime)
+            assertEquals(anyStateId, pendingChange.event.stateId)
 
-        changes = deployedVault.getVaultLocalState().localChanges
-        assertEquals(0, changes.size, "committing local changes does not clean up the state")
+            changes = deployedVault.getVaultLocalState().localChanges
+            assertEquals(0, changes.size, "committing local changes does not clean up the state")
+        }
     }
+
     @Ignore
     @Test
-    fun `should refuse to apply a change that is not yet due`(){
+    fun `should refuse to apply a change that is not yet due`() {
 
     }
+
     @Ignore
     @Test
-    fun `should apply a change that is due`(){
+    fun `should apply a change that is due`() {
     }
+
     @Ignore
     @Test
     fun `should remove participant from existing vault`() {
     }
+
     // Cannot return null because this is Kotlin (and it is good)
     @Ignore
     @Test
@@ -262,30 +272,37 @@ class SafeChannelsUnitTests {
         val actualHashStr = pendingChange.event.transactionHash.toHexString()
         assertEquals(expectedHashStr, actualHashStr, "Transaction hash does not match")
     }
+
     @Ignore
     @Test
     fun `should send erc20 token`() {
     }
+
     @Ignore
     @Test
     fun `should cancel ether transfer`() {
     }
+
     @Ignore
     @Test
     fun `should cancel erc20 token transfer`() {
     }
+
     @Ignore
     @Test
     fun `should cancel config changes as owner`() {
     }
+
     @Ignore
     @Test
     fun `should perform boosted config change`() {
     }
+
     @Ignore
     @Test
     fun `should use recovery-only(level zero) admins to for simplified recovery procedure`() {
     }
+
     @Ignore
     @Test
     fun `should freeze recovery-only(level zero) admins`() {
@@ -296,6 +313,7 @@ class SafeChannelsUnitTests {
     @Test
     fun `should cancel config changes as watchdog`() {
     }
+
     @Ignore
     @Test
     fun `should freeze`() {
@@ -306,6 +324,7 @@ class SafeChannelsUnitTests {
     @Test
     fun `should boost config change`() {
     }
+
     @Ignore
     @Test
     fun `should recover operator`() {
@@ -316,10 +335,12 @@ class SafeChannelsUnitTests {
     @Test
     fun `should add vault to watched vaults as participant`() {
     }
+
     @Ignore
     @Test
     fun `should remove vault from watched vaults as participant`() {
     }
+
     @Ignore
     @Test
     fun `should list all watched vaults`() {
