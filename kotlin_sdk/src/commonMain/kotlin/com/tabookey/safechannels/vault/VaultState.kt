@@ -26,6 +26,16 @@ class VaultState {
     val localChanges: List<LocalVaultChange>
         get() = _localChanges
 
+    private val stagedForRemovalChanges: MutableList<LocalVaultChange> = mutableListOf()
+
+    /**
+     * While batching and broadcasting the operation, the local change cannot be removed until the transaction
+     * is broadcast and its hash is saved. It must be flagged for removal in between.
+     */
+    fun stageChangeForRemoval(change: LocalVaultChange){
+        stagedForRemovalChanges.add(change)
+    }
+
     fun addLocalChange(change: LocalVaultChange) {
         _localChanges.add(change)
     }
@@ -33,7 +43,9 @@ class VaultState {
     fun removeChange(change: LocalVaultChange){
         _localChanges.remove(change)
     }
-    fun clearChanges(){
+
+    //TODO
+    fun removeChangesStagedForRemoval(){
         _localChanges.clear()
     }
 }

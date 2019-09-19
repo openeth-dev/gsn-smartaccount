@@ -1,12 +1,10 @@
 package com.tabookey.safechannels.vault
 
 import com.tabookey.safechannels.blockchain.BlockchainTransaction
-import com.tabookey.safechannels.extensions.hexStringToByteArray
 import com.tabookey.safechannels.platforms.VaultContractInteractor
 import com.tabookey.safechannels.vault.localchanges.EtherTransferChange
 import com.tabookey.safechannels.vault.localchanges.LocalChangeType
 import com.tabookey.safechannels.vault.localchanges.LocalVaultChange
-import com.tabookey.safechannels.vault.localchanges.ParticipantChange
 
 /**
  *
@@ -56,58 +54,78 @@ class DeployedVault(
     }
 
     /**
-     * Commits all local changes there are. Note that this may require multiple
-     * transactions and potentially increments [expectedNonce] more then once
+     * Batched op is a short-lived object. It represents a collection of changes that
+     * will be submitted in a single blockchain vault transaction.
      */
-    fun commitLocalChanges(expectedNonce: String): List<PendingChange> {
-        val allChanges = mutableListOf<PendingChange>()
-        var expectedNonceVar = expectedNonce.toInt()
-        val batchedOperation = object {
-            val actions = mutableListOf<String>()
-            val args = mutableListOf<ByteArray>()
+    class BatchedOperation {
+        val size: Int
+        get(){
+            return actions.size
         }
-        vaultState.localChanges
-                .forEach {
-                    when (it.changeType) {
-                        LocalChangeType.ADD_PARTICIPANT,
-                        LocalChangeType.REMOVE_PARTICIPANT,
-                        LocalChangeType.CHOWN -> {
-                            batchedOperation.actions.add(it.contractActionValue)
-                            batchedOperation.args.add((it as ParticipantChange).participant.hexStringToByteArray())
-                        }
-                        LocalChangeType.UNFREEZE -> {
-                            batchedOperation.actions.add(it.contractActionValue)
-                            batchedOperation.args.add(ByteArray(0))
-                        }
-                        LocalChangeType.TRANSFER_ETH -> {
-                            val transfer = it as EtherTransferChange
-                            val delay = "0" // TODO: accept, store, read delay!!!
-                            val txHash = interactor.sendEther(transfer.destination, transfer.amount, delay, expectedNonce)
-                            val pendingTransfer = readPendingChangeFormTxHash(txHash)
-                            allChanges.add(pendingTransfer)
-                            // TODO: organize this loop better!!!
-                            expectedNonceVar++
-                        }
-                        LocalChangeType.TRANSFER_ERC20 -> TODO()
-                        LocalChangeType.INITIALIZE -> {
-                            throw RuntimeException("The vault appears to be initialized already")
-                        }
-                    }
+        val actions = mutableListOf<String>()
+        val args = mutableListOf<ByteArray>()
+
+        fun add(change: LocalVaultChange) {
+            actions.add(change.contractActionValue)
+            args.add(change.arg)
+        }
+    }
+
+    /**
+     * Transfers are not batched and therefore return multiple
+     * transactions increment [expectedNonce] for every one of them
+     */
+    fun commitLocalTransfers(expectedNonce: String): List<PendingChange> {
+        var expectedNonceInt = expectedNonce.toInt()
+        val allChanges = mutableListOf<PendingChange>()
+        vaultState.localChanges.filter { it.changeType.isTransfer }.forEach {
+            when (it.changeType) {
+                LocalChangeType.TRANSFER_ETH -> {
+                    val transfer = it as EtherTransferChange
+                    val delay = "0" // TODO: accept, store, read delay!!!
+                    val txHash = interactor.sendEther(transfer.destination, transfer.amount, delay, expectedNonceInt.toString())
+                    expectedNonceInt++
+                    val pendingTransfer = readPendingChangeFormTxHash(txHash)
+                    allChanges.add(pendingTransfer)
                 }
+                LocalChangeType.TRANSFER_ERC20 -> TODO()
+            }
+        }
 
-        vaultState.clearChanges()
-
-        val txHash = interactor.changeConfiguration(batchedOperation.actions, batchedOperation.args, expectedNonceVar.toString())
-        val batchedChange = readPendingChangeFormTxHash(txHash)
-        allChanges.add(batchedChange)
         return allChanges
+    }
+
+    /**
+     * Commits all local config changes there are. Config changes are batched and scheduled in a single transaction
+     * @return [PendingChange]
+     * */
+    fun commitLocalChanges(expectedNonce: String): PendingChange{
+        val batchedOperation = BatchedOperation()
+        vaultState.localChanges.filter { it.changeType.isConfig }.forEach {
+            when (it.changeType) {
+                LocalChangeType.ADD_PARTICIPANT,
+                LocalChangeType.REMOVE_PARTICIPANT,
+                LocalChangeType.CHOWN,
+                LocalChangeType.UNFREEZE -> {
+                    vaultState.stageChangeForRemoval(it)
+                    batchedOperation.add(it)
+                }
+                else -> throw RuntimeException("Change Type ${it.changeType} shouldn't reach here. This is a bug.")
+            }
+        }
+        if (batchedOperation.size < 1){
+            throw RuntimeException("Zero local changes found.")
+        }
+
+        val txHash = interactor.changeConfiguration(batchedOperation.actions, batchedOperation.args, expectedNonce)
+        vaultState.removeChangesStagedForRemoval()
+        return readPendingChangeFormTxHash(txHash)
     }
 
     private fun readPendingChangeFormTxHash(txHash: String): PendingChange {
         val event = interactor.getConfigPendingEvent(txHash)
         val dueTime = interactor.getPendingChangeDueTime(event.transactionHash)
-        val batchedChange = PendingChange(BlockchainTransaction(txHash), event, dueTime)
-        return batchedChange
+        return PendingChange(BlockchainTransaction(txHash), event, dueTime)
     }
 
     fun importConfigurationChangeForBoost(signedChange: String): LocalVaultChange {

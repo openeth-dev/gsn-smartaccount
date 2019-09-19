@@ -2,6 +2,7 @@ package com.tabookey.safechannels.vault.localchanges
 
 import com.tabookey.duplicated.VaultPermissions
 import com.tabookey.safechannels.addressbook.EthereumAddress
+import com.tabookey.safechannels.extensions.hexStringToByteArray
 
 abstract class ParticipantChange internal constructor(
         changeType: LocalChangeType,
@@ -16,6 +17,11 @@ abstract class ParticipantChange internal constructor(
     val permissions: VaultPermissions
         get() {
             return _permissions
+        }
+
+    override val arg: ByteArray
+        get() {
+            return participant.hexStringToByteArray()
         }
 }
 

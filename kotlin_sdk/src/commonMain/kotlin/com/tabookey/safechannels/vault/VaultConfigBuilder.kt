@@ -45,7 +45,7 @@ class VaultConfigBuilder(
                 } //TODO()
             }
         }
-        vaultState.clearChanges()
+        vaultState.removeChangesStagedForRemoval()
 
         val participant = vaultState.activeParticipant
         // TODO: anything but this!!!
