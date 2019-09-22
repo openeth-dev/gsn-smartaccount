@@ -1,10 +1,8 @@
 const Web3 = require('web3');
 const TruffleContract = require("truffle-contract");
-const {assert} = require('chai');
 
 const VaultABI = require('./generated/Vault');
 const GatekeeperABI = require('./generated/Gatekeeper');
-const VaultFactoryABI = require('./generated/VaultFactory');
 
 const ParticipantAddedEvent = require('./events/ParticipantAddedEvent');
 const ParticipantRemovedEvent = require('./events/ParticipantRemovedEvent');
@@ -30,11 +28,6 @@ let GatekeeperContract = TruffleContract({
 let VaultContract = TruffleContract({
     contractName: "Vault",
     abi: VaultABI
-});
-
-let VaultFactoryContract = TruffleContract({
-    contractName: "VaultFactory",
-    abi: VaultFactoryABI
 });
 
 const gatekeeperInitializedEvent = "GatekeeperInitialized";
@@ -64,12 +57,11 @@ class VaultContractInteractor {
      * @param vaultFactoryAddress
      * @returns {VaultContractInteractor}
      */
-    static async connect(account, permissions, level, ethNodeUrl, gatekeeperAddress, vaultAddress, vaultFactoryAddress) {
+    static async connect(account, permissions, level, ethNodeUrl, gatekeeperAddress, vaultAddress) {
         let provider = new Web3.providers.HttpProvider(ethNodeUrl);
         let web3 = new Web3(provider);
         GatekeeperContract.setProvider(provider);
         VaultContract.setProvider(provider);
-        VaultFactoryContract.setProvider(provider);
 
         let gatekeeper;
         if (gatekeeperAddress) {
@@ -80,38 +72,18 @@ class VaultContractInteractor {
             vault = await VaultContract.at(vaultAddress);
         }
 
-        assert.exists(vaultFactoryAddress, "it is illegal to initialize the interactor without vault factory");
-        let vaultFactory = await VaultFactoryContract.at(vaultFactoryAddress);
-
-        let interactor = new VaultContractInteractor(web3, account, permissions, level, gatekeeper, vault, vaultFactory);
+        let interactor = new VaultContractInteractor(web3, account, permissions, level, gatekeeper, vault);
         await interactor.getGatekeeperInitializedEvent();
         return interactor;
     }
 
-    constructor(web3, account, permissions, level, gatekeeper, vault, vaultFactory) {
+    constructor(web3, account, permissions, level, gatekeeper, vault, ) {
         this.web3 = web3;
         this.permissions = permissions;
         this.level = level;
         this.account = account;
         this.gatekeeper = gatekeeper;
         this.vault = vault;
-        this.vaultFactory = vaultFactory;
-    }
-
-    async deployNewGatekeeper() {
-        if (this.vault) {
-            throw new Error("vault already deployed")
-        }
-        if (this.gatekeeper) {
-            throw new Error("gatekeeper already deployed")
-        }
-        // TODO: figure out what is wrong with 'estimate gas'.
-        //  Works for Truffle test, fails in Mocha test, doesn't give a "out of gas" in console;
-        let receipt = await this.vaultFactory.newVault({from: this.account, gas: 0x6691b7});
-        let vaultAddress = receipt.logs[0].args.vault;
-        let gatekeeperAddress = receipt.logs[0].args.gatekeeper;
-        this.vault = await VaultContract.at(vaultAddress);
-        this.gatekeeper = await GatekeeperContract.at(gatekeeperAddress);
     }
 
     // ******* read from blockchain - general knowledge
