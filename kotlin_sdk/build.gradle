@@ -116,6 +116,15 @@ node {
     download = true
 }
 
+def skipIfNodeModuleExists = { name, path ->
+    //TODO: compare the packages version or something. In the meanwhile - take care of yourself!
+    def folder = new File(path)
+    if (folder.exists()) {
+        println "DID NOT UPDATE ${name} !"
+        throw new StopExecutionException("asfdasfd")
+    }
+}
+
 task populateNodeModules(type: Copy, dependsOn: compileKotlinJs) {
     from "./node_modules"
     from compileKotlinJs.destinationDir
@@ -123,25 +132,36 @@ task populateNodeModules(type: Copy, dependsOn: compileKotlinJs) {
 }
 
 task installMocha(type: NpmTask) {
+    doFirst {
+        skipIfNodeModuleExists("MOCHA", './node_modules/mocha')
+    }
     args = ['install', 'mocha']
 }
+
 task packJsFoundation(type: NpmTask) {
     args = ['pack', '../js_foundation/']
 }
-task installJsFoundation(type: Exec) {
+
+task installJsFoundation(type: Exec, dependsOn: packJsFoundation) {
+    doFirst {
+        skipIfNodeModuleExists("JS_FOUNDATION", './node_modules/js_foundation')
+    }
     commandLine 'npm', 'install', './js_foundation-1.0.0.tgz'
 }
+
 task node_version(type: NpmTask) {
     args = ['version']
 }
 // TODO: sanitize JS build scripts
 task installKotlinNpm(type: NpmTask) {
+    doFirst {
+        skipIfNodeModuleExists("KOTLIN", './node_modules/kotlin')
+    }
     args = ['install', 'kotlinx-coroutines-core', 'kotlin', 'kotlin-test']
 }
 
 task runMocha(type: NodeTask, dependsOn:
         [compileTestKotlinJs,
-         packJsFoundation,
          installJsFoundation,
          installKotlinNpm,
          installMocha,
