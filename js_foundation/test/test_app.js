@@ -8,6 +8,7 @@ const safeChannelUtils = require("../../solidity/src/js/SafeChannelUtils");
 const Participant = require("../../solidity/src/js/Participant");
 
 const Interactor = require("../src/js/VaultContractInteractor.js");
+const FactoryInteractor = require("../src/js/VaultFactoryContractInteractor.js");
 const ParticipantAddedEvent = require("../src/js/events/ParticipantAddedEvent");
 const ParticipantRemovedEvent = require("../src/js/events/ParticipantRemovedEvent");
 const OwnerChangedEvent = require("../src/js/events/OwnerChangedEvent");
@@ -24,6 +25,7 @@ context('VaultContractInteractor Integration Test', function () {
     let web3;
     let accounts;
     let interactor;
+    let factoryInteractor;
 
     let account23 = "0xcdc1e53bdc74bbf5b5f715d6327dca5785e228b4";
 
@@ -44,6 +46,21 @@ context('VaultContractInteractor Integration Test', function () {
     let operatorB;
     let admin23 = new Participant(account23, PermissionsModel.getAdminPermissions(), 1, "admin23");
     let admin_level2_acc2;
+
+    let getNetworkId = async function () {
+
+        return new Promise((resolve, reject) => {
+            web3.currentProvider.send({
+                jsonrpc: "2.0",
+                method: "net_version",
+                params: [],
+                id: 0
+            }, (err, res) => {
+                if (err) return reject(err);
+                resolve(res)
+            });
+        })
+    };
 
     before(async function () {
         let provider = new Web3.providers.HttpProvider(ethNodeUrl);
@@ -78,36 +95,37 @@ context('VaultContractInteractor Integration Test', function () {
         vaultFactoryContract.setProvider(provider);
         let vaultFactory = await vaultFactoryContract.new({from: accounts[0]});
         vaultFactoryAddress = vaultFactory.address;
-        interactor = await Interactor.connect(
-            accounts[0],
-            PermissionsModel.getOwnerPermissions(),
-            1,
-            ethNodeUrl,
-            undefined,
-            undefined,
-            vaultFactoryAddress);
+        let credentials = {
+            getAddress() {
+                return accounts[0]
+            }
+        };
+        let networkId = (await getNetworkId()).result;
+        factoryInteractor = await FactoryInteractor.connect(credentials, vaultFactoryAddress, ethNodeUrl, networkId);
     });
 
     // write tests are quite boring as each should be just a wrapper around a Web3 operation, which
     // is tested in 'solidity' project to do what it says correctly
 
-    context("creation of new vault", function () {
-        it("deploys a new vault, but only if not initialized", async function () {
-            let addressBefore = interactor.getGatekeeperAddress();
-            assert.strictEqual(addressBefore, null);
+    context("creation of new vault by a vault factory interactor", function () {
+        it("should deploy a new vault", async function () {
+            let deploymentResult = await factoryInteractor.deployNewGatekeeper();
+            assert.exists(deploymentResult.vault);
+            assert.exists(deploymentResult.gatekeeper);
+        });
+    });
 
-            assert.notExists(interactor.vault);
-            assert.notExists(interactor.gatekeeper);
-            await interactor.deployNewGatekeeper();
-            assert.exists(interactor.vault);
-            assert.exists(interactor.gatekeeper);
-
-            try {
-                await interactor.deployNewGatekeeper();
-                return Promise.reject(new Error('Should have thrown'));
-            } catch (err) {
-                expect(err).to.have.property('message', 'vault already deployed');
-            }
+// expect(err).to.have.property('message', 'vault already deployed');
+    context("interactor with a deployed vault", function () {
+        before(async function () {
+            let deploymentResult = await factoryInteractor.deployNewGatekeeper();
+            interactor = await Interactor.connect(
+                accounts[0],
+                PermissionsModel.getOwnerPermissions(),
+                1,
+                ethNodeUrl,
+                deploymentResult.gatekeeper,
+                deploymentResult.vault);
         });
 
         it("the newly deployed vault should handle having no configuration", async function () {
@@ -161,6 +179,15 @@ context('VaultContractInteractor Integration Test', function () {
     context("using initialized and configured vault", function () {
 
         before(async function () {
+            let deploymentResult = await factoryInteractor.deployNewGatekeeper();
+            interactor = await Interactor.connect(
+                accounts[0],
+                PermissionsModel.getOwnerPermissions(),
+                1,
+                ethNodeUrl,
+                deploymentResult.gatekeeper,
+                deploymentResult.vault);
+            // TODO: set desired configuration here
             await web3.eth.sendTransaction({from: accounts[0], to: interactor.vault.address, value: fund});
         });
 

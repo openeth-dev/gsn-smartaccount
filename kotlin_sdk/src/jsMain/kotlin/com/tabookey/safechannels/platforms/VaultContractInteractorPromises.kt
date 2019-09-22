@@ -5,12 +5,6 @@ import kotlin.js.Promise
 @JsName(name = "VaultContractInteractor")
 external class VaultContractInteractorWithPromises {
 
-    companion object {
-
-        fun connect(): Promise<VaultContractInteractor>
-    }
-
-
     fun changeConfiguration(actions: List<String>, args: List<ByteArray>, expectedNonce: String): Promise<String>
 
     fun getGatekeeperAddress(): String
@@ -22,5 +16,5 @@ external class VaultContractInteractorWithPromises {
 }
 
 fun wrap(a: VaultContractInteractorWithPromises): VaultContractInteractor {
-    return com.tabookey.safechannels.platforms.VaultContractInteractor(a)
+    return VaultContractInteractor(a)
 }
