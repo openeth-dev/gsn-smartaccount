@@ -3,5 +3,5 @@ package com.tabookey.safechannels.platforms
 expect class VaultFactoryContractInteractor{
 
 
-    fun deployNewGatekeeper(): Response
+    suspend fun deployNewGatekeeper(): Response
 }

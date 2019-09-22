@@ -1,5 +1,5 @@
 package com.tabookey.safechannels.platforms
 
 actual external class VaultFactoryContractInteractor {
-    actual fun deployNewGatekeeper(): Response
+    actual suspend fun deployNewGatekeeper(): Response
 }
