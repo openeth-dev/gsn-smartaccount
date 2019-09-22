@@ -52,7 +52,7 @@ class SafeChannelsUnitTests {
         credentials = mock()
         vaultFactoryContractInteractor = mock {
             on {
-                deployNewGatekeeper()
+                runBlocking { deployNewGatekeeper() }
             } doReturn Response("hi", "", "")
 
         }
@@ -159,7 +159,7 @@ class SafeChannelsUnitTests {
     }
 
     @Test
-    fun `should deploy the vault with the corresponding configuration`() {
+    fun `should deploy the vault with the corresponding configuration`() = runTest {
         val kredentials = sdk.createKeypair()
         val vaultConfigBuilder = sdk.vaultConfigBuilder(kredentials.getAddress())
         // TODO: more advanced configurations! :-)
@@ -173,7 +173,7 @@ class SafeChannelsUnitTests {
         assertEquals(0, changes.size)
     }
 
-    private fun quickDeployVault(): DeployedVault {
+    private suspend fun quickDeployVault(): DeployedVault {
         val kredentials = sdk.createKeypair()
         val vaultConfigBuilder = sdk.vaultConfigBuilder(kredentials.getAddress())
         return vaultConfigBuilder.deployVault()
@@ -181,7 +181,7 @@ class SafeChannelsUnitTests {
 
     // As operator:
     @Test
-    fun `should schedule, commit and wait for a config change (adding participant to existing vault)`() {
+    fun `should schedule, commit and wait for a config change (adding participant to existing vault)`() = runTest {
         val deployedVault = quickDeployVault()
         reset(storage) // ignore method calls on a spy storage before the interesting part of the test
         // First, create a local change request to add a participant
@@ -248,7 +248,7 @@ class SafeChannelsUnitTests {
     }
 
     @Test
-    fun `should schedule ether transfer`() {
+    fun `should schedule ether transfer`() = runTest {
         val deployedVault = quickDeployVault()
         val amountToTransfer = "1200000000000000000" // 1.2 ether
         val destination = anyAddress

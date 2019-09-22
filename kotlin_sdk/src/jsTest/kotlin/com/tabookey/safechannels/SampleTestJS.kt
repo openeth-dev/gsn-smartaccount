@@ -7,6 +7,9 @@ import com.tabookey.safechannels.platforms.InteractorsFactory
 import com.tabookey.safechannels.platforms.VaultFactoryContractInteractor
 import com.tabookey.safechannels.vault.VaultState
 import com.tabookey.safechannels.vault.VaultStorageInterface
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.promise
+import kotlin.js.Promise
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -16,7 +19,6 @@ import kotlin.test.assertTrue
  * This tests use non-mocked interactor and run in a Node environment.
  */
 class IntegrationTestSafechannelsJS {
-
 
 
     @Test
@@ -86,7 +88,7 @@ class IntegrationTestSafechannelsJS {
     }
 
     @Test
-    fun should_deploy_new_vault_via_factory_interactor(){
+    fun should_deploy_new_vault_via_factory_interactor() = runTest {
         js("var VaultFactoryContractInteractor = require(\"js_foundation/src/js/VaultFactoryContractInteractor\");")
         val vaultFactoryContractInteractor = VaultFactoryContractInteractor()
         val newGatekeeper = vaultFactoryContractInteractor.deployNewGatekeeper()

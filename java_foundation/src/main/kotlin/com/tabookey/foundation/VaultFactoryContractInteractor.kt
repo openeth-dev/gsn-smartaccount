@@ -15,7 +15,7 @@ open class VaultFactoryContractInteractor(
     private var provider: EstimatedGasProvider = EstimatedGasProvider(web3j, DefaultGasProvider.GAS_PRICE, DefaultGasProvider.GAS_LIMIT)
     private var vaultFactory: VaultFactory = VaultFactory.load(vaultFactoryAddress, web3j, credentials, provider)
 
-    open fun deployNewGatekeeper(): Response {
+    open suspend fun deployNewGatekeeper(): Response {
         val receipt = vaultFactory.newVault().send()
         val vaultCreatedEvents = vaultFactory.getVaultCreatedEvents(receipt)
         assert(vaultCreatedEvents.size == 1)

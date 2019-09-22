@@ -33,7 +33,7 @@ class VaultConfigBuilder(
     /**
      * Blocks for as the deployment time and then returns the [DeployedVault] instance with the correct initial config
      */
-    fun deployVault(): DeployedVault {
+    suspend fun deployVault(): DeployedVault {
         val deploymentResult = factoryContractInteractor.deployNewGatekeeper()
         // TODO: the state of the deployed vault should represent the desired config
         vaultState.localChanges.forEach {
