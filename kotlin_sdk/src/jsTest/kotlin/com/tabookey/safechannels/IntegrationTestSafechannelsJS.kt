@@ -5,11 +5,9 @@ import com.tabookey.duplicated.IKredentials
 import com.tabookey.safechannels.addressbook.SafechannelContact
 import com.tabookey.safechannels.platforms.InteractorsFactory
 import com.tabookey.safechannels.platforms.VaultFactoryContractInteractor
+import com.tabookey.safechannels.platforms.VaultFactoryContractInteractorPromises
 import com.tabookey.safechannels.vault.VaultState
 import com.tabookey.safechannels.vault.VaultStorageInterface
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.promise
-import kotlin.js.Promise
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -20,6 +18,10 @@ import kotlin.test.assertTrue
  */
 class IntegrationTestSafechannelsJS {
 
+    companion object {
+        const val ACCOUNT_ZERO = "0x90f8bf6a479f320ead074411a4b0e7944ea8c9c1"
+    }
+    var ethNodeUrl = "http://localhost:8545"
 
     @Test
     fun testHello() {
@@ -81,7 +83,8 @@ class IntegrationTestSafechannelsJS {
     fun should_construct_sdk_and_keypair_correctly() {
         js("var VaultFactoryContractInteractor = require(\"js_foundation/src/js/VaultFactoryContractInteractor\");")
         val interactorsFactory = InteractorsFactory()
-        val vaultFactoryContractInteractor = VaultFactoryContractInteractor()
+        val vfiPromises = VaultFactoryContractInteractorPromises()
+        val vaultFactoryContractInteractor = VaultFactoryContractInteractor(vfiPromises)
         val sdk = SafeChannels(interactorsFactory, vaultFactoryContractInteractor, storage)
         val keypair = sdk.createKeypair()
         assertEquals(22, keypair.getAddress().length)
@@ -89,9 +92,18 @@ class IntegrationTestSafechannelsJS {
 
     @Test
     fun should_deploy_new_vault_via_factory_interactor() = runTest {
-        js("var VaultFactoryContractInteractor = require(\"js_foundation/src/js/VaultFactoryContractInteractor\");")
-        val vaultFactoryContractInteractor = VaultFactoryContractInteractor()
+        val credentials = object : IKredentials {
+            override fun getAddress(): EthereumAddress {
+                return ACCOUNT_ZERO
+            }
+        }
+        val vaultFactoryAddress = VaultFactoryContractInteractor.deployNewVaultFactory(credentials.getAddress(), ethNodeUrl)
+        val networkId = 1
+        val vaultFactoryContractInteractor = VaultFactoryContractInteractor.connect(credentials, vaultFactoryAddress, ethNodeUrl, networkId)
         val newGatekeeper = vaultFactoryContractInteractor.deployNewGatekeeper()
-        assertEquals(22, newGatekeeper.gatekeeper!!.length)
+        assertEquals(ACCOUNT_ZERO, newGatekeeper.sender.toLowerCase())
+        assertEquals(42, newGatekeeper.gatekeeper.length)
+        assertEquals(42, newGatekeeper.vault.length)
     }
+
 }

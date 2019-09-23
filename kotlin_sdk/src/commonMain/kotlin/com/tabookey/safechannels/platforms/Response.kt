@@ -1,9 +1,9 @@
 package com.tabookey.safechannels.platforms
 
 expect class Response{
-    var sender: String?
+    val sender: String
 
-    var gatekeeper: String?
+    val gatekeeper: String
 
-    var vault: String?
+    val vault: String
 }
