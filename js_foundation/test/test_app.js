@@ -109,9 +109,12 @@ context('VaultContractInteractor Integration Test', function () {
 
     context("creation of new vault by a vault factory interactor", function () {
         it("should deploy a new vault", async function () {
+            // Compares the return value of the 'deploy' function with the actual event in that block
             let deploymentResult = await factoryInteractor.deployNewGatekeeper();
-            assert.exists(deploymentResult.vault);
-            assert.exists(deploymentResult.gatekeeper);
+            let initialConfigEvent = await factoryInteractor.getVaultCreatedEvent({fromBlock: deploymentResult.blockNumber, toBlock: deploymentResult.blockNumber});
+            assert.equal(deploymentResult.vault, initialConfigEvent.vault);
+            assert.equal(deploymentResult.sender, initialConfigEvent.sender);
+            assert.equal(deploymentResult.gatekeeper, initialConfigEvent.gatekeeper);
         });
     });
 

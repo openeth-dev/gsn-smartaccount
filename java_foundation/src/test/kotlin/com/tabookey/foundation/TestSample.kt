@@ -5,6 +5,7 @@ import com.tabookey.duplicated.VaultParticipantTuple
 import com.tabookey.duplicated.VaultPermissions
 import com.tabookey.foundation.generated.Gatekeeper
 import com.tabookey.foundation.generated.VaultFactory
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.DisplayName
@@ -84,11 +85,13 @@ class TestSample {
             interactorsFactory = InteractorsFactory(web3j)
             vaultFactory = VaultFactory.deploy(web3j, deployCreds, gasProvider).send()
             factoryInteractor = interactorsFactory.interactorForVaultFactory(deployKredentials, vaultFactory.contractAddress)
-            val response = factoryInteractor.deployNewGatekeeper()
-            assertEquals(response.gatekeeper!!.length, 42)
-            gkAddress = response.gatekeeper!!
-            assertEquals(response.vault!!.length, 42)
-            vaultAddress = response.vault!!
+            runBlocking {
+                val response = factoryInteractor.deployNewGatekeeper()
+                assertEquals(response.gatekeeper.length, 42)
+                gkAddress = response.gatekeeper
+                assertEquals(response.vault.length, 42)
+                vaultAddress = response.vault
+            }
 
 //            val throws: Throwable = assertThrows("deployed the gatekeeper twice") {
 //                factoryInteractor.deployNewGatekeeper()
@@ -176,40 +179,42 @@ class TestSample {
     @Order(2)
     @DisplayName("should schedule change configuration - add admin")
     fun scheduleAddAdmin() {
-        val actionAddAdmin = ChangeType.ADD_PARTICIPANT.stringValue
-        val actions = listOf(actionAddAdmin)
-        val args = listOf(Numeric.hexStringToByteArray(admin2Hash))
-        val expectedNonce = owner1Interactor.stateNonce()
-        txHash = owner1Interactor.changeConfiguration(actions, args, expectedNonce)
+        runBlocking {
+            val actionAddAdmin = ChangeType.ADD_PARTICIPANT.stringValue
+            val actions = listOf(actionAddAdmin)
+            val args = listOf(Numeric.hexStringToByteArray(admin2Hash))
+            val expectedNonce = owner1Interactor.stateNonce()
+            txHash = owner1Interactor.changeConfiguration(actions, args, expectedNonce)
 //        val wtfe = Gatekeeper.staticGetWTFEvents(receipt)[0].encodedPacked
 //        println("wtfe: " + Numeric.toHexString(wtfe))
-        val event = owner1Interactor.getConfigPendingEvent(txHash)
-        val action = event.actions[0]
-        assertEquals(actions[0], action)
-        val arg = event.actionsArguments[0]
-        assertEquals(Numeric.toHexString(args[0]), Numeric.toHexString(arg))
+            val event = owner1Interactor.getConfigPendingEvent(txHash)
+            val action = event.actions[0]
+            assertEquals(actions[0], action)
+            val arg = event.actionsArguments[0]
+            assertEquals(Numeric.toHexString(args[0]), Numeric.toHexString(arg))
 
-        assertEquals(expectedNonce, event.stateId)
-        assertEquals(owner1PermsLevel, event.senderPermsLevel)
-        assertEquals(owner1Creds.address, event.sender)
-        val actionWeb3jType = TypeDecoder.instantiateType("uint8[]", actions)
-        val argsWeb3jType = TypeDecoder.instantiateType("bytes32[]", args)
-        val expectedNonceWeb3jType = TypeDecoder.instantiateType("uint256", expectedNonce)
-        val ownerAddressWeb3jType = TypeDecoder.instantiateType("address", owner1Creds.address)
-        val ownerPermsLevelWeb3jType = TypeDecoder.instantiateType("uint16", owner1PermsLevel)
-        val boosterAddressWeb3jType = TypeDecoder.instantiateType("address", zeroAddress)
-        val boosterPermsLevelWeb3jType = TypeDecoder.instantiateType("uint16", "0")
+            assertEquals(expectedNonce, event.stateId)
+            assertEquals(owner1PermsLevel, event.senderPermsLevel)
+            assertEquals(owner1Creds.address, event.sender)
+            val actionWeb3jType = TypeDecoder.instantiateType("uint8[]", actions)
+            val argsWeb3jType = TypeDecoder.instantiateType("bytes32[]", args)
+            val expectedNonceWeb3jType = TypeDecoder.instantiateType("uint256", expectedNonce)
+            val ownerAddressWeb3jType = TypeDecoder.instantiateType("address", owner1Creds.address)
+            val ownerPermsLevelWeb3jType = TypeDecoder.instantiateType("uint16", owner1PermsLevel)
+            val boosterAddressWeb3jType = TypeDecoder.instantiateType("address", zeroAddress)
+            val boosterPermsLevelWeb3jType = TypeDecoder.instantiateType("uint16", "0")
 
-        val parameters: List<Type<Any>> = listOf(actionWeb3jType, argsWeb3jType, expectedNonceWeb3jType, ownerAddressWeb3jType, ownerPermsLevelWeb3jType, boosterAddressWeb3jType, boosterPermsLevelWeb3jType)
+            val parameters: List<Type<Any>> = listOf(actionWeb3jType, argsWeb3jType, expectedNonceWeb3jType, ownerAddressWeb3jType, ownerPermsLevelWeb3jType, boosterAddressWeb3jType, boosterPermsLevelWeb3jType)
 
-        val dataToHash = encodePacked(parameters)
-        val scheduledTxHash = Hash.sha3(dataToHash)
+            val dataToHash = encodePacked(parameters)
+            val scheduledTxHash = Hash.sha3(dataToHash)
 //        println("wtfa: " + Numeric.prependHexPrefix(dataToHash))
 //        println("actions: " + actions[0])
 //        println("args: " + args[0])
 //        println("expectedNonce: " + expectedNonce)
 //        println("owner1PermsLevel: " + Numeric.toHexString(owner1PermsLevel.toByteArray()))
-        assertEquals(Numeric.prependHexPrefix(scheduledTxHash), Numeric.toHexString(event.transactionHash))
+            assertEquals(Numeric.prependHexPrefix(scheduledTxHash), Numeric.toHexString(event.transactionHash))
+        }
     }
 
     @Test
@@ -307,11 +312,13 @@ class TestSample {
     @Order(8)
     @DisplayName("should unfreeze")
     fun unfreeze() {
-        val actionUnfreeze = ChangeType.UNFREEZE.stringValue
-        val actions = listOf(actionUnfreeze)
-        val args = listOf(Numeric.hexStringToByteArray(admin2Hash))
-        val expectedNonce = owner1Interactor.stateNonce()
-        txHash = owner1Interactor.changeConfiguration(actions, args, expectedNonce)
+        runBlocking {
+            val actionUnfreeze = ChangeType.UNFREEZE.stringValue
+            val actions = listOf(actionUnfreeze)
+            val args = listOf(Numeric.hexStringToByteArray(admin2Hash))
+            val expectedNonce = owner1Interactor.stateNonce()
+            txHash = owner1Interactor.changeConfiguration(actions, args, expectedNonce)
+        }
     }
 
     @Test
