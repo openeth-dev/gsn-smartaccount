@@ -2,3 +2,5 @@
 *
 # Except this file
 !.gitignore
+# NPM package rules
+!.npmignore
