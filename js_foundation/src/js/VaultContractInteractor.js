@@ -17,6 +17,7 @@ const TransactionCompletedEvent = require("./events/TransactionCompletedEvent");
 const TransactionPendingEvent = require("./events/TransactionPendingEvent");
 
 const TransactionReceipt = require("./TransactionReceipt");
+const Utils = require('./Utils');
 
 const safeChannelUtils = require("../../../solidity/src/js/SafeChannelUtils");
 
@@ -54,7 +55,6 @@ class VaultContractInteractor {
      * @param ethNodeUrl
      * @param gatekeeperAddress
      * @param vaultAddress
-     * @param vaultFactoryAddress
      * @returns {VaultContractInteractor}
      */
     static async connect(account, permissions, level, ethNodeUrl, gatekeeperAddress, vaultAddress) {
@@ -239,7 +239,7 @@ class VaultContractInteractor {
         }
         if (!this.initialConfigEvent) {
             let allBlocksEver = {fromBlock: 0, toBlock: 'latest'};
-            let initialConfigEvents = await this._getEvents(this.gatekeeper, gatekeeperInitializedEvent, allBlocksEver, GatekeeperInitializedEvent);
+            let initialConfigEvents = await Utils.getEvents(this.gatekeeper, gatekeeperInitializedEvent, allBlocksEver, GatekeeperInitializedEvent);
             if (initialConfigEvents.length === 0) {
                 return null;
             }
@@ -254,52 +254,52 @@ class VaultContractInteractor {
 
 
     async getParticipantAddedEvents(options) {
-        return await this._getEvents(this.gatekeeper, participantAddedEvent, options, ParticipantAddedEvent);
+        return await Utils.getEvents(this.gatekeeper, participantAddedEvent, options, ParticipantAddedEvent);
     }
 
     async getParticipantRemovedEvents(options) {
-        return await this._getEvents(this.gatekeeper, participantRemovedEvent, options, ParticipantRemovedEvent);
+        return await Utils.getEvents(this.gatekeeper, participantRemovedEvent, options, ParticipantRemovedEvent);
     }
 
     async getOwnerChangedEvents(options) {
-        return await this._getEvents(this.gatekeeper, ownerChangedEvent, options, OwnerChangedEvent);
+        return await Utils.getEvents(this.gatekeeper, ownerChangedEvent, options, OwnerChangedEvent);
     }
 
     async getLevelFrozenEvents(options) {
-        return await this._getEvents(this.gatekeeper, levelFrozenEvent, options, LevelFrozenEvent);
+        return await Utils.getEvents(this.gatekeeper, levelFrozenEvent, options, LevelFrozenEvent);
     }
 
     async getUnfreezeCompletedEvents(options) {
-        return await this._getEvents(this.gatekeeper, unfreezeCompletedEvent, options, UnfreezeCompletedEvent);
+        return await Utils.getEvents(this.gatekeeper, unfreezeCompletedEvent, options, UnfreezeCompletedEvent);
     }
 
     async getDelayedOperationsEvents(options) {
-        return await this._getEvents(this.gatekeeper, delayedOperationEvent, options, DelayedOperationEvent);
+        return await Utils.getEvents(this.gatekeeper, delayedOperationEvent, options, DelayedOperationEvent);
     }
 
     async getDelayedOperationsEventsForVault(options) {
-        return await this._getEvents(this.vault, delayedOperationEvent, options, DelayedOperationEvent);
+        return await Utils.getEvents(this.vault, delayedOperationEvent, options, DelayedOperationEvent);
     }
 
     async getDelayedOperationsCancelledEvents(options) {
-        return await this._getEvents(this.gatekeeper, delayedOperationCancelledEvent, options, DelayedOperationCancelledEvent);
+        return await Utils.getEvents(this.gatekeeper, delayedOperationCancelledEvent, options, DelayedOperationCancelledEvent);
     }
 
     async getDelayedOperationsCancelledEventsForVault(options) {
-        return await this._getEvents(this.vault, delayedOperationCancelledEvent, options, DelayedOperationCancelledEvent);
+        return await Utils.getEvents(this.vault, delayedOperationCancelledEvent, options, DelayedOperationCancelledEvent);
     }
 
     async getDelayedOperationsCompleteEvents(options) {
-        return await this._getEvents(this.gatekeeper, delayedOperationCompleteEvent, options, DelayedOperationComplete);
+        return await Utils.getEvents(this.gatekeeper, delayedOperationCompleteEvent, options, DelayedOperationComplete);
     }
 
     // TODO: Do we need this event? Maybe could use the one from DelayedOps
     async getTransactionCompletedEvents(options) {
-        return await this._getEvents(this.vault, transactionCompletedEvent, options, TransactionCompletedEvent);
+        return await Utils.getEvents(this.vault, transactionCompletedEvent, options, TransactionCompletedEvent);
     }
 
     async getTransactionPendingEvents(options) {
-        return await this._getEvents(this.vault, transactionPendingEvent, options, TransactionPendingEvent);
+        return await Utils.getEvents(this.vault, transactionPendingEvent, options, TransactionPendingEvent);
     }
 
 
@@ -376,12 +376,7 @@ class VaultContractInteractor {
         };
     }
 
-    async _getEvents(contract, eventName, options, constructor) {
-        let events = await contract.getPastEvents(eventName, options || this._getAllBlocksSinceVault());
-        return events.map(e => {
-            return new constructor(e);
-        })
-    }
+
 
 }
 

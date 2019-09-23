@@ -20,10 +20,6 @@ open class VaultFactoryContractInteractor(
         val vaultCreatedEvents = vaultFactory.getVaultCreatedEvents(receipt)
         assert(vaultCreatedEvents.size == 1)
         val event = vaultCreatedEvents[0]
-        val res = Response()
-        res.gatekeeper = event.gatekeeper
-        res.vault = event.vault
-        res.sender = event.sender
-        return res
+        return Response(receipt.transactionHash, event.sender, event.gatekeeper, event.vault)
     }
 }

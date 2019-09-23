@@ -1,12 +1,19 @@
 const TruffleContract = require("truffle-contract");
 const Web3 = require('web3');
 
+const Utils = require('./Utils');
+
 const VaultFactoryABI = require('./generated/VaultFactory');
+
+const VaultCreatedEvent = require('./events/VaultCreatedEvent');
 
 let VaultFactoryContract = TruffleContract({
     contractName: "VaultFactory",
     abi: VaultFactoryABI
 });
+
+const vaultCreatedEvent = "VaultCreated";
+
 
 class VaultFactoryContractInteractor {
 
@@ -36,12 +43,15 @@ class VaultFactoryContractInteractor {
         // TODO: figure out what is wrong with 'estimate gas'.
         //  Works for Truffle test, fails in Mocha test, doesn't give a "out of gas" in console;
         let receipt = await this.vaultFactory.newVault({from: this.credentials.getAddress(), gas: 0x6691b7});
-        let vaultAddress = receipt.logs[0].args.vault;
-        let gatekeeperAddress = receipt.logs[0].args.gatekeeper;
-        return {
-            vault: vaultAddress,
-            gatekeeper: gatekeeperAddress
-        };
+        return new VaultCreatedEvent(receipt.logs[0]);
+    }
+
+    async getVaultCreatedEvent(options) {
+        let events = await Utils.getEvents(this.vaultFactory, vaultCreatedEvent, options, VaultCreatedEvent);
+        if(events.length !== 1){
+            throw new Error("Invalid vault created events array size");
+        }
+        return events[0];
     }
 }
 
