@@ -4,7 +4,6 @@ import com.tabookey.duplicated.EthereumAddress
 import com.tabookey.duplicated.IKredentials
 import kotlin.js.Promise
 
-@JsName("VaultFactoryContractInteractor")
 external class VaultFactoryContractInteractorPromises {
     suspend fun deployNewGatekeeper(): Promise<Response>
 

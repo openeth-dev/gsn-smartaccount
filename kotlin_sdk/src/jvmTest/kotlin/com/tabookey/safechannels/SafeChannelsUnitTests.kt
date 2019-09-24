@@ -84,14 +84,14 @@ class SafeChannelsUnitTests {
     @Test
     fun `should create a new vault and save it in the storage`() {
         // There are no vaults in the SDK
-        var allVaults = sdk.listAllVaults()
+        var allVaults = sdk.getAllVaults()
         assertEquals(0, allVaults.size)
         verify(storage, never()).putVaultState(any())
         val kredentials = sdk.createKeypair()
         val vaultConfigBuilder = sdk.vaultConfigBuilder(kredentials.getAddress())
         verify(storage, times(1)).putVaultState(any())
         // One vault was created
-        allVaults = sdk.listAllVaults()
+        allVaults = sdk.getAllVaults()
         assertEquals(1, allVaults.size)
         val localChanges = vaultConfigBuilder.getVaultLocalState().localChanges
         assertEquals(1, localChanges.size)
@@ -100,7 +100,7 @@ class SafeChannelsUnitTests {
         // The data is accessible from a new object that holds the same storage instance
         // TODO: need to replace the in-memory storage with something file-based. In-memory one keeps references to objects so this is not testing much.
         val tempSdk = SafeChannels(interactorsFactory, vaultFactoryContractInteractor, storage)
-        val tempLocalChanges = tempSdk.listAllVaults()[0].getVaultLocalState().localChanges
+        val tempLocalChanges = tempSdk.getAllVaults()[0].getVaultLocalState().localChanges
         assertEquals(1, tempLocalChanges.size)
         assertEquals(LocalChangeType.INITIALIZE, tempLocalChanges[0].changeType)
     }
@@ -144,7 +144,7 @@ class SafeChannelsUnitTests {
         vaultConfigBuilder.addParticipant(participant, adminPermissions)
         // TODO: maybe it should not allow creation of new builder if no account is created
 
-        val localChanges = sdk.listAllVaults()[0].getVaultLocalState().localChanges
+        val localChanges = sdk.getAllVaults()[0].getVaultLocalState().localChanges
         assertEquals(2, localChanges.size)
 
         val initializeChange = localChanges[0] as InitializeVaultChange
@@ -164,7 +164,7 @@ class SafeChannelsUnitTests {
         // TODO: more advanced configurations! :-)
         val deployedVault = vaultConfigBuilder.deployVault()
 
-        val allVaults = sdk.listAllVaults()
+        val allVaults = sdk.getAllVaults()
         assertEquals(1, allVaults.size)
         assertEquals(allVaults[0].vaultState.id, deployedVault.vaultState.id)
 
