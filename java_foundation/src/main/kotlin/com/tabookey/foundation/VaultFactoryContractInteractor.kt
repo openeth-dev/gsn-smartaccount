@@ -1,5 +1,7 @@
 package com.tabookey.foundation
 
+import com.tabookey.duplicated.EthereumAddress
+import com.tabookey.duplicated.IKredentials
 import com.tabookey.foundation.generated.VaultFactory
 import org.web3j.crypto.Credentials
 import org.web3j.protocol.Web3j
@@ -10,6 +12,16 @@ open class VaultFactoryContractInteractor(
         private val vaultFactoryAddress: String,
         private val web3j: Web3j,
         private val credentials: Credentials) {
+
+    companion object{
+        suspend fun connect(credentials: IKredentials, vaultFactoryAddress: String, ethNodeUrl: String, networkId: Int): VaultFactoryContractInteractor
+        {
+            TODO()
+        }
+        suspend fun deployNewVaultFactory(from: EthereumAddress, ethNodeUrl: String): String{
+            TODO()
+        }
+    }
 
 
     private var provider: EstimatedGasProvider = EstimatedGasProvider(web3j, DefaultGasProvider.GAS_PRICE, DefaultGasProvider.GAS_LIMIT)
