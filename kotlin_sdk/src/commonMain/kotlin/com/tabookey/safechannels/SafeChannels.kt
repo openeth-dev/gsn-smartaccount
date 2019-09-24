@@ -69,8 +69,9 @@ class SafeChannels(
 
     /**
      * Well, this returns a collection that mixes types. Not perfect.
+     * Also! Should only construct an interactor for a
      */
-    fun listAllVaults(): List<SharedVaultInterface> {
+    suspend fun getAllVaults(): List<SharedVaultInterface> {
         val allVaultsStates = storage.getAllVaultsStates()
         return allVaultsStates.map { vaultState ->
             if (vaultState.isDeployed) {

@@ -52,8 +52,8 @@ class VaultConfigBuilder(
         val kreds = storage.getAllOwnedAccounts().first { it.getAddress() == vaultState.activeParticipant.address }
         val interactor = interactorsFactory.interactorForVault(
                 kreds,
-                deploymentResult.vault!!,
-                deploymentResult.gatekeeper!!,
+                deploymentResult.vault,
+                deploymentResult.gatekeeper,
                 participant)
         return DeployedVault(interactor, storage, vaultState)
     }

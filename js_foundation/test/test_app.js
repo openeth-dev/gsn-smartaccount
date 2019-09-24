@@ -7,8 +7,8 @@ const TruffleContract = require("truffle-contract");
 const safeChannelUtils = require("../../solidity/src/js/SafeChannelUtils");
 const Participant = require("../../solidity/src/js/Participant");
 
-const Interactor = require("../src/js/VaultContractInteractor.js");
-const FactoryInteractor = require("../src/js/VaultFactoryContractInteractor.js");
+const Interactor = require("../src/js/VaultContractInteractorWithPromises.js");
+const FactoryInteractor = require("../src/js/VaultFactoryContractInteractorPromises.js");
 const ParticipantAddedEvent = require("../src/js/events/ParticipantAddedEvent");
 const ParticipantRemovedEvent = require("../src/js/events/ParticipantRemovedEvent");
 const OwnerChangedEvent = require("../src/js/events/OwnerChangedEvent");

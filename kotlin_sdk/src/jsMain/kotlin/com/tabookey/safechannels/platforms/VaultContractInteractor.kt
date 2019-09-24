@@ -1,6 +1,8 @@
 package com.tabookey.safechannels.platforms
 
 import com.tabookey.duplicated.ConfigPendingEventResponse
+import com.tabookey.duplicated.EthereumAddress
+import com.tabookey.duplicated.IKredentials
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
@@ -10,7 +12,8 @@ suspend fun <T> Promise<T>.await(): T = suspendCoroutine { cont ->
     then({ cont.resume(it) }, { cont.resumeWithException(it) })
 }
 
-actual class VaultContractInteractor(private val nativeInteractor: VaultContractInteractorWithPromises) {
+actual class VaultContractInteractor internal constructor(private val nativeInteractor: VaultContractInteractorWithPromises) {
+
     actual suspend fun changeConfiguration(actions: List<String>, args: List<ByteArray>, expectedNonce: String): String {
         val changeConfiguration = nativeInteractor.changeConfiguration(emptyList(), emptyList(), "")
         return changeConfiguration.await()

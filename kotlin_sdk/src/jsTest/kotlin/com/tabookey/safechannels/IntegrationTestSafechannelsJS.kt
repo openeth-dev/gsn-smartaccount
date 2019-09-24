@@ -4,8 +4,6 @@ import com.tabookey.duplicated.EthereumAddress
 import com.tabookey.duplicated.IKredentials
 import com.tabookey.safechannels.addressbook.SafechannelContact
 import com.tabookey.safechannels.platforms.InteractorsFactory
-import com.tabookey.safechannels.platforms.VaultFactoryContractInteractor
-import com.tabookey.safechannels.platforms.VaultFactoryContractInteractorPromises
 import com.tabookey.safechannels.vault.VaultState
 import com.tabookey.safechannels.vault.VaultStorageInterface
 import kotlin.test.Test
@@ -19,9 +17,25 @@ import kotlin.test.assertTrue
 class IntegrationTestSafechannelsJS {
 
     companion object {
+        init {
+            js("var VaultFactoryContractInteractor = require(\"js_foundation/src/js/VaultFactoryContractInteractorPromises\");")
+        }
+
         const val ACCOUNT_ZERO = "0x90f8bf6a479f320ead074411a4b0e7944ea8c9c1"
     }
+
     var ethNodeUrl = "http://localhost:8545"
+    val interactorsFactory = InteractorsFactory(ethNodeUrl, 1)
+
+    suspend fun networkId(): Int {
+        return 1
+    }
+
+    val kreds = object : IKredentials {
+        override fun getAddress(): EthereumAddress {
+            return ACCOUNT_ZERO
+        }
+    }
 
     @Test
     fun testHello() {
@@ -30,15 +44,10 @@ class IntegrationTestSafechannelsJS {
 
     val storage = object : VaultStorageInterface {
         override fun getAllOwnedAccounts(): List<IKredentials> {
-            TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+            return listOf(kreds)
         }
 
         override fun generateKeypair(): IKredentials {
-            val kreds = object : IKredentials {
-                override fun getAddress(): EthereumAddress {
-                    return "0x12345678901234567890"
-                }
-            }
             return kreds
         }
 
@@ -47,7 +56,7 @@ class IntegrationTestSafechannelsJS {
         }
 
         override fun putVaultState(vault: VaultState): Int {
-            TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+            return 0
         }
 
         override fun putAddressBookEntry(contact: SafechannelContact) {
@@ -73,6 +82,21 @@ class IntegrationTestSafechannelsJS {
     }
 
     /**
+     * This is not as much a test as a 'beforeAll' part here, because the SDK (I believe) should not have a
+     * factory deployment API. So this 'test' belongs to the js-foundation tests.
+     * Here, what is needed to construct an SDK instance is a newly deployed gatekeeper address.
+     */
+    @Test
+    fun should_deploy_new_vault_via_factory_interactor() = runTest {
+        val vaultFactoryAddress = interactorsFactory.deployNewVaultFactory(kreds.getAddress())
+        val vaultFactoryContractInteractor = interactorsFactory.interactorForVaultFactory(kreds, vaultFactoryAddress)
+        val newGatekeeper = vaultFactoryContractInteractor.deployNewGatekeeper()
+        assertEquals(ACCOUNT_ZERO, newGatekeeper.sender.toLowerCase())
+        assertEquals(42, newGatekeeper.gatekeeper.length)
+        assertEquals(42, newGatekeeper.vault.length)
+    }
+
+    /**
      * Normally, the SDK will be called from within the pure JavaScript and therefore there is no need to have
      * a Kotlin version of the 'require' statements;
      * The problem with these tests is that they are run directly by Gradle/Mocha,
@@ -80,30 +104,24 @@ class IntegrationTestSafechannelsJS {
      * The 'js' method will inject whatever you put in there directly to the corresponding generated JavaSctipt code.
      */
     @Test
-    fun should_construct_sdk_and_keypair_correctly() {
-        js("var VaultFactoryContractInteractor = require(\"js_foundation/src/js/VaultFactoryContractInteractor\");")
-        val interactorsFactory = InteractorsFactory()
-        val vfiPromises = VaultFactoryContractInteractorPromises()
-        val vaultFactoryContractInteractor = VaultFactoryContractInteractor(vfiPromises)
-        val sdk = SafeChannels(interactorsFactory, vaultFactoryContractInteractor, storage)
+    fun should_construct_sdk_and_keypair_correctly() = runTest {
+        val sdk = newSafeChannels()
         val keypair = sdk.createKeypair()
-        assertEquals(22, keypair.getAddress().length)
+        assertEquals(42, keypair.getAddress().length)
+    }
+
+    private suspend fun newSafeChannels(): SafeChannels {
+        val vaultFactoryAddress = interactorsFactory.deployNewVaultFactory(kreds.getAddress())
+        val vaultFactoryContractInteractor = interactorsFactory.interactorForVaultFactory(kreds, vaultFactoryAddress)
+        return SafeChannels(interactorsFactory, vaultFactoryContractInteractor, storage)
     }
 
     @Test
-    fun should_deploy_new_vault_via_factory_interactor() = runTest {
-        val credentials = object : IKredentials {
-            override fun getAddress(): EthereumAddress {
-                return ACCOUNT_ZERO
-            }
-        }
-        val vaultFactoryAddress = VaultFactoryContractInteractor.deployNewVaultFactory(credentials.getAddress(), ethNodeUrl)
-        val networkId = 1
-        val vaultFactoryContractInteractor = VaultFactoryContractInteractor.connect(credentials, vaultFactoryAddress, ethNodeUrl, networkId)
-        val newGatekeeper = vaultFactoryContractInteractor.deployNewGatekeeper()
-        assertEquals(ACCOUNT_ZERO, newGatekeeper.sender.toLowerCase())
-        assertEquals(42, newGatekeeper.gatekeeper.length)
-        assertEquals(42, newGatekeeper.vault.length)
+    fun should_schedule_add_participant_NPE_IS_OK() = runTest {
+        val sdk = newSafeChannels()
+        val vault = sdk.vaultConfigBuilder(kreds.getAddress()).deployVault()
+        assertEquals(22, vault.vaultState.address!!.length)
+        assertEquals(22, vault.vaultState.gatekeeperAddress!!.length)
     }
 
 }
