@@ -18,7 +18,6 @@ import org.junit.Before
 import org.junit.Ignore
 import org.mockito.ArgumentMatchers.anyString
 import org.web3j.crypto.Credentials
-import java.nio.charset.Charset
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFails
@@ -53,7 +52,7 @@ class SafeChannelsUnitTests {
         vaultFactoryContractInteractor = mock {
             on {
                 runBlocking { deployNewGatekeeper() }
-            } doReturn Response("hi", "", "")
+            } doReturn Response("hi", "", "", "")
 
         }
 
@@ -213,16 +212,14 @@ class SafeChannelsUnitTests {
         whenever(
                 interactor.getPendingChangeDueTime(any())
         ).thenReturn(dueTime)
-        runBlocking {
-            // Check that SDK returns expected data correctly
-            val pendingChange = deployedVault.commitLocalChanges(anyStateId)
-            assertEquals("0x_scheduled_tx_hash", pendingChange.transaction.hash)
-            assertEquals(dueTime, pendingChange.dueTime)
-            assertEquals(anyStateId, pendingChange.event.stateId)
+        // Check that SDK returns expected data correctly
+        val pendingChange = deployedVault.commitLocalChanges(anyStateId)
+        assertEquals("0x_scheduled_tx_hash", pendingChange.transaction.hash)
+        assertEquals(dueTime, pendingChange.dueTime)
+        assertEquals(anyStateId, pendingChange.event.stateId)
 
-            changes = deployedVault.getVaultLocalState().localChanges
-            assertEquals(0, changes.size, "committing local changes does not clean up the state")
-        }
+        changes = deployedVault.getVaultLocalState().localChanges
+        assertEquals(0, changes.size, "committing local changes does not clean up the state")
     }
 
     @Ignore

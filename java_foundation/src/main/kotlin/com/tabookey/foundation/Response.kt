@@ -1,8 +1,8 @@
 package com.tabookey.foundation
 
 class Response (
-    var txHash: String,
-    var sender: String,
-    var gatekeeper: String,
-    var vault: String
+    val txHash: String,
+    val sender: String,
+    val gatekeeper: String,
+    val vault: String
 )
