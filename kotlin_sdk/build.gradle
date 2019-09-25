@@ -43,12 +43,14 @@ kotlin {
     }
 
     def coroutinesVersion = "1.3.0-M2"
+    def klockVersion = "1.7.3"
 
     sourceSets {
         commonMain {
             dependencies {
                 implementation "org.jetbrains.kotlin:kotlin-reflect:1.3.31" //used in Log implementation
                 implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core-common:$coroutinesVersion"
+                implementation "com.soywiz.korlibs.klock:klock:$klockVersion"
                 implementation kotlin('stdlib-common')
                 implementation("com.ionspin.kotlin:bignum:0.0.9")
             }

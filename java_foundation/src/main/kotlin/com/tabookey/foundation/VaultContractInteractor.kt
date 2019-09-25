@@ -187,13 +187,17 @@ open class VaultContractInteractor(
     //        address booster, uint16 boosterPermsLevel,
     //        uint16 senderPermsLevel) public {
 
-    fun applyConfig(actions: List<String>,
-                    args: List<ByteArray>,
-                    expectedNonce: String,
-                    schedulerAddress: String,
-                    schedulerPermsLevel: String,
-                    boosterAddress: String,
-                    boosterPermsLevel: String): String {
+    suspend fun applyPendingConfigurationChange(scheduleEventResponse: ConfigPendingEventResponse): String{
+        TODO("merge this and that")
+    }
+
+    fun applyPendingConfigurationChange(actions: List<String>,
+                                        args: List<ByteArray>,
+                                        expectedNonce: String,
+                                        schedulerAddress: String,
+                                        schedulerPermsLevel: String,
+                                        boosterAddress: String,
+                                        boosterPermsLevel: String): String {
         val actionsBigInteger: List<BigInteger> = actions.map { it.toBigInteger(if (Numeric.containsHexPrefix(it)) 16 else 10) }
 //        val argsByteArray: List<ByteArray> = args.map { Numeric.hexStringToByteArray(it) }
         val expectedNonceBigInteger = expectedNonce.toBigInteger(if (Numeric.containsHexPrefix(expectedNonce)) 16 else 10)

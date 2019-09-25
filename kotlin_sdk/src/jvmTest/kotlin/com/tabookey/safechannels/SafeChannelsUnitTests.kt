@@ -4,6 +4,8 @@ import com.nhaarman.mockitokotlin2.*
 import com.tabookey.duplicated.ConfigPendingEventResponse
 import com.tabookey.duplicated.VaultParticipantTuple
 import com.tabookey.duplicated.VaultPermissions
+import com.tabookey.duplicated.VaultPermissions.Companion.ADMIN_PERMISSIONS
+import com.tabookey.safechannels.vault.localchanges.LocalChangeType.*
 import com.tabookey.foundation.InteractorsFactory
 import com.tabookey.foundation.Response
 import com.tabookey.foundation.VaultContractInteractor
@@ -33,6 +35,8 @@ class SafeChannelsUnitTests {
     private val anyVault = "0x1116153c06e857cd7f72665e0af1d7d82172f494"
     private val anyGatekeeper = "0x2226153c06e857cd7f72665e0af1d7d82172f494"
     private val anyStateId = "777"
+
+    private val anyDueTime = (System.currentTimeMillis() + 2_000_000).toString()
 
     private lateinit var vaultFactoryContractInteractor: VaultFactoryContractInteractor
     private lateinit var interactor: VaultContractInteractor
@@ -151,11 +155,11 @@ class SafeChannelsUnitTests {
         assertEquals(2, localChanges.size)
 
         val initializeChange = localChanges[0] as InitializeVaultChange
-        assertEquals(LocalChangeType.INITIALIZE, initializeChange.changeType)
+        assertEquals(INITIALIZE, initializeChange.changeType)
         assertEquals(kredentials.getAddress(), initializeChange.participant)
 
         val addParticipantChange = localChanges[1] as AddParticipantChange
-        assertEquals(LocalChangeType.ADD_PARTICIPANT, addParticipantChange.changeType)
+        assertEquals(ADD_PARTICIPANT, addParticipantChange.changeType)
         assertEquals(anyAddress, addParticipantChange.participant)
         assertEquals(adminPermissions, addParticipantChange.permissions)
     }
@@ -186,32 +190,7 @@ class SafeChannelsUnitTests {
         return vaultConfigBuilder.deployVault()
     }
 
-    // As operator:
-    @Test
-    fun `should schedule, commit and wait for a config change (adding participant to existing vault)`() = runTest {
-        val deployedVault = quickDeployVault()
-        reset(storage) // ignore method calls on a spy storage before the interesting part of the test
-        // First, create a local change request to add a participant
-        val participantAddress = anyAddress
-        val permissions = VaultPermissions.ADMIN_PERMISSIONS
-        val addedChange = deployedVault.addParticipant(participantAddress, permissions)
-        assertEquals(
-                LocalChangeType.ADD_PARTICIPANT,
-                addedChange.changeType,
-                "does not return the correct change object")
-        val localState = deployedVault.getVaultLocalState()
-        // Check that the correct vault state was passed the storage
-        verify(storage, times(1)).putVaultState(localState)
-        var changes = localState.localChanges
-        assertEquals(1, changes.size, "local state does not contain the change")
-
-        val expectedChange = changes[0] as AddParticipantChange
-        assertEquals(LocalChangeType.ADD_PARTICIPANT, expectedChange.changeType)
-        assertEquals(participantAddress, expectedChange.participant)
-
-        // Configure the mocks to return the expected values
-        val dueTime = "200"
-
+    private fun setMockGatekeeperSinglePendingConfig() {
         whenever(
                 interactor.getConfigPendingEvent(anyString())
         ).thenReturn(
@@ -219,11 +198,40 @@ class SafeChannelsUnitTests {
         )
         whenever(
                 interactor.getPendingChangeDueTime(any())
-        ).thenReturn(dueTime)
+        ).thenReturn(anyDueTime)
+    }
+
+    // As operator:
+    @Test
+    fun `should schedule, commit and wait for a config change (adding participant to existing vault)`() = runTest {
+        val deployedVault = quickDeployVault()
+        // ignore method calls on a spy storage before the interesting part of the test
+        reset(storage)
+
+        // First, create a local change request to add a participant
+        val addedChange = deployedVault.addParticipant(anyAddress, ADMIN_PERMISSIONS)
+        assertEquals(
+                ADD_PARTICIPANT,
+                addedChange.changeType,
+                "does not return the correct change object")
+        val localState = deployedVault.getVaultLocalState()
+
+        // Check that the correct vault state was passed the storage
+        verify(storage, times(1)).putVaultState(localState)
+
+        var changes = localState.localChanges
+        assertEquals(1, changes.size, "local state does not contain the change")
+
+        val expectedChange = changes[0] as AddParticipantChange
+        assertEquals(ADD_PARTICIPANT, expectedChange.changeType)
+        assertEquals(anyAddress, expectedChange.participant)
+
+        setMockGatekeeperSinglePendingConfig()
+
         // Check that SDK returns expected data correctly
         val pendingChange = deployedVault.commitLocalChanges(anyStateId)
         assertEquals("0x_scheduled_tx_hash", pendingChange.transaction.hash)
-        assertEquals(dueTime, pendingChange.dueTime)
+        assertEquals(anyDueTime, pendingChange.dueTime)
         assertEquals(anyStateId, pendingChange.event.stateId)
 
         changes = deployedVault.getVaultLocalState().localChanges
@@ -232,8 +240,17 @@ class SafeChannelsUnitTests {
 
     @Ignore
     @Test
-    fun `should refuse to apply a change that is not yet due`() {
+    fun `should refuse to apply a change that is not yet due`() = runTest {
+        val vault = quickDeployVault()
+        vault.addParticipant(anyAddress, ADMIN_PERMISSIONS)
+        val pendingChange = vault.commitLocalChanges(anyStateId)
 
+        val throwable = assertFails {
+            runBlocking {
+                vault.applyPendingChange(pendingChange)
+            }
+        }
+        assertEquals("Unknown account passed as owner", throwable.message)
     }
 
     @Ignore

@@ -1,8 +1,6 @@
 package com.tabookey.safechannels.platforms
 
 import com.tabookey.duplicated.ConfigPendingEventResponse
-import com.tabookey.duplicated.EthereumAddress
-import com.tabookey.duplicated.IKredentials
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
@@ -28,6 +26,10 @@ actual class VaultContractInteractor internal constructor(private val nativeInte
     }
 
     actual fun getPendingChangeDueTime(configChangeHash: ByteArray): String {
+        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+    }
+
+    actual suspend fun applyPendingConfigurationChange(scheduleEventResponse: ConfigPendingEventResponse): String {
         TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
     }
 }
