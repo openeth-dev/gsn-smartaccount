@@ -14,7 +14,7 @@ import com.tabookey.safechannels.vault.*
  */
 class SafeChannels(
         private val interactorsFactory: InteractorsFactory,
-        private val vaultFactoryContractInteractor: VaultFactoryContractInteractor,
+        private val vaultFactoryContractInteractor: VaultFactoryContractInteractor, // TODO: should not take it as a parameter!!!
         private val storage: VaultStorageInterface
 ) {
 

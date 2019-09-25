@@ -1,5 +1,6 @@
 package com.tabookey.safechannels.vault
 
+import com.soywiz.klock.DateTime
 import com.tabookey.safechannels.blockchain.BlockchainTransaction
 import com.tabookey.safechannels.platforms.VaultContractInteractor
 import com.tabookey.safechannels.vault.localchanges.EtherTransferChange
@@ -142,5 +143,12 @@ class DeployedVault(
 
     fun getConfigurationHistory(): List<HistoryEntry> {
         TODO()
+    }
+
+    suspend fun applyPendingChange(pendingChange: PendingChange) {
+        if (pendingChange.dueTime.toInt() > DateTime.now().milliseconds){
+            throw RuntimeException()
+        }
+        interactor.applyPendingConfigurationChange(pendingChange.event)
     }
 }

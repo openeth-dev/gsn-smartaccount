@@ -8,8 +8,11 @@
   "dependencies": {
     "chai": "^4.2.0",
     "chai-as-promised": "^7.1.1",
+    "ethereumjs-abi": "^0.6.8",
+    "ethereumjs-util": "^6.1.0",
     "truffle-artifactor": "^4.0.17",
-    "truffle-contract": "^4.0.18"
+    "truffle-contract": "^4.0.18",
+    "web3-utils": "^1.2.1"
   },
   "devDependencies": {
     "run-with-testrpc": "^0.3.1",
