@@ -1,5 +1,6 @@
 package com.tabookey.foundation
 
+import com.tabookey.duplicated.EthereumAddress
 import com.tabookey.duplicated.IKredentials
 import com.tabookey.duplicated.VaultParticipantTuple
 import org.web3j.protocol.Web3j
@@ -29,5 +30,10 @@ open class InteractorsFactory(
             return VaultContractInteractor(vaultAddress, gkAddress, web3j, credentials, participant)
         }
         throw RuntimeException("Alex, what the fuck are you doing!?")
+    }
+
+    // We may not eventually need it in the JVM Foundation, in fact.
+    suspend fun deployNewVaultFactory(from: EthereumAddress): String{
+        TODO()
     }
 }

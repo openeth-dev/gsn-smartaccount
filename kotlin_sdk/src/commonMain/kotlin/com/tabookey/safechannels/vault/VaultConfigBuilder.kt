@@ -46,6 +46,8 @@ class VaultConfigBuilder(
             }
         }
         vaultState.removeChangesStagedForRemoval()
+        vaultState.address = deploymentResult.vault
+        vaultState.gatekeeperAddress = deploymentResult.gatekeeper
 
         val participant = vaultState.activeParticipant
         // TODO: anything but this!!!

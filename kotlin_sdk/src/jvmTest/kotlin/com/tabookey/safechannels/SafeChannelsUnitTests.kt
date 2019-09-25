@@ -28,7 +28,10 @@ class SafeChannelsUnitTests {
     // Mockito does not know about Kotlin's nullable types
 //    private fun <T> any() = Mockito.any() as T
 
+    private val anyTxHash = "0x46784678486746783473567567d216153c06e857cd7f72665e0af1d7d82172f494"
     private val anyAddress = "0xd216153c06e857cd7f72665e0af1d7d82172f494"
+    private val anyVault = "0x1116153c06e857cd7f72665e0af1d7d82172f494"
+    private val anyGatekeeper = "0x2226153c06e857cd7f72665e0af1d7d82172f494"
     private val anyStateId = "777"
 
     private lateinit var vaultFactoryContractInteractor: VaultFactoryContractInteractor
@@ -52,7 +55,7 @@ class SafeChannelsUnitTests {
         vaultFactoryContractInteractor = mock {
             on {
                 runBlocking { deployNewGatekeeper() }
-            } doReturn Response("hi", "", "", "")
+            } doReturn Response(anyTxHash, anyAddress, anyGatekeeper, anyVault)
 
         }
 
@@ -82,7 +85,7 @@ class SafeChannelsUnitTests {
     }
 
     @Test
-    fun `should create a new vault and save it in the storage`() {
+    fun `should create a new vault and save it in the storage`() = runTest {
         // There are no vaults in the SDK
         var allVaults = sdk.getAllVaults()
         assertEquals(0, allVaults.size)
@@ -132,7 +135,7 @@ class SafeChannelsUnitTests {
     }
 
     @Test
-    fun `should allow to configure the vault before deploying it to the blockchain`() {
+    fun `should allow to configure the vault before deploying it to the blockchain`() = runTest {
         val kredentials = sdk.createKeypair()
         val vaultConfigBuilder = sdk.vaultConfigBuilder(kredentials.getAddress())
         val contact = SafechannelContact("guid, shmuid", "Contact One")
@@ -163,10 +166,15 @@ class SafeChannelsUnitTests {
         val vaultConfigBuilder = sdk.vaultConfigBuilder(kredentials.getAddress())
         // TODO: more advanced configurations! :-)
         val deployedVault = vaultConfigBuilder.deployVault()
+        assertEquals(anyVault, deployedVault.vaultState.address)
+        assertEquals(anyGatekeeper, deployedVault.vaultState.gatekeeperAddress)
 
         val allVaults = sdk.getAllVaults()
         assertEquals(1, allVaults.size)
         assertEquals(allVaults[0].vaultState.id, deployedVault.vaultState.id)
+
+        assertEquals(allVaults[0].vaultState.address, deployedVault.vaultState.address)
+        assertEquals(allVaults[0].vaultState.gatekeeperAddress, deployedVault.vaultState.gatekeeperAddress)
 
         val changes = deployedVault.getVaultLocalState().localChanges
         assertEquals(0, changes.size)
