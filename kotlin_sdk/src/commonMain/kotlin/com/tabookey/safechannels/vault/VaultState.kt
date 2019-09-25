@@ -16,8 +16,8 @@ class VaultState {
     var id: Int? = null
 
     lateinit var activeParticipant: VaultParticipantTuple
-    val address: String? = null
-    val gatekeeperAddress: String? = null
+    var address: String? = null
+    var gatekeeperAddress: String? = null
 
     private val _localChanges = ArrayList<LocalVaultChange>()
     private val _pendingChanges = ArrayList<PendingChange>()
