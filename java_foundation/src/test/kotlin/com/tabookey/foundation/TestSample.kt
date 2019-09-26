@@ -145,7 +145,7 @@ class TestSample {
         val initialConfigTxHash = owner1Interactor.initialConfig(owner1Interactor.vaultAddress()!!, initialParticipants, initialDelays)
         val event = owner1Interactor.getGatekeeperInitializedEvent(initialConfigTxHash)
         assert(event.vault == vaultAddress)
-        event.participants.forEachIndexed { i, it ->  assertEquals(Numeric.toHexString(it), initialParticipants[i])}
+        event.participants.forEachIndexed { i, it -> assertEquals(Numeric.toHexString(it), initialParticipants[i]) }
 
         assert(owner1Interactor.isParticipant(owner1Hash))
         assert(owner1Interactor.isParticipant(admin1Hash))
@@ -162,8 +162,8 @@ class TestSample {
             val actions = listOf(actionAddAdmin)
             val args = listOf(Numeric.hexStringToByteArray(admin2Hash))
             val expectedNonce = owner1Interactor.stateNonce()
-        addAdmin1TxHash = owner1Interactor.changeConfiguration(actions, args, expectedNonce)
-        val event = owner1Interactor.getConfigPendingEvent(addAdmin1TxHash)
+            addAdmin1TxHash = owner1Interactor.changeConfiguration(actions, args, expectedNonce)
+            val event = owner1Interactor.getConfigPendingEvent(addAdmin1TxHash)
             val action = event.actions[0]
             assertEquals(actions[0], action)
             val arg = event.actionsArguments[0]
@@ -193,13 +193,10 @@ class TestSample {
     @DisplayName("should revert on trying to apply change configuration too early")
     fun applyAddAdminBeforeTime() {
         val event = owner1Interactor.getConfigPendingEvent(addAdmin1TxHash)
-        val actions = event.actions
-        val args = event.actionsArguments
-        val expectedNonce = event.stateId
         val delay = owner1Interactor.delays(owner1Interactor.participant.level)
         increaseTime(delay.toLong() - 100, web3j)
         shouldThrow("revert apply called before due time") {
-            owner1Interactor.applyPendingConfigurationChange(actions, args, expectedNonce, owner1Creds.address, owner1PermsLevel, zeroAddress, "0")
+            runBlocking { owner1Interactor.applyPendingConfigurationChange(event) }
         }
     }
 
@@ -208,11 +205,8 @@ class TestSample {
     @DisplayName("should revert on trying to apply change configuration with incorrect hash")
     fun applyAddAdminWrongNonce() {
         val event = owner1Interactor.getConfigPendingEvent(addAdmin1TxHash)
-        val actions = event.actions
-        val args = event.actionsArguments
-        val expectedNonce = (event.stateId.toInt() - 1).toString()
         shouldThrow("revert apply called for non existent pending change") {
-            owner1Interactor.applyPendingConfigurationChange(actions, args, expectedNonce, owner1Creds.address, owner1PermsLevel, zeroAddress, "0")
+            runBlocking { owner1Interactor.applyPendingConfigurationChange(event) }
         }
     }
 
@@ -221,18 +215,13 @@ class TestSample {
     @DisplayName("should apply change configuration - add admin")
     fun applyAddAdmin() {
         val event = owner1Interactor.getConfigPendingEvent(addAdmin1TxHash)
-//        val actionAddAdmin = VaultContractInteractor.ChangeType.ADD_PARTICIPANT.stringValue
-        val actions = event.actions //listOf(actionAddAdmin)
-        val args = event.actionsArguments //listOf(admin2Hash)
-        val expectedNonce = event.stateId //(owner1Interactor.stateNonce().toInt() - 1).toString()
-//        val addAdmin1TxHash = owner1Interactor.changeConfiguration(actions, args, expectedNonce)
-//        val receipt = web3j.ethGetTransactionReceipt(addAdmin1TxHash).send().transactionReceipt.get()
         val delay = owner1Interactor.delays(owner1Interactor.participant.level)
         increaseTime(delay.toLong(), web3j)
-        val applyConfigTxHash = owner1Interactor.applyPendingConfigurationChange(actions, args, expectedNonce, owner1Creds.address, owner1PermsLevel, zeroAddress, "0")
-        val participantAddedEvent = owner1Interactor.getParticipantAddedEvent(applyConfigTxHash)
-//        assertEquals(Numeric.toHexString(participantAddedEvent.participant), Numeric.toHexString(event.actionsArguments[0]))
-        assert(participantAddedEvent.participant.contentEquals(event.actionsArguments[0]))
+        runBlocking {
+            val applyConfigTxHash = owner1Interactor.applyPendingConfigurationChange(event)
+            val participantAddedEvent = owner1Interactor.getParticipantAddedEvent(applyConfigTxHash)
+            assert(participantAddedEvent.participant.contentEquals(event.actionsArguments[0]))
+        }
     }
 
     @Test
@@ -244,13 +233,13 @@ class TestSample {
         val event = owner1Interactor.getConfigPendingEvent(addAdmin1TxHash)
 
         shouldThrow("revert apply called before due time") {
-            owner1Interactor.applyPendingConfigurationChange(event.actions, event.actionsArguments, event.stateId, event.sender, event.senderPermsLevel, event.booster, event.boosterPermsLevel)
+            runBlocking { owner1Interactor.applyPendingConfigurationChange(event) }
         }
         val cancelOperationTxHash = owner1Interactor.cancelOperation(event.actions, event.actionsArguments, event.stateId, event.sender, event.senderPermsLevel, event.booster, event.boosterPermsLevel)
         val configCancelledEvent = owner1Interactor.getConfigCancelledEvent(cancelOperationTxHash)
         assert(configCancelledEvent.transactionHash.contentEquals(event.transactionHash))
         shouldThrow("revert apply called for non existent pending change") {
-            owner1Interactor.applyPendingConfigurationChange(event.actions, event.actionsArguments, event.stateId, event.sender, event.senderPermsLevel, event.booster, event.boosterPermsLevel)
+            runBlocking { owner1Interactor.applyPendingConfigurationChange(event) }
         }
     }
 
@@ -299,16 +288,15 @@ class TestSample {
             val actions = listOf(actionUnfreeze)
             val args = listOf(Numeric.hexStringToByteArray(admin2Hash))
             val expectedNonce = owner1Interactor.stateNonce()
-        val changeConfigTxHash = owner1Interactor.changeConfiguration(actions, args, expectedNonce)
-        val configPendingEvent = owner1Interactor.getConfigPendingEvent(changeConfigTxHash)
-        assertEquals(configPendingEvent.actions[0], ChangeType.UNFREEZE.stringValue)
-        
-        val delay = owner1Interactor.delays(owner1Interactor.participant.level)
-        increaseTime(delay.toLong(), web3j)
-        val unfreezeTxHash  = owner1Interactor.applyPendingConfigurationChange(configPendingEvent.actions, configPendingEvent.actionsArguments, configPendingEvent.stateId
-                , configPendingEvent.sender, configPendingEvent.senderPermsLevel, configPendingEvent.booster, configPendingEvent.boosterPermsLevel)
-        owner1Interactor.getUnfreezeCompletedEventResponse(unfreezeTxHash)
-	}
+            val changeConfigTxHash = owner1Interactor.changeConfiguration(actions, args, expectedNonce)
+            val configPendingEvent = owner1Interactor.getConfigPendingEvent(changeConfigTxHash)
+            assertEquals(configPendingEvent.actions[0], ChangeType.UNFREEZE.stringValue)
+
+            val delay = owner1Interactor.delays(owner1Interactor.participant.level)
+            increaseTime(delay.toLong(), web3j)
+            val unfreezeTxHash = owner1Interactor.applyPendingConfigurationChange(configPendingEvent)
+            owner1Interactor.getUnfreezeCompletedEventResponse(unfreezeTxHash)
+        }
     }
 
     @Test
@@ -319,16 +307,16 @@ class TestSample {
         val event = owner1Interactor.getConfigPendingEvent(addAdmin1TxHash)
 
         shouldThrow("revert apply called before due time") {
-            owner1Interactor.applyPendingConfigurationChange(event.actions, event.actionsArguments, event.stateId, event.sender, event.senderPermsLevel, event.booster, event.boosterPermsLevel)
+            runBlocking { owner1Interactor.applyPendingConfigurationChange(event) }
         }
         owner1Interactor.freeze(1, dayInSec.toString())
         shouldThrow("revert level is frozen") {
-            owner1Interactor.applyPendingConfigurationChange(event.actions, event.actionsArguments, event.stateId, event.sender, event.senderPermsLevel, event.booster, event.boosterPermsLevel)
+            runBlocking {  owner1Interactor.applyPendingConfigurationChange(event)}
         }
         increaseTime(dayInSec.toLong() + 1, web3j)
         owner1Interactor.cancelOperation(event.actions, event.actionsArguments, event.stateId, event.sender, event.senderPermsLevel, event.booster, event.boosterPermsLevel)
         shouldThrow("revert apply called for non existent pending change") {
-            owner1Interactor.applyPendingConfigurationChange(event.actions, event.actionsArguments, event.stateId, event.sender, event.senderPermsLevel, event.booster, event.boosterPermsLevel)
+            runBlocking {  owner1Interactor.applyPendingConfigurationChange(event) }
         }
 
     }
