@@ -1,6 +1,5 @@
 package com.tabookey.safechannels.vault
 
-import com.soywiz.klock.DateTime
 import com.tabookey.safechannels.blockchain.BlockchainTransaction
 import com.tabookey.safechannels.platforms.VaultContractInteractor
 import com.tabookey.safechannels.vault.localchanges.EtherTransferChange
@@ -145,10 +144,12 @@ class DeployedVault(
         TODO()
     }
 
-    suspend fun applyPendingChange(pendingChange: PendingChange) {
-        if (pendingChange.dueTime.toInt() > DateTime.now().milliseconds){
-            throw RuntimeException()
+    suspend fun applyPendingChange(pendingChange: PendingChange): BlockchainTransaction {
+        if (pendingChange.isDue){
+            throw RuntimeException("The change you are trying to apply is not past the delay period")
         }
-        interactor.applyPendingConfigurationChange(pendingChange.event)
+        val applyTxHash = interactor.applyPendingConfigurationChange(pendingChange.event)
+        return BlockchainTransaction(applyTxHash)
+
     }
 }

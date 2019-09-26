@@ -36,7 +36,8 @@ class SafeChannelsUnitTests {
     private val anyGatekeeper = "0x2226153c06e857cd7f72665e0af1d7d82172f494"
     private val anyStateId = "777"
 
-    private val anyDueTime = (System.currentTimeMillis() + 2_000_000).toString()
+    private val futureDueTime = (System.currentTimeMillis() + 2_000_000).toString()
+    private val pastDueTime = (System.currentTimeMillis() - 2_000_000).toString()
 
     private lateinit var vaultFactoryContractInteractor: VaultFactoryContractInteractor
     private lateinit var interactor: VaultContractInteractor
@@ -48,7 +49,7 @@ class SafeChannelsUnitTests {
     private val transactionChangeHash = ByteArray(10) { i -> return@ByteArray i.toByte() }
     private val configPendingEventResponse = ConfigPendingEventResponse(
             transactionChangeHash,
-            "", "", "", "",
+            anyAddress, "0x1234", "", "",
             anyStateId, mutableListOf(), mutableListOf()
     )
 
@@ -60,12 +61,16 @@ class SafeChannelsUnitTests {
             on {
                 runBlocking { deployNewGatekeeper() }
             } doReturn Response(anyTxHash, anyAddress, anyGatekeeper, anyVault)
-
         }
 
         interactor = mock {
 
             on { runBlocking { changeConfiguration(any(), any(), any()) } } doReturn "0x_scheduled_tx_hash"
+            on {
+                runBlocking {
+                    applyPendingConfigurationChange(any())
+                }
+            } doReturn "0x_apply_config_tx_hash"
         }
 
         interactorsFactory = mock {
@@ -190,7 +195,7 @@ class SafeChannelsUnitTests {
         return vaultConfigBuilder.deployVault()
     }
 
-    private fun setMockGatekeeperSinglePendingConfig() {
+    private fun setMockGatekeeperSinglePendingConfig(isDue: Boolean) {
         whenever(
                 interactor.getConfigPendingEvent(anyString())
         ).thenReturn(
@@ -198,7 +203,7 @@ class SafeChannelsUnitTests {
         )
         whenever(
                 interactor.getPendingChangeDueTime(any())
-        ).thenReturn(anyDueTime)
+        ).thenReturn(if (isDue) pastDueTime else futureDueTime)
     }
 
     // As operator:
@@ -226,23 +231,23 @@ class SafeChannelsUnitTests {
         assertEquals(ADD_PARTICIPANT, expectedChange.changeType)
         assertEquals(anyAddress, expectedChange.participant)
 
-        setMockGatekeeperSinglePendingConfig()
+        setMockGatekeeperSinglePendingConfig(false)
 
         // Check that SDK returns expected data correctly
         val pendingChange = deployedVault.commitLocalChanges(anyStateId)
         assertEquals("0x_scheduled_tx_hash", pendingChange.transaction.hash)
-        assertEquals(anyDueTime, pendingChange.dueTime)
+        assertEquals(futureDueTime, pendingChange.dueTime)
         assertEquals(anyStateId, pendingChange.event.stateId)
 
         changes = deployedVault.getVaultLocalState().localChanges
         assertEquals(0, changes.size, "committing local changes does not clean up the state")
     }
 
-    @Ignore
     @Test
     fun `should refuse to apply a change that is not yet due`() = runTest {
         val vault = quickDeployVault()
         vault.addParticipant(anyAddress, ADMIN_PERMISSIONS)
+        setMockGatekeeperSinglePendingConfig(false)
         val pendingChange = vault.commitLocalChanges(anyStateId)
 
         val throwable = assertFails {
@@ -250,12 +255,17 @@ class SafeChannelsUnitTests {
                 vault.applyPendingChange(pendingChange)
             }
         }
-        assertEquals("Unknown account passed as owner", throwable.message)
+        assertEquals("The change you are trying to apply is not past the delay period", throwable.message)
     }
 
-    @Ignore
     @Test
-    fun `should apply a change that is due`() {
+    fun `should apply a change that is due`() = runTest(){
+        val vault = quickDeployVault()
+        vault.addParticipant(anyAddress, ADMIN_PERMISSIONS)
+        setMockGatekeeperSinglePendingConfig(true)
+        val pendingChange = vault.commitLocalChanges(anyStateId)
+        val transaction = vault.applyPendingChange(pendingChange)
+        assertEquals("0x_apply_config_tx_hash", transaction.hash)
     }
 
     @Ignore
@@ -284,8 +294,7 @@ class SafeChannelsUnitTests {
 
         val dueTime = "200"
         whenever(interactor.sendEther(anyString(), anyString(), anyString(), anyString())).thenReturn("0xether_transfer_hash")
-        whenever(interactor.getConfigPendingEvent(anyString())).thenReturn(configPendingEventResponse)
-        whenever(interactor.getPendingChangeDueTime(any())).thenReturn(dueTime)
+        setMockGatekeeperSinglePendingConfig(false)
 
         val pendingChanges = deployedVault.commitLocalTransfers(anyStateId)
         assertEquals(1, pendingChanges.size)
