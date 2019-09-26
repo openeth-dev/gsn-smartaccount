@@ -29,7 +29,7 @@ actual class VaultContractInteractor internal constructor(private val nativeInte
         TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
     }
 
-    actual suspend fun applyPendingConfigurationChange(scheduleEventResponse: ConfigPendingEventResponse): String {
+    actual suspend fun applyPendingConfigurationChange(event: ConfigPendingEventResponse): String {
         TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
     }
 }
