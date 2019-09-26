@@ -9,7 +9,7 @@ expect class VaultContractInteractor {
             args: List<ByteArray>,
             expectedNonce: String): String
 
-    suspend fun applyPendingConfigurationChange(scheduleEventResponse: ConfigPendingEventResponse): String
+    suspend fun applyPendingConfigurationChange(event: ConfigPendingEventResponse): String
 
     fun sendEther(destination: String, value: String, delay: String, expectedNonce: String): String
 

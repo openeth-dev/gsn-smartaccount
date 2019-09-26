@@ -28,8 +28,7 @@ open class VaultContractInteractor(
         private val credentials: Credentials,
         val participant: VaultParticipantTuple) {
 
-    val permsLevel = participant.packPermissionLevel()
-
+    val permsLevel: String = participant.packPermissionLevel()
 
 
     private var provider: EstimatedGasProvider = EstimatedGasProvider(web3j, DefaultGasProvider.GAS_PRICE, DefaultGasProvider.GAS_LIMIT)
@@ -127,8 +126,8 @@ open class VaultContractInteractor(
     //    {
 
     open suspend fun changeConfiguration(actions: List<String>,
-                            args: List<ByteArray>,
-                            expectedNonce: String): String {
+                                         args: List<ByteArray>,
+                                         expectedNonce: String): String {
         val actionsBigInteger: List<BigInteger> = actions.map { it.toBigInteger(if (Numeric.containsHexPrefix(it)) 16 else 10) }
         val expectedNonceBigInteger = expectedNonce.toBigInteger(if (Numeric.containsHexPrefix(expectedNonce)) 16 else 10)
         val receipt = gk.changeConfiguration(
@@ -187,22 +186,13 @@ open class VaultContractInteractor(
     //        address booster, uint16 boosterPermsLevel,
     //        uint16 senderPermsLevel) public {
 
-    suspend fun applyPendingConfigurationChange(scheduleEventResponse: ConfigPendingEventResponse): String{
-        TODO("merge this and that")
-    }
-
-    fun applyPendingConfigurationChange(actions: List<String>,
-                                        args: List<ByteArray>,
-                                        expectedNonce: String,
-                                        schedulerAddress: String,
-                                        schedulerPermsLevel: String,
-                                        boosterAddress: String,
-                                        boosterPermsLevel: String): String {
-        val actionsBigInteger: List<BigInteger> = actions.map { it.toBigInteger(if (Numeric.containsHexPrefix(it)) 16 else 10) }
-//        val argsByteArray: List<ByteArray> = args.map { Numeric.hexStringToByteArray(it) }
-        val expectedNonceBigInteger = expectedNonce.toBigInteger(if (Numeric.containsHexPrefix(expectedNonce)) 16 else 10)
-        return gk.applyConfig(actionsBigInteger, args, expectedNonceBigInteger, schedulerAddress, Numeric.toBigInt(schedulerPermsLevel),
-                boosterAddress, Numeric.toBigInt(boosterPermsLevel), Numeric.toBigInt(this.permsLevel)).send().transactionHash
+    open suspend fun applyPendingConfigurationChange(event: ConfigPendingEventResponse): String {
+        val actionsBigInteger: List<BigInteger> = event.actions.map { it.toBigInteger(if (Numeric.containsHexPrefix(it)) 16 else 10) }
+        val expectedNonceBigInteger = event.stateId.toBigInteger(if (Numeric.containsHexPrefix(event.stateId)) 16 else 10)
+        val boosterPermsLevel = if (event.boosterPermsLevel.isNotEmpty()) Numeric.toBigInt(event.boosterPermsLevel) else BigInteger.ZERO
+        val send = gk.applyConfig(actionsBigInteger, event.actionsArguments, expectedNonceBigInteger, event.sender, Numeric.toBigInt(event.senderPermsLevel),
+                event.booster, boosterPermsLevel, Numeric.toBigInt(this.permsLevel)).send()
+        return send.transactionHash
     }
 
     //    function applyTransfer(uint256 delay, address payable destination, uint256 value, address token, uint256 nonce, uint16 senderPermsLevel)
