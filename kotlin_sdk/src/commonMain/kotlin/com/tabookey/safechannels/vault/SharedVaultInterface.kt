@@ -3,7 +3,6 @@ package com.tabookey.safechannels.vault
 import com.tabookey.duplicated.VaultPermissions
 import com.tabookey.safechannels.addressbook.AddressBookEntry
 import com.tabookey.safechannels.addressbook.EthereumAddress
-import com.tabookey.safechannels.vault.localchanges.AddParticipantChange
 import com.tabookey.safechannels.vault.localchanges.LocalVaultChange
 
 /**
