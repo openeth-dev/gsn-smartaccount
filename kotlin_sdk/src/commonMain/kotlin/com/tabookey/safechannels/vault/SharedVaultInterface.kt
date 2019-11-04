@@ -30,11 +30,11 @@ abstract class SharedVaultInterface(
         storage.putVaultState(vaultState)
     }
 
-    fun removeParticipant(participant: AddressBookEntry): VaultConfigBuilder {
+    fun removeParticipant(participant: AddressBookEntry): LocalVault {
         TODO()
     }
 
-    fun changeOwner(participant: AddressBookEntry): VaultConfigBuilder {
+    fun changeOwner(participant: AddressBookEntry): LocalVault {
         TODO()
         // also, in case of not deployed vault/participant, REMOVE and CHOWN are not ADDED TO LIST, but cancel-out the previous ones
     }

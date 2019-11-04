@@ -36,7 +36,8 @@ class VaultPermissions(private val integerRepresentation: Int) {
         }
     }
 
-    fun addPermission(permission: Permission): VaultPermissions {
+    fun copyAndMergePermissions(permission: Permission): VaultPermissions {
+        // TODO: have flag that disables this function. Contracts do not allow custom permissions.
         return VaultPermissions(integerRepresentation or permission.value)
     }
 
