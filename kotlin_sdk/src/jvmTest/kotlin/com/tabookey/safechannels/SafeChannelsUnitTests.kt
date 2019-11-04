@@ -1,94 +1,43 @@
 package com.tabookey.safechannels
 
 import com.nhaarman.mockitokotlin2.*
-import com.tabookey.duplicated.ConfigPendingEventResponse
 import com.tabookey.duplicated.VaultParticipantTuple
 import com.tabookey.duplicated.VaultPermissions
 import com.tabookey.duplicated.VaultPermissions.Companion.ADMIN_PERMISSIONS
-import com.tabookey.safechannels.vault.localchanges.LocalChangeType.*
-import com.tabookey.foundation.InteractorsFactory
-import com.tabookey.foundation.Response
-import com.tabookey.foundation.VaultContractInteractor
-import com.tabookey.foundation.VaultFactoryContractInteractor
 import com.tabookey.safechannels.addressbook.SafechannelContact
 import com.tabookey.safechannels.extensions.toHexString
 import com.tabookey.safechannels.vault.DeployedVault
-import com.tabookey.safechannels.vault.VaultStorageInterface
 import com.tabookey.safechannels.vault.localchanges.*
+import com.tabookey.safechannels.vault.localchanges.LocalChangeType.ADD_PARTICIPANT
+import com.tabookey.safechannels.vault.localchanges.LocalChangeType.INITIALIZE
 import kotlinx.coroutines.runBlocking
 import org.junit.Before
 import org.junit.Ignore
 import org.mockito.ArgumentMatchers.anyString
-import org.web3j.crypto.Credentials
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFails
 
 class SafeChannelsUnitTests {
 
-    // From: https://medium.com/@elye.project/befriending-kotlin-and-mockito-1c2e7b0ef791
-    // Mockito does not know about Kotlin's nullable types
-//    private fun <T> any() = Mockito.any() as T
-
-    private val anyTxHash = "0x46784678486746783473567567d216153c06e857cd7f72665e0af1d7d82172f494"
-    private val anyAddress = "0xd216153c06e857cd7f72665e0af1d7d82172f494"
-    private val anyVault = "0x1116153c06e857cd7f72665e0af1d7d82172f494"
-    private val anyGatekeeper = "0x2226153c06e857cd7f72665e0af1d7d82172f494"
-    private val anyStateId = "777"
-
-    private val futureDueTime = (System.currentTimeMillis() + 2_000_000).toString()
-    private val pastDueTime = (System.currentTimeMillis() - 2_000_000).toString()
-
-    private lateinit var vaultFactoryContractInteractor: VaultFactoryContractInteractor
-    private lateinit var interactor: VaultContractInteractor
-    private lateinit var storage: VaultStorageInterface
-    private lateinit var interactorsFactory: InteractorsFactory
+    private lateinit var env: SDKEnvironmentMock
     private lateinit var sdk: SafeChannels
-    private lateinit var credentials: Credentials
-
-    private val transactionChangeHash = ByteArray(10) { i -> return@ByteArray i.toByte() }
-    private val configPendingEventResponse = ConfigPendingEventResponse(
-            transactionChangeHash,
-            anyAddress, "0x1234", "", "",
-            anyStateId, mutableListOf(), mutableListOf()
-    )
 
     @Before
     fun before() {
-        storage = spy(InMemoryStorage())
-        credentials = mock()
-        vaultFactoryContractInteractor = mock {
-            on {
-                runBlocking { deployNewGatekeeper() }
-            } doReturn Response(anyTxHash, anyAddress, anyGatekeeper, anyVault)
-        }
-
-        interactor = mock {
-
-            on { runBlocking { changeConfiguration(any(), any(), any()) } } doReturn "0x_scheduled_tx_hash"
-            on {
-                runBlocking {
-                    applyPendingConfigurationChange(any())
-                }
-            } doReturn "0x_apply_config_tx_hash"
-        }
-
-        interactorsFactory = mock {
-            on { interactorForVault(any(), any(), any(), any()) } doReturn interactor
-        }
-        sdk = SafeChannels(interactorsFactory, vaultFactoryContractInteractor, storage)
+        env = SDKEnvironmentMock()
+        sdk = SafeChannels(env.interactorsFactory, env.anyAddress, env.storage)
     }
-
 
     @Test
     fun `should create a new keypair and store it`() {
         var ownedAccounts = sdk.listAllOwnedAccounts()
-        reset(storage)
+        reset(env.storage)
         assertEquals(0, ownedAccounts.size)
         val account = sdk.createKeypair()
-        verify(storage).generateKeypair()
+        verify(env.storage).generateKeypair()
         ownedAccounts = sdk.listAllOwnedAccounts()
-        verify(storage).getAllOwnedAccounts()
+        verify(env.storage).getAllOwnedAccounts()
         assertEquals(1, ownedAccounts.size)
         assertEquals(account.getAddress(), ownedAccounts[0].getAddress())
     }
@@ -98,23 +47,23 @@ class SafeChannelsUnitTests {
         // There are no vaults in the SDK
         var allVaults = sdk.getAllVaults()
         assertEquals(0, allVaults.size)
-        verify(storage, never()).putVaultState(any())
+        verify(env.storage, never()).putVaultState(any())
         val kredentials = sdk.createKeypair()
         val vaultConfigBuilder = sdk.vaultConfigBuilder(kredentials.getAddress())
-        verify(storage, times(1)).putVaultState(any())
+        verify(env.storage, times(1)).putVaultState(any())
         // One vault was created
         allVaults = sdk.getAllVaults()
         assertEquals(1, allVaults.size)
         val localChanges = vaultConfigBuilder.getVaultLocalState().localChanges
         assertEquals(1, localChanges.size)
-        assertEquals(LocalChangeType.INITIALIZE, localChanges[0].changeType)
+        assertEquals(INITIALIZE, localChanges[0].changeType)
 
         // The data is accessible from a new object that holds the same storage instance
         // TODO: need to replace the in-memory storage with something file-based. In-memory one keeps references to objects so this is not testing much.
-        val tempSdk = SafeChannels(interactorsFactory, vaultFactoryContractInteractor, storage)
+        val tempSdk = SafeChannels(env.interactorsFactory, env.anyAddress, env.storage)
         val tempLocalChanges = tempSdk.getAllVaults()[0].getVaultLocalState().localChanges
         assertEquals(1, tempLocalChanges.size)
-        assertEquals(LocalChangeType.INITIALIZE, tempLocalChanges[0].changeType)
+        assertEquals(INITIALIZE, tempLocalChanges[0].changeType)
     }
 
     @Test
@@ -128,9 +77,9 @@ class SafeChannelsUnitTests {
         val kredentials = sdk.createKeypair()
         val builder = sdk.vaultConfigBuilder(kredentials.getAddress())
         val contact = SafechannelContact("guid, shmuid", "Contact One")
-        contact.addParticipantTuple(builder.vaultState.id!!, VaultParticipantTuple(VaultPermissions.ADMIN_PERMISSIONS, 2, anyAddress))
+        contact.addParticipantTuple(builder.vaultState.id!!, VaultParticipantTuple(ADMIN_PERMISSIONS, 2, env.anyAddress))
         addressBook.addNewContact(contact)
-        verify(storage, times(1)).putAddressBookEntry(any())
+        verify(env.storage, times(1)).putAddressBookEntry(any())
         addresses = addressBook.getAllEntities()
         assertEquals(1, addresses.size)
     }
@@ -138,7 +87,7 @@ class SafeChannelsUnitTests {
     @Test
     fun `should not allow creation of the builder when no keypair exists`() {
         val throwable = assertFails {
-            sdk.vaultConfigBuilder(anyAddress)
+            sdk.vaultConfigBuilder(env.anyAddress)
         }
         assertEquals("Unknown account passed as owner", throwable.message)
     }
@@ -149,8 +98,8 @@ class SafeChannelsUnitTests {
         val vaultConfigBuilder = sdk.vaultConfigBuilder(kredentials.getAddress())
         val contact = SafechannelContact("guid, shmuid", "Contact One")
         val id = vaultConfigBuilder.vaultState.id
-        contact.addParticipantTuple(id!!, VaultParticipantTuple(VaultPermissions.ADMIN_PERMISSIONS, 2, anyAddress))
-        val adminPermissions = VaultPermissions.ADMIN_PERMISSIONS
+        contact.addParticipantTuple(id!!, VaultParticipantTuple(ADMIN_PERMISSIONS, 2, env.anyAddress))
+        val adminPermissions = ADMIN_PERMISSIONS
         adminPermissions.addPermission(VaultPermissions.Permission.canSpend) // Note: this should not work with the current contract
         val participant = contact.participantTuples[id]!![0].address
         vaultConfigBuilder.addParticipant(participant, adminPermissions)
@@ -165,7 +114,7 @@ class SafeChannelsUnitTests {
 
         val addParticipantChange = localChanges[1] as AddParticipantChange
         assertEquals(ADD_PARTICIPANT, addParticipantChange.changeType)
-        assertEquals(anyAddress, addParticipantChange.participant)
+        assertEquals(env.anyAddress, addParticipantChange.participant)
         assertEquals(adminPermissions, addParticipantChange.permissions)
     }
 
@@ -175,8 +124,8 @@ class SafeChannelsUnitTests {
         val vaultConfigBuilder = sdk.vaultConfigBuilder(kredentials.getAddress())
         // TODO: more advanced configurations! :-)
         val deployedVault = vaultConfigBuilder.deployVault()
-        assertEquals(anyVault, deployedVault.vaultState.address)
-        assertEquals(anyGatekeeper, deployedVault.vaultState.gatekeeperAddress)
+        assertEquals(env.anyVault, deployedVault.vaultState.address)
+        assertEquals(env.anyGatekeeper, deployedVault.vaultState.gatekeeperAddress)
 
         val allVaults = sdk.getAllVaults()
         assertEquals(1, allVaults.size)
@@ -195,26 +144,15 @@ class SafeChannelsUnitTests {
         return vaultConfigBuilder.deployVault()
     }
 
-    private fun setMockGatekeeperSinglePendingConfig(isDue: Boolean) {
-        whenever(
-                interactor.getConfigPendingEvent(anyString())
-        ).thenReturn(
-                configPendingEventResponse
-        )
-        whenever(
-                interactor.getPendingChangeDueTime(any())
-        ).thenReturn(if (isDue) pastDueTime else futureDueTime)
-    }
-
     // As operator:
     @Test
     fun `should schedule, commit and wait for a config change (adding participant to existing vault)`() = runTest {
         val deployedVault = quickDeployVault()
         // ignore method calls on a spy storage before the interesting part of the test
-        reset(storage)
+        reset(env.storage)
 
         // First, create a local change request to add a participant
-        val addedChange = deployedVault.addParticipant(anyAddress, ADMIN_PERMISSIONS)
+        val addedChange = deployedVault.addParticipant(env.anyAddress, ADMIN_PERMISSIONS)
         assertEquals(
                 ADD_PARTICIPANT,
                 addedChange.changeType,
@@ -222,22 +160,22 @@ class SafeChannelsUnitTests {
         val localState = deployedVault.getVaultLocalState()
 
         // Check that the correct vault state was passed the storage
-        verify(storage, times(1)).putVaultState(localState)
+        verify(env.storage, times(1)).putVaultState(localState)
 
         var changes = localState.localChanges
         assertEquals(1, changes.size, "local state does not contain the change")
 
         val expectedChange = changes[0] as AddParticipantChange
         assertEquals(ADD_PARTICIPANT, expectedChange.changeType)
-        assertEquals(anyAddress, expectedChange.participant)
+        assertEquals(env.anyAddress, expectedChange.participant)
 
-        setMockGatekeeperSinglePendingConfig(false)
+        env.configPendingEventOn()
 
         // Check that SDK returns expected data correctly
-        val pendingChange = deployedVault.commitLocalChanges(anyStateId)
+        val pendingChange = deployedVault.commitLocalChanges(env.anyStateId)
         assertEquals("0x_scheduled_tx_hash", pendingChange.transaction.hash)
-        assertEquals(futureDueTime, pendingChange.dueTime)
-        assertEquals(anyStateId, pendingChange.event.stateId)
+        assertEquals(env.futureDueTime, pendingChange.dueTime)
+        assertEquals(env.anyStateId, pendingChange.event.stateId)
 
         changes = deployedVault.getVaultLocalState().localChanges
         assertEquals(0, changes.size, "committing local changes does not clean up the state")
@@ -246,9 +184,9 @@ class SafeChannelsUnitTests {
     @Test
     fun `should refuse to apply a change that is not yet due`() = runTest {
         val vault = quickDeployVault()
-        vault.addParticipant(anyAddress, ADMIN_PERMISSIONS)
-        setMockGatekeeperSinglePendingConfig(false)
-        val pendingChange = vault.commitLocalChanges(anyStateId)
+        vault.addParticipant(env.anyAddress, ADMIN_PERMISSIONS)
+        env.configPendingEventOn()
+        val pendingChange = vault.commitLocalChanges(env.anyStateId)
 
         val throwable = assertFails {
             runBlocking {
@@ -259,11 +197,11 @@ class SafeChannelsUnitTests {
     }
 
     @Test
-    fun `should apply a change that is due`() = runTest(){
+    fun `should apply a change that is due`() = runTest {
         val vault = quickDeployVault()
-        vault.addParticipant(anyAddress, ADMIN_PERMISSIONS)
-        setMockGatekeeperSinglePendingConfig(true)
-        val pendingChange = vault.commitLocalChanges(anyStateId)
+        vault.addParticipant(env.anyAddress, ADMIN_PERMISSIONS)
+        env.configPendingEventOn(isDue = true)
+        val pendingChange = vault.commitLocalChanges(env.anyStateId)
         val transaction = vault.applyPendingChange(pendingChange)
         assertEquals("0x_apply_config_tx_hash", transaction.hash)
     }
@@ -283,7 +221,7 @@ class SafeChannelsUnitTests {
     fun `should schedule ether transfer`() = runTest {
         val deployedVault = quickDeployVault()
         val amountToTransfer = "1200000000000000000" // 1.2 ether
-        val destination = anyAddress
+        val destination = env.anyAddress
         val localChange = deployedVault.transferEth(amountToTransfer, destination)
         assertEquals(LocalChangeType.TRANSFER_ETH, localChange.changeType)
 
@@ -293,13 +231,13 @@ class SafeChannelsUnitTests {
         assertEquals(ETH_TOKEN_ADDRESS, change.token)
 
         val dueTime = "200"
-        whenever(interactor.sendEther(anyString(), anyString(), anyString(), anyString())).thenReturn("0xether_transfer_hash")
-        setMockGatekeeperSinglePendingConfig(false)
+        whenever(env.interactor.sendEther(anyString(), anyString(), anyString(), anyString())).thenReturn("0xether_transfer_hash")
+        env.configPendingEventOn()
 
-        val pendingChanges = deployedVault.commitLocalTransfers(anyStateId)
+        val pendingChanges = deployedVault.commitLocalTransfers(env.anyStateId)
         assertEquals(1, pendingChanges.size)
         val pendingChange = pendingChanges[0]
-        val expectedHashStr = transactionChangeHash.toHexString()
+        val expectedHashStr = env.transactionChangeHash.toHexString()
         val actualHashStr = pendingChange.event.transactionHash.toHexString()
         assertEquals(expectedHashStr, actualHashStr, "Transaction hash does not match")
     }

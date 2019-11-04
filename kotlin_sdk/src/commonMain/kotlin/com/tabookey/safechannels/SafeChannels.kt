@@ -5,16 +5,14 @@ import com.tabookey.duplicated.VaultPermissions
 import com.tabookey.safechannels.addressbook.AddressBook
 import com.tabookey.safechannels.addressbook.EthereumAddress
 import com.tabookey.safechannels.platforms.InteractorsFactory
-import com.tabookey.safechannels.platforms.VaultFactoryContractInteractor
 import com.tabookey.safechannels.vault.*
 
 /**
  * Clients will create an instance of SafeChannels and provide it with the platform-specific dependencies
- * @param vaultFactoryContractInteractor - is needed to instantiate new vaults
  */
 class SafeChannels(
         private val interactorsFactory: InteractorsFactory,
-        private val vaultFactoryContractInteractor: VaultFactoryContractInteractor, // TODO: should not take it as a parameter!!!
+        private val vaultFactoryAddress: EthereumAddress, // TODO: should not take it as a parameter!!!
         private val storage: VaultStorageInterface
 ) {
 
@@ -22,11 +20,9 @@ class SafeChannels(
 
     fun vaultConfigBuilder(owner: EthereumAddress): VaultConfigBuilder {
         val ownedAccounts = listAllOwnedAccounts()
-        if (!ownedAccounts.map { it.getAddress() }.contains(owner)) {
-            // I think the SDK should start without any accounts for safety reasons.
-            throw RuntimeException("Unknown account passed as owner")
-        }
-        val vaultConfigBuilder = VaultConfigBuilder(interactorsFactory, vaultFactoryContractInteractor, owner, storage, emptyList())
+        val kredentials = ownedAccounts.findLast { it.getAddress() == owner }
+                ?: throw RuntimeException("Unknown account passed as owner")
+        val vaultConfigBuilder = VaultConfigBuilder(interactorsFactory, vaultFactoryAddress, kredentials, storage, emptyList())
         val state = storage.putVaultState(vaultConfigBuilder.getVaultLocalState())
         vaultConfigBuilder.vaultState.id = state
         return vaultConfigBuilder
@@ -74,9 +70,9 @@ class SafeChannels(
     suspend fun getAllVaults(): List<SharedVaultInterface> {
         val allVaultsStates = storage.getAllVaultsStates()
         return allVaultsStates.map { vaultState ->
+            val kreds = storage.getAllOwnedAccounts().first { it.getAddress() == vaultState.activeParticipant.address }
             if (vaultState.isDeployed) {
                 // TODO: anything but this!!!
-                val kreds = storage.getAllOwnedAccounts().first { it.getAddress() == vaultState.activeParticipant.address }
                 val interactor = interactorsFactory.interactorForVault(
                         kreds,
                         vaultState.address!!,
@@ -84,7 +80,7 @@ class SafeChannels(
                         vaultState.activeParticipant)
                 DeployedVault(interactor, storage, vaultState)
             } else {
-                VaultConfigBuilder(interactorsFactory, vaultFactoryContractInteractor, storage, vaultState)
+                VaultConfigBuilder(interactorsFactory, vaultFactoryAddress, kreds, storage, vaultState)
             }
         }
     }

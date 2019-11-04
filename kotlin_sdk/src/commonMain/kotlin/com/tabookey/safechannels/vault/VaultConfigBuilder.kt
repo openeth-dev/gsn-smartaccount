@@ -1,9 +1,9 @@
 package com.tabookey.safechannels.vault
 
+import com.tabookey.duplicated.EthereumAddress
+import com.tabookey.duplicated.IKredentials
 import com.tabookey.duplicated.VaultParticipantTuple
 import com.tabookey.duplicated.VaultPermissions
-import com.tabookey.safechannels.platforms.VaultFactoryContractInteractor
-import com.tabookey.safechannels.addressbook.EthereumAddress
 import com.tabookey.safechannels.platforms.InteractorsFactory
 import com.tabookey.safechannels.vault.localchanges.LocalChangeType
 import com.tabookey.safechannels.vault.localchanges.LocalVaultChange
@@ -14,18 +14,20 @@ import com.tabookey.safechannels.vault.localchanges.LocalVaultChange
  */
 class VaultConfigBuilder(
         private val interactorsFactory: InteractorsFactory,
-        private val factoryContractInteractor: VaultFactoryContractInteractor,
+        private val vaultFactoryAddress: EthereumAddress,
+        private val kredentials: IKredentials,
         storage: VaultStorageInterface,
         vaultState: VaultState)
     : SharedVaultInterface(storage, vaultState) {
 
     constructor(
             interactorsFactory: InteractorsFactory,
-            factoryContractInteractor: VaultFactoryContractInteractor,
-            owner: EthereumAddress,
+            vaultFactoryAddress: EthereumAddress,
+            kredentials: IKredentials,
             storage: VaultStorageInterface,
-            initialDelays: List<Int>) : this(interactorsFactory, factoryContractInteractor, storage, VaultState()) {
+            initialDelays: List<Int>) : this(interactorsFactory, vaultFactoryAddress, kredentials, storage, VaultState()) {
 
+        val owner = kredentials.getAddress()
         vaultState.addLocalChange(LocalVaultChange.initialize(owner))
         vaultState.activeParticipant = VaultParticipantTuple(VaultPermissions.OWNER_PERMISSIONS, 1, owner)
     }
@@ -34,6 +36,7 @@ class VaultConfigBuilder(
      * Blocks for as the deployment time and then returns the [DeployedVault] instance with the correct initial config
      */
     suspend fun deployVault(): DeployedVault {
+        val factoryContractInteractor = interactorsFactory.interactorForVaultFactory(kredentials, vaultFactoryAddress)
         val deploymentResult = factoryContractInteractor.deployNewGatekeeper()
         // TODO: the state of the deployed vault should represent the desired config
         vaultState.localChanges.forEach {
@@ -50,12 +53,11 @@ class VaultConfigBuilder(
         vaultState.gatekeeperAddress = deploymentResult.gatekeeper
 
         val participant = vaultState.activeParticipant
-        // TODO: anything but this!!!
-        val kreds = storage.getAllOwnedAccounts().first { it.getAddress() == vaultState.activeParticipant.address }
         val interactor = interactorsFactory.interactorForVault(
-                kreds,
+                kredentials,
                 deploymentResult.vault,
                 deploymentResult.gatekeeper,
+                // TODO: anything but this:
                 participant)
         return DeployedVault(interactor, storage, vaultState)
     }
