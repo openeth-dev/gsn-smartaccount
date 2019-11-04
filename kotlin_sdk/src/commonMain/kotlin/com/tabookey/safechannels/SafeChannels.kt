@@ -12,17 +12,17 @@ import com.tabookey.safechannels.vault.*
  */
 class SafeChannels(
         private val interactorsFactory: InteractorsFactory,
-        private val vaultFactoryAddress: EthereumAddress, // TODO: should not take it as a parameter!!!
+        private val vaultFactoryAddress: EthereumAddress,
         private val storage: VaultStorageInterface
 ) {
 
     private val addressBook = AddressBook(storage)
 
-    fun vaultConfigBuilder(owner: EthereumAddress): VaultConfigBuilder {
+    fun vaultConfigBuilder(owner: EthereumAddress): LocalVault {
         val ownedAccounts = listAllOwnedAccounts()
         val kredentials = ownedAccounts.findLast { it.getAddress() == owner }
                 ?: throw RuntimeException("Unknown account passed as owner")
-        val vaultConfigBuilder = VaultConfigBuilder(interactorsFactory, vaultFactoryAddress, kredentials, storage, emptyList())
+        val vaultConfigBuilder = LocalVault(interactorsFactory, vaultFactoryAddress, kredentials, storage, emptyList())
         val state = storage.putVaultState(vaultConfigBuilder.getVaultLocalState())
         vaultConfigBuilder.vaultState.id = state
         return vaultConfigBuilder
@@ -80,7 +80,7 @@ class SafeChannels(
                         vaultState.activeParticipant)
                 DeployedVault(interactor, storage, vaultState)
             } else {
-                VaultConfigBuilder(interactorsFactory, vaultFactoryAddress, kreds, storage, vaultState)
+                LocalVault(interactorsFactory, vaultFactoryAddress, kreds, storage, vaultState)
             }
         }
     }

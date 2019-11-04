@@ -12,7 +12,7 @@ import com.tabookey.safechannels.vault.localchanges.LocalVaultChange
  * Class represents the local state of the Vault before it has been deployed.
  * It can be converted to the [DeployedVault] once by deploying it to the blockchain.
  */
-class VaultConfigBuilder(
+class LocalVault(
         private val interactorsFactory: InteractorsFactory,
         private val vaultFactoryAddress: EthereumAddress,
         private val kredentials: IKredentials,
@@ -33,7 +33,7 @@ class VaultConfigBuilder(
     }
 
     /**
-     * Blocks for as the deployment time and then returns the [DeployedVault] instance with the correct initial config
+     * Blocks for the deployment time and then returns the [DeployedVault] instance with the correct initial config
      */
     suspend fun deployVault(): DeployedVault {
         val factoryContractInteractor = interactorsFactory.interactorForVaultFactory(kredentials, vaultFactoryAddress)
