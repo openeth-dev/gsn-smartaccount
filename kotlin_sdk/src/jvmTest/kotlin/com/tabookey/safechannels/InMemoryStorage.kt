@@ -1,8 +1,8 @@
 package com.tabookey.safechannels
 
+import com.soywiz.klock.DateTime
 import com.tabookey.duplicated.IKredentials
 import com.tabookey.foundation.Kredentials
-import com.tabookey.safechannels.addressbook.AddressBookEntry
 import com.tabookey.safechannels.addressbook.SafechannelContact
 import com.tabookey.safechannels.vault.VaultState
 import com.tabookey.safechannels.vault.VaultStorageInterface
@@ -22,7 +22,6 @@ open class InMemoryStorage : VaultStorageInterface {
     private val addressBook = HashMap<String, SafechannelContact>()
 
     private var keypairsId = 0
-    private var vaultsStatesId = 0
     private var addressBookId = 0
 
     override fun putAddressBookEntry(contact: SafechannelContact) {
@@ -36,14 +35,8 @@ open class InMemoryStorage : VaultStorageInterface {
      * The state of the vault, both local and cached from blockchain, must be stored. Not the instance itself.
      * Note that [com.tabookey.safechannels.vault.SharedVaultInterface] adds the Vault's API method and 'wraps' the state.
      */
-    override fun putVaultState(vault: VaultState): Int {
-        val id = vault.id
-        if (id != null){
-            vaultsStates[id] = vault
-            return id
-        }
-        vaultsStates[vaultsStatesId] = vault
-        return vaultsStatesId++
+    override fun putVaultState(vaultState: VaultState) {
+        vaultsStates[vaultState.vaultId] = vaultState
     }
 
     override fun getAllVaultsStates(): List<VaultState> {
@@ -81,5 +74,9 @@ open class InMemoryStorage : VaultStorageInterface {
     }
 
     override fun putStuff() {
+    }
+
+    override fun getNextId(entity: VaultStorageInterface.Entity): Int {
+        return DateTime.now().unixMillisLong.toInt()
     }
 }

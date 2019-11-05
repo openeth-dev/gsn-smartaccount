@@ -12,17 +12,11 @@ import com.tabookey.safechannels.vault.localchanges.LocalVaultChange
  * @param vaultState - if there is something that is already known about this vault (cached or whatever), this data
  *                      should be passed in as a constructor parameter
  */
+// TODO: API to select a participant that can perform an operation (RUN-AS) if >1 is available (speak to Dror)
 class DeployedVault(
         private val interactor: VaultContractInteractor,
         storage: VaultStorageInterface,
-        // Not sure about this 'override val' crap. The idea was to have 'local state'
-        // and 'local vault' be superclasses to corresponding 'deployed state' and 'deployed vault',
-        // but seems over-engineered.
-        override val vaultState: VaultState) : SharedVaultInterface(storage, vaultState) {
-
-    fun getVaultState(): VaultState {
-        return vaultState
-    }
+        vaultState: VaultState) : SharedVaultInterface(storage, vaultState) {
 
     fun subscribeToVaultEvents(callback: (List<VaultEvent>) -> Unit) {
 
@@ -122,6 +116,7 @@ class DeployedVault(
         return readPendingChangeFormTxHash(txHash)
     }
 
+    // TODO: probably cannot do this because it is not mined yet. Construct a dummy instead and listen to blockchain.
     private fun readPendingChangeFormTxHash(txHash: String): PendingChange {
         val event = interactor.getConfigPendingEvent(txHash)
         val dueTime = interactor.getPendingChangeDueTime(event.transactionHash)
@@ -145,7 +140,7 @@ class DeployedVault(
     }
 
     suspend fun applyPendingChange(pendingChange: PendingChange): BlockchainTransaction {
-        if (pendingChange.isDue){
+        if (pendingChange.isDue) {
             throw RuntimeException("The change you are trying to apply is not past the delay period")
         }
         val applyTxHash = interactor.applyPendingConfigurationChange(pendingChange.event)

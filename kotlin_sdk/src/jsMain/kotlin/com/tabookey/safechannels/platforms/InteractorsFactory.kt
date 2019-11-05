@@ -2,12 +2,13 @@ package com.tabookey.safechannels.platforms
 
 import com.tabookey.duplicated.EthereumAddress
 import com.tabookey.duplicated.IKredentials
-import com.tabookey.duplicated.VaultParticipantTuple
+import com.tabookey.duplicated.VaultParticipant
 import kotlin.js.Promise
 
 // TODO: not create instances with kotlin, run constructors in JS instead.
 actual class InteractorsFactory(
         private val ethNodeUrl: String,
+        private val vaultFactoryAddress: EthereumAddress,
         private val networkId: Int) {
 
     companion object {
@@ -15,7 +16,7 @@ actual class InteractorsFactory(
         private const val REQUIRE_V_INTERACTOR_JS_CODE = "js_foundation/src/js/VaultContractInteractorWithPromises"
     }
 
-    actual fun interactorForVaultFactory(kredentials: IKredentials, vaultFactoryAddress: String): VaultFactoryContractInteractor {
+    actual fun interactorForVaultFactory(kredentials: IKredentials): VaultFactoryContractInteractor {
         val connect = require(REQUIRE_VF_INTERACTOR_JS_CODE).connect
         val nativeInteractor = connect(kredentials, vaultFactoryAddress, ethNodeUrl, networkId)
         @Suppress("UnsafeCastFromDynamic")
@@ -27,7 +28,7 @@ actual class InteractorsFactory(
             kredentials: IKredentials,
             vaultAddress: String,
             gkAddress: String,
-            participant: VaultParticipantTuple): VaultContractInteractor {
+            participant: VaultParticipant): VaultContractInteractor {
         val connect = require(REQUIRE_V_INTERACTOR_JS_CODE).connect
         val nativeInteractor = connect(kredentials,
                 participant.permissions.toString(),

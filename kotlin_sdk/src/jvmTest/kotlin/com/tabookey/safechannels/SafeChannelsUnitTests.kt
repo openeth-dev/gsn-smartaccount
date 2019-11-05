@@ -9,6 +9,6 @@ open class SafeChannelsUnitTests {
     @Before
     fun before() {
         env = SDKEnvironmentMock()
-        sdk = SafeChannels(env.interactorsFactory, env.anyAddress, env.storage)
+        sdk = SafeChannels(env.interactorsFactory, env.storage)
     }
 }

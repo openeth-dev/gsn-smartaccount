@@ -1,7 +1,7 @@
 package com.tabookey.safechannels.vault
 
+import com.tabookey.duplicated.VaultParticipant
 import com.tabookey.duplicated.VaultPermissions
-import com.tabookey.safechannels.addressbook.AddressBookEntry
 import com.tabookey.safechannels.addressbook.EthereumAddress
 import com.tabookey.safechannels.vault.localchanges.LocalVaultChange
 
@@ -12,11 +12,7 @@ import com.tabookey.safechannels.vault.localchanges.LocalVaultChange
  */
 abstract class SharedVaultInterface(
         internal val storage: VaultStorageInterface,
-        internal open val vaultState: VaultState) {
-
-    fun getVaultLocalState(): VaultState {
-        return vaultState
-    }
+        val vaultState: VaultState) {
 
     // all config tasks here, i.e. like this one
     fun addParticipant(participant: EthereumAddress, permissions: VaultPermissions): LocalVaultChange {
@@ -30,11 +26,11 @@ abstract class SharedVaultInterface(
         storage.putVaultState(vaultState)
     }
 
-    fun removeParticipant(participant: AddressBookEntry): LocalVault {
+    fun removeParticipant(participant: VaultParticipant): LocalVault {
         TODO()
     }
 
-    fun changeOwner(participant: AddressBookEntry): LocalVault {
+    fun changeOwner(participant: VaultParticipant): LocalVault {
         TODO()
         // also, in case of not deployed vault/participant, REMOVE and CHOWN are not ADDED TO LIST, but cancel-out the previous ones
     }
