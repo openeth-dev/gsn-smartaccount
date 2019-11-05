@@ -16,7 +16,7 @@ class AddressBook(private val storage: VaultStorageInterface) {
         TODO()
     }
 
-    fun getAllKnownERC721Tokens(): List<AddressBookEntry> { // As an example, not supported now by solidity
+    fun getAllKnownERC721Tokens(): List<EthereumAddress> { // As an example, not supported now by solidity
         TODO()
     }
 
@@ -28,11 +28,11 @@ class AddressBook(private val storage: VaultStorageInterface) {
         return
     }
 
-    fun deleteEntry(entry: AddressBookEntry) {
+    fun deleteEntry(entry: SafechannelContact) {
 
     }
 
-    fun editEntry(): AddressBookEntry {
+    fun editEntry(): SafechannelContact {
         TODO()
     }
 

@@ -12,6 +12,7 @@ import com.tabookey.safechannels.vault.localchanges.ETH_TOKEN_ADDRESS
 import com.tabookey.safechannels.vault.localchanges.EtherTransferChange
 import com.tabookey.safechannels.vault.localchanges.LocalChangeType
 import kotlinx.coroutines.runBlocking
+import org.junit.Before
 import org.junit.Ignore
 import org.mockito.ArgumentMatchers
 import kotlin.test.Test
@@ -20,16 +21,20 @@ import kotlin.test.assertFails
 
 class DeployedVaultUnitTests : SafeChannelsUnitTests() {
 
-    private suspend fun quickDeployVault(): DeployedVault {
+    private lateinit var deployedVault: DeployedVault
+
+    @Before
+    fun setUp() {
         val kredentials = sdk.createKeypair()
-        val vaultConfigBuilder = sdk.vaultConfigBuilder(kredentials.getAddress())
-        return vaultConfigBuilder.deployVault()
+        val vaultConfigBuilder = sdk.createLocalVault(kredentials.getAddress())
+        runBlocking {
+            deployedVault = vaultConfigBuilder.deployVault()
+        }
     }
 
     // As operator:
     @Test
     fun `should schedule, commit and wait for a config change (adding participant to existing vault)`() = runTest {
-        val deployedVault = quickDeployVault()
         // ignore method calls on a spy storage before the interesting part of the test
         reset(env.storage)
 
@@ -39,7 +44,7 @@ class DeployedVaultUnitTests : SafeChannelsUnitTests() {
                 LocalChangeType.ADD_PARTICIPANT,
                 addedChange.changeType,
                 "does not return the correct change object")
-        val localState = deployedVault.getVaultLocalState()
+        val localState = deployedVault.vaultState
 
         // Check that the correct vault state was passed the storage
         verify(env.storage, times(1)).putVaultState(localState)
@@ -59,20 +64,19 @@ class DeployedVaultUnitTests : SafeChannelsUnitTests() {
         assertEquals(env.futureDueTime, pendingChange.dueTime)
         assertEquals(env.anyStateId, pendingChange.event.stateId)
 
-        changes = deployedVault.getVaultLocalState().localChanges
+        changes = deployedVault.vaultState.localChanges
         assertEquals(0, changes.size, "committing local changes does not clean up the state")
     }
 
     @Test
     fun `should refuse to apply a change that is not yet due`() = runTest {
-        val vault = quickDeployVault()
-        vault.addParticipant(env.anyAddress, VaultPermissions.ADMIN_PERMISSIONS)
+        deployedVault.addParticipant(env.anyAddress, VaultPermissions.ADMIN_PERMISSIONS)
         env.configPendingEventOn()
-        val pendingChange = vault.commitLocalChanges(env.anyStateId)
+        val pendingChange = deployedVault.commitLocalChanges(env.anyStateId)
 
         val throwable = assertFails {
             runBlocking {
-                vault.applyPendingChange(pendingChange)
+                deployedVault.applyPendingChange(pendingChange)
             }
         }
         assertEquals("The change you are trying to apply is not past the delay period", throwable.message)
@@ -80,20 +84,36 @@ class DeployedVaultUnitTests : SafeChannelsUnitTests() {
 
     @Test
     fun `should apply a change that is due`() = runTest {
-        val vault = quickDeployVault()
-        vault.addParticipant(env.anyAddress, VaultPermissions.ADMIN_PERMISSIONS)
+        deployedVault.addParticipant(env.anyAddress, VaultPermissions.ADMIN_PERMISSIONS)
         env.configPendingEventOn(isDue = true)
-        val pendingChange = vault.commitLocalChanges(env.anyStateId)
-        val transaction = vault.applyPendingChange(pendingChange)
+        val pendingChange = deployedVault.commitLocalChanges(env.anyStateId)
+        val transaction = deployedVault.applyPendingChange(pendingChange)
         assertEquals("0x_apply_config_tx_hash", transaction.hash)
     }
 
-    @Ignore
     @Test
-    fun `should remove participant from existing vault`() {
+    fun `should add a participant to a deployed vault`() = runTest {
+        assertEquals(0, deployedVault.vaultState.knownParticipants.size, "New vault should not have any known participants")
+        assertEquals(0, deployedVault.vaultState.secretParticipants.size, "New vault should not have any unknown participants")
+
+        deployedVault.addParticipant(env.anyAddress, VaultPermissions.ADMIN_PERMISSIONS)
+        env.configPendingEventOn(isDue = true)
+        deployedVault.commitLocalChanges(env.anyStateId)
+
+        assertEquals(1, deployedVault.vaultState.knownParticipants.size, "Vault should have a known participant")
+        assertEquals(0, deployedVault.vaultState.secretParticipants.size, "Vault should not have any unknown participants")
     }
 
-    // Cannot return null because this is Kotlin (and it is good)
+    @Test
+    fun `should remove participant from existing vault`() {
+        val addressBook = sdk.getAddressBook()
+        // There are no entries in the address book
+        val addresses = addressBook.getAllEntities()
+        val safechannelContact = addresses[0]
+        val vaultParticipant = safechannelContact.participantTuples[0]!!.first()
+        deployedVault.removeParticipant(vaultParticipant)
+    }
+
     @Ignore
     @Test
     fun `should throw when trying to commit while not having local changes`() {
@@ -101,18 +121,16 @@ class DeployedVaultUnitTests : SafeChannelsUnitTests() {
 
     @Test
     fun `should schedule ether transfer`() = runTest {
-        val deployedVault = quickDeployVault()
         val amountToTransfer = "1200000000000000000" // 1.2 ether
         val destination = env.anyAddress
         val localChange = deployedVault.transferEth(amountToTransfer, destination)
         assertEquals(LocalChangeType.TRANSFER_ETH, localChange.changeType)
 
-        val change = deployedVault.getVaultLocalState().localChanges[0] as EtherTransferChange
+        val change = deployedVault.vaultState.localChanges[0] as EtherTransferChange
         assertEquals(amountToTransfer, change.amount)
         assertEquals(destination, change.destination)
         assertEquals(ETH_TOKEN_ADDRESS, change.token)
 
-        val dueTime = "200"
         whenever(env.interactor.sendEther(ArgumentMatchers.anyString(), ArgumentMatchers.anyString(), ArgumentMatchers.anyString(), ArgumentMatchers.anyString())).thenReturn("0xether_transfer_hash")
         env.configPendingEventOn()
 

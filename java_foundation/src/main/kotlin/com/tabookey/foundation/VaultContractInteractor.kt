@@ -8,7 +8,7 @@ import com.tabookey.duplicated.OwnerChangedEventResponse
 import com.tabookey.duplicated.ParticipantAddedEventResponse
 import com.tabookey.duplicated.ParticipantRemovedEventResponse
 import com.tabookey.duplicated.UnfreezeCompletedEventResponse
-import com.tabookey.duplicated.VaultParticipantTuple
+import com.tabookey.duplicated.VaultParticipant
 import com.tabookey.duplicated.VaultPermissions
 import com.tabookey.duplicated.WTFEventResponse
 import com.tabookey.foundation.generated.Gatekeeper
@@ -26,7 +26,7 @@ open class VaultContractInteractor(
         gkAddress: String,
         private val web3j: Web3j,
         private val credentials: Credentials,
-        val participant: VaultParticipantTuple) {
+        val participant: VaultParticipant) {
 
     val permsLevel: String = participant.packPermissionLevel()
 

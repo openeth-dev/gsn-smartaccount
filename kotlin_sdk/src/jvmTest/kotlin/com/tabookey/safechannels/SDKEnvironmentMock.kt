@@ -56,7 +56,7 @@ class SDKEnvironmentMock {
 
         interactorsFactory = mock {
             on { interactorForVault(any(), any(), any(), any()) } doReturn interactor
-            on { interactorForVaultFactory(any(), any()) } doReturn vaultFactoryContractInteractor
+            on { interactorForVaultFactory(any()) } doReturn vaultFactoryContractInteractor
         }
 
     }

@@ -1,5 +1,6 @@
 package com.tabookey.safechannels
 
+import com.tabookey.safechannels.vault.VaultStorageInterface.Entity.*
 import com.tabookey.duplicated.IKredentials
 import com.tabookey.duplicated.VaultPermissions
 import com.tabookey.safechannels.addressbook.AddressBook
@@ -8,24 +9,26 @@ import com.tabookey.safechannels.platforms.InteractorsFactory
 import com.tabookey.safechannels.vault.*
 
 /**
- * Clients will create an instance of SafeChannels and provide it with the platform-specific dependencies
+ * Wallet-dev will create an instance of SafeChannels and provide it with the platform-specific dependencies
  */
 class SafeChannels(
         private val interactorsFactory: InteractorsFactory,
-        private val vaultFactoryAddress: EthereumAddress,
         private val storage: VaultStorageInterface
 ) {
 
     private val addressBook = AddressBook(storage)
 
-    fun vaultConfigBuilder(owner: EthereumAddress): LocalVault {
+    private val localVaults = mutableListOf<LocalVault>()
+    private val deployedVaults = mutableListOf<DeployedVault>()
+
+    fun createLocalVault(owner: EthereumAddress): LocalVault {
         val ownedAccounts = listAllOwnedAccounts()
         val kredentials = ownedAccounts.findLast { it.getAddress() == owner }
                 ?: throw RuntimeException("Unknown account passed as owner")
-        val vaultConfigBuilder = LocalVault(interactorsFactory, vaultFactoryAddress, kredentials, storage, emptyList())
-        val state = storage.putVaultState(vaultConfigBuilder.getVaultLocalState())
-        vaultConfigBuilder.vaultState.id = state
-        return vaultConfigBuilder
+        val nextId = storage.getNextId(VAULT)
+        val localVault = LocalVault(nextId, interactorsFactory, kredentials, storage, emptyList())
+        localVaults.add(localVault)
+        return localVault
     }
 
     fun exportPrivateKey(): String {
@@ -67,7 +70,7 @@ class SafeChannels(
      * Well, this returns a collection that mixes types. Not perfect.
      * Also! Should only construct an interactor for a
      */
-    suspend fun getAllVaults(): List<SharedVaultInterface> {
+    fun loadAllVaultsFromStorage(): List<SharedVaultInterface> {
         val allVaultsStates = storage.getAllVaultsStates()
         return allVaultsStates.map { vaultState ->
             val kreds = storage.getAllOwnedAccounts().first { it.getAddress() == vaultState.activeParticipant.address }
@@ -80,7 +83,7 @@ class SafeChannels(
                         vaultState.activeParticipant)
                 DeployedVault(interactor, storage, vaultState)
             } else {
-                LocalVault(interactorsFactory, vaultFactoryAddress, kreds, storage, vaultState)
+                LocalVault(interactorsFactory, kreds, storage, vaultState)
             }
         }
     }
@@ -91,6 +94,12 @@ class SafeChannels(
 
     fun getAddressBook(): AddressBook {
         return addressBook
+    }
+
+    fun saveLocalState() {
+        localVaults.forEach {
+            storage.putVaultState(it.vaultState)
+        }
     }
 
 }

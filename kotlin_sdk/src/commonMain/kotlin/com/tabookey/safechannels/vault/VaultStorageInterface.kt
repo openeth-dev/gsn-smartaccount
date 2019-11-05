@@ -10,7 +10,7 @@ interface VaultStorageInterface {
     fun generateKeypair(): IKredentials
     fun sign(transactionHash: String, address: String): String
 
-    fun putVaultState(vault: VaultState): Int
+    fun putVaultState(vaultState: VaultState)
 
     fun putAddressBookEntry(contact: SafechannelContact)
 
@@ -21,5 +21,16 @@ interface VaultStorageInterface {
 
     fun getStuff()
     fun putStuff()
+
+    enum class Entity{
+        VAULT
+    }
+
+    /**
+     * I want objects to have sequential IDs within their type, but can be UUIDs as well.
+     * Cannot rely on database to generate them, as
+     * a) not guaranteed to be SQL and b) objects created long before they are stored
+     */
+    fun getNextId(entity: Entity): Int
 
 }

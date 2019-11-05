@@ -119,7 +119,7 @@ class IntegrationTestSafechannelsJS {
     @Test
     fun should_schedule_add_participant() = runTest {
         val sdk = newSafeChannels()
-        val vault = sdk.vaultConfigBuilder(kreds.getAddress()).deployVault()
+        val vault = sdk.createLocalVault(kreds.getAddress()).deployVault()
         assertEquals(42, vault.vaultState.address!!.length)
         assertEquals(42, vault.vaultState.gatekeeperAddress!!.length)
     }

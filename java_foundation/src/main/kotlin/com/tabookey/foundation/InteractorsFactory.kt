@@ -2,15 +2,15 @@ package com.tabookey.foundation
 
 import com.tabookey.duplicated.EthereumAddress
 import com.tabookey.duplicated.IKredentials
-import com.tabookey.duplicated.VaultParticipantTuple
+import com.tabookey.duplicated.VaultParticipant
 import org.web3j.protocol.Web3j
 
 open class InteractorsFactory(
+        private val vaultFactoryAddress: EthereumAddress,
         private val web3j: Web3j) {
 
     open fun interactorForVaultFactory(
-            kredentials: IKredentials,
-            vaultFactoryAddress: String
+            kredentials: IKredentials
     ): VaultFactoryContractInteractor {
 
         if (kredentials is Kredentials) {
@@ -24,7 +24,7 @@ open class InteractorsFactory(
             kredentials: IKredentials,
             vaultAddress: String,
             gkAddress: String,
-            participant: VaultParticipantTuple): VaultContractInteractor {
+            participant: VaultParticipant): VaultContractInteractor {
         if (kredentials is Kredentials) {
             val credentials = kredentials.getCredentials()
             return VaultContractInteractor(vaultAddress, gkAddress, web3j, credentials, participant)
