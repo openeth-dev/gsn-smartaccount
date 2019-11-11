@@ -8,7 +8,10 @@ class VaultParticipant(
         val level: Int,
         val address: EthereumAddress) {
 
-    fun packPermissionLevel(): String {
-        return VaultPermissions.packPermissionLevel(permissions, level)
-    }
+    val participantHash: String = address + "_hashME" + permissionLevel // TODO: I had this hash method somewhere
+
+    val permissionLevel: String
+        get() {
+            return VaultPermissions.packPermissionLevel(permissions, level)
+        }
 }

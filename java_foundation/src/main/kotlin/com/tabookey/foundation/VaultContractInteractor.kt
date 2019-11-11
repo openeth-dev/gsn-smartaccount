@@ -1,16 +1,6 @@
 package com.tabookey.foundation
 
-import com.tabookey.duplicated.ConfigCancelledEventResponse
-import com.tabookey.duplicated.ConfigPendingEventResponse
-import com.tabookey.duplicated.GatekeeperInitializedEventResponse
-import com.tabookey.duplicated.LevelFrozenEventResponse
-import com.tabookey.duplicated.OwnerChangedEventResponse
-import com.tabookey.duplicated.ParticipantAddedEventResponse
-import com.tabookey.duplicated.ParticipantRemovedEventResponse
-import com.tabookey.duplicated.UnfreezeCompletedEventResponse
-import com.tabookey.duplicated.VaultParticipant
-import com.tabookey.duplicated.VaultPermissions
-import com.tabookey.duplicated.WTFEventResponse
+import com.tabookey.duplicated.*
 import com.tabookey.foundation.generated.Gatekeeper
 import com.tabookey.foundation.generated.Vault
 import org.web3j.crypto.Credentials
@@ -262,63 +252,67 @@ open class VaultContractInteractor(
         val receipt = web3j.ethGetTransactionReceipt(txHash).send().transactionReceipt.get()
         val events = Gatekeeper.staticGetConfigPendingEvents(receipt)
         assert(events.size == 1)
-        return ConfigPendingEventResponse(events[0].transactionHash, events[0].sender, events[0].senderPermsLevel.toString(16), events[0].booster, events[0].boosterPermsLevel.toString(16), events[0].stateId.toString(), events[0].actions.map { it.toString() }.toMutableList(), events[0].actionsArguments)
+        return ConfigPendingEventResponse(receipt.transactionHash, events[0].transactionHash, events[0].sender, events[0].senderPermsLevel.toString(16), events[0].booster, events[0].boosterPermsLevel.toString(16), events[0].stateId.toString(), events[0].actions.map { it.toString() }.toMutableList(), events[0].actionsArguments)
     }
 
     fun getConfigCancelledEvent(txHash: String): ConfigCancelledEventResponse {
         val receipt = web3j.ethGetTransactionReceipt(txHash).send().transactionReceipt.get()
         val events = Gatekeeper.staticGetConfigCancelledEvents(receipt)
         assert(events.size == 1)
-        return ConfigCancelledEventResponse(events[0].transactionHash, events[0].sender)
+        return ConfigCancelledEventResponse(receipt.transactionHash, events[0].transactionHash, events[0].sender)
     }
 
     fun getParticipantAddedEvent(txHash: String): ParticipantAddedEventResponse {
         val receipt = web3j.ethGetTransactionReceipt(txHash).send().transactionReceipt.get()
         val events = Gatekeeper.staticGetParticipantAddedEvents(receipt)
         assert(events.size == 1)
-        return ParticipantAddedEventResponse(events[0].participant)
+        return ParticipantAddedEventResponse(receipt.transactionHash, events[0].participant)
     }
 
     fun getParticipantRemovedEvent(txHash: String): ParticipantRemovedEventResponse {
         val receipt = web3j.ethGetTransactionReceipt(txHash).send().transactionReceipt.get()
         val events = Gatekeeper.staticGetParticipantRemovedEvents(receipt)
         assert(events.size == 1)
-        return ParticipantRemovedEventResponse(events[0].participant)
+        return ParticipantRemovedEventResponse(receipt.transactionHash, events[0].participant)
     }
 
     fun getOwnerChangedEvent(txHash: String): OwnerChangedEventResponse {
         val receipt = web3j.ethGetTransactionReceipt(txHash).send().transactionReceipt.get()
         val events = Gatekeeper.staticGetOwnerChangedEvents(receipt)
         assert(events.size == 1)
-        return OwnerChangedEventResponse(events[0].newOwner)
+        return OwnerChangedEventResponse(receipt.transactionHash, events[0].newOwner)
     }
 
     fun getGatekeeperInitializedEvent(txHash: String): GatekeeperInitializedEventResponse {
         val receipt = web3j.ethGetTransactionReceipt(txHash).send().transactionReceipt.get()
         val events = Gatekeeper.staticGetGatekeeperInitializedEvents(receipt)
         assert(events.size == 1)
-        return GatekeeperInitializedEventResponse(events[0].vault, events[0].participants)
+        return GatekeeperInitializedEventResponse(receipt.transactionHash, events[0].vault, events[0].participants)
     }
 
     fun getLevelFrozenEvent(txHash: String): LevelFrozenEventResponse {
         val receipt = web3j.ethGetTransactionReceipt(txHash).send().transactionReceipt.get()
         val events = Gatekeeper.staticGetLevelFrozenEvents(receipt)
         assert(events.size == 1)
-        return LevelFrozenEventResponse(events[0].frozenLevel.toString(), events[0].frozenUntil.toString(), events[0].sender)
+        return LevelFrozenEventResponse(receipt.transactionHash, events[0].frozenLevel.toString(), events[0].frozenUntil.toString(), events[0].sender)
     }
 
     fun getUnfreezeCompletedEventResponse(txHash: String): UnfreezeCompletedEventResponse {
         val receipt = web3j.ethGetTransactionReceipt(txHash).send().transactionReceipt.get()
         val events = Gatekeeper.staticGetUnfreezeCompletedEvents(receipt)
         assert(events.size == 1)
-        return UnfreezeCompletedEventResponse()
+        return UnfreezeCompletedEventResponse(receipt.transactionHash)
     }
 
     fun getWTFEventResponse(txHash: String): WTFEventResponse {
         val receipt = web3j.ethGetTransactionReceipt(txHash).send().transactionReceipt.get()
         val events = Gatekeeper.staticGetWTFEvents(receipt)
         assert(events.size == 1)
-        return WTFEventResponse(events[0].encodedPacked)
+        return WTFEventResponse(receipt.transactionHash, events[0].encodedPacked)
+    }
+
+    open fun getPastEvents(): List<EventResponse> {
+        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
     }
 
 }

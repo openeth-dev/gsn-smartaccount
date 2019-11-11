@@ -1,47 +1,67 @@
 package com.tabookey.duplicated
 
-open class EventResponse
+abstract class EventResponse(val transactionHash: String)
 
-data class ConfigPendingEventResponse(
-        val transactionHash: ByteArray,
+open class ConfigPendingEventResponse(
+        transactionHash: String,
+        val configChangeHash: ByteArray,
         val sender: String,
         val senderPermsLevel: String,
         val booster: String,
         val boosterPermsLevel: String,
         val stateId: String,
-        val actions: MutableList<String>,
-        val actionsArguments: MutableList<ByteArray>
-) : EventResponse()
+        val actions: List<String>,
+        val actionsArguments: List<ByteArray>
+) : EventResponse(transactionHash)
 
-data class ConfigCancelledEventResponse(
-        val transactionHash: ByteArray,
+open class ConfigCancelledEventResponse(
+        transactionHash: String,
+        val configChangeHash: ByteArray,
         val sender: String
-) : EventResponse()
+) : EventResponse(transactionHash)
 
-data class ParticipantAddedEventResponse(
+open class ConfigAppliedEventResponse(
+        transactionHash: String,
+        val configChangeHash: ByteArray,
+        val sender: String
+) : EventResponse(transactionHash)
+
+open class ParticipantAddedEventResponse(
+        transactionHash: String,
         val participant: ByteArray
-) : EventResponse()
+) : EventResponse(transactionHash)
 
-data class ParticipantRemovedEventResponse(
+open class ParticipantRemovedEventResponse(
+        transactionHash: String,
         val participant: ByteArray
-) : EventResponse()
+) : EventResponse(transactionHash)
 
-data class OwnerChangedEventResponse(
+open class OwnerChangedEventResponse(
+        transactionHash: String,
         val newOwner: String
-) : EventResponse()
+) : EventResponse(transactionHash)
 
-data class GatekeeperInitializedEventResponse(
+open class GatekeeperInitializedEventResponse(
+        transactionHash: String,
         val vault: String,
-        val participants: MutableList<ByteArray>
-) : EventResponse()
+        val participants: List<ByteArray>
+) : EventResponse(transactionHash)
 
-data class LevelFrozenEventResponse(
+open class LevelFrozenEventResponse(
+        transactionHash: String,
         val frozenLevel: String,
         val frozenUntil: String,
         val sender: String
-) : EventResponse()
+) : EventResponse(transactionHash)
 
-class UnfreezeCompletedEventResponse : EventResponse()
-data class WTFEventResponse(
+open class UnfreezeCompletedEventResponse(transactionHash: String) : EventResponse(transactionHash)
+open class VaultCreatedEventResponse(
+        transactionHash: String,
+        val gatekeeper: EthereumAddress,
+        val vault: EthereumAddress
+) : EventResponse(transactionHash)
+
+open class WTFEventResponse(
+        transactionHash: String,
         val encodedPacked: ByteArray
-) : EventResponse()
+) : EventResponse(transactionHash)

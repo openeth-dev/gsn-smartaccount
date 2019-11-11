@@ -1,5 +1,6 @@
 package com.tabookey.safechannels.addressbook
 
+import com.tabookey.duplicated.VaultParticipant
 import com.tabookey.safechannels.vault.VaultStorageInterface
 
 /**
@@ -34,6 +35,27 @@ class AddressBook(private val storage: VaultStorageInterface) {
 
     fun editEntry(): SafechannelContact {
         TODO()
+    }
+
+
+    fun recognizeParticipant(vaultId: Int, participantHash: String): Pair<VaultParticipant?, String> {
+        val participantsMatched = storage.getAddressBookEntries()
+                .mapNotNull { it.participantTuples[vaultId] } // Take contacts with roles in this vault
+                .mapNotNull { list ->
+                    val matchedParticipant = list.find {
+                        it.participantHash == participantHash
+                    }
+                    matchedParticipant
+                }
+        return when {
+            participantsMatched.size == 1 -> Pair(participantsMatched[0], participantHash)
+            participantsMatched.size > 1 -> {
+                // TODO:
+                println("MULTIPLE CONTACTS WITH SAME PARTICIPANT")
+                Pair(participantsMatched[0], participantHash)
+            }
+            else -> Pair(null, participantHash)
+        }
     }
 
 

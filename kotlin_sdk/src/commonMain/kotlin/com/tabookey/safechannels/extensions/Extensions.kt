@@ -32,7 +32,7 @@ private val hexArray = CharArray(16) {
     }
 }
 
-fun ByteArray.toHexString(): String {
+fun ByteArray.toHexString(prefix: Boolean = false): String {
     val hexChars = CharArray(this.size * 2)
     for (j in this.indices) {
         val v = (this[j] and 0xFF.toByte()).toInt()

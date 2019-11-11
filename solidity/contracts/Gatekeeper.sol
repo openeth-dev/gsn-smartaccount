@@ -20,7 +20,7 @@ contract Gatekeeper is PermissionsLevel {
 
     event ConfigPending(bytes32 indexed transactionHash, address sender, uint16 senderPermsLevel, address booster, uint16 boosterPermsLevel, uint256 stateId, uint8[] actions, bytes32[] actionsArguments);
     event ConfigCancelled(bytes32 indexed transactionHash, address sender);
-
+// TODO: add 'ConfigApplied' event - this is the simplest way to track what is applied and whatnot
     event ParticipantAdded(bytes32 indexed participant);
     event ParticipantRemoved(bytes32 indexed participant);
     event OwnerChanged(address indexed newOwner);

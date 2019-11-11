@@ -1,6 +1,9 @@
 package com.tabookey.safechannels.vault
 
+import com.tabookey.duplicated.*
+import com.tabookey.safechannels.addressbook.AddressBook
 import com.tabookey.safechannels.blockchain.BlockchainTransaction
+import com.tabookey.safechannels.extensions.toHexString
 import com.tabookey.safechannels.platforms.VaultContractInteractor
 import com.tabookey.safechannels.vault.localchanges.EtherTransferChange
 import com.tabookey.safechannels.vault.localchanges.LocalChangeType
@@ -15,6 +18,7 @@ import com.tabookey.safechannels.vault.localchanges.LocalVaultChange
 // TODO: API to select a participant that can perform an operation (RUN-AS) if >1 is available (speak to Dror)
 class DeployedVault(
         private val interactor: VaultContractInteractor,
+        private val addressBook: AddressBook,
         storage: VaultStorageInterface,
         vaultState: VaultState) : SharedVaultInterface(storage, vaultState) {
 
@@ -119,7 +123,7 @@ class DeployedVault(
     // TODO: probably cannot do this because it is not mined yet. Construct a dummy instead and listen to blockchain.
     private fun readPendingChangeFormTxHash(txHash: String): PendingChange {
         val event = interactor.getConfigPendingEvent(txHash)
-        val dueTime = interactor.getPendingChangeDueTime(event.transactionHash)
+        val dueTime = interactor.getPendingChangeDueTime(event.configChangeHash)
         return PendingChange(BlockchainTransaction(txHash), event, dueTime)
     }
 
@@ -146,5 +150,50 @@ class DeployedVault(
         val applyTxHash = interactor.applyPendingConfigurationChange(pendingChange.event)
         return BlockchainTransaction(applyTxHash)
 
+    }
+
+    fun refresh() {
+        val eventsResponses = interactor.getPastEvents()
+        // TODO: tests, same forother inconsistent logs
+        if (
+                eventsResponses[0] !is VaultCreatedEventResponse &&
+                eventsResponses[1] !is GatekeeperInitializedEventResponse) {
+            throw RuntimeException("Invalid beginning of the events list")
+        }
+        val configPendingChanges: MutableList<PendingChange> = mutableListOf()
+        for (i in eventsResponses.indices) {
+            when (val it = eventsResponses[i]) {
+                is VaultCreatedEventResponse -> {
+                    if (i != 0) {
+                        throw RuntimeException("Vault Created cannot be emitted more than once")
+                    }
+                    vaultState.gatekeeperAddress = it.gatekeeper
+                }
+                is GatekeeperInitializedEventResponse -> {
+                    if (i != 1) {
+                        throw RuntimeException("Gatekeeper Initialized cannot be emitted more than once")
+                    }
+                    val recognition =
+                            it.participants
+                                    .map { it.toHexString() }
+                                    .map { addressBook.recognizeParticipant(vaultState.vaultId, it) }
+
+                    vaultState.knownParticipants = recognition.mapNotNull { it.first }
+                    vaultState.secretParticipants = recognition.filter { it.first == null }.map { it.second }
+                }
+                is ConfigPendingEventResponse -> {
+                    val change = readPendingChangeFormTxHash(it.transactionHash)
+                    configPendingChanges.add(change)
+                }
+                is ConfigAppliedEventResponse -> {
+                }
+                is ConfigCancelledEventResponse -> {
+                }
+                is ParticipantAddedEventResponse -> {
+                }
+                is ParticipantRemovedEventResponse -> {
+                }
+            }
+        }
     }
 }

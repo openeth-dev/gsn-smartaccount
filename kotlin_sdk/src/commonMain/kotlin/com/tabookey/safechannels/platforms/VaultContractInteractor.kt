@@ -1,6 +1,7 @@
 package com.tabookey.safechannels.platforms
 
 import com.tabookey.duplicated.ConfigPendingEventResponse
+import com.tabookey.duplicated.EventResponse
 
 expect class VaultContractInteractor {
 
@@ -16,5 +17,7 @@ expect class VaultContractInteractor {
     fun getConfigPendingEvent(txHash: String): ConfigPendingEventResponse
 
     fun getPendingChangeDueTime(configChangeHash: ByteArray): String
+
+    fun getPastEvents(): List<EventResponse>
 
 }
