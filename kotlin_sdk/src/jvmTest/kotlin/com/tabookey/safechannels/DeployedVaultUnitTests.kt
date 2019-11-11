@@ -32,6 +32,30 @@ class DeployedVaultUnitTests : SafeChannelsUnitTests() {
         }
     }
 
+    // Reading vault state from blockchain
+
+    @Test
+    fun `should read the state of the vault from blockchain`() = runTest {
+        env.simulateVaultState()
+        deployedVault.refresh()
+        assertEquals(env.ownerAddress1, deployedVault.vaultState.activeParticipant.address)
+        assertEquals(1, deployedVault.vaultState.knownParticipants.size)
+        assertEquals(0, deployedVault.vaultState.knownParticipants.size)
+    }
+
+    @Ignore
+    @Test
+    fun `should construct a history of the vault from blockchain`() = runTest {
+
+    }
+
+    @Ignore
+    @Test
+    fun `should throw on illegal blockchain information`() = runTest() {
+        // If the blockchain data cannot be understood the SDK, it signals incompatible versions or bugs.
+        // Best we can do is to throw a runtime exception, doing anything else would be dangerous
+    }
+
     // As operator:
     @Test
     fun `should schedule, commit and wait for a config change (adding participant to existing vault)`() = runTest {
@@ -97,9 +121,10 @@ class DeployedVaultUnitTests : SafeChannelsUnitTests() {
         assertEquals(0, deployedVault.vaultState.secretParticipants.size, "New vault should not have any unknown participants")
 
         deployedVault.addParticipant(env.anyAddress, VaultPermissions.ADMIN_PERMISSIONS)
+        val pendingChange = deployedVault.commitLocalChanges(env.anyStateId)
         env.configPendingEventOn(isDue = true)
-        deployedVault.commitLocalChanges(env.anyStateId)
-
+        val blockchainTransaction = deployedVault.applyPendingChange(pendingChange)
+        deployedVault.refresh()
         assertEquals(1, deployedVault.vaultState.knownParticipants.size, "Vault should have a known participant")
         assertEquals(0, deployedVault.vaultState.secretParticipants.size, "Vault should not have any unknown participants")
     }
@@ -138,7 +163,7 @@ class DeployedVaultUnitTests : SafeChannelsUnitTests() {
         assertEquals(1, pendingChanges.size)
         val pendingChange = pendingChanges[0]
         val expectedHashStr = env.transactionChangeHash.toHexString()
-        val actualHashStr = pendingChange.event.transactionHash.toHexString()
+        val actualHashStr = pendingChange.event.configChangeHash.toHexString()
         assertEquals(expectedHashStr, actualHashStr, "Transaction hash does not match")
     }
 

@@ -12,6 +12,7 @@ class SafechannelContact(
         if (participantTuples[vaultId] == null){
             participantTuples[vaultId] = ArrayList()
         }
+        // TODO: prevent from adding a duplicate
         participantTuples[vaultId]!!.add(tuple)
     }
 }

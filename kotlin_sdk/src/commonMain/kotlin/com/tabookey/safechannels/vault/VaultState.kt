@@ -12,12 +12,12 @@ class VaultState(val vaultId: Int) {
     val delays: List<Int> = emptyList()
     val isDeployed: Boolean = false
 
-    lateinit var activeParticipant: VaultParticipant // TODO: convert to list
 
-    // We do not store participants on chain.
-    // Therefore, there can be 3 kinds of participants - known, bogus and unknown
-    var knownParticipants: Array<VaultParticipant> = emptyArray()
-    var secretParticipants: Array<String> = emptyArray()
+    // We do not store actual participants' addresses on chain.
+    // Therefore, there can be 4 kinds of participants - active(controlled by you), known, placeholders(not shown`) and unknown
+    lateinit var activeParticipant: VaultParticipant // TODO: convert to list
+    var knownParticipants: List<VaultParticipant> = emptyList()
+    var secretParticipants: List<String> = emptyList()
 
     var address: String? = null
     var gatekeeperAddress: String? = null

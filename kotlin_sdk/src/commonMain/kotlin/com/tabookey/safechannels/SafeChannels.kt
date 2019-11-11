@@ -26,7 +26,7 @@ class SafeChannels(
         val kredentials = ownedAccounts.findLast { it.getAddress() == owner }
                 ?: throw RuntimeException("Unknown account passed as owner")
         val nextId = storage.getNextId(VAULT)
-        val localVault = LocalVault(nextId, interactorsFactory, kredentials, storage, emptyList())
+        val localVault = LocalVault(nextId, interactorsFactory, addressBook, kredentials, storage, emptyList())
         localVaults.add(localVault)
         return localVault
     }
@@ -81,9 +81,9 @@ class SafeChannels(
                         vaultState.address!!,
                         vaultState.gatekeeperAddress!!,
                         vaultState.activeParticipant)
-                DeployedVault(interactor, storage, vaultState)
+                DeployedVault(interactor, addressBook, storage, vaultState)
             } else {
-                LocalVault(interactorsFactory, kreds, storage, vaultState)
+                LocalVault(interactorsFactory, kreds, addressBook, storage, vaultState)
             }
         }
     }

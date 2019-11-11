@@ -31,6 +31,7 @@ open class InMemoryStorage : VaultStorageInterface {
     override fun getAddressBookEntries(): List<SafechannelContact> {
         return addressBook.values.toList()
     }
+
     /**
      * The state of the vault, both local and cached from blockchain, must be stored. Not the instance itself.
      * Note that [com.tabookey.safechannels.vault.SharedVaultInterface] adds the Vault's API method and 'wraps' the state.
@@ -52,10 +53,14 @@ open class InMemoryStorage : VaultStorageInterface {
      * @return address of the new account
      */
     override fun generateKeypair(): IKredentials {
+        val credentials = Credentials.create(SDKEnvironmentMock.ownerAccountPrivateKey, SDKEnvironmentMock.ownerAccountPublicKey)
+        keypairs[keypairsId] = credentials.ecKeyPair
+        return Kredentials(credentials)
+/*
         val kp = Keys.createEcKeyPair()
         keypairs[keypairsId] = kp
         return Kredentials(Credentials.create(kp))
-//        return Keys.getAddress(kp)
+ */
     }
 
     /**

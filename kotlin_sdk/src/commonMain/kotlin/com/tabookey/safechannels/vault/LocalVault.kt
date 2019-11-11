@@ -3,6 +3,7 @@ package com.tabookey.safechannels.vault
 import com.tabookey.duplicated.IKredentials
 import com.tabookey.duplicated.VaultParticipant
 import com.tabookey.duplicated.VaultPermissions
+import com.tabookey.safechannels.addressbook.AddressBook
 import com.tabookey.safechannels.platforms.InteractorsFactory
 import com.tabookey.safechannels.vault.localchanges.LocalChangeType
 import com.tabookey.safechannels.vault.localchanges.LocalVaultChange
@@ -14,6 +15,7 @@ import com.tabookey.safechannels.vault.localchanges.LocalVaultChange
 class LocalVault(
         private val interactorsFactory: InteractorsFactory,
         private val kredentials: IKredentials,
+        private val addressBook: AddressBook,
         storage: VaultStorageInterface,
         vaultState: VaultState)
     : SharedVaultInterface(storage, vaultState) {
@@ -21,9 +23,10 @@ class LocalVault(
     constructor(
             vaultId: Int,
             interactorsFactory: InteractorsFactory,
+            addressBook: AddressBook,
             kredentials: IKredentials,
             storage: VaultStorageInterface,
-            initialDelays: List<Int>) : this(interactorsFactory, kredentials, storage, VaultState(vaultId)) {
+            initialDelays: List<Int>) : this(interactorsFactory, kredentials, addressBook, storage, VaultState(vaultId)) {
 
         val owner = kredentials.getAddress()
         vaultState.addLocalChange(LocalVaultChange.initialize(owner))
@@ -38,9 +41,11 @@ class LocalVault(
         val deploymentResult = factoryContractInteractor.deployNewGatekeeper()
         // TODO: the state of the deployed vault should represent the desired config
         vaultState.localChanges.forEach {
-            when (it.changeType){
-                LocalChangeType.INITIALIZE ->  {}//TODO()
-                LocalChangeType.ADD_PARTICIPANT -> {}//TODO()
+            when (it.changeType) {
+                LocalChangeType.INITIALIZE -> {
+                }//TODO()
+                LocalChangeType.ADD_PARTICIPANT -> {
+                }//TODO()
                 else -> {
                     throw RuntimeException("Unsupported for non-deployed vaults")
                 } //TODO()
@@ -57,7 +62,7 @@ class LocalVault(
                 deploymentResult.gatekeeper,
                 // TODO: anything but this:
                 participant)
-        return DeployedVault(interactor, storage, vaultState)
+        return DeployedVault(interactor, addressBook, storage, vaultState)
     }
 
 
