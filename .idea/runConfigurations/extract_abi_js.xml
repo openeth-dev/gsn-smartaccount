@@ -1,5 +1,0 @@
-<component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="extract_abi.js" type="NodeJSConfigurationType" nameIsGenerated="true" path-to-js-file="js_foundation/extract_abi.js" working-dir="$PROJECT_DIR$/">
-    <method v="2" />
-  </configuration>
-</component>
