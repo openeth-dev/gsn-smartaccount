@@ -1,13 +1,18 @@
+/* npm modules */
+const Chai = require('chai');
+const Web3 = require('web3');
+
+/* truffle artifacts */
 const Gatekeeper = artifacts.require("./Gatekeeper.sol");
 const Vault = artifacts.require("./Vault.sol");
 const Utilities = artifacts.require("./Utilities.sol");
 const DAI = artifacts.require("./DAI.sol");
-const Chai = require('chai');
-const Web3 = require('web3');
 
 const testUtils = require('./utils');
+const ChangeType = require('./etc/ChangeType');
+
+const Permissions = require('../src/js/Permissions');
 const utils = require('../src/js/SafeChannelUtils');
-const Permissions = utils.Permissions;
 const Participant = require('../src/js/Participant');
 
 const expect = Chai.expect;
@@ -31,12 +36,6 @@ async function getDelayedOpHashFromEvent(log, utilities) {
     return (await utilities.transactionHashPublic(actions, args, stateId, schedulerAddress, schedulerPermsLevel, boosterAddress, boosterPermsLevel));//utils.delayedOpHashNew(actions, args, stateId, schedulerAddress, schedulerPermsLevel, boosterAddress, boosterPermsLevel);
 }
 
-const ChangeType = Object.freeze({
-    ADD_PARTICIPANT: 0,
-    REMOVE_PARTICIPANT: 1,
-    CHOWN: 2,
-    UNFREEZE: 3
-});
 
 async function cancelDelayed({res, log}, fromParticipant, gatekeeper) {
     let {actions, args, schedulerAddress, schedulerPermsLevel, boosterAddress, boosterPermsLevel, scheduledStateId} = extractLog(log, res);

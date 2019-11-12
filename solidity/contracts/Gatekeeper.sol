@@ -3,8 +3,9 @@ pragma solidity ^0.5.5;
 import "./Vault.sol";
 import "./PermissionsLevel.sol";
 import "./Utilities.sol";
+import "./SponsorModel/IRelayRecipient.sol";
 
-contract Gatekeeper is PermissionsLevel {
+contract Gatekeeper is PermissionsLevel, IRelayRecipient {
 
     // Nice idea to use mock token address for ETH instead of 'address(0)'
     address constant internal ETH_TOKEN_ADDRESS = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
@@ -20,7 +21,7 @@ contract Gatekeeper is PermissionsLevel {
 
     event ConfigPending(bytes32 indexed transactionHash, address sender, uint16 senderPermsLevel, address booster, uint16 boosterPermsLevel, uint256 stateId, uint8[] actions, bytes32[] actionsArguments);
     event ConfigCancelled(bytes32 indexed transactionHash, address sender);
-// TODO: add 'ConfigApplied' event - this is the simplest way to track what is applied and whatnot
+    // TODO: add 'ConfigApplied' event - this is the simplest way to track what is applied and whatnot
     event ParticipantAdded(bytes32 indexed participant);
     event ParticipantRemoved(bytes32 indexed participant);
     event OwnerChanged(address indexed newOwner);
@@ -97,6 +98,8 @@ contract Gatekeeper is PermissionsLevel {
     uint constant maxFreeze = 365 days;
 
 
+    function blabla() public {
+    }
     function initialConfig(Vault vaultParam, bytes32[] memory initialParticipants, uint256[] memory initialDelays) public {
         require(operator == address(0), "already initialized");
 
@@ -317,6 +320,44 @@ contract Gatekeeper is PermissionsLevel {
         frozenLevel = 0;
         frozenUntil = 0;
         emit UnfreezeCompleted();
+    }
+
+
+    /*** Relay Recipient implementation **/
+
+    /**
+     * return the relayHub of this contract.
+     */
+    function getHubAddr() public view returns (address){
+        return address(0);
+    }
+
+    function getRecipientBalance() public view returns (uint){
+        return 0;
+    }
+
+    function acceptRelayedCall(
+        address relay,
+        address from,
+        bytes calldata encodedFunction,
+        uint256 transactionFee,
+        uint256 gasPrice,
+        uint256 gasLimit,
+        uint256 nonce,
+        bytes calldata approvalData,
+        uint256 maxPossibleCharge
+    )
+    external
+    view
+    returns (uint256, bytes memory){
+        return (0, "");
+    }
+
+    function preRelayedCall(bytes calldata context) external returns (bytes32){
+        return 0;
+    }
+
+    function postRelayedCall(bytes calldata context, bool success, uint actualCharge, bytes32 preRetVal) external {
     }
 
 }
