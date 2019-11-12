@@ -4,6 +4,7 @@
   "version": "1.0.0",
   "scripts": {
     "test": "npx truffle test | sed -e 's/^,//;' ",
+    "test_gsn": "npx truffle test test/test_sponsor_gsn.js | sed -e 's/^,//;' ",
     "ci": "npx run-with-testrpc -p 8544 -a 15 -l 80000000 --allowUnlimitedContractSize 'npx truffle --network npmtest test'",
     "compile": "npx truffle compile|sed -e 's/^,//;' ",
     "trace": "MODE=trace npx truffle test --network cov",
