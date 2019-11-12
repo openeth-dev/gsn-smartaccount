@@ -16,7 +16,7 @@ let VaultFactoryContract = TruffleContract({
 const vaultCreatedEvent = "VaultCreated";
 
 
-class VaultFactoryContractInteractorPromises {
+class FactoryContractInteractor {
 
     constructor(credentials, vaultFactoryAddress) {
         this.credentials = credentials;
@@ -36,7 +36,7 @@ class VaultFactoryContractInteractorPromises {
         let provider = new Web3.providers.HttpProvider(ethNodeUrl);
 
         VaultFactoryContract.setProvider(provider);
-        return new VaultFactoryContractInteractorPromises(credentials, vaultFactoryAddress)
+        return new FactoryContractInteractor(credentials, vaultFactoryAddress)
     }
 
     async attachToContracts(){
@@ -103,4 +103,4 @@ class VaultFactoryContractInteractorPromises {
     }
 }
 
-module.exports = VaultFactoryContractInteractorPromises;
+module.exports = FactoryContractInteractor;

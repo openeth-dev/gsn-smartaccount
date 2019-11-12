@@ -44,7 +44,7 @@ const transactionPendingEvent = "TransactionPending";
 const transactionCompletedEvent = "TransactionCompleted";
 
 
-class VaultContractInteractorWithPromises {
+class VaultContractInteractor {
 
     /**
      * Factory method to create a new interactor object instance.
@@ -55,14 +55,14 @@ class VaultContractInteractorWithPromises {
      * @param ethNodeUrl
      * @param gatekeeperAddress
      * @param vaultAddress
-     * @returns {VaultContractInteractorWithPromises}
+     * @returns {VaultContractInteractor}
      */
     static connect(credentials, permissions, level, ethNodeUrl, gatekeeperAddress, vaultAddress) {
         let provider = new Web3.providers.HttpProvider(ethNodeUrl);
         let web3 = new Web3(provider);
         GatekeeperContract.setProvider(provider);
         VaultContract.setProvider(provider);
-        return new VaultContractInteractorWithPromises(web3, credentials, permissions, level, gatekeeperAddress, vaultAddress);
+        return new VaultContractInteractor(web3, credentials, permissions, level, gatekeeperAddress, vaultAddress);
     }
 
     async attachToContracts() {
@@ -378,4 +378,4 @@ class VaultContractInteractorWithPromises {
 
 }
 
-module.exports = VaultContractInteractorWithPromises;
+module.exports = VaultContractInteractor;
