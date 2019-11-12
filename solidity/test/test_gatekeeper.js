@@ -6,9 +6,9 @@ const Chai = require('chai');
 const Web3 = require('web3');
 
 const testUtils = require('./utils');
-const utils = require('../src/js/SafeChannelUtils');
+const utils = require('../src/js/old_utils/SafeChannelUtils');
 const Permissions = utils.Permissions;
-const Participant = require('../src/js/Participant');
+const Participant = require('../src/js/old_utils/Participant');
 
 const expect = Chai.expect;
 
