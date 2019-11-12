@@ -19,7 +19,7 @@ const TransactionPendingEvent = require("./events/TransactionPendingEvent");
 const TransactionReceipt = require("./TransactionReceipt");
 const Utils = require('./Utils');
 
-const safeChannelUtils = require("./duplicated/SafeChannelUtils");
+const safeChannelUtils = require("./SafeChannelUtils");
 
 let GatekeeperContract = TruffleContract({
     contractName: "Gatekeeper",
