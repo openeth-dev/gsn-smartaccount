@@ -7,17 +7,17 @@ const TruffleContract = require("truffle-contract");
 const safeChannelUtils = require("../../solidity/src/js/SafeChannelUtils");
 const Participant = require("../../solidity/src/js/Participant");
 
-const Interactor = require("../src/js/VaultContractInteractor.js");
-const FactoryInteractor = require("../src/js/FactoryContractInteractor.js");
-const ParticipantAddedEvent = require("../src/js/events/ParticipantAddedEvent");
-const ParticipantRemovedEvent = require("../src/js/events/ParticipantRemovedEvent");
-const OwnerChangedEvent = require("../src/js/events/OwnerChangedEvent");
-const GatekeeperInitializedEvent = require("../src/js/events/GatekeeperInitializedEvent");
-const LevelFrozenEvent = require("../src/js/events/LevelFrozenEvent");
+const Interactor = require("../../src/js/VaultContractInteractor.js");
+const FactoryInteractor = require("../../src/js/FactoryContractInteractor.js");
+const ParticipantAddedEvent = require("../../src/js/events/ParticipantAddedEvent");
+const ParticipantRemovedEvent = require("../../src/js/events/ParticipantRemovedEvent");
+const OwnerChangedEvent = require("../../src/js/events/OwnerChangedEvent");
+const GatekeeperInitializedEvent = require("../../src/js/events/GatekeeperInitializedEvent");
+const LevelFrozenEvent = require("../../src/js/events/LevelFrozenEvent");
 
-const TransactionReceipt = require("../src/js/TransactionReceipt");
-const ConfigurationDelta = require("../src/js/ConfigurationDelta");
-const PermissionsModel = require("../src/js/PermissionsModel");
+const TransactionReceipt = require("../../src/js/TransactionReceipt");
+const ConfigurationDelta = require("../../src/js/ConfigurationDelta");
+const PermissionsModel = require("../../src/js/PermissionsModel");
 
 context('VaultContractInteractor Integration Test', function () {
     let ethNodeUrl = 'http://localhost:8545';
@@ -69,7 +69,7 @@ context('VaultContractInteractor Integration Test', function () {
         operatorA = new Participant(accounts[0], PermissionsModel.getOwnerPermissions(), 1, "operatorA");
         operatorB = new Participant(accounts[1], PermissionsModel.getOwnerPermissions(), 1, "operatorA");
         admin_level2_acc2 = new Participant(accounts[2], PermissionsModel.getAdminPermissions(), 2, "admin_level2_acc2");
-        let utilitiesABI = require('../src/js/generated/Utilities');
+        let utilitiesABI = require('../../src/js/generated/Utilities');
         let utilitiesBin = fs.readFileSync("./src/js/generated/Utilities.bin");
         let utilitiesContract = TruffleContract({
             // TODO: calculate this value
@@ -82,7 +82,7 @@ context('VaultContractInteractor Integration Test', function () {
         utilitiesContract.setProvider(provider);
         let utilitiesLibrary = await utilitiesContract.new({from: accounts[0]});
         utilitiesContract.address = utilitiesLibrary.address;
-        let vaultFactoryABI = require('../src/js/generated/VaultFactory');
+        let vaultFactoryABI = require('../../src/js/generated/VaultFactory');
         let vaultFactoryBin = fs.readFileSync("./src/js/generated/VaultFactory.bin");
         let vaultFactoryContract = TruffleContract({
             contractName: "VaultFactory",

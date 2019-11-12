@@ -1,7 +1,7 @@
 const Web3 = require('web3');
 const Chai = require('chai');
 const testUtils = require('./utils');
-const truffleUtils = require('../src/js/SafeChannelUtils');
+const truffleUtils = require('../src/js/old_utils/SafeChannelUtils');
 
 const expect = Chai.expect;
 
