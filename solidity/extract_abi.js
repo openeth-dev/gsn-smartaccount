@@ -6,7 +6,7 @@ const fs = require('fs');
 // TODO: pass all these things as parameters
 const projectFolder = "solidity/";
 const contractsFolder = projectFolder + "contracts";
-const outAbiFolder = "js_foundation/src/js/generated";
+const outAbiFolder = "solidity/src/js/generated";
 
 const contractsToExtract = ["Gatekeeper", "Vault", "VaultFactory", "Utilities"];
 

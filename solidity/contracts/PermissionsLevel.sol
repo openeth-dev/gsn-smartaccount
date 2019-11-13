@@ -9,9 +9,7 @@ contract PermissionsLevel {
     uint16 constant public canUnfreeze = 1 << 1;
     uint16 constant public canChangeParticipants = 1 << 2;
 
-    // The owner is a special participant that holds most of permissions.
-    // It's address is stored unhashed and there can only be one 'owner' in the contract.
-    uint16 constant public canChangeOwner = 1 << 3;
+    uint16 constant public canChangeBypass = 1 << 3;
 
     // There participant that can sign a boost operation can use its permissions with a higher level by co-signing
     uint16 constant public canSignBoosts = 1 << 4;
@@ -21,12 +19,14 @@ contract PermissionsLevel {
     uint16 constant public canFreeze = 1 << 6;
     uint16 constant public canCancelConfigChanges = 1 << 7;
     uint16 constant public canCancelSpend = 1 << 8;
+    uint16 constant public canApprove = 1 << 9;
+    uint16 constant public canAddOperator = 1 << 10;
 
-    uint16 public canChangeConfig = canUnfreeze | canChangeParticipants | canChangeOwner /* | canChangeDelays */;
+    uint16 public canChangeConfig = canUnfreeze | canChangeParticipants /*| canChangeOwner*/ /* | canChangeDelays */;
     uint16 public canCancel = canCancelSpend | canCancelConfigChanges;
 
-    uint16 public ownerPermissions = canSpend | canCancel | canFreeze | canChangeConfig | canSignBoosts;
-    uint16 public adminPermissions = canChangeOwner | canExecuteBoosts;
+    uint16 public ownerPermissions = canSpend | canCancel | canFreeze | canChangeConfig | canSignBoosts | canAddOperator | canChangeBypass;
+    uint16 public adminPermissions = /*canChangeOwner |*/ canExecuteBoosts;
     uint16 public watchdogPermissions = canCancel | canFreeze;
 
     function comparePermissions(uint16 neededPermissions, uint16 senderPermissions) view internal {
