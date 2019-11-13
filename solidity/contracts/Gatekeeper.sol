@@ -1,9 +1,11 @@
 pragma solidity ^0.5.5;
 
+import "tabookey-gasless/contracts/GsnUtils.sol";
+import "tabookey-gasless/contracts/IRelayRecipient.sol";
+
 import "./Vault.sol";
 import "./PermissionsLevel.sol";
 import "./Utilities.sol";
-import "./SponsorModel/IRelayRecipient.sol";
 
 contract Gatekeeper is PermissionsLevel, IRelayRecipient {
 
@@ -77,8 +79,12 @@ contract Gatekeeper is PermissionsLevel, IRelayRecipient {
             "not a real operator");
     }
 
+    function isParticipant(address participant, uint16 permsLevel) view internal returns (bool) {
+        return participants[Utilities.participantHash(participant, permsLevel)];
+    }
+
     function requireParticipant(address participant, uint16 permsLevel) view internal {
-        require(participants[Utilities.participantHash(participant, permsLevel)], "not participant");
+        require(isParticipant(participant, permsLevel), "not participant");
     }
 
     function requirePermissions(address sender, uint16 neededPermissions, uint16 senderPermsLevel) view internal {
@@ -98,8 +104,6 @@ contract Gatekeeper is PermissionsLevel, IRelayRecipient {
     uint constant maxFreeze = 365 days;
 
 
-    function blabla() public {
-    }
     function initialConfig(Vault vaultParam, bytes32[] memory initialParticipants, uint256[] memory initialDelays) public {
         require(operator == address(0), "already initialized");
 
@@ -155,7 +159,7 @@ contract Gatekeeper is PermissionsLevel, IRelayRecipient {
     }
 
 
-    function changeConfiguration(uint8[] memory actions, bytes32[] memory args, uint256 targetStateNonce, uint16 senderPermsLevel) public
+    function changeConfiguration(uint16 senderPermsLevel, uint8[] memory actions, bytes32[] memory args, uint256 targetStateNonce) public
     {
         requirePermissions(msg.sender, canChangeConfig, senderPermsLevel);
         requireNotFrozen(senderPermsLevel);
@@ -350,7 +354,13 @@ contract Gatekeeper is PermissionsLevel, IRelayRecipient {
     external
     view
     returns (uint256, bytes memory){
-        return (0, "");
+        uint16 senderRoleRank = uint16(GsnUtils.getParam(encodedFunction, 0));
+        if (isParticipant(from, senderRoleRank)) {
+            return (0, "");
+        }
+        else {
+            return (11, "Not vault participant");
+        }
     }
 
     function preRelayedCall(bytes calldata context) external returns (bytes32){

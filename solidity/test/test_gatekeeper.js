@@ -368,7 +368,7 @@ contract('Gatekeeper', async function (accounts) {
         let actions = [ChangeType.ADD_PARTICIPANT];
         let args = [utils.participantHash(adminB1.address, adminB1.permLevel)];
         let stateId = await gatekeeper.stateNonce();
-        let res = await gatekeeper.changeConfiguration(actions, args, stateId, operatorA.permLevel);
+        let res = await gatekeeper.changeConfiguration(operatorA.permLevel, actions, args, stateId);
         let log = res.logs[0];
         assert.equal(log.event, "ConfigPending");
         assert.equal(log.args.sender, operatorA.address);
@@ -408,7 +408,7 @@ contract('Gatekeeper', async function (accounts) {
         let actions = [ChangeType.REMOVE_PARTICIPANT];
         let args = [utils.participantHash(adminC.address, adminC.permLevel)];
         let stateId = await gatekeeper.stateNonce();
-        let res = await gatekeeper.changeConfiguration(actions, args, stateId, operatorA.permLevel);
+        let res = await gatekeeper.changeConfiguration(operatorA.permLevel, actions, args, stateId);
         let log = res.logs[0];
         assert.equal(log.event, "ConfigPending");
         await utils.increaseTime(timeGap, web3);
@@ -421,7 +421,7 @@ contract('Gatekeeper', async function (accounts) {
         let actions = [ChangeType.ADD_PARTICIPANT];
         let args = [utils.participantHash(adminC.address, adminC.permLevel)];
         let stateId = await gatekeeper.stateNonce();
-        let res = await gatekeeper.changeConfiguration(actions, args, stateId, operatorA.permLevel);
+        let res = await gatekeeper.changeConfiguration(operatorA.permLevel, actions, args, stateId);
 
         await expect(
             applyDelayed({res}, operatorA, gatekeeper)
@@ -441,7 +441,7 @@ contract('Gatekeeper', async function (accounts) {
         let actions = [ChangeType.REMOVE_PARTICIPANT];
         let args = [utils.participantHash(adminC.address, adminC.permLevel)];
         let stateId = await gatekeeper.stateNonce();
-        let res = await gatekeeper.changeConfiguration(actions, args, stateId, operatorA.permLevel);
+        let res = await gatekeeper.changeConfiguration(operatorA.permLevel, actions, args, stateId);
         let log = res.logs[0];
         assert.equal(log.event, "ConfigPending");
         await utils.increaseTime(timeGap, web3);
@@ -460,7 +460,7 @@ contract('Gatekeeper', async function (accounts) {
         let changeArg1 = utils.participantHash(adminB1.address, adminB1.permLevel);
         let changeType2 = ChangeType.REMOVE_PARTICIPANT;
         let changeArg2 = utils.participantHash(adminB.address, adminB.permLevel);
-        await gatekeeper.changeConfiguration([changeType1, changeType2], [changeArg1, changeArg2], stateId, operatorA.permLevel);
+        await gatekeeper.changeConfiguration(operatorA.permLevel, [changeType1, changeType2], [changeArg1, changeArg2], stateId);
 
         await expect(
             gatekeeper.applyConfig([changeType1, changeType2], [changeArg1, changeArg2], stateId, operatorA.address, operatorA.permLevel, zeroAddress, 0, operatorA.permLevel)
@@ -484,7 +484,7 @@ contract('Gatekeeper', async function (accounts) {
         let actions = [ChangeType.ADD_PARTICIPANT];
         let args = [utils.participantHash(wrongaddr.address, wrongaddr.permLevel)];
         let stateId = await gatekeeper.stateNonce();
-        let res1 = await gatekeeper.changeConfiguration(actions, args, stateId, operatorA.permLevel);
+        let res1 = await gatekeeper.changeConfiguration(operatorA.permLevel, actions, args, stateId);
 
         await utils.increaseTime(timeGap, web3);
         await applyDelayed({res: res1}, operatorA, gatekeeper);
@@ -495,14 +495,14 @@ contract('Gatekeeper', async function (accounts) {
         args = [utils.participantHash(wrongaddr.address, wrongaddr.permLevel)];
         stateId = await gatekeeper.stateNonce();
         await expect(
-            gatekeeper.changeConfiguration(actions, args, stateId, operatorA.permLevel, {from: wrongaddr.address})
+            gatekeeper.changeConfiguration(operatorA.permLevel, actions, args, stateId, {from: wrongaddr.address})
         ).to.be.revertedWith("not a real operator");
 
         // Clean up
         actions = [ChangeType.REMOVE_PARTICIPANT];
         args = [utils.participantHash(wrongaddr.address, wrongaddr.permLevel)];
         stateId = await gatekeeper.stateNonce();
-        let res2 = await gatekeeper.changeConfiguration(actions, args, stateId, operatorA.permLevel);
+        let res2 = await gatekeeper.changeConfiguration(operatorA.permLevel, actions, args, stateId);
         await utils.increaseTime(timeGap, web3);
         await applyDelayed({res: res2}, operatorA, gatekeeper);
         await utils.validateConfigParticipants([wrongaddr], gatekeeper);
@@ -635,14 +635,14 @@ contract('Gatekeeper', async function (accounts) {
             let actions = [ChangeType.ADD_PARTICIPANT];
             let args = [utils.participantHash(adminC.address, adminC.permLevel)];
             await expect(
-                gatekeeper.changeConfiguration(actions, args, stateId, participant.permLevel, {from: participant.address})
+                gatekeeper.changeConfiguration(participant.permLevel, actions, args, stateId, {from: participant.address})
             ).to.be.revertedWith(participant.expectError);
             console.log(`${participant.name} + addParticipant + ${participant.expectError}`);
 
             actions = [ChangeType.REMOVE_PARTICIPANT];
             args = [utils.participantHash(adminA.address, adminA.permLevel)];
             await expect(
-                gatekeeper.changeConfiguration(actions, args, stateId, participant.permLevel, {from: participant.address})
+                gatekeeper.changeConfiguration(participant.permLevel, actions, args, stateId, {from: participant.address})
             ).to.be.revertedWith(participant.expectError);
             console.log(`${participant.name} + removeParticipant + ${participant.expectError}`)
 
@@ -686,7 +686,7 @@ contract('Gatekeeper', async function (accounts) {
         {
             let actions = [ChangeType.ADD_PARTICIPANT];
             let args = [utils.participantHash(watchdogB.address, watchdogB.permLevel)];
-            res0 = await gatekeeper.changeConfiguration(actions, args, stateId, operatorA.permLevel);
+            res0 = await gatekeeper.changeConfiguration(operatorA.permLevel, actions, args, stateId);
             await utils.increaseTime(timeGap, web3);
             await applyDelayed({res: res0}, operatorA, gatekeeper);
         }
@@ -725,7 +725,7 @@ contract('Gatekeeper', async function (accounts) {
         let actions = [ChangeType.ADD_PARTICIPANT];
         let args = [utils.participantHash(adminC.address, adminC.permLevel)];
         await expect(
-            gatekeeper.changeConfiguration(actions, args, stateId, operatorA.permLevel),
+            gatekeeper.changeConfiguration(operatorA.permLevel, actions, args, stateId),
             "addParticipant did not revert correctly"
             + ` with expected reason: "${reason}"`
         ).to.be.revertedWith(reason);
@@ -841,7 +841,7 @@ contract('Gatekeeper', async function (accounts) {
             let actions = [ChangeType.ADD_PARTICIPANT];
             let args = [utils.participantHash(adminB1.address, adminB1.permLevel)];
             let stateId = await gatekeeper.stateNonce();
-            let res1 = await gatekeeper.changeConfiguration(actions, args, stateId, operatorA.permLevel);
+            let res1 = await gatekeeper.changeConfiguration(operatorA.permLevel, actions, args, stateId);
 
             // Freeze the scheduler's rank
             await gatekeeper.freeze(watchdogB.permLevel, level, timeGap, {from: watchdogB.address});
@@ -904,7 +904,7 @@ contract('Gatekeeper', async function (accounts) {
         let changeType = ChangeType.ADD_PARTICIPANT;
         let changeArgs = utils.participantHash(adminB1.address, adminB1.permLevel);
 
-        await gatekeeper.changeConfiguration([changeType], [changeArgs], stateId, operatorA.permLevel);
+        await gatekeeper.changeConfiguration(operatorA.permLevel, [changeType], [changeArgs], stateId);
 
         await utils.increaseTime(timeGap, web3);
         // adminA cannot apply it - will not find it by hash
@@ -925,7 +925,7 @@ contract('Gatekeeper', async function (accounts) {
         let changeType = ChangeType.ADD_PARTICIPANT;
         let changeArgs = utils.participantHash(adminB1.address, adminB1.permLevel);
 
-        await expect(gatekeeper.changeConfiguration([changeType], [changeArgs], stateId - 1, operatorA.permLevel)
+        await expect(gatekeeper.changeConfiguration(operatorA.permLevel, [changeType], [changeArgs], stateId - 1)
         ).to.be.revertedWith("contract state changed since transaction was created")
     });
 

@@ -24,24 +24,33 @@ contract('GSN and Sponsor integration', async function (accounts) {
     let relayServer;
     let vaultInteractor;
 
+    let nonParticipant;
     let operatorA;
     let ownerPermissions;
+
+    let actions;
+    let args;
+
+    async function nonce() {
+        return parseInt(await gatekeeper.stateNonce());
+    }
 
     before(async function () {
         gatekeeper = await Gatekeeper.deployed();
         ownerPermissions = utils.bufferToHex(await gatekeeper.ownerPermissions());
         operatorA = new Participant(accounts[0], ownerPermissions, 1, "operatorA");
-        relayServer = {address: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"};
+        nonParticipant = new Participant(accounts[1], ownerPermissions, 1, "operatorA");
+        let dummyAddress = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
+        relayServer = {address: dummyAddress};
+        actions = [ChangeType.ADD_PARTICIPANT];
+        args = [utils.participantHash(operatorA.address, operatorA.permLevel)];
+        await gatekeeper.initialConfig(dummyAddress, [], []);
     });
 
 
     it("should accept a relayed call if it comes from a valid participant", async function () {
 
-        // function changeConfiguration(uint8[] memory actions, bytes32[] memory args, uint256 targetStateNonce, uint16 senderPermsLevel) public
-        let actions = [ChangeType.ADD_PARTICIPANT];
-        let args = [utils.participantHash(operatorA.address, operatorA.permLevel)];
-        let stateNonce = parseInt(await gatekeeper.stateNonce());
-        let calldata = gatekeeper.contract.methods.changeConfiguration(actions, args, stateNonce, operatorA.permLevel).encodeABI();
+        let calldata = gatekeeper.contract.methods.changeConfiguration(operatorA.permLevel, actions, args, await nonce()).encodeABI();
         calldata += utils.removeHexPrefix(operatorA.address);
 
         // I know that gas-related params do not matter, so there is no need to test them now
@@ -53,7 +62,16 @@ contract('GSN and Sponsor integration', async function (accounts) {
     });
 
     it("should reject a relayed call if it doesn't come from a participant", async function () {
-        assert.fail();
+
+        let calldata = gatekeeper.contract.methods.changeConfiguration(operatorA.permLevel, actions, args, await nonce()).encodeABI();
+        calldata += utils.removeHexPrefix(nonParticipant.address);
+
+        // I know that gas-related params do not matter, so there is no need to test them now
+        let result = await gatekeeper.acceptRelayedCall(relayServer.address, nonParticipant.address, calldata, 0, 0, 0, 0, [], 0);
+
+        assert.equal("11", result[0].toString());
+        let web3  = new Web3();
+        assert.equal("Not vault participant", web3.utils.toAscii(result[1]));
     });
 
     it("should execute a schedule operation when called via the GSN", async function () {
