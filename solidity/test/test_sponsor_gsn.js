@@ -17,11 +17,11 @@ contract('GSN and Sponsor integration', async function (accounts) {
 
     // contracts
     let gatekeeper;
-    let trustedCaller;
     let tokenSponsor;
     let relayHub;
 
     let relayServer;
+    let gsnForwarder;
     let vaultInteractor;
 
     let nonParticipant;
@@ -31,12 +31,16 @@ contract('GSN and Sponsor integration', async function (accounts) {
     let actions;
     let args;
 
+    let web3;
+
     async function nonce() {
         return parseInt(await gatekeeper.stateNonce());
     }
 
     before(async function () {
+        gsnForwarder = accounts[14];
         gatekeeper = await Gatekeeper.deployed();
+        web3 = new Web3(gatekeeper.contract.currentProvider);
         ownerPermissions = utils.bufferToHex(await gatekeeper.ownerPermissions());
         operatorA = new Participant(accounts[0], ownerPermissions, 1, "operatorA");
         nonParticipant = new Participant(accounts[1], ownerPermissions, 1, "operatorA");
@@ -44,15 +48,19 @@ contract('GSN and Sponsor integration', async function (accounts) {
         relayServer = {address: dummyAddress};
         actions = [ChangeType.ADD_PARTICIPANT];
         args = [utils.participantHash(operatorA.address, operatorA.permLevel)];
-        await gatekeeper.initialConfig(dummyAddress, [], []);
+        const minuteInSec = 60;
+        const hourInSec = 60 * minuteInSec;
+        const dayInSec = 24 * hourInSec;
+        let initialDelays = Array.from({length: 10}, (x, i) => (i + 1) * dayInSec);
+        await gatekeeper.initialConfig(dummyAddress, [], initialDelays, gsnForwarder);
     });
 
 
     it("should accept a relayed call if it comes from a valid participant", async function () {
 
         let calldata = gatekeeper.contract.methods.changeConfiguration(operatorA.permLevel, actions, args, await nonce()).encodeABI();
-        calldata += utils.removeHexPrefix(operatorA.address);
 
+        // Call to acceptRelayedCall is performed by either the RelayHub, or a trusted GSNForwarder, so 'from' field is reliable
         // I know that gas-related params do not matter, so there is no need to test them now
         let result = await gatekeeper.acceptRelayedCall(relayServer.address, operatorA.address, calldata, 0, 0, 0, 0, [], 0);
 
@@ -64,22 +72,52 @@ contract('GSN and Sponsor integration', async function (accounts) {
     it("should reject a relayed call if it doesn't come from a participant", async function () {
 
         let calldata = gatekeeper.contract.methods.changeConfiguration(operatorA.permLevel, actions, args, await nonce()).encodeABI();
-        calldata += utils.removeHexPrefix(nonParticipant.address);
 
         // I know that gas-related params do not matter, so there is no need to test them now
         let result = await gatekeeper.acceptRelayedCall(relayServer.address, nonParticipant.address, calldata, 0, 0, 0, 0, [], 0);
 
         assert.equal("11", result[0].toString());
-        let web3  = new Web3();
         assert.equal("Not vault participant", web3.utils.toAscii(result[1]));
     });
 
+
     it("should execute a schedule operation when called via the GSN", async function () {
-        assert.fail();
+        let calldata = gatekeeper.contract.methods.changeConfiguration(operatorA.permLevel, actions, args, await nonce()).encodeABI();
+        calldata += utils.removeHexPrefix(operatorA.address);
+
+        let res = await web3.eth.sendTransaction({
+            from: gsnForwarder,
+            to: gatekeeper.address,
+            value: 0,
+            data: calldata
+        });
+        let decodedLogs = Gatekeeper.decodeLogs(res.logs);
+        assert.equal(decodedLogs[0].event, "ConfigPending");
     });
 
-    it("should execute a schedule operation when called via the Sponsor Model", async function () {
-        assert.fail();
+    it("should revert a relayed call if it doesn't come from a trusted GSN Forwarder", async function () {
+        let calldata = gatekeeper.contract.methods.changeConfiguration(operatorA.permLevel, actions, args, await nonce()).encodeABI();
+        calldata += utils.removeHexPrefix(operatorA.address);
+        await expect(web3.eth.sendTransaction({
+                from: nonParticipant.address,
+                to: gatekeeper.address,
+                value: 0,
+                data: calldata
+            })
+        ).to.be.revertedWith("not participant")
+    });
+
+    it("should revert a relayed call if it doesn't come from a valid participant", async function () {
+        let calldata = gatekeeper.contract.methods.changeConfiguration(operatorA.permLevel, actions, args, await nonce()).encodeABI();
+        calldata += utils.removeHexPrefix(nonParticipant.address);
+        await expect(
+            web3.eth.sendTransaction({
+                from: gsnForwarder,
+                to: gatekeeper.address,
+                value: 0,
+                data: calldata
+            })
+        ).to.be.revertedWith("not participant");
     });
 
 });
