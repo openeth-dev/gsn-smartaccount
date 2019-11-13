@@ -56,6 +56,9 @@ contract Gatekeeper is PermissionsLevel, IRelayRecipient {
 
     uint256 public deployedBlock;
 
+    // TODO: implement actual 'trusted forwarder' logic
+    address trustedForwarder;
+
     constructor() public {
         deployedBlock = block.number;
     }
@@ -104,11 +107,13 @@ contract Gatekeeper is PermissionsLevel, IRelayRecipient {
     uint constant maxFreeze = 365 days;
 
 
-    function initialConfig(Vault vaultParam, bytes32[] memory initialParticipants, uint256[] memory initialDelays) public {
+    function initialConfig(Vault vaultParam, bytes32[] memory initialParticipants, uint256[] memory initialDelays, address _trustedForwarder) public {
         require(operator == address(0), "already initialized");
 
         require(initialParticipants.length <= maxParticipants, "too many participants");
         require(initialDelays.length <= maxLevels, "too many levels");
+
+        trustedForwarder = _trustedForwarder;
         for (uint8 i = 0; i < initialParticipants.length; i++) {
             participants[initialParticipants[i]] = true;
         }
@@ -161,10 +166,11 @@ contract Gatekeeper is PermissionsLevel, IRelayRecipient {
 
     function changeConfiguration(uint16 senderPermsLevel, uint8[] memory actions, bytes32[] memory args, uint256 targetStateNonce) public
     {
-        requirePermissions(msg.sender, canChangeConfig, senderPermsLevel);
+        address realSender = getSender();
+        requirePermissions(realSender, canChangeConfig, senderPermsLevel);
         requireNotFrozen(senderPermsLevel);
         requireCorrectState(targetStateNonce);
-        changeConfigurationInternal(actions, args, msg.sender, senderPermsLevel, address(0), 0);
+        changeConfigurationInternal(actions, args, realSender, senderPermsLevel, address(0), 0);
     }
 
     //TODO: Remove after debugging
@@ -370,4 +376,12 @@ contract Gatekeeper is PermissionsLevel, IRelayRecipient {
     function postRelayedCall(bytes calldata context, bool success, uint actualCharge, bytes32 preRetVal) external {
     }
 
+    function getSender() view internal returns (address) {
+        if (msg.sender == getHubAddr() || msg.sender == trustedForwarder) {
+            // At this point we know that the sender is a trusted IRelayHub, so we trust that the last bytes of msg.data are the verified sender address.
+            // extract sender address from the end of msg.data
+            return LibBytes.readAddress(msg.data, msg.data.length - 20);
+        }
+        return msg.sender;
+    }
 }
