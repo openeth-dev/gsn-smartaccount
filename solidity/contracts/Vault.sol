@@ -71,6 +71,19 @@ contract Vault {
         }
     }
 
+    //BYPASS SUPPORT
+    //TODO
+    function execute(address target, uint256 value, bytes memory msgdata) public gatekeeperOnly {
+        bool success;
+        if (value != 0 ) {
+            (success,) = target.call.value(value)(msgdata);
+        }else {
+            (success,) = target.call(msgdata);
+        }
+        //TODO: ...
+
+    }
+
     // ********** Delayed operations below this point
 
     // Nothing to do with a sender here - it's always Gatekeeper
