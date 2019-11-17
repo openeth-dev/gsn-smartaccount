@@ -50,7 +50,7 @@ module.exports = {
     },
 
     participantHash: function (admin, permLevel) {
-        return ABI.soliditySHA3(["address", "uint16"], [admin, permLevel])
+        return ABI.soliditySHA3(["address", "uint32"], [admin, permLevel])
     },
 
     scheduledVaultTxHash: function (sender, nonce, delay, destination, value, token) {
@@ -77,9 +77,9 @@ module.exports = {
         let permInt = parseInt(permissions);
         let levelInt = parseInt(level);
 
-        assert.isAtMost(permInt, 0x07FF);
+        assert.isAtMost(permInt, 0x07FFFFFF);
         assert.isAtMost(levelInt, 0x1F);
-        return "0x" + ((levelInt << 11) + permInt).toString(16);
+        return "0x" + ((levelInt << 27) + permInt).toString(16);
     },
 
     // Only used in tests

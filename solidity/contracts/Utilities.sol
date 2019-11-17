@@ -10,21 +10,21 @@ library Utilities {
 
     function transactionHash(
         uint8[] memory actions, bytes32[] memory args1, bytes32[] memory args2, uint256 stateId,
-        address sender, uint16 senderPermsLevel,
-        address booster, uint16 boosterPermsLevel)
+        address sender, uint32 senderPermsLevel,
+        address booster, uint32 boosterPermsLevel)
     internal pure returns (bytes32) {
         return keccak256(abi.encodePacked(actions, args1, args2, stateId, sender, senderPermsLevel, booster, boosterPermsLevel));
     }
 
     function transactionHashPublic(
         uint8[] memory actions, bytes32[] memory args1, bytes32[] memory args2, uint256 stateId,
-        address sender, uint16 senderPermsLevel,
-        address booster, uint16 boosterPermsLevel)
+        address sender, uint32 senderPermsLevel,
+        address booster, uint32 boosterPermsLevel)
     public pure returns (bytes32) {
         return transactionHash(actions, args1, args2, stateId, sender, senderPermsLevel, booster, boosterPermsLevel);
     }
 
-    function participantHash(address participant, uint16 permsLevel) internal pure returns (bytes32) {
+    function participantHash(address participant, uint32 permsLevel) internal pure returns (bytes32) {
         return keccak256(abi.encodePacked(participant, permsLevel));
     }
 
@@ -36,7 +36,7 @@ library Utilities {
         return changeHash(actions, args1, args2, stateId).toEthSignedMessageHash().recover(signature);
     }
 
-    function bypassCallHash(uint256 stateNonce, address sender, uint16 senderPermsLevel, address target, uint256 value, bytes memory msgdata) public pure returns (bytes32){
+    function bypassCallHash(uint256 stateNonce, address sender, uint32 senderPermsLevel, address target, uint256 value, bytes memory msgdata) public pure returns (bytes32){
         return keccak256(abi.encodePacked(stateNonce, sender, senderPermsLevel, target, value, msgdata));
     }
 
