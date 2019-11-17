@@ -22,29 +22,20 @@ jobs:
       # Download and cache dependencies
       - restore_cache:
           keys:
-            - v1-dependencies-{{ checksum "solidity/package.json" }}-{{ checksum "js_foundation/package.json" }}
+            - v1-dependencies-{{ checksum "solidity/package.json" }}
             # fallback to using the latest cache if no exact match is found
             - v1-dependencies-
-
-      - run:
-          name: validate duplicates
-          command: ./dup_control.sh
       - run:         
           name: yarn-install in solidity project
           command: cd solidity && yarn install
 
-      - run:         
-          name: yarn-install in js_foundation project
-          command: cd js_foundation && yarn install
-
       - save_cache:
           paths:
             - ./solidity/node_modules
-            - ./js_foundation/node_modules
           # TODO: cache by all package.json files in the repo!!!
-          key: v1-dependencies-{{ checksum "solidity/package.json" }}-{{ checksum "js_foundation/package.json" }}
+          key: v1-dependencies-{{ checksum "solidity/package.json" }}
 
       # run tests!
       - run: 
           name: solidity-test
-          command: cd solidity && yarn ci && cd .. && node js_foundation/extract_abi.js && cd js_foundation && yarn ci 
+          command: node solidity/extract_abi.js && cd solidity && yarn ci 
