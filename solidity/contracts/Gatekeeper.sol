@@ -27,7 +27,7 @@ contract Gatekeeper is PermissionsLevel, IRelayRecipient {
 
     //***** events
 
-    event ConfigPending(bytes32 indexed transactionHash, address sender, uint16 senderPermsLevel, address booster, uint16 boosterPermsLevel, uint256 stateId, uint8[] actions, bytes32[] actionsArguments1, bytes32[] actionsArguments2);
+    event ConfigPending(bytes32 indexed transactionHash, address sender, uint32 senderPermsLevel, address booster, uint32 boosterPermsLevel, uint256 stateId, uint8[] actions, bytes32[] actionsArguments1, bytes32[] actionsArguments2);
     event ConfigCancelled(bytes32 indexed transactionHash, address sender);
     // TODO: add 'ConfigApplied' event - this is the simplest way to track what is applied and whatnot
     event ParticipantAdded(bytes32 indexed participant);
@@ -41,7 +41,7 @@ contract Gatekeeper is PermissionsLevel, IRelayRecipient {
     event BypassByMethodAdded(bytes4 method, BypassPolicy bypass);
     event BypassByTargetRemoved(address target, BypassPolicy bypass);
     event BypassByMethodRemoved(bytes4 method, BypassPolicy bypass);
-    event BypassCallPending(bytes32 indexed bypassHash, uint256 stateNonce, address sender, uint16 senderPermsLevel, address target, uint256 value, bytes msgdata);
+    event BypassCallPending(bytes32 indexed bypassHash, uint256 stateNonce, address sender, uint32 senderPermsLevel, address target, uint256 value, bytes msgdata);
     event BypassCallCancelled(bytes32 indexed bypassHash, address sender);
     //*****
 
@@ -92,26 +92,26 @@ contract Gatekeeper is PermissionsLevel, IRelayRecipient {
 
     // ********** Access control modifiers below this point
 
-    function requireNotFrozen(uint16 senderPermsLevel, string memory errorMessage) view internal {
+    function requireNotFrozen(uint32 senderPermsLevel, string memory errorMessage) view internal {
         uint8 senderLevel = extractLevel(senderPermsLevel);
         require(now > frozenUntil || senderLevel > frozenLevel, errorMessage);
     }
 
-    function requireNotFrozen(uint16 senderPermsLevel) view internal {
+    function requireNotFrozen(uint32 senderPermsLevel) view internal {
         requireNotFrozen(senderPermsLevel, "level is frozen");
     }
 
-    function isParticipant(address participant, uint16 permsLevel) view internal returns (bool) {
+    function isParticipant(address participant, uint32 permsLevel) view internal returns (bool) {
         return participants[Utilities.participantHash(participant, permsLevel)];
     }
 
-    function requireParticipant(address participant, uint16 permsLevel) view internal {
+    function requireParticipant(address participant, uint32 permsLevel) view internal {
         require(isParticipant(participant, permsLevel), "not participant");
     }
 
-    function requirePermissions(address sender, uint16 neededPermissions, uint16 senderPermsLevel) view internal {
+    function requirePermissions(address sender, uint32 neededPermissions, uint32 senderPermsLevel) view internal {
         requireParticipant(sender, senderPermsLevel);
-        uint16 senderPermissions = extractPermission(senderPermsLevel);
+        uint32 senderPermissions = extractPermission(senderPermsLevel);
         comparePermissions(neededPermissions, senderPermissions);
     }
 
@@ -152,7 +152,7 @@ contract Gatekeeper is PermissionsLevel, IRelayRecipient {
 
     // ****** Immediately runnable functions below this point
 
-    function freeze(uint16 senderPermsLevel, uint8 levelToFreeze, uint duration)
+    function freeze(uint32 senderPermsLevel, uint8 levelToFreeze, uint duration)
     public
     {
         requirePermissions(msg.sender, canFreeze, senderPermsLevel);
@@ -172,14 +172,14 @@ contract Gatekeeper is PermissionsLevel, IRelayRecipient {
     }
 
     // TODO: require approval here; also, call it 'addOperatorImmediatelyDangerously'
-    function addOperator(uint16 senderPermsLevel, address operator) public {
+    function addOperator(uint32 senderPermsLevel, address operator) public {
         requirePermissions(msg.sender, canAddOperator, senderPermsLevel);
         requireNotFrozen(senderPermsLevel);
         addParticipant(msg.sender, senderPermsLevel, Utilities.participantHash(operator, ownerPermissions));
 
     }
 
-    function removeBypassByTarget(uint16 senderPermsLevel, address target) public {
+    function removeBypassByTarget(uint32 senderPermsLevel, address target) public {
         requirePermissions(msg.sender, canChangeBypass, senderPermsLevel);
         requireNotFrozen(senderPermsLevel);
         BypassPolicy bypass = bypassPoliciesByTarget[target];
@@ -187,7 +187,7 @@ contract Gatekeeper is PermissionsLevel, IRelayRecipient {
         emit BypassByTargetRemoved(target, bypass);
     }
 
-    function removeBypassByMethod(uint16 senderPermsLevel, bytes4 method) public {
+    function removeBypassByMethod(uint32 senderPermsLevel, bytes4 method) public {
         requirePermissions(msg.sender, canChangeBypass, senderPermsLevel);
         requireNotFrozen(senderPermsLevel);
         BypassPolicy bypass = bypassPoliciesByMethod[method];
@@ -196,8 +196,8 @@ contract Gatekeeper is PermissionsLevel, IRelayRecipient {
     }
 
     function boostedConfigChange(uint8[] memory actions, bytes32[] memory args1, bytes32[] memory args2,
-        uint256 targetStateNonce, uint16 boosterPermsLevel,
-        uint16 signerPermsLevel, bytes memory signature)
+        uint256 targetStateNonce, uint32 boosterPermsLevel,
+        uint32 signerPermsLevel, bytes memory signature)
     public {
         requirePermissions(msg.sender, canExecuteBoosts, boosterPermsLevel);
         requireNotFrozen(boosterPermsLevel);
@@ -208,7 +208,7 @@ contract Gatekeeper is PermissionsLevel, IRelayRecipient {
     }
 
 
-    function changeConfiguration(uint16 senderPermsLevel, uint8[] memory actions, bytes32[] memory args1, bytes32[] memory args2, uint256 targetStateNonce) public
+    function changeConfiguration(uint32 senderPermsLevel, uint8[] memory actions, bytes32[] memory args1, bytes32[] memory args2, uint256 targetStateNonce) public
     {
         address realSender = getSender();
         requirePermissions(realSender, canChangeConfig, senderPermsLevel);
@@ -225,9 +225,9 @@ contract Gatekeeper is PermissionsLevel, IRelayRecipient {
         bytes32[] memory args1,
         bytes32[] memory args2,
         address sender,
-        uint16 senderPermsLevel,
+        uint32 senderPermsLevel,
         address booster,
-        uint16 boosterPermsLevel
+        uint32 boosterPermsLevel
     ) internal {
         bytes32 transactionHash = Utilities.transactionHash(actions, args1, args2, stateNonce, sender, senderPermsLevel, booster, boosterPermsLevel);
         pendingChanges[transactionHash] = PendingChange(SafeMath.add(now, delays[extractLevel(senderPermsLevel)]), sender, false);
@@ -236,7 +236,7 @@ contract Gatekeeper is PermissionsLevel, IRelayRecipient {
         stateNonce++;
     }
 
-    function cancelTransfer(uint16 senderPermsLevel, uint256 delay, address destination, uint256 value, address token, uint256 nonce) public {
+    function cancelTransfer(uint32 senderPermsLevel, uint256 delay, address destination, uint256 value, address token, uint256 nonce) public {
         requirePermissions(msg.sender, canCancel, senderPermsLevel);
         requireNotFrozen(senderPermsLevel);
         vault.cancelTransfer(delay, destination, value, token, nonce, msg.sender);
@@ -245,9 +245,9 @@ contract Gatekeeper is PermissionsLevel, IRelayRecipient {
 
     function cancelOperation(
         uint8[] memory actions, bytes32[] memory args1, bytes32[] memory args2, uint256 scheduledStateId,
-        address scheduler, uint16 schedulerPermsLevel,
-        address booster, uint16 boosterPermsLevel,
-        uint16 senderPermsLevel) public {
+        address scheduler, uint32 schedulerPermsLevel,
+        address booster, uint32 boosterPermsLevel,
+        uint32 senderPermsLevel) public {
         requirePermissions(msg.sender, canCancel, senderPermsLevel);
         requireNotFrozen(senderPermsLevel);
         bytes32 hash = Utilities.transactionHash(actions, args1, args2, scheduledStateId, scheduler, schedulerPermsLevel, booster, boosterPermsLevel);
@@ -264,7 +264,7 @@ contract Gatekeeper is PermissionsLevel, IRelayRecipient {
         stateNonce++;
     }
 
-    function sendEther(address payable destination, uint value, uint16 senderPermsLevel, uint256 delay, uint256 targetStateNonce) public {
+    function sendEther(address payable destination, uint value, uint32 senderPermsLevel, uint256 delay, uint256 targetStateNonce) public {
         requirePermissions(msg.sender, canSpend, senderPermsLevel);
         requireNotFrozen(senderPermsLevel);
         requireCorrectState(targetStateNonce);
@@ -274,7 +274,7 @@ contract Gatekeeper is PermissionsLevel, IRelayRecipient {
         stateNonce++;
     }
 
-    function sendERC20(address payable destination, uint value, uint16 senderPermsLevel, uint256 delay, address token, uint256 targetStateNonce) public {
+    function sendERC20(address payable destination, uint value, uint32 senderPermsLevel, uint256 delay, address token, uint256 targetStateNonce) public {
         requirePermissions(msg.sender, canSpend, senderPermsLevel);
         requireNotFrozen(senderPermsLevel);
         requireCorrectState(targetStateNonce);
@@ -286,9 +286,9 @@ contract Gatekeeper is PermissionsLevel, IRelayRecipient {
 
     function applyConfig(
         uint8[] memory actions, bytes32[] memory args1, bytes32[] memory args2, uint256 scheduledStateId,
-        address scheduler, uint16 schedulerPermsLevel,
-        address booster, uint16 boosterPermsLevel,
-        uint16 senderPermsLevel) public {
+        address scheduler, uint32 schedulerPermsLevel,
+        address booster, uint32 boosterPermsLevel,
+        uint32 senderPermsLevel) public {
         requireParticipant(msg.sender, senderPermsLevel);
         requireNotFrozen(senderPermsLevel);
         if (booster != address(0))
@@ -309,7 +309,7 @@ contract Gatekeeper is PermissionsLevel, IRelayRecipient {
         stateNonce++;
     }
 
-    function applyTransfer(uint256 delay, address payable destination, uint256 value, address token, uint256 nonce, uint16 senderPermsLevel)
+    function applyTransfer(uint256 delay, address payable destination, uint256 value, address token, uint256 nonce, uint32 senderPermsLevel)
     public {
         requireParticipant(msg.sender, senderPermsLevel);
         requireNotFrozen(senderPermsLevel);
@@ -318,7 +318,7 @@ contract Gatekeeper is PermissionsLevel, IRelayRecipient {
         stateNonce++;
     }
 
-    function dispatch(uint8 actionInt, bytes32 arg1, bytes32 arg2, address sender, uint16 senderPermsLevel) private {
+    function dispatch(uint8 actionInt, bytes32 arg1, bytes32 arg2, address sender, uint32 senderPermsLevel) private {
         ChangeType action = ChangeType(actionInt);
         if (action == ChangeType.ADD_PARTICIPANT) {
             addParticipant(sender, senderPermsLevel, arg1);
@@ -344,32 +344,32 @@ contract Gatekeeper is PermissionsLevel, IRelayRecipient {
 
     // ********** Delayed operations below this point
 
-    function addParticipant(address sender, uint16 senderPermsLevel, bytes32 hash) private {
+    function addParticipant(address sender, uint32 senderPermsLevel, bytes32 hash) private {
         requirePermissions(sender, canChangeParticipants, senderPermsLevel);
         participants[hash] = true;
         emit ParticipantAdded(hash);
     }
 
-    function addBypassByTarget(address sender, uint16 senderPermsLevel, address target, BypassPolicy bypass) private {
+    function addBypassByTarget(address sender, uint32 senderPermsLevel, address target, BypassPolicy bypass) private {
         requirePermissions(sender, canChangeBypass, senderPermsLevel);
         bypassPoliciesByTarget[target] = bypass;
         emit BypassByTargetAdded(target, bypass);
     }
 
-    function addBypassByMethod(address sender, uint16 senderPermsLevel, bytes4 method, BypassPolicy bypass) private {
+    function addBypassByMethod(address sender, uint32 senderPermsLevel, bytes4 method, BypassPolicy bypass) private {
         requirePermissions(sender, canChangeBypass, senderPermsLevel);
         bypassPoliciesByMethod[method] = bypass;
         emit BypassByMethodAdded(method, bypass);
     }
 
-    function removeParticipant(address sender, uint16 senderPermsLevel, bytes32 participant) private {
+    function removeParticipant(address sender, uint32 senderPermsLevel, bytes32 participant) private {
         requirePermissions(sender, canChangeParticipants, senderPermsLevel);
         require(participants[participant], "there is no such participant");
         delete participants[participant];
         emit ParticipantRemoved(participant);
     }
 
-    function unfreeze(address sender, uint16 senderPermsLevel) private {
+    function unfreeze(address sender, uint32 senderPermsLevel) private {
         requirePermissions(sender, canUnfreeze, senderPermsLevel);
         frozenLevel = 0;
         frozenUntil = 0;
@@ -390,7 +390,7 @@ contract Gatekeeper is PermissionsLevel, IRelayRecipient {
         return bypass.getBypassPolicy(target, value, encodedFunction);
     }
 
-    function scheduleBypassCall(uint16 senderPermsLevel, address target, uint256 value, bytes memory encodedFunction) public {
+    function scheduleBypassCall(uint32 senderPermsLevel, address target, uint256 value, bytes memory encodedFunction) public {
         requirePermissions(msg.sender, ownerPermissions, senderPermsLevel);
         requireNotFrozen(senderPermsLevel);
 
@@ -405,12 +405,12 @@ contract Gatekeeper is PermissionsLevel, IRelayRecipient {
     }
 
     function applyBypassCall(address scheduler,
-        uint16 schedulerPermsLevel,
+        uint32 schedulerPermsLevel,
         uint256 scheduledStateNonce,
         address target,
         uint256 value,
         bytes memory encodedFunction,
-        uint16 senderPermsLevel) public {
+        uint32 senderPermsLevel) public {
         requireParticipant(msg.sender, senderPermsLevel);
         requireNotFrozen(senderPermsLevel);
 
@@ -424,12 +424,12 @@ contract Gatekeeper is PermissionsLevel, IRelayRecipient {
     }
 
     function cancelBypassCall(address scheduler,
-        uint16 schedulerPermsLevel,
+        uint32 schedulerPermsLevel,
         uint256 scheduledStateNonce,
         address target,
         uint256 value,
         bytes memory encodedFunction,
-        uint16 senderPermsLevel) public {
+        uint32 senderPermsLevel) public {
         requirePermissions(msg.sender, ownerPermissions, senderPermsLevel);
         requireNotFrozen(senderPermsLevel);
 
@@ -442,7 +442,7 @@ contract Gatekeeper is PermissionsLevel, IRelayRecipient {
         stateNonce++;
     }
 
-    function executeBypassCall(uint16 senderPermsLevel, address target, uint256 value, bytes memory encodedFunction) public {
+    function executeBypassCall(uint32 senderPermsLevel, address target, uint256 value, bytes memory encodedFunction) public {
         requirePermissions(msg.sender, ownerPermissions, senderPermsLevel);
         requireNotFrozen(senderPermsLevel);
         require(!blockAcceleratedCalls, "Accelerated calls blocked");
@@ -483,7 +483,7 @@ contract Gatekeeper is PermissionsLevel, IRelayRecipient {
     view
     returns (uint256, bytes memory){
         (relay, from, encodedFunction, transactionFee, gasPrice, gasLimit, nonce, approvalData, maxPossibleCharge);
-        uint16 senderRoleRank = uint16(GsnUtils.getParam(encodedFunction, 0));
+        uint32 senderRoleRank = uint32(GsnUtils.getParam(encodedFunction, 0));
         if (isParticipant(from, senderRoleRank)) {
             return (0, "");
         }
