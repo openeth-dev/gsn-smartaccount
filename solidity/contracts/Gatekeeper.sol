@@ -54,21 +54,17 @@ contract Gatekeeper is PermissionsLevel, IRelayRecipient {
     struct PendingChange {
         uint256 dueTime;
         address caller;
+        // TODO: fully implement approvals mechanism, like:
+        // TODO:  1. removed participant probably should lose all approvals
+        // TODO:  2. cannot approve the same call twice, etc.
         bool approved;
     }
 
-//    struct PendingBypassCall {
-//        PendingChange change;
-//        address target;
-//        uint256 value;
-//        bytes msgData;
-//
-//    }
-
     mapping(bytes32 => PendingChange) public pendingChanges;
     uint256[] public delays;
-    mapping(address => BypassPolicy ) bypassPoliciesByTarget; // instance level bypass exceptions
-    mapping(bytes4 => BypassPolicy ) bypassPoliciesByMethod; // interface (method sigs) level bypass exceptions
+    mapping(address => BypassPolicy) bypassPoliciesByTarget; // instance level bypass exceptions
+    mapping(bytes4 => BypassPolicy) bypassPoliciesByMethod; // interface (method sigs) level bypass exceptions
+    // TODO: do not call this 'bypass calls', this does not describe what these are.
     mapping(bytes32 => PendingChange) pendingBypassCalls;
 
     function getDelays() public view returns (uint256[] memory) {
@@ -168,6 +164,7 @@ contract Gatekeeper is PermissionsLevel, IRelayRecipient {
         stateNonce++;
     }
 
+    // TODO: require approval here; also, call it 'addOperatorImmediatelyDangerously'
     function addOperator(uint16 senderPermsLevel, address operator) public {
         requirePermissions(msg.sender, canAddOperator, senderPermsLevel);
         requireNotFrozen(senderPermsLevel);
@@ -204,7 +201,7 @@ contract Gatekeeper is PermissionsLevel, IRelayRecipient {
     }
 
 
-function changeConfiguration(uint16 senderPermsLevel, uint8[] memory actions, bytes32[] memory args1, bytes32[] memory args2, uint256 targetStateNonce) public
+    function changeConfiguration(uint16 senderPermsLevel, uint8[] memory actions, bytes32[] memory args1, bytes32[] memory args2, uint256 targetStateNonce) public
     {
         address realSender = getSender();
         requirePermissions(realSender, canChangeConfig, senderPermsLevel);
@@ -217,9 +214,14 @@ function changeConfiguration(uint16 senderPermsLevel, uint8[] memory actions, by
     event WTF(bytes encodedPacked);
     // Note: this internal method is not wrapped with 'requirePermissions' as it may be called by the 'changeOwner'
     function changeConfigurationInternal(
-        uint8[] memory actions, bytes32[] memory args1, bytes32[] memory args2,
-        address sender, uint16 senderPermsLevel,
-        address booster, uint16 boosterPermsLevel) internal {
+        uint8[] memory actions,
+        bytes32[] memory args1,
+        bytes32[] memory args2,
+        address sender,
+        uint16 senderPermsLevel,
+        address booster,
+        uint16 boosterPermsLevel
+    ) internal {
         bytes32 transactionHash = Utilities.transactionHash(actions, args1, args2, stateNonce, sender, senderPermsLevel, booster, boosterPermsLevel);
         pendingChanges[transactionHash] = PendingChange(SafeMath.add(now, delays[extractLevel(senderPermsLevel)]), sender, false);
         emit ConfigPending(transactionHash, sender, senderPermsLevel, booster, boosterPermsLevel, stateNonce, actions, args1, args2);
@@ -274,38 +276,6 @@ function changeConfiguration(uint16 senderPermsLevel, uint8[] memory actions, by
         vault.scheduleDelayedTransfer(delay, destination, value, token);
         stateNonce++;
     }
-
-//    //TODO
-//    function approveConfig(uint8[] memory actions, bytes32[] memory args, uint256 scheduledStateId,
-//        address scheduler, uint16 schedulerPermsLevel,
-//        address booster, uint16 boosterPermsLevel,
-//        uint16 senderPermsLevel) public {
-//        requireParticipant(msg.sender, senderPermsLevel);
-//        requireNotFrozen(senderPermsLevel);
-//        if (booster != address(0))
-//        {
-//            requireNotFrozen(boosterPermsLevel, "booster level is frozen");
-//        }
-//        else {
-//            requireNotFrozen(schedulerPermsLevel, "scheduler level is frozen");
-//        }
-//        // TODO: approve logic
-//        bytes32 transactionHash = Utilities.transactionHash(actions, args, scheduledStateId, scheduler, schedulerPermsLevel, booster, boosterPermsLevel);
-//        PendingChange storage pendingChange = pendingChanges[transactionHash];
-//        require(pendingChange.dueTime != 0, "apply called for non existent pending change");
-//        pendingChange.approved = true;
-//
-//        stateNonce++;
-//    }
-//
-//    //TODO
-//    function approveTransfer(uint256 delay, address payable destination, uint256 value, address token, uint256 nonce, uint16 senderPermsLevel)
-//    public {
-//        requireParticipant(msg.sender, senderPermsLevel);
-//        requireNotFrozen(senderPermsLevel);
-//        // TODO: approve logic
-//        stateNonce++;
-//    }
 
     function applyConfig(
         uint8[] memory actions, bytes32[] memory args1, bytes32[] memory args2, uint256 scheduledStateId,
@@ -400,53 +370,56 @@ function changeConfiguration(uint16 senderPermsLevel, uint8[] memory actions, by
     }
 
     //BYPASS SUPPORT
+    // TODO: "schedule/execute bypass" requires it's own, dedicated permission; this means permLevel size must be >= uint32
 
-    function getBypassPolicy(address target, uint256 value, bytes memory msgdata) public view returns( uint256 delay, uint256 requriedConfirmations) {
+    function getBypassPolicy(address target, uint256 value, bytes memory encodedFunction) public view returns (uint256 delay, uint256 requiredConfirmations) {
         BypassPolicy bypass = bypassPoliciesByTarget[target];
-        if ( address(bypass) == address(0) ) {
-            bypass = bypassPoliciesByMethod[ msgdata.readBytes4(0) ];
+        if (address(bypass) == address(0)) {
+            bypass = bypassPoliciesByMethod[encodedFunction.readBytes4(0)];
         }
-        if ( address(bypass) == address(0) ) {
+        if (address(bypass) == address(0)) {
             bypass = defaultBypassPolicy;
         }
-        return bypass.getBypassPolicy(target, value, msgdata);
+        // TODO: add 'blockAcceleratedCalls' flag config variable (or not, what do I care :-) )
+        return bypass.getBypassPolicy(target, value, encodedFunction);
     }
 
-    function scheduleBypassCall(uint16 senderPermsLevel, address target, uint256 value, bytes memory msgdata ) public  {
+    function scheduleBypassCall(uint16 senderPermsLevel, address target, uint256 value, bytes memory encodedFunction) public {
         requirePermissions(msg.sender, ownerPermissions, senderPermsLevel);
         requireNotFrozen(senderPermsLevel);
 
-        (uint256 delay, uint256 requiredConfirmations ) = getBypassPolicy(target, value, msgdata);
-        require( requiredConfirmations  != uint256(-1), "Call blocked by policy" );
-        bytes32 bypassCallHash = Utilities.bypassCallHash(stateNonce, msg.sender, senderPermsLevel, target, value, msgdata);
+        (uint256 delay, uint256 requiredConfirmations) = getBypassPolicy(target, value, encodedFunction);
+        require(requiredConfirmations != uint256(- 1), "Call blocked by policy");
+        bytes32 bypassCallHash = Utilities.bypassCallHash(stateNonce, msg.sender, senderPermsLevel, target, value, encodedFunction);
         pendingBypassCalls[bypassCallHash] = PendingChange(SafeMath.add(now, delay), msg.sender, false);
-        emit BypassCallPending(bypassCallHash, stateNonce, msg.sender, senderPermsLevel, target, value, msgdata);
+        emit BypassCallPending(bypassCallHash, stateNonce, msg.sender, senderPermsLevel, target, value, encodedFunction);
 
         stateNonce++;
     }
 
-    function applyBypassCall(address scheduler, uint16 schedulerPermsLevel, uint256 scheduledStateNonce, address target, uint256 value, bytes memory msgdata, uint16 senderPermsLevel) public {
-        requirePermissions(msg.sender, ownerPermissions, senderPermsLevel);
+    function applyBypassCall(address scheduler, uint16 schedulerPermsLevel, uint256 scheduledStateNonce, address target, uint256 value, bytes memory encodedFunction, uint16 senderPermsLevel) public {
+        requireParticipant(msg.sender, senderPermsLevel);
         requireNotFrozen(senderPermsLevel);
 
-        bytes32 bypassCallHash = Utilities.bypassCallHash(scheduledStateNonce, scheduler, schedulerPermsLevel, target, value, msgdata);
+        bytes32 bypassCallHash = Utilities.bypassCallHash(scheduledStateNonce, scheduler, schedulerPermsLevel, target, value, encodedFunction);
         PendingChange memory pendingBypassCall = pendingBypassCalls[bypassCallHash];
         require(pendingBypassCall.dueTime != 0, "apply called for non existent pending bypass call");
         require(now >= pendingBypassCall.dueTime, "apply called before due time");
-        vault.execute(target, value, msgdata);
+        vault.execute(target, value, encodedFunction);
 
         stateNonce++;
     }
 
-    function executeBypassCall(uint16 senderPermsLevel, address target, uint256 value, bytes memory msgdata ) public  {
+    function executeBypassCall(uint16 senderPermsLevel, address target, uint256 value, bytes memory encodedFunction) public {
         requirePermissions(msg.sender, ownerPermissions, senderPermsLevel);
         requireNotFrozen(senderPermsLevel);
 
-        (uint256 delay, uint256 requiredConfirmations ) = getBypassPolicy(target, value, msgdata);
-        require( requiredConfirmations  != uint256(-1), "Call blocked by policy" );
+        (uint256 delay, uint256 requiredConfirmations) = getBypassPolicy(target, value, encodedFunction);
+        require(requiredConfirmations != uint256(- 1), "Call blocked by policy");
         require(delay == 0, "Call cannot be executed immediately.");
-        vault.execute(target, value, msgdata);
+        vault.execute(target, value, encodedFunction);
 
+        stateNonce++;
     }
 
     /*** Relay Recipient implementation **/
@@ -486,12 +459,11 @@ function changeConfiguration(uint16 senderPermsLevel, uint8[] memory actions, by
         }
     }
 
-    function preRelayedCall(bytes calldata context) external returns (bytes32){
-        context;
+    function preRelayedCall(bytes calldata) external returns (bytes32){
         return 0;
     }
 
-    function postRelayedCall(bytes calldata context, bool success, uint actualCharge, bytes32 preRetVal) external {
+    function postRelayedCall(bytes calldata, bool, uint, bytes32) external {
     }
 
     function getSender() view internal returns (address) {
@@ -502,5 +474,4 @@ function changeConfiguration(uint16 senderPermsLevel, uint8[] memory actions, by
         }
         return msg.sender;
     }
-
 }
