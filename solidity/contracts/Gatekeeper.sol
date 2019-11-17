@@ -377,7 +377,6 @@ contract Gatekeeper is PermissionsLevel, IRelayRecipient {
     }
 
     //BYPASS SUPPORT
-    // TODO: "schedule/execute bypass" requires it's own, dedicated permission; this means permLevel size must be >= uint32
 
     function getBypassPolicy(address target, uint256 value, bytes memory encodedFunction) public view returns (uint256 delay, uint256 requiredConfirmations) {
         BypassPolicy bypass = bypassPoliciesByTarget[target];
@@ -391,7 +390,7 @@ contract Gatekeeper is PermissionsLevel, IRelayRecipient {
     }
 
     function scheduleBypassCall(uint32 senderPermsLevel, address target, uint256 value, bytes memory encodedFunction) public {
-        requirePermissions(msg.sender, ownerPermissions, senderPermsLevel);
+        requirePermissions(msg.sender, canExecuteBypassCall, senderPermsLevel);
         requireNotFrozen(senderPermsLevel);
 
         (uint256 delay, uint256 requiredConfirmations) = getBypassPolicy(target, value, encodedFunction);
@@ -430,7 +429,7 @@ contract Gatekeeper is PermissionsLevel, IRelayRecipient {
         uint256 value,
         bytes memory encodedFunction,
         uint32 senderPermsLevel) public {
-        requirePermissions(msg.sender, ownerPermissions, senderPermsLevel);
+        requirePermissions(msg.sender, canCancelBypassCall, senderPermsLevel);
         requireNotFrozen(senderPermsLevel);
 
         bytes32 bypassCallHash = Utilities.bypassCallHash(scheduledStateNonce, scheduler, schedulerPermsLevel, target, value, encodedFunction);
@@ -443,7 +442,7 @@ contract Gatekeeper is PermissionsLevel, IRelayRecipient {
     }
 
     function executeBypassCall(uint32 senderPermsLevel, address target, uint256 value, bytes memory encodedFunction) public {
-        requirePermissions(msg.sender, ownerPermissions, senderPermsLevel);
+        requirePermissions(msg.sender, canExecuteBypassCall, senderPermsLevel);
         requireNotFrozen(senderPermsLevel);
         require(!blockAcceleratedCalls, "Accelerated calls blocked");
 
