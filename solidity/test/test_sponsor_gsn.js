@@ -52,7 +52,7 @@ contract('GSN and Sponsor integration', async function (accounts) {
         const hourInSec = 60 * minuteInSec;
         const dayInSec = 24 * hourInSec;
         let initialDelays = Array.from({length: 10}, (x, i) => (i + 1) * dayInSec);
-        await gatekeeper.initialConfig(dummyAddress, args, initialDelays, gsnForwarder);
+        await gatekeeper.initialConfig(dummyAddress, args, initialDelays, gsnForwarder, false);
     });
 
 

@@ -42,6 +42,7 @@ contract Gatekeeper is PermissionsLevel, IRelayRecipient {
     event BypassByTargetRemoved(address target, BypassPolicy bypass);
     event BypassByMethodRemoved(bytes4 method, BypassPolicy bypass);
     event BypassCallPending(bytes32 indexed bypassHash, uint256 stateNonce, address sender, uint16 senderPermsLevel, address target, uint256 value, bytes msgdata);
+    event BypassCallCancelled(bytes32 indexed bypassHash, address sender);
     //*****
 
     // TODO:
@@ -66,6 +67,7 @@ contract Gatekeeper is PermissionsLevel, IRelayRecipient {
     mapping(bytes4 => BypassPolicy) bypassPoliciesByMethod; // interface (method sigs) level bypass exceptions
     // TODO: do not call this 'bypass calls', this does not describe what these are.
     mapping(bytes32 => PendingChange) pendingBypassCalls;
+    bool public blockAcceleratedCalls;
 
     function getDelays() public view returns (uint256[] memory) {
         return delays;
@@ -123,7 +125,11 @@ contract Gatekeeper is PermissionsLevel, IRelayRecipient {
     uint constant maxFreeze = 365 days;
 
 
-    function initialConfig(Vault vaultParam, bytes32[] memory initialParticipants, uint256[] memory initialDelays, address _trustedForwarder) public {
+    function initialConfig(
+        Vault vaultParam,
+        bytes32[] memory initialParticipants,
+        uint256[] memory initialDelays,
+        address _trustedForwarder, bool _blockAcceleratedCalls) public {
         require(stateNonce == 0, "already initialized");
         require(initialParticipants.length <= maxParticipants, "too many participants");
         require(initialDelays.length <= maxLevels, "too many levels");
@@ -137,6 +143,7 @@ contract Gatekeeper is PermissionsLevel, IRelayRecipient {
         }
         delays = initialDelays;
         vault = vaultParam;
+        blockAcceleratedCalls = _blockAcceleratedCalls;
 
 
         emit GatekeeperInitialized(address(vault), initialParticipants);
@@ -380,7 +387,6 @@ contract Gatekeeper is PermissionsLevel, IRelayRecipient {
         if (address(bypass) == address(0)) {
             bypass = defaultBypassPolicy;
         }
-        // TODO: add 'blockAcceleratedCalls' flag config variable (or not, what do I care :-) )
         return bypass.getBypassPolicy(target, value, encodedFunction);
     }
 
@@ -389,6 +395,7 @@ contract Gatekeeper is PermissionsLevel, IRelayRecipient {
         requireNotFrozen(senderPermsLevel);
 
         (uint256 delay, uint256 requiredConfirmations) = getBypassPolicy(target, value, encodedFunction);
+        require(!blockAcceleratedCalls || delay >= delays[extractLevel(senderPermsLevel)], "Accelerated calls blocked - delay too short");
         require(requiredConfirmations != uint256(- 1), "Call blocked by policy");
         bytes32 bypassCallHash = Utilities.bypassCallHash(stateNonce, msg.sender, senderPermsLevel, target, value, encodedFunction);
         pendingBypassCalls[bypassCallHash] = PendingChange(SafeMath.add(now, delay), msg.sender, false);
@@ -397,7 +404,13 @@ contract Gatekeeper is PermissionsLevel, IRelayRecipient {
         stateNonce++;
     }
 
-    function applyBypassCall(address scheduler, uint16 schedulerPermsLevel, uint256 scheduledStateNonce, address target, uint256 value, bytes memory encodedFunction, uint16 senderPermsLevel) public {
+    function applyBypassCall(address scheduler,
+        uint16 schedulerPermsLevel,
+        uint256 scheduledStateNonce,
+        address target,
+        uint256 value,
+        bytes memory encodedFunction,
+        uint16 senderPermsLevel) public {
         requireParticipant(msg.sender, senderPermsLevel);
         requireNotFrozen(senderPermsLevel);
 
@@ -410,9 +423,29 @@ contract Gatekeeper is PermissionsLevel, IRelayRecipient {
         stateNonce++;
     }
 
+    function cancelBypassCall(address scheduler,
+        uint16 schedulerPermsLevel,
+        uint256 scheduledStateNonce,
+        address target,
+        uint256 value,
+        bytes memory encodedFunction,
+        uint16 senderPermsLevel) public {
+        requirePermissions(msg.sender, ownerPermissions, senderPermsLevel);
+        requireNotFrozen(senderPermsLevel);
+
+        bytes32 bypassCallHash = Utilities.bypassCallHash(scheduledStateNonce, scheduler, schedulerPermsLevel, target, value, encodedFunction);
+        PendingChange memory pendingBypassCall = pendingBypassCalls[bypassCallHash];
+        require(pendingBypassCall.dueTime != 0, "cancel called for non existent pending bypass call");
+        delete pendingBypassCalls[bypassCallHash];
+        emit BypassCallCancelled(bypassCallHash, msg.sender);
+
+        stateNonce++;
+    }
+
     function executeBypassCall(uint16 senderPermsLevel, address target, uint256 value, bytes memory encodedFunction) public {
         requirePermissions(msg.sender, ownerPermissions, senderPermsLevel);
         requireNotFrozen(senderPermsLevel);
+        require(!blockAcceleratedCalls, "Accelerated calls blocked");
 
         (uint256 delay, uint256 requiredConfirmations) = getBypassPolicy(target, value, encodedFunction);
         require(requiredConfirmations != uint256(- 1), "Call blocked by policy");
