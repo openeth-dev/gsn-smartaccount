@@ -1,7 +1,6 @@
 const Web3 = require('web3');
 const TruffleContract = require("truffle-contract");
 
-const VaultABI = require('./generated/Vault');
 const GatekeeperABI = require('./generated/Gatekeeper');
 
 const ParticipantAddedEvent = require('./events/ParticipantAddedEvent');
@@ -24,11 +23,6 @@ const safeChannelUtils = require("./SafeChannelUtils");
 let GatekeeperContract = TruffleContract({
     contractName: "Gatekeeper",
     abi: GatekeeperABI
-});
-
-let VaultContract = TruffleContract({
-    contractName: "Vault",
-    abi: VaultABI
 });
 
 const gatekeeperInitializedEvent = "GatekeeperInitialized";

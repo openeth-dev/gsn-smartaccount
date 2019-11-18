@@ -4,7 +4,6 @@ const Web3 = require('web3');
 
 /* truffle artifacts */
 const Gatekeeper = artifacts.require("./Gatekeeper.sol");
-const Vault = artifacts.require("./Vault.sol");
 const Utilities = artifacts.require("./Utilities.sol");
 const DAI = artifacts.require("./DAI.sol");
 
@@ -65,7 +64,16 @@ function extractLog(log, res) {
     let boosterPermsLevel = log.args.boosterPermsLevel;
 
     let scheduledStateId = log.args.stateId;
-    return {actions, args1, args2, schedulerAddress, schedulerPermsLevel, boosterAddress, boosterPermsLevel, scheduledStateId};
+    return {
+        actions,
+        args1,
+        args2,
+        schedulerAddress,
+        schedulerPermsLevel,
+        boosterAddress,
+        boosterPermsLevel,
+        scheduledStateId
+    };
 }
 
 async function applyDelayed({res, log}, fromParticipant, gatekeeper) {
@@ -87,7 +95,6 @@ async function applyDelayed({res, log}, fromParticipant, gatekeeper) {
 contract('Gatekeeper', async function (accounts) {
 
     let gatekeeper;
-    let vault;
     let utilities;
     let erc20;
     let fundedAmount = 300;
@@ -96,7 +103,6 @@ contract('Gatekeeper', async function (accounts) {
     let freezerLevel = 2;
     let highLevel = 3;
     let zeroAddress = "0x0000000000000000000000000000000000000000";
-    let ETH_TOKEN_ADDRESS = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
     let destinationAddress = accounts[2];
     let timeGap = 60 * 60 * 24 * 2 + 10;
     let initialDelays;
@@ -123,13 +129,12 @@ contract('Gatekeeper', async function (accounts) {
     let watchdogPermissions;
 
     before(async function () {
-        // Merge events so Gatekeeper knows about Vault’s events
-        Object.keys(Vault.events).forEach(function (topic) {
-            Gatekeeper.network.events[topic] = Vault.events[topic];
+        // Merge events so Gatekeeper knows about ERC20’s events
+        Object.keys(DAI.events).forEach(function (topic) {
+            Gatekeeper.network.events[topic] = DAI.events[topic];
         });
 
         gatekeeper = await Gatekeeper.deployed();
-        vault = await Vault.deployed();
         utilities = await Utilities.deployed();
         erc20 = await DAI.new();
         web3 = new Web3(gatekeeper.contract.currentProvider);
@@ -174,7 +179,7 @@ contract('Gatekeeper', async function (accounts) {
         let wrongInitialDelays = [];
         let initialParticipants = Array(21).fill("0x1123123");
         await expect(
-            gatekeeper.initialConfig(vault.address, initialParticipants, wrongInitialDelays, zeroAddress, false)
+            gatekeeper.initialConfig(initialParticipants, wrongInitialDelays, zeroAddress, false)
         ).to.be.revertedWith("too many participants");
     });
 
@@ -182,7 +187,7 @@ contract('Gatekeeper', async function (accounts) {
         let wrongInitialDelays = Array(11).fill(10);
         let initialParticipants = [];
         await expect(
-            gatekeeper.initialConfig(vault.address, initialParticipants, wrongInitialDelays, zeroAddress, false)
+            gatekeeper.initialConfig(initialParticipants, wrongInitialDelays, zeroAddress, false)
         ).to.be.revertedWith("too many levels");
     });
 
@@ -190,7 +195,7 @@ contract('Gatekeeper', async function (accounts) {
         let wrongInitialDelays = Array.from({length: 10}, (x, i) => (i + 1) * yearInSec);
         let initialParticipants = [];
         await expect(
-            gatekeeper.initialConfig(vault.address, initialParticipants, wrongInitialDelays, zeroAddress, false)
+            gatekeeper.initialConfig(initialParticipants, wrongInitialDelays, zeroAddress, false)
         ).to.be.revertedWith("Delay too long");
     });
 
@@ -207,10 +212,9 @@ contract('Gatekeeper', async function (accounts) {
             utils.bufferToHex(utils.participantHash(adminB2.address, adminB2.permLevel)),
         ];
 
-        let res = await gatekeeper.initialConfig(vault.address, initialParticipants, initialDelays, zeroAddress, false, {from:operatorA.address});
+        let res = await gatekeeper.initialConfig(initialParticipants, initialDelays, zeroAddress, false, {from:operatorA.address});
         let log = res.logs[0];
         assert.equal(log.event, "GatekeeperInitialized");
-        assert.equal(log.args.vault, vault.address);
 
         // let participants = [operatorA, adminA, adminB, watchdogA, watchdogB, operatorB, adminC, wrongaddr];
         let participants = [
@@ -231,98 +235,91 @@ contract('Gatekeeper', async function (accounts) {
         let initialDelays = [];
         let initialParticipants = [];
         await expect(
-            gatekeeper.initialConfig(vault.address, initialParticipants, initialDelays, zeroAddress, false)
+            gatekeeper.initialConfig(initialParticipants, initialDelays, zeroAddress, false)
         ).to.be.revertedWith("already initialized");
     });
     // return;
     /* Positive flows */
 
     /* Plain send */
-    // TODO: this is an integration test (uses 2 contracts)
-    // This is better to separate these into a separate file
     it("should allow the owner to create a delayed ether transfer transaction", async function () {
         let stateId = await gatekeeper.stateNonce();
-        let res = await gatekeeper.sendEther(destinationAddress, amount, operatorA.permLevel, initialDelays[1], stateId);
+        let res = await gatekeeper.scheduleBypassCall(operatorA.permLevel, destinationAddress, amount, []);
         expectedDelayedEventsCount++;
         let log = res.logs[0];
-        assert.equal(log.event, "TransactionPending");
-        assert.equal(log.address, vault.address);
-        assert.equal(log.args.destination, destinationAddress);
+        assert.equal(log.event, "BypassCallPending");
+        assert.equal(log.address, gatekeeper.address);
+        assert.equal(log.args.target, destinationAddress);
         assert.equal(log.args.value, amount);
-        assert.equal(log.args.erc20token, ETH_TOKEN_ADDRESS);
-        assert.equal(log.args.delay, initialDelays[1]);
-        let hash = "0x" + utils.scheduledVaultTxHash(gatekeeper.address, log.args.nonce, log.args.delay, log.args.destination, log.args.value, log.args.erc20token).toString("hex");
-        let dueTime = await vault.pending(hash);
-        assert.isAbove(dueTime.toNumber(), 0)
+        let hash = "0x" + utils.bypassCallHash(stateId, operatorA.address, operatorA.permLevel, destinationAddress, amount, "").toString("hex");
+        let pendingCall = await gatekeeper.pendingBypassCalls(hash);
+        assert.isAbove(pendingCall.dueTime.toNumber(), 0)
     });
 
     it("just funding the vault", async function () {
-        await web3.eth.sendTransaction({from: operatorA.address, to: vault.address, value: amount * 10});
+        await web3.eth.sendTransaction({from: operatorA.address, to: gatekeeper.address, value: amount * 10});
     });
 
     it("should allow the owner to execute a delayed transfer transaction after delay", async function () {
 
-        let addedLog = await getLastEvent(vault.contract, "TransactionPending", expectedDelayedEventsCount);
-        let balanceSenderBefore = parseInt(await web3.eth.getBalance(vault.address));
+        let addedLog = await getLastEvent(gatekeeper.contract, "BypassCallPending", expectedDelayedEventsCount);
+        let balanceSenderBefore = parseInt(await web3.eth.getBalance(gatekeeper.address));
         let balanceReceiverBefore = parseInt(await web3.eth.getBalance(destinationAddress));
         assert.isAbove(balanceSenderBefore, amount);
         await utils.increaseTime(timeGap, web3);
-        let res = await gatekeeper.applyTransfer(addedLog.delay, addedLog.destination, addedLog.value, addedLog.erc20token, addedLog.nonce, operatorA.permLevel, {from: operatorA.address});
+        let res = await gatekeeper.applyBypassCall(operatorA.address, operatorA.permLevel, addedLog.stateNonce, addedLog.target, addedLog.value, [], operatorA.permLevel, {from: operatorA.address});
         let log = res.logs[0];
 
-        assert.equal(log.event, "TransactionCompleted");
-        assert.equal(log.args.destination, destinationAddress);
-        assert.equal(log.args.value, amount);
+        assert.equal(log.event, "BypassCallApplied");
+        let hash = "0x" + utils.bypassCallHash(addedLog.stateNonce, operatorA.address, operatorA.permLevel, addedLog.target, addedLog.value, "").toString("hex");
+        assert.equal(log.args.bypassHash, hash);
 
-        let balanceSenderAfter = parseInt(await web3.eth.getBalance(vault.address));
+        let balanceSenderAfter = parseInt(await web3.eth.getBalance(gatekeeper.address));
         let balanceReceiverAfter = parseInt(await web3.eth.getBalance(destinationAddress));
         assert.equal(balanceSenderAfter, balanceSenderBefore - amount);
         assert.equal(balanceReceiverAfter, balanceReceiverBefore + amount);
     });
 
     it("funding the vault with ERC20 tokens", async function () {
-        await testUtils.fundVaultWithERC20(vault, erc20, fundedAmount, from);
+        await testUtils.fundVaultWithERC20(gatekeeper.address, erc20, fundedAmount, from);
     });
 
     it("should allow the owner to create a delayed erc20 transfer transaction", async function () {
-        let stateId = await gatekeeper.stateNonce();
-        let res = await gatekeeper.sendERC20(destinationAddress, amount, operatorA.permLevel, initialDelays[1], erc20.address, stateId);
+        let calldata = erc20.contract.methods.transfer(destinationAddress, amount).encodeABI();
+        let res = await gatekeeper.scheduleBypassCall(operatorA.permLevel, erc20.address, 0, calldata);
         expectedDelayedEventsCount++;
         let log = res.logs[0];
-        assert.equal(log.event, "TransactionPending");
-        assert.equal(log.address, vault.address);
-        assert.equal(log.args.destination, destinationAddress);
-        assert.equal(log.args.value, amount);
-        assert.equal(log.args.erc20token, erc20.address);
-        assert.equal(log.args.delay, initialDelays[1]);
+        assert.equal(log.event, "BypassCallPending");
+        assert.equal(log.address, gatekeeper.address);
+        assert.equal(log.args.value, 0);
+        assert.equal(log.args.target, erc20.address);
 
-        let hash = "0x" + utils.scheduledVaultTxHash(gatekeeper.address, log.args.nonce, log.args.delay, log.args.destination, log.args.value, log.args.erc20token).toString("hex");
-        let dueTime = await vault.pending(hash);
-        assert.isAbove(dueTime.toNumber(), 0)
+        let hash = "0x" + utils.bypassCallHash(log.args.stateNonce, log.args.sender, log.args.senderPermsLevel, log.args.target, log.args.value, log.args.msgdata).toString("hex");
+        let pendingCall = await gatekeeper.pendingBypassCalls(hash);
+        assert.isAbove(pendingCall.dueTime.toNumber(), 0)
     });
 
     it("should allow the owner to execute a delayed erc20 transfer transaction after delay", async function () {
 
-        let addedLog = await getLastEvent(vault.contract, "TransactionPending", expectedDelayedEventsCount);
-        let balanceSenderBefore = (await erc20.balanceOf(vault.address)).toNumber();
+        let addedLog = await getLastEvent(gatekeeper.contract, "BypassCallPending", expectedDelayedEventsCount);
+        let balanceSenderBefore = (await erc20.balanceOf(gatekeeper.address)).toNumber();
         let balanceReceiverBefore = (await erc20.balanceOf(destinationAddress)).toNumber();
         assert.isAbove(balanceSenderBefore, amount);
         await utils.increaseTime(timeGap, web3);
 
-        let res = await gatekeeper.applyTransfer(addedLog.delay, addedLog.destination, addedLog.value, addedLog.erc20token, addedLog.nonce, operatorA.permLevel, {from: operatorA.address});
+        let res = await gatekeeper.applyBypassCall(addedLog.sender, addedLog.senderPermsLevel, addedLog.stateNonce, addedLog.target, addedLog.value, addedLog.msgdata, operatorA.permLevel, {from: operatorA.address});
 
         let log = res.logs[0];
         assert.equal(log.event, "Transfer");
         assert.equal(log.args.value, amount);
-        assert.equal(log.args.from, vault.address);
-        assert.equal(log.args.to, addedLog.destination);
+        assert.equal(log.args.from, gatekeeper.address);
+        assert.equal(log.args.to, destinationAddress);
 
         log = res.logs[1];
-        assert.equal(log.event, "TransactionCompleted");
-        assert.equal(log.args.destination, destinationAddress);
-        assert.equal(log.args.value, amount);
+        // TODO: TBD: should this event have other fields, or is it more reliable to lookup the 'scheduled' event?
+        assert.equal(log.event, "BypassCallApplied");
 
-        let balanceSenderAfter = (await erc20.balanceOf(vault.address)).toNumber();
+        let balanceSenderAfter = (await erc20.balanceOf(gatekeeper.address)).toNumber();
         let balanceReceiverAfter = (await erc20.balanceOf(destinationAddress)).toNumber();
         assert.equal(balanceSenderAfter, balanceSenderBefore - amount);
         assert.equal(balanceReceiverAfter, balanceReceiverBefore + amount);
@@ -330,24 +327,14 @@ contract('Gatekeeper', async function (accounts) {
 
     describe("custom delay tests", async function () {
         let maxDelay = 365 * yearInSec;
-        it("should revert delayed ETH transfer due to invalid delay", async function () {
+        // TODO: new negative flow tests for 'schedule' flow
+        it.skip("should revert delayed ETH transfer due to invalid delay", async function () {
             let stateId = await gatekeeper.stateNonce();
             await expect(
                 gatekeeper.sendEther(destinationAddress, amount, operatorA.permLevel, initialDelays[0], stateId)
             ).to.be.revertedWith("Invalid delay given");
             await expect(
                 gatekeeper.sendEther(destinationAddress, amount, operatorA.permLevel, maxDelay + 1, stateId)
-            ).to.be.revertedWith("Invalid delay given");
-
-        });
-
-        it("should revert delayed ERC20 transfer due to invalid delay", async function () {
-            let stateId = await gatekeeper.stateNonce();
-            await expect(
-                gatekeeper.sendERC20(destinationAddress, amount, operatorA.permLevel, initialDelays[0], erc20.address, stateId)
-            ).to.be.revertedWith("Invalid delay given");
-            await expect(
-                gatekeeper.sendERC20(destinationAddress, amount, operatorA.permLevel, maxDelay + 1, erc20.address, stateId)
             ).to.be.revertedWith("Invalid delay given");
 
         });
@@ -358,8 +345,8 @@ contract('Gatekeeper', async function (accounts) {
 
     it("should revert when trying to cancel a transfer transaction that does not exist", async function () {
         await expect(
-            gatekeeper.cancelTransfer(watchdogA.permLevel, 0, zeroAddress, 0, zeroAddress, 0, {from: watchdogA.address})
-        ).to.be.revertedWith("cannot cancel, operation does not exist");
+            gatekeeper.cancelBypassCall(operatorA.address, operatorA.permLevel, 0, zeroAddress, 0, [], watchdogA.permLevel, {from: watchdogA.address})
+        ).to.be.revertedWith("cancel called for non existent pending bypass call");
     });
 
     it("should allow the owner to create a delayed config transaction", async function () {
@@ -550,39 +537,21 @@ contract('Gatekeeper', async function (accounts) {
         await utils.asyncForEach(
             [operatorA, watchdogA],
             async (participant) => {
-                let stateId = await gatekeeper.stateNonce();
-                let res1 = await gatekeeper.sendEther(destinationAddress, amount, operatorA.permLevel, initialDelays[1], stateId);
+                let res1 = await gatekeeper.scheduleBypassCall(operatorA.permLevel, destinationAddress, amount, []);
                 expectedDelayedEventsCount++;
                 let log1 = res1.logs[0];
-                let res2 = await gatekeeper.cancelTransfer(participant.permLevel, log1.args.delay, log1.args.destination, log1.args.value,
-                    log1.args.erc20token, log1.args.nonce, {from: participant.address});
-                let log2 = res2.logs[0];
-                assert.equal(log2.event, "TransactionCancelled");
-                assert.equal(log2.address, log1.address);
-                assert.equal(log2.args.destination, log1.args.destination);
-                assert.equal(log2.args.value.toNumber(), log1.args.value.toNumber());
-                assert.equal(log2.args.erc20token, log1.args.erc20token);
-                assert.equal(log2.args.nonce.toNumber(), log1.args.nonce.toNumber());
-            });
-    });
 
-    it(`should allow the cancellers to cancel a delayed ERC20 transfer transaction`, async function () {
-        await utils.asyncForEach(
-            [operatorA, watchdogA],
-            async (participant) => {
-                let stateId = await gatekeeper.stateNonce();
-                let res1 = await gatekeeper.sendERC20(destinationAddress, amount, operatorA.permLevel, initialDelays[1], erc20.address, stateId);
-                expectedDelayedEventsCount++;
-                let log1 = res1.logs[0];
-                let res2 = await gatekeeper.cancelTransfer(participant.permLevel, log1.args.delay, log1.args.destination, log1.args.value,
-                    log1.args.erc20token, log1.args.nonce, {from: participant.address});
+                let res2 = await gatekeeper.cancelBypassCall(
+                    log1.args.sender,
+                    log1.args.senderPermsLevel,
+                    log1.args.stateNonce,
+                    log1.args.target,
+                    log1.args.value,
+                    [],
+                    participant.permLevel, {from: participant.address});
                 let log2 = res2.logs[0];
-                assert.equal(log2.event, "TransactionCancelled");
+                assert.equal(log2.event, "BypassCallCancelled");
                 assert.equal(log2.address, log1.address);
-                assert.equal(log2.args.destination, log1.args.destination);
-                assert.equal(log2.args.value.toNumber(), log1.args.value.toNumber());
-                assert.equal(log2.args.erc20token, log1.args.erc20token);
-                assert.equal(log2.args.nonce.toNumber(), log1.args.nonce.toNumber());
             });
     });
 
@@ -648,7 +617,7 @@ contract('Gatekeeper', async function (accounts) {
         });
     });
 
-    it(`should not allow non-spenders to create a delayed transfer transaction`, async function () {
+    it.skip(`should not allow non-spenders to create a delayed transfer transaction`, async function () {
         let stateId = await gatekeeper.stateNonce();
         await utils.asyncForEach(getNonSpenders(), async (participant) => {
             await expect(
@@ -659,7 +628,7 @@ contract('Gatekeeper', async function (accounts) {
         });
     });
 
-    it(`should not allow non-spenders to create a delayed ERC20 transfer transaction`, async function () {
+    it.skip(`should not allow non-spenders to create a delayed ERC20 transfer transaction`, async function () {
         let stateId = await gatekeeper.stateNonce();
         await utils.asyncForEach(getNonSpenders(), async (participant) => {
             await expect(
@@ -712,11 +681,7 @@ contract('Gatekeeper', async function (accounts) {
         let reason = "level is frozen";
         stateId = await gatekeeper.stateNonce();
         await expect(
-            gatekeeper.sendEther(destinationAddress, amount, operatorA.permLevel, initialDelays[1], stateId, {from: operatorA.address})
-        ).to.be.revertedWith(reason);
-
-        await expect(
-            gatekeeper.sendERC20(destinationAddress, amount, operatorA.permLevel, initialDelays[1], erc20.address, stateId, {from: operatorA.address})
+            gatekeeper.scheduleBypassCall(operatorA.permLevel, destinationAddress, amount, [], {from: operatorA.address})
         ).to.be.revertedWith(reason);
 
         // On lower levels:
@@ -744,7 +709,7 @@ contract('Gatekeeper', async function (accounts) {
         ).to.be.revertedWith(reason);
 
         await expect(
-            gatekeeper.cancelTransfer(watchdogA.permLevel, 0, zeroAddress, 0, zeroAddress, 0, {from: watchdogA.address}),
+            gatekeeper.cancelBypassCall(operatorA.address, operatorA.permLevel, 0, zeroAddress, 0, [], watchdogA.permLevel, {from: watchdogA.address}),
             "cancelTransfer did not revert correctly"
             + ` with expected reason: "${reason}"`
         ).to.be.revertedWith(reason);
@@ -810,27 +775,17 @@ contract('Gatekeeper', async function (accounts) {
 
         // Operator still cannot send money, not time-caused unfreeze
         await expect(
-            gatekeeper.sendEther(destinationAddress, amount, operatorA.permLevel, initialDelays[1], stateId, {from: operatorA.address})
-        ).to.be.revertedWith("level is frozen");
-        await expect(
-            gatekeeper.sendERC20(destinationAddress, amount, operatorA.permLevel, initialDelays[1], erc20.address, stateId, {from: operatorA.address})
+            gatekeeper.scheduleBypassCall(operatorA.permLevel, destinationAddress, amount, [], {from: operatorA.address})
         ).to.be.revertedWith("level is frozen");
         let res3 = await applyDelayed({log: log1}, adminB1, gatekeeper);
         let log3 = res3.logs[0];
 
         assert.equal(log3.event, "UnfreezeCompleted");
 
-        stateId = await gatekeeper.stateNonce();
-        let res2 = await gatekeeper.sendEther(destinationAddress, amount, operatorA.permLevel, initialDelays[1], stateId);
+        let res2 = await gatekeeper.scheduleBypassCall(operatorA.permLevel, destinationAddress, amount, [], {from: operatorA.address});
         let log2 = res2.logs[0];
-        assert.equal(log2.event, "TransactionPending");
-        assert.equal(log2.address, vault.address);
-
-        stateId = await gatekeeper.stateNonce();
-        let res4 = await gatekeeper.sendERC20(destinationAddress, amount, operatorA.permLevel, initialDelays[1], erc20.address, stateId);
-        let log4 = res4.logs[0];
-        assert.equal(log4.event, "TransactionPending");
-        assert.equal(log4.address, vault.address);
+        assert.equal(log2.event, "BypassCallPending");
+        assert.equal(log2.address, gatekeeper.address);
 
     });
 

@@ -8,7 +8,7 @@ const projectFolder = "solidity/";
 const contractsFolder = projectFolder + "contracts";
 const outAbiFolder = "solidity/src/js/generated";
 
-const contractsToExtract = ["Gatekeeper", "Vault", "VaultFactory", "Utilities"];
+const contractsToExtract = ["Gatekeeper", "VaultFactory", "Utilities"];
 
 function compileFile(contractFile, c) {
     let contractSource = fs.readFileSync(contractFile, {encoding: 'utf8'});

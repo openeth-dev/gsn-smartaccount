@@ -1,13 +1,14 @@
 pragma solidity ^0.5.5;
 
+/* node modules */
+import "@0x/contracts-utils/contracts/src/LibBytes.sol";
 import "tabookey-gasless/contracts/GsnUtils.sol";
 import "tabookey-gasless/contracts/IRelayRecipient.sol";
+import "openzeppelin-solidity/contracts/math/SafeMath.sol";
 
-import "./Vault.sol";
 import "./PermissionsLevel.sol";
 import "./Utilities.sol";
 import "./BypassPolicy.sol";
-import "@0x/contracts-utils/contracts/src/LibBytes.sol";
 
 
 contract Gatekeeper is PermissionsLevel, IRelayRecipient {
@@ -33,8 +34,8 @@ contract Gatekeeper is PermissionsLevel, IRelayRecipient {
     event ParticipantAdded(bytes32 indexed participant);
     event ParticipantRemoved(bytes32 indexed participant);
     event OwnerChanged(address indexed newOwner);
-    // TODO: not log participants
-    event GatekeeperInitialized(address vault, bytes32[] participants);
+    // TODO: not log participants; add initial delays, trusted forwarder and relay hub, etc.
+    event GatekeeperInitialized(bytes32[] participants);
     event LevelFrozen(uint256 frozenLevel, uint256 frozenUntil, address sender);
     event UnfreezeCompleted();
     event BypassByTargetAdded(address target, BypassPolicy bypass);
@@ -43,14 +44,14 @@ contract Gatekeeper is PermissionsLevel, IRelayRecipient {
     event BypassByMethodRemoved(bytes4 method, BypassPolicy bypass);
     event BypassCallPending(bytes32 indexed bypassHash, uint256 stateNonce, address sender, uint32 senderPermsLevel, address target, uint256 value, bytes msgdata);
     event BypassCallCancelled(bytes32 indexed bypassHash, address sender);
+    event BypassCallApplied(bytes32 indexed bypassHash);
     //*****
 
     // TODO:
     //  5. Remove 'sender' form non-delayed calls
     // ***********************************
 
-    Vault vault;
-    DefaultBypassPolicy defaultBypassPolicy = new DefaultBypassPolicy();
+    DefaultBypassPolicy defaultBypassPolicy = new DefaultBypassPolicy(1);
 
     struct PendingChange {
         uint256 dueTime;
@@ -66,7 +67,7 @@ contract Gatekeeper is PermissionsLevel, IRelayRecipient {
     mapping(address => BypassPolicy) bypassPoliciesByTarget; // instance level bypass exceptions
     mapping(bytes4 => BypassPolicy) bypassPoliciesByMethod; // interface (method sigs) level bypass exceptions
     // TODO: do not call this 'bypass calls', this does not describe what these are.
-    mapping(bytes32 => PendingChange) pendingBypassCalls;
+    mapping(bytes32 => PendingChange) public pendingBypassCalls;
     bool public blockAcceleratedCalls;
 
     function getDelays() public view returns (uint256[] memory) {
@@ -126,10 +127,10 @@ contract Gatekeeper is PermissionsLevel, IRelayRecipient {
 
 
     function initialConfig(
-        Vault vaultParam,
         bytes32[] memory initialParticipants,
         uint256[] memory initialDelays,
-        address _trustedForwarder, bool _blockAcceleratedCalls) public {
+        address _trustedForwarder,
+        bool _blockAcceleratedCalls) public {
         require(stateNonce == 0, "already initialized");
         require(initialParticipants.length <= maxParticipants, "too many participants");
         require(initialDelays.length <= maxLevels, "too many levels");
@@ -142,11 +143,10 @@ contract Gatekeeper is PermissionsLevel, IRelayRecipient {
             require(initialDelays[i] < maxDelay, "Delay too long");
         }
         delays = initialDelays;
-        vault = vaultParam;
         blockAcceleratedCalls = _blockAcceleratedCalls;
 
 
-        emit GatekeeperInitialized(address(vault), initialParticipants);
+        emit GatekeeperInitialized(initialParticipants);
         stateNonce++;
     }
 
@@ -236,13 +236,6 @@ contract Gatekeeper is PermissionsLevel, IRelayRecipient {
         stateNonce++;
     }
 
-    function cancelTransfer(uint32 senderPermsLevel, uint256 delay, address destination, uint256 value, address token, uint256 nonce) public {
-        requirePermissions(msg.sender, canCancel, senderPermsLevel);
-        requireNotFrozen(senderPermsLevel);
-        vault.cancelTransfer(delay, destination, value, token, nonce, msg.sender);
-        stateNonce++;
-    }
-
     function cancelOperation(
         uint8[] memory actions, bytes32[] memory args1, bytes32[] memory args2, uint256 scheduledStateId,
         address scheduler, uint32 schedulerPermsLevel,
@@ -261,26 +254,6 @@ contract Gatekeeper is PermissionsLevel, IRelayRecipient {
         }
         delete pendingChanges[hash];
         emit ConfigCancelled(hash, msg.sender);
-        stateNonce++;
-    }
-
-    function sendEther(address payable destination, uint value, uint32 senderPermsLevel, uint256 delay, uint256 targetStateNonce) public {
-        requirePermissions(msg.sender, canSpend, senderPermsLevel);
-        requireNotFrozen(senderPermsLevel);
-        requireCorrectState(targetStateNonce);
-        uint256 levelDelay = delays[extractLevel(senderPermsLevel)];
-        require(levelDelay <= delay && delay <= maxDelay, "Invalid delay given");
-        vault.scheduleDelayedTransfer(delay, destination, value, ETH_TOKEN_ADDRESS);
-        stateNonce++;
-    }
-
-    function sendERC20(address payable destination, uint value, uint32 senderPermsLevel, uint256 delay, address token, uint256 targetStateNonce) public {
-        requirePermissions(msg.sender, canSpend, senderPermsLevel);
-        requireNotFrozen(senderPermsLevel);
-        requireCorrectState(targetStateNonce);
-        uint256 levelDelay = delays[extractLevel(senderPermsLevel)];
-        require(levelDelay <= delay && delay <= maxDelay, "Invalid delay given");
-        vault.scheduleDelayedTransfer(delay, destination, value, token);
         stateNonce++;
     }
 
@@ -306,15 +279,6 @@ contract Gatekeeper is PermissionsLevel, IRelayRecipient {
             dispatch(actions[i], args1[i], args2[i], scheduler, schedulerPermsLevel);
         }
         // TODO: do this in every method, as a function/modifier
-        stateNonce++;
-    }
-
-    function applyTransfer(uint256 delay, address payable destination, uint256 value, address token, uint256 nonce, uint32 senderPermsLevel)
-    public {
-        requireParticipant(msg.sender, senderPermsLevel);
-        requireNotFrozen(senderPermsLevel);
-        // TODO: test!!!
-        vault.applyDelayedTransfer(delay, destination, value, token, nonce, msg.sender);
         stateNonce++;
     }
 
@@ -380,7 +344,7 @@ contract Gatekeeper is PermissionsLevel, IRelayRecipient {
 
     function getBypassPolicy(address target, uint256 value, bytes memory encodedFunction) public view returns (uint256 delay, uint256 requiredConfirmations) {
         BypassPolicy bypass = bypassPoliciesByTarget[target];
-        if (address(bypass) == address(0)) {
+        if (address(bypass) == address(0) && encodedFunction.length > 4) {
             bypass = bypassPoliciesByMethod[encodedFunction.readBytes4(0)];
         }
         if (address(bypass) == address(0)) {
@@ -394,6 +358,7 @@ contract Gatekeeper is PermissionsLevel, IRelayRecipient {
         requireNotFrozen(senderPermsLevel);
 
         (uint256 delay, uint256 requiredConfirmations) = getBypassPolicy(target, value, encodedFunction);
+        // TODO: on dalay == -1, reverts with safemath - should give a sane revert message instead
         require(!blockAcceleratedCalls || delay >= delays[extractLevel(senderPermsLevel)], "Accelerated calls blocked - delay too short");
         require(requiredConfirmations != uint256(- 1), "Call blocked by policy");
         bytes32 bypassCallHash = Utilities.bypassCallHash(stateNonce, msg.sender, senderPermsLevel, target, value, encodedFunction);
@@ -417,8 +382,8 @@ contract Gatekeeper is PermissionsLevel, IRelayRecipient {
         PendingChange memory pendingBypassCall = pendingBypassCalls[bypassCallHash];
         require(pendingBypassCall.dueTime != 0, "apply called for non existent pending bypass call");
         require(now >= pendingBypassCall.dueTime, "apply called before due time");
-        vault.execute(target, value, encodedFunction);
-
+        execute(target, value, encodedFunction);
+        emit BypassCallApplied(bypassCallHash);
         stateNonce++;
     }
 
@@ -449,7 +414,7 @@ contract Gatekeeper is PermissionsLevel, IRelayRecipient {
         (uint256 delay, uint256 requiredConfirmations) = getBypassPolicy(target, value, encodedFunction);
         require(requiredConfirmations != uint256(- 1), "Call blocked by policy");
         require(delay == 0, "Call cannot be executed immediately.");
-        vault.execute(target, value, encodedFunction);
+        execute(target, value, encodedFunction);
 
         stateNonce++;
     }
@@ -505,5 +470,19 @@ contract Gatekeeper is PermissionsLevel, IRelayRecipient {
             return LibBytes.readAddress(msg.data, msg.data.length - 20);
         }
         return msg.sender;
+    }
+
+    /****** Moved over from the Vault contract *******/
+
+    event FundsReceived(address sender, uint256 value);
+
+    function() payable external {
+        emit FundsReceived(msg.sender, msg.value);
+    }
+
+    //TODO
+    function execute(address target, uint256 value, bytes memory encodedFunction) internal {
+        (bool success,) = target.call.value(value)(encodedFunction);
+        //TODO: ...
     }
 }
