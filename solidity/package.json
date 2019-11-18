@@ -31,7 +31,7 @@
     "chai-as-promised": "7.1.1",
     "ethereumjs-abi": "0.6.8",
     "ethereumjs-util": "6.1.0",
-    "gsn-sponsor": "file:../../gsn-sponsor",
+    "gsn-sponsor": "../../gsn-sponsor",
     "openzeppelin-solidity": "2.3.0",
     "tabookey-gasless": "0.4.1",
     "truffle-artifactor": "4.0.17",
