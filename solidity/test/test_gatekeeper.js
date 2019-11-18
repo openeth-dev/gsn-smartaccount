@@ -80,6 +80,7 @@ async function applyDelayed({res, log}, fromParticipant, gatekeeper) {
     let {actions, args1, args2, schedulerAddress, schedulerPermsLevel, boosterAddress, boosterPermsLevel, scheduledStateId} = extractLog(log, res);
 
     return gatekeeper.applyConfig(
+        fromParticipant.permLevel,
         actions,
         args1,
         args2,
@@ -88,7 +89,6 @@ async function applyDelayed({res, log}, fromParticipant, gatekeeper) {
         schedulerPermsLevel,
         boosterAddress,
         boosterPermsLevel,
-        fromParticipant.permLevel,
         {from: fromParticipant.address});
 }
 
@@ -212,7 +212,7 @@ contract('Gatekeeper', async function (accounts) {
             utils.bufferToHex(utils.participantHash(adminB2.address, adminB2.permLevel)),
         ];
 
-        let res = await gatekeeper.initialConfig(initialParticipants, initialDelays, zeroAddress, false, {from:operatorA.address});
+        let res = await gatekeeper.initialConfig(initialParticipants, initialDelays, zeroAddress, false, {from: operatorA.address});
         let log = res.logs[0];
         assert.equal(log.event, "GatekeeperInitialized");
 
@@ -267,7 +267,7 @@ contract('Gatekeeper', async function (accounts) {
         let balanceReceiverBefore = parseInt(await web3.eth.getBalance(destinationAddress));
         assert.isAbove(balanceSenderBefore, amount);
         await utils.increaseTime(timeGap, web3);
-        let res = await gatekeeper.applyBypassCall(operatorA.address, operatorA.permLevel, addedLog.stateNonce, addedLog.target, addedLog.value, [], operatorA.permLevel, {from: operatorA.address});
+        let res = await gatekeeper.applyBypassCall(operatorA.permLevel, operatorA.address, operatorA.permLevel, addedLog.stateNonce, addedLog.target, addedLog.value, [], {from: operatorA.address});
         let log = res.logs[0];
 
         assert.equal(log.event, "BypassCallApplied");
@@ -307,7 +307,7 @@ contract('Gatekeeper', async function (accounts) {
         assert.isAbove(balanceSenderBefore, amount);
         await utils.increaseTime(timeGap, web3);
 
-        let res = await gatekeeper.applyBypassCall(addedLog.sender, addedLog.senderPermsLevel, addedLog.stateNonce, addedLog.target, addedLog.value, addedLog.msgdata, operatorA.permLevel, {from: operatorA.address});
+        let res = await gatekeeper.applyBypassCall(operatorA.permLevel, addedLog.sender, addedLog.senderPermsLevel, addedLog.stateNonce, addedLog.target, addedLog.value, addedLog.msgdata, {from: operatorA.address});
 
         let log = res.logs[0];
         assert.equal(log.event, "Transfer");
@@ -331,10 +331,10 @@ contract('Gatekeeper', async function (accounts) {
         it.skip("should revert delayed ETH transfer due to invalid delay", async function () {
             let stateId = await gatekeeper.stateNonce();
             await expect(
-                gatekeeper.sendEther(destinationAddress, amount, operatorA.permLevel, initialDelays[0], stateId)
+                gatekeeper.sendEther(operatorA.permLevel, destinationAddress, amount, initialDelays[0], stateId)
             ).to.be.revertedWith("Invalid delay given");
             await expect(
-                gatekeeper.sendEther(destinationAddress, amount, operatorA.permLevel, maxDelay + 1, stateId)
+                gatekeeper.sendEther(operatorA.permLevel, destinationAddress, amount, maxDelay + 1, stateId)
             ).to.be.revertedWith("Invalid delay given");
 
         });
@@ -345,7 +345,7 @@ contract('Gatekeeper', async function (accounts) {
 
     it("should revert when trying to cancel a transfer transaction that does not exist", async function () {
         await expect(
-            gatekeeper.cancelBypassCall(operatorA.address, operatorA.permLevel, 0, zeroAddress, 0, [], watchdogA.permLevel, {from: watchdogA.address})
+            gatekeeper.cancelBypassCall(watchdogA.permLevel, operatorA.address, operatorA.permLevel, 0, zeroAddress, 0, [], {from: watchdogA.address})
         ).to.be.revertedWith("cancel called for non existent pending bypass call");
     });
 
@@ -449,12 +449,12 @@ contract('Gatekeeper', async function (accounts) {
         await gatekeeper.changeConfiguration(operatorA.permLevel, [changeType1, changeType2], [changeArg1, changeArg2], [changeArg1, changeArg2], stateId);
 
         await expect(
-            gatekeeper.applyConfig([changeType1, changeType2], [changeArg1, changeArg2], [changeArg1, changeArg2], stateId, operatorA.address, operatorA.permLevel, zeroAddress, 0, operatorA.permLevel)
+            gatekeeper.applyConfig(operatorA.permLevel, [changeType1, changeType2], [changeArg1, changeArg2], [changeArg1, changeArg2], stateId, operatorA.address, operatorA.permLevel, zeroAddress, 0)
         ).to.be.revertedWith("called before due time");
 
         await utils.increaseTime(timeGap, web3);
 
-        let res = await gatekeeper.applyConfig([changeType1, changeType2], [changeArg1, changeArg2], [changeArg1, changeArg2], stateId, operatorA.address, operatorA.permLevel, zeroAddress, 0, operatorA.permLevel);
+        let res = await gatekeeper.applyConfig(operatorA.permLevel, [changeType1, changeType2], [changeArg1, changeArg2], [changeArg1, changeArg2], stateId, operatorA.address, operatorA.permLevel, zeroAddress, 0);
 
         assert.equal(res.logs[0].event, "ParticipantAdded");
         assert.equal(res.logs[1].event, "ParticipantRemoved");
@@ -542,13 +542,14 @@ contract('Gatekeeper', async function (accounts) {
                 let log1 = res1.logs[0];
 
                 let res2 = await gatekeeper.cancelBypassCall(
+                    participant.permLevel,
                     log1.args.sender,
                     log1.args.senderPermsLevel,
                     log1.args.stateNonce,
                     log1.args.target,
                     log1.args.value,
                     [],
-                    participant.permLevel, {from: participant.address});
+                    {from: participant.address});
                 let log2 = res2.logs[0];
                 assert.equal(log2.event, "BypassCallCancelled");
                 assert.equal(log2.address, log1.address);
@@ -709,7 +710,7 @@ contract('Gatekeeper', async function (accounts) {
         ).to.be.revertedWith(reason);
 
         await expect(
-            gatekeeper.cancelBypassCall(operatorA.address, operatorA.permLevel, 0, zeroAddress, 0, [], watchdogA.permLevel, {from: watchdogA.address}),
+            gatekeeper.cancelBypassCall(watchdogA.permLevel, operatorA.address, operatorA.permLevel, 0, zeroAddress, 0, [], {from: watchdogA.address}),
             "cancelTransfer did not revert correctly"
             + ` with expected reason: "${reason}"`
         ).to.be.revertedWith(reason);
@@ -737,11 +738,11 @@ contract('Gatekeeper', async function (accounts) {
             let signature = await utils.signMessage(encodedHash, web3, {from: signingParty.address});
             await expect(
                 gatekeeper.boostedConfigChange(
+                    adminB1.permLevel,
                     actions,
                     args,
                     args,
                     stateId,
-                    adminB1.permLevel,
                     signingParty.permLevel,
                     signature,
                     {from: adminB1.address})
@@ -765,7 +766,7 @@ contract('Gatekeeper', async function (accounts) {
         let stateId = await gatekeeper.stateNonce();
         let encodedHash = await utilities.changeHash(actions, args, args, stateId);//utils.getTransactionHash(ABI.solidityPack(["uint8[]", "bytes32[]", "uint256"], [actions, args, stateId]));
         let signature = await utils.signMessage(encodedHash, web3, {from: operatorA.address});
-        let res1 = await gatekeeper.boostedConfigChange(actions, args, args, stateId, adminB1.permLevel, operatorA.permLevel, signature, {from: adminB1.address});
+        let res1 = await gatekeeper.boostedConfigChange(adminB1.permLevel, actions, args, args, stateId, operatorA.permLevel, signature, {from: adminB1.address});
         let log1 = res1.logs[0];
 
         assert.equal(log1.event, "ConfigPending");
@@ -822,11 +823,11 @@ contract('Gatekeeper', async function (accounts) {
             let encodedHash = await utilities.changeHash(actions, args, args, stateId);//utils.getTransactionHash(ABI.solidityPack(["uint8[]", "bytes32[]", "uint256"], [actions, args, stateId]));
             let signature = await utils.signMessage(encodedHash, web3, {from: operatorA.address});
             let res1 = await gatekeeper.boostedConfigChange(
+                adminB1.permLevel,
                 actions,
                 args,
                 args,
                 stateId,
-                adminB1.permLevel,
                 operatorA.permLevel,
                 signature,
                 {from: adminB1.address});
@@ -865,7 +866,7 @@ contract('Gatekeeper', async function (accounts) {
         await utils.increaseTime(timeGap, web3);
         // adminA cannot apply it - will not find it by hash
         await expect(
-            gatekeeper.applyConfig([changeType], [changeArgs], [changeArgs], stateId, adminA.address, adminA.permLevel, zeroAddress, 0, adminA.permLevel, {from: adminA.address})
+            gatekeeper.applyConfig(adminA.permLevel, [changeType], [changeArgs], [changeArgs], stateId, adminA.address, adminA.permLevel, zeroAddress, 0, {from: adminA.address})
         ).to.be.revertedWith("apply called for non existent pending change");
 
     });
@@ -881,7 +882,8 @@ contract('Gatekeeper', async function (accounts) {
         let changeType = ChangeType.ADD_PARTICIPANT;
         let changeArgs = utils.participantHash(adminB1.address, adminB1.permLevel);
 
-        await expect(gatekeeper.changeConfiguration(operatorA.permLevel, [changeType], [changeArgs], [changeArgs], stateId - 1)
+        await expect(
+            gatekeeper.changeConfiguration(operatorA.permLevel, [changeType], [changeArgs], [changeArgs], stateId - 1)
         ).to.be.revertedWith("contract state changed since transaction was created")
     });
 

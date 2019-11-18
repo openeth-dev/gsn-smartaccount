@@ -1,7 +1,8 @@
-pragma solidity ^0.5.5;
+pragma solidity ^0.5.10;
 
 /* node modules */
 import "@0x/contracts-utils/contracts/src/LibBytes.sol";
+import "gsn-sponsor/contracts/GsnRecipient.sol";
 import "tabookey-gasless/contracts/GsnUtils.sol";
 import "tabookey-gasless/contracts/IRelayRecipient.sol";
 import "openzeppelin-solidity/contracts/math/SafeMath.sol";
@@ -11,7 +12,7 @@ import "./Utilities.sol";
 import "./BypassPolicy.sol";
 
 
-contract Gatekeeper is PermissionsLevel, IRelayRecipient {
+contract Gatekeeper is PermissionsLevel, GsnRecipient {
 
     using LibBytes for bytes;
 
@@ -83,9 +84,6 @@ contract Gatekeeper is PermissionsLevel, IRelayRecipient {
 
     uint256 public deployedBlock;
 
-    // TODO: implement actual 'trusted forwarder' logic
-    address trustedForwarder;
-
     constructor() public {
         deployedBlock = block.number;
     }
@@ -135,7 +133,7 @@ contract Gatekeeper is PermissionsLevel, IRelayRecipient {
         require(initialParticipants.length <= maxParticipants, "too many participants");
         require(initialDelays.length <= maxLevels, "too many levels");
 
-        trustedForwarder = _trustedForwarder;
+        setGsnForwarder(_trustedForwarder, address(0));
         for (uint8 i = 0; i < initialParticipants.length; i++) {
             participants[initialParticipants[i]] = true;
         }
@@ -155,7 +153,8 @@ contract Gatekeeper is PermissionsLevel, IRelayRecipient {
     function freeze(uint32 senderPermsLevel, uint8 levelToFreeze, uint duration)
     public
     {
-        requirePermissions(msg.sender, canFreeze, senderPermsLevel);
+        address sender = getSender();
+        requirePermissions(sender, canFreeze, senderPermsLevel);
         requireNotFrozen(senderPermsLevel);
         uint until = SafeMath.add(now, duration);
         uint8 senderLevel = extractLevel(senderPermsLevel);
@@ -167,20 +166,22 @@ contract Gatekeeper is PermissionsLevel, IRelayRecipient {
 
         frozenLevel = levelToFreeze;
         frozenUntil = until;
-        emit LevelFrozen(frozenLevel, frozenUntil, msg.sender);
+        emit LevelFrozen(frozenLevel, frozenUntil, sender);
         stateNonce++;
     }
 
     // TODO: require approval here; also, call it 'addOperatorImmediatelyDangerously'
     function addOperator(uint32 senderPermsLevel, address operator) public {
-        requirePermissions(msg.sender, canAddOperator, senderPermsLevel);
+        address sender = getSender();
+        requirePermissions(sender, canAddOperator, senderPermsLevel);
         requireNotFrozen(senderPermsLevel);
-        addParticipant(msg.sender, senderPermsLevel, Utilities.participantHash(operator, ownerPermissions));
+        addParticipant(sender, senderPermsLevel, Utilities.participantHash(operator, ownerPermissions));
 
     }
 
     function removeBypassByTarget(uint32 senderPermsLevel, address target) public {
-        requirePermissions(msg.sender, canChangeBypass, senderPermsLevel);
+        address sender = getSender();
+        requirePermissions(sender, canChangeBypass, senderPermsLevel);
         requireNotFrozen(senderPermsLevel);
         BypassPolicy bypass = bypassPoliciesByTarget[target];
         delete bypassPoliciesByTarget[target];
@@ -188,27 +189,40 @@ contract Gatekeeper is PermissionsLevel, IRelayRecipient {
     }
 
     function removeBypassByMethod(uint32 senderPermsLevel, bytes4 method) public {
-        requirePermissions(msg.sender, canChangeBypass, senderPermsLevel);
+        address sender = getSender();
+        requirePermissions(sender, canChangeBypass, senderPermsLevel);
         requireNotFrozen(senderPermsLevel);
         BypassPolicy bypass = bypassPoliciesByMethod[method];
         delete bypassPoliciesByMethod[method];
         emit BypassByMethodRemoved(method, bypass);
     }
 
-    function boostedConfigChange(uint8[] memory actions, bytes32[] memory args1, bytes32[] memory args2,
-        uint256 targetStateNonce, uint32 boosterPermsLevel,
-        uint32 signerPermsLevel, bytes memory signature)
+    function boostedConfigChange(
+        uint32 boosterPermsLevel,
+        uint8[] memory actions,
+        bytes32[] memory args1,
+        bytes32[] memory args2,
+        uint256 targetStateNonce,
+        uint32 signerPermsLevel,
+        bytes memory signature)
     public {
-        requirePermissions(msg.sender, canExecuteBoosts, boosterPermsLevel);
+        address sender = getSender();
+        requirePermissions(sender, canExecuteBoosts, boosterPermsLevel);
         requireNotFrozen(boosterPermsLevel);
         requireCorrectState(targetStateNonce);
         address signer = Utilities.recoverConfigSigner(actions, args1, args2, stateNonce, signature);
         requirePermissions(signer, canSignBoosts | canChangeConfig, signerPermsLevel);
-        changeConfigurationInternal(actions, args1, args2, signer, signerPermsLevel, msg.sender, boosterPermsLevel);
+        changeConfigurationInternal(actions, args1, args2, signer, signerPermsLevel, sender, boosterPermsLevel);
     }
 
 
-    function changeConfiguration(uint32 senderPermsLevel, uint8[] memory actions, bytes32[] memory args1, bytes32[] memory args2, uint256 targetStateNonce) public
+    function changeConfiguration(
+        uint32 senderPermsLevel,
+        uint8[] memory actions,
+        bytes32[] memory args1,
+        bytes32[] memory args2,
+        uint256 targetStateNonce)
+    public
     {
         address realSender = getSender();
         requirePermissions(realSender, canChangeConfig, senderPermsLevel);
@@ -217,8 +231,6 @@ contract Gatekeeper is PermissionsLevel, IRelayRecipient {
         changeConfigurationInternal(actions, args1, args2, realSender, senderPermsLevel, address(0), 0);
     }
 
-    //TODO: Remove after debugging
-    event WTF(bytes encodedPacked);
     // Note: this internal method is not wrapped with 'requirePermissions' as it may be called by the 'changeOwner'
     function changeConfigurationInternal(
         uint8[] memory actions,
@@ -232,16 +244,22 @@ contract Gatekeeper is PermissionsLevel, IRelayRecipient {
         bytes32 transactionHash = Utilities.transactionHash(actions, args1, args2, stateNonce, sender, senderPermsLevel, booster, boosterPermsLevel);
         pendingChanges[transactionHash] = PendingChange(SafeMath.add(now, delays[extractLevel(senderPermsLevel)]), sender, false);
         emit ConfigPending(transactionHash, sender, senderPermsLevel, booster, boosterPermsLevel, stateNonce, actions, args1, args2);
-        emit WTF(abi.encodePacked(actions, args1, args2, stateNonce, sender, senderPermsLevel, booster, boosterPermsLevel));
         stateNonce++;
     }
 
     function cancelOperation(
-        uint8[] memory actions, bytes32[] memory args1, bytes32[] memory args2, uint256 scheduledStateId,
-        address scheduler, uint32 schedulerPermsLevel,
-        address booster, uint32 boosterPermsLevel,
-        uint32 senderPermsLevel) public {
-        requirePermissions(msg.sender, canCancel, senderPermsLevel);
+        uint8[] memory actions,
+        bytes32[] memory args1,
+        bytes32[] memory args2,
+        uint256 scheduledStateId,
+        address scheduler,
+        uint32 schedulerPermsLevel,
+        address booster,
+        uint32 boosterPermsLevel,
+        uint32 senderPermsLevel)
+    public {
+        address sender = getSender();
+        requirePermissions(sender, canCancel, senderPermsLevel);
         requireNotFrozen(senderPermsLevel);
         bytes32 hash = Utilities.transactionHash(actions, args1, args2, scheduledStateId, scheduler, schedulerPermsLevel, booster, boosterPermsLevel);
         require(pendingChanges[hash].dueTime > 0, "cannot cancel, operation does not exist");
@@ -253,16 +271,23 @@ contract Gatekeeper is PermissionsLevel, IRelayRecipient {
             require(extractLevel(schedulerPermsLevel) <= extractLevel(senderPermsLevel), "cannot cancel, scheduler is of higher level");
         }
         delete pendingChanges[hash];
-        emit ConfigCancelled(hash, msg.sender);
+        emit ConfigCancelled(hash, sender);
         stateNonce++;
     }
 
     function applyConfig(
-        uint8[] memory actions, bytes32[] memory args1, bytes32[] memory args2, uint256 scheduledStateId,
-        address scheduler, uint32 schedulerPermsLevel,
-        address booster, uint32 boosterPermsLevel,
-        uint32 senderPermsLevel) public {
-        requireParticipant(msg.sender, senderPermsLevel);
+        uint32 senderPermsLevel,
+        uint8[] memory actions,
+        bytes32[] memory args1,
+        bytes32[] memory args2,
+        uint256 scheduledStateId,
+        address scheduler,
+        uint32 schedulerPermsLevel,
+        address booster,
+        uint32 boosterPermsLevel)
+    public {
+        address sender = getSender();
+        requireParticipant(sender, senderPermsLevel);
         requireNotFrozen(senderPermsLevel);
         if (booster != address(0))
         {
@@ -354,28 +379,32 @@ contract Gatekeeper is PermissionsLevel, IRelayRecipient {
     }
 
     function scheduleBypassCall(uint32 senderPermsLevel, address target, uint256 value, bytes memory encodedFunction) public {
-        requirePermissions(msg.sender, canExecuteBypassCall, senderPermsLevel);
+        address sender = getSender();
+        requirePermissions(sender, canExecuteBypassCall, senderPermsLevel);
         requireNotFrozen(senderPermsLevel);
 
         (uint256 delay, uint256 requiredConfirmations) = getBypassPolicy(target, value, encodedFunction);
         // TODO: on dalay == -1, reverts with safemath - should give a sane revert message instead
         require(!blockAcceleratedCalls || delay >= delays[extractLevel(senderPermsLevel)], "Accelerated calls blocked - delay too short");
         require(requiredConfirmations != uint256(- 1), "Call blocked by policy");
-        bytes32 bypassCallHash = Utilities.bypassCallHash(stateNonce, msg.sender, senderPermsLevel, target, value, encodedFunction);
-        pendingBypassCalls[bypassCallHash] = PendingChange(SafeMath.add(now, delay), msg.sender, false);
-        emit BypassCallPending(bypassCallHash, stateNonce, msg.sender, senderPermsLevel, target, value, encodedFunction);
+        bytes32 bypassCallHash = Utilities.bypassCallHash(stateNonce, sender, senderPermsLevel, target, value, encodedFunction);
+        pendingBypassCalls[bypassCallHash] = PendingChange(SafeMath.add(now, delay), sender, false);
+        emit BypassCallPending(bypassCallHash, stateNonce, sender, senderPermsLevel, target, value, encodedFunction);
 
         stateNonce++;
     }
 
-    function applyBypassCall(address scheduler,
+    function applyBypassCall(
+        uint32 senderPermsLevel,
+        address scheduler,
         uint32 schedulerPermsLevel,
         uint256 scheduledStateNonce,
         address target,
         uint256 value,
-        bytes memory encodedFunction,
-        uint32 senderPermsLevel) public {
-        requireParticipant(msg.sender, senderPermsLevel);
+        bytes memory encodedFunction)
+    public {
+        address sender = getSender();
+        requireParticipant(sender, senderPermsLevel);
         requireNotFrozen(senderPermsLevel);
 
         bytes32 bypassCallHash = Utilities.bypassCallHash(scheduledStateNonce, scheduler, schedulerPermsLevel, target, value, encodedFunction);
@@ -387,27 +416,31 @@ contract Gatekeeper is PermissionsLevel, IRelayRecipient {
         stateNonce++;
     }
 
-    function cancelBypassCall(address scheduler,
+    function cancelBypassCall(
+        uint32 senderPermsLevel,
+        address scheduler,
         uint32 schedulerPermsLevel,
         uint256 scheduledStateNonce,
         address target,
         uint256 value,
-        bytes memory encodedFunction,
-        uint32 senderPermsLevel) public {
-        requirePermissions(msg.sender, canCancelBypassCall, senderPermsLevel);
+        bytes memory encodedFunction)
+    public {
+        address sender = getSender();
+        requirePermissions(sender, canCancelBypassCall, senderPermsLevel);
         requireNotFrozen(senderPermsLevel);
 
         bytes32 bypassCallHash = Utilities.bypassCallHash(scheduledStateNonce, scheduler, schedulerPermsLevel, target, value, encodedFunction);
         PendingChange memory pendingBypassCall = pendingBypassCalls[bypassCallHash];
         require(pendingBypassCall.dueTime != 0, "cancel called for non existent pending bypass call");
         delete pendingBypassCalls[bypassCallHash];
-        emit BypassCallCancelled(bypassCallHash, msg.sender);
+        emit BypassCallCancelled(bypassCallHash, sender);
 
         stateNonce++;
     }
 
     function executeBypassCall(uint32 senderPermsLevel, address target, uint256 value, bytes memory encodedFunction) public {
-        requirePermissions(msg.sender, canExecuteBypassCall, senderPermsLevel);
+        address sender = getSender();
+        requirePermissions(sender, canExecuteBypassCall, senderPermsLevel);
         requireNotFrozen(senderPermsLevel);
         require(!blockAcceleratedCalls, "Accelerated calls blocked");
 
@@ -432,44 +465,11 @@ contract Gatekeeper is PermissionsLevel, IRelayRecipient {
         return 0;
     }
 
-    function acceptRelayedCall(
-        address relay,
-        address from,
-        bytes calldata encodedFunction,
-        uint256 transactionFee,
-        uint256 gasPrice,
-        uint256 gasLimit,
-        uint256 nonce,
-        bytes calldata approvalData,
-        uint256 maxPossibleCharge
-    )
-    external
-    view
-    returns (uint256, bytes memory){
-        (relay, from, encodedFunction, transactionFee, gasPrice, gasLimit, nonce, approvalData, maxPossibleCharge);
-        uint32 senderRoleRank = uint32(GsnUtils.getParam(encodedFunction, 0));
-        if (isParticipant(from, senderRoleRank)) {
-            return (0, "");
-        }
-        else {
-            return (11, "Not vault participant");
-        }
-    }
-
     function preRelayedCall(bytes calldata) external returns (bytes32){
         return 0;
     }
 
     function postRelayedCall(bytes calldata, bool, uint, bytes32) external {
-    }
-
-    function getSender() view internal returns (address) {
-        if (msg.sender == getHubAddr() || msg.sender == trustedForwarder) {
-            // At this point we know that the sender is a trusted IRelayHub, so we trust that the last bytes of msg.data are the verified sender address.
-            // extract sender address from the end of msg.data
-            return LibBytes.readAddress(msg.data, msg.data.length - 20);
-        }
-        return msg.sender;
     }
 
     /****** Moved over from the Vault contract *******/
@@ -484,5 +484,15 @@ contract Gatekeeper is PermissionsLevel, IRelayRecipient {
     function execute(address target, uint256 value, bytes memory encodedFunction) internal {
         (bool success,) = target.call.value(value)(encodedFunction);
         //TODO: ...
+    }
+
+    function _acceptCall(address from, bytes memory encodedFunction) view internal returns (uint256 res, bytes memory data){
+        uint32 senderRoleRank = uint32(GsnUtils.getParam(encodedFunction, 0));
+        if (isParticipant(from, senderRoleRank)) {
+            return (0, "");
+        }
+        else {
+            return (11, "Not vault participant");
+        }
     }
 }
