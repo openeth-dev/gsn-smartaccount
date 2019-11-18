@@ -18,7 +18,7 @@ contract('GSN and Sponsor integration', async function (accounts) {
     // contracts
     let gatekeeper;
     let tokenSponsor;
-    let relayHub;
+    let relayHub = "0x0000000000000000000000000000000000000000";
 
     let relayServer;
     let gsnForwarder;
@@ -52,7 +52,7 @@ contract('GSN and Sponsor integration', async function (accounts) {
         const hourInSec = 60 * minuteInSec;
         const dayInSec = 24 * hourInSec;
         let initialDelays = Array.from({length: 10}, (x, i) => (i + 1) * dayInSec);
-        await gatekeeper.initialConfig(args, initialDelays, gsnForwarder, false);
+        await gatekeeper.initialConfig(args, initialDelays, gsnForwarder, relayHub, false);
     });
 
 

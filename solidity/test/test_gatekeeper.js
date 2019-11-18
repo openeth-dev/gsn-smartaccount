@@ -103,6 +103,8 @@ contract('Gatekeeper', async function (accounts) {
     let freezerLevel = 2;
     let highLevel = 3;
     let zeroAddress = "0x0000000000000000000000000000000000000000";
+    let trustedForwarder = zeroAddress;
+    let relayHub = zeroAddress;
     let destinationAddress = accounts[2];
     let timeGap = 60 * 60 * 24 * 2 + 10;
     let initialDelays;
@@ -179,7 +181,7 @@ contract('Gatekeeper', async function (accounts) {
         let wrongInitialDelays = [];
         let initialParticipants = Array(21).fill("0x1123123");
         await expect(
-            gatekeeper.initialConfig(initialParticipants, wrongInitialDelays, zeroAddress, false)
+            gatekeeper.initialConfig(initialParticipants, wrongInitialDelays, trustedForwarder, relayHub, false)
         ).to.be.revertedWith("too many participants");
     });
 
@@ -187,7 +189,7 @@ contract('Gatekeeper', async function (accounts) {
         let wrongInitialDelays = Array(11).fill(10);
         let initialParticipants = [];
         await expect(
-            gatekeeper.initialConfig(initialParticipants, wrongInitialDelays, zeroAddress, false)
+            gatekeeper.initialConfig(initialParticipants, wrongInitialDelays, trustedForwarder, relayHub, false)
         ).to.be.revertedWith("too many levels");
     });
 
@@ -195,7 +197,7 @@ contract('Gatekeeper', async function (accounts) {
         let wrongInitialDelays = Array.from({length: 10}, (x, i) => (i + 1) * yearInSec);
         let initialParticipants = [];
         await expect(
-            gatekeeper.initialConfig(initialParticipants, wrongInitialDelays, zeroAddress, false)
+            gatekeeper.initialConfig(initialParticipants, wrongInitialDelays, trustedForwarder, relayHub, false)
         ).to.be.revertedWith("Delay too long");
     });
 
@@ -212,7 +214,7 @@ contract('Gatekeeper', async function (accounts) {
             utils.bufferToHex(utils.participantHash(adminB2.address, adminB2.permLevel)),
         ];
 
-        let res = await gatekeeper.initialConfig(initialParticipants, initialDelays, zeroAddress, false, {from: operatorA.address});
+        let res = await gatekeeper.initialConfig(initialParticipants, initialDelays, trustedForwarder, relayHub, false, {from:operatorA.address});
         let log = res.logs[0];
         assert.equal(log.event, "GatekeeperInitialized");
 
@@ -235,7 +237,7 @@ contract('Gatekeeper', async function (accounts) {
         let initialDelays = [];
         let initialParticipants = [];
         await expect(
-            gatekeeper.initialConfig(initialParticipants, initialDelays, zeroAddress, false)
+            gatekeeper.initialConfig(initialParticipants, initialDelays, trustedForwarder, relayHub, false)
         ).to.be.revertedWith("already initialized");
     });
     // return;

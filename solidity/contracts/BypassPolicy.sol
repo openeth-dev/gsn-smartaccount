@@ -13,14 +13,9 @@ contract BypassPolicy {
 }
 
 contract DefaultBypassPolicy is BypassPolicy {
-    uint256 defaultDelay;
-    constructor(uint256 _defaultDelay) public{
-        defaultDelay = _defaultDelay;
-    }
-
-    function getBypassPolicy(address target, uint256 value, bytes memory msgdata) public view returns (uint256 delay, uint256 requiredConfirmations) {
+    function getBypassPolicy(address target, uint256 value, bytes memory msgdata) public view returns (uint256 delay, uint256 requiredConfirmations ) {
         (target, value, msgdata);
-        return (defaultDelay, 0);
+        return (uint256(-1) , 0);
     }
 }
 

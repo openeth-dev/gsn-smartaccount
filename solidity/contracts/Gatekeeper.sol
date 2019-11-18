@@ -3,9 +3,8 @@ pragma solidity ^0.5.10;
 /* node modules */
 import "@0x/contracts-utils/contracts/src/LibBytes.sol";
 import "gsn-sponsor/contracts/GsnRecipient.sol";
-import "tabookey-gasless/contracts/GsnUtils.sol";
-import "tabookey-gasless/contracts/IRelayRecipient.sol";
 import "openzeppelin-solidity/contracts/math/SafeMath.sol";
+import "tabookey-gasless/contracts/GsnUtils.sol";
 
 import "./PermissionsLevel.sol";
 import "./Utilities.sol";
@@ -35,8 +34,8 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
     event ParticipantAdded(bytes32 indexed participant);
     event ParticipantRemoved(bytes32 indexed participant);
     event OwnerChanged(address indexed newOwner);
-    // TODO: not log participants; add initial delays, trusted forwarder and relay hub, etc.
-    event GatekeeperInitialized(bytes32[] participants);
+    // TODO: not log participants
+    event GatekeeperInitialized(bytes32[] participants, uint256[] delays, address trustedForwarder, address relayHub);
     event LevelFrozen(uint256 frozenLevel, uint256 frozenUntil, address sender);
     event UnfreezeCompleted();
     event BypassByTargetAdded(address target, BypassPolicy bypass);
@@ -46,13 +45,8 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
     event BypassCallPending(bytes32 indexed bypassHash, uint256 stateNonce, address sender, uint32 senderPermsLevel, address target, uint256 value, bytes msgdata);
     event BypassCallCancelled(bytes32 indexed bypassHash, address sender);
     event BypassCallApplied(bytes32 indexed bypassHash);
-    //*****
 
-    // TODO:
-    //  5. Remove 'sender' form non-delayed calls
-    // ***********************************
-
-    DefaultBypassPolicy defaultBypassPolicy = new DefaultBypassPolicy(1);
+    DefaultBypassPolicy defaultBypassPolicy = new DefaultBypassPolicy();
 
     struct PendingChange {
         uint256 dueTime;
@@ -128,12 +122,13 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         bytes32[] memory initialParticipants,
         uint256[] memory initialDelays,
         address _trustedForwarder,
+        address _relayHub,
         bool _blockAcceleratedCalls) public {
         require(stateNonce == 0, "already initialized");
         require(initialParticipants.length <= maxParticipants, "too many participants");
         require(initialDelays.length <= maxLevels, "too many levels");
 
-        setGsnForwarder(_trustedForwarder, address(0));
+        setGsnForwarder(_trustedForwarder, _relayHub);
         for (uint8 i = 0; i < initialParticipants.length; i++) {
             participants[initialParticipants[i]] = true;
         }
@@ -143,8 +138,7 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         delays = initialDelays;
         blockAcceleratedCalls = _blockAcceleratedCalls;
 
-
-        emit GatekeeperInitialized(initialParticipants);
+        emit GatekeeperInitialized(initialParticipants, delays, _trustedForwarder, _relayHub);
         stateNonce++;
     }
 
@@ -384,9 +378,12 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         requireNotFrozen(senderPermsLevel);
 
         (uint256 delay, uint256 requiredConfirmations) = getBypassPolicy(target, value, encodedFunction);
-        // TODO: on dalay == -1, reverts with safemath - should give a sane revert message instead
         require(!blockAcceleratedCalls || delay >= delays[extractLevel(senderPermsLevel)], "Accelerated calls blocked - delay too short");
         require(requiredConfirmations != uint256(- 1), "Call blocked by policy");
+        // if delay == -1, default to level-configured delay
+        if (delay == uint256(-1)) {
+            delay = delays[extractLevel(senderPermsLevel)];
+        }
         bytes32 bypassCallHash = Utilities.bypassCallHash(stateNonce, sender, senderPermsLevel, target, value, encodedFunction);
         pendingBypassCalls[bypassCallHash] = PendingChange(SafeMath.add(now, delay), sender, false);
         emit BypassCallPending(bypassCallHash, stateNonce, sender, senderPermsLevel, target, value, encodedFunction);
@@ -454,13 +451,6 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
 
     /*** Relay Recipient implementation **/
 
-    /**
-     * return the relayHub of this contract.
-     */
-    function getHubAddr() public view returns (address){
-        return address(0);
-    }
-
     function getRecipientBalance() public view returns (uint){
         return 0;
     }
@@ -483,6 +473,7 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
     //TODO
     function execute(address target, uint256 value, bytes memory encodedFunction) internal {
         (bool success,) = target.call.value(value)(encodedFunction);
+        (success);
         //TODO: ...
     }
 
