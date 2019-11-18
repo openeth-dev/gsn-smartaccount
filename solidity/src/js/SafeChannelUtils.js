@@ -53,8 +53,10 @@ module.exports = {
         return ABI.soliditySHA3(["address", "uint32"], [admin, permLevel])
     },
 
-    scheduledVaultTxHash: function (sender, nonce, delay, destination, value, token) {
-        return ABI.soliditySHA3(["address", "uint256", "uint256", "address", "uint256", "address"], [sender, nonce, delay, destination, value, token])
+    bypassCallHash: function (stateNonce, sender, senderPermsLevel, target, value, msgdata) {
+        assert.equal(typeof msgdata, "string")
+        let calldataBuffer = Buffer.from(this.removeHexPrefix(msgdata), "hex");
+        return ABI.soliditySHA3(["uint256", "address", "uint32", "address", "uint256", "bytes"], [stateNonce, sender, senderPermsLevel, target, value, calldataBuffer])
     },
 
     // Only used in tests

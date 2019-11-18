@@ -9,24 +9,30 @@ contract BypassPolicy {
      * - requiredConfirmations - how many confirmations needed before executing the call
      *      -1 == blocked call
      */
-    function getBypassPolicy(address target, uint256 value, bytes memory msgdata) public view returns (uint256 delay, uint256 requiredConfirmations );
+    function getBypassPolicy(address target, uint256 value, bytes memory msgdata) public view returns (uint256 delay, uint256 requiredConfirmations);
 }
 
 contract DefaultBypassPolicy is BypassPolicy {
-    function getBypassPolicy(address target, uint256 value, bytes memory msgdata) public view returns (uint256 delay, uint256 requiredConfirmations ) {
+    uint256 defaultDelay;
+    constructor(uint256 _defaultDelay) public{
+        defaultDelay = _defaultDelay;
+    }
+
+    function getBypassPolicy(address target, uint256 value, bytes memory msgdata) public view returns (uint256 delay, uint256 requiredConfirmations) {
         (target, value, msgdata);
-        return (uint256(-1) , 0);
+        return (defaultDelay, 0);
     }
 }
 
 contract WhiteListed is BypassPolicy {
-    mapping  (address=>bool) targets;
-    function addTarget(address target, bool on) public ;
+    mapping(address => bool) targets;
 
-    function getBypassPolicy(address target, uint256 value, bytes memory msgdata) public view returns (uint256 delay, uint256 requiredConfirmations ) {
+    function addTarget(address target, bool on) public;
+
+    function getBypassPolicy(address target, uint256 value, bytes memory msgdata) public view returns (uint256 delay, uint256 requiredConfirmations) {
         (target, value, msgdata);
-        if ( targets[target] )
-            return (0,0);
+        if (targets[target])
+            return (0, 0);
         else
             return (1 days, 0);
     }
