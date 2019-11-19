@@ -44,7 +44,8 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
     event BypassByMethodRemoved(bytes4 method, BypassPolicy bypass);
     event BypassCallPending(bytes32 indexed bypassHash, uint256 stateNonce, address sender, uint32 senderPermsLevel, address target, uint256 value, bytes msgdata);
     event BypassCallCancelled(bytes32 indexed bypassHash, address sender);
-    event BypassCallApplied(bytes32 indexed bypassHash);
+    event BypassCallApplied(bytes32 indexed bypassHash, bool status);
+    event BypassCallExecuted(bool status);
 
     DefaultBypassPolicy defaultBypassPolicy = new DefaultBypassPolicy();
 
@@ -336,6 +337,7 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         bytes32 transactionHash = Utilities.transactionHash(actions, args1, args2, scheduledStateId, scheduler, schedulerPermsLevel, booster, boosterPermsLevel);
         PendingChange memory pendingChange = pendingChanges[transactionHash];
         require(pendingChange.dueTime != 0, "apply called for non existent pending change");
+        delete pendingChanges[transactionHash];
         // We can accelerate the config change with approvals - currently only  standalone (not batched operation) addOperator can be accelerated
         if (pendingChange.requiredApprovals > 0 && pendingChange.dueTime < now) {
             require(pendingChange.approvals >= pendingChange.requiredApprovals, "Pending approvals");
@@ -345,7 +347,6 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         for (uint256 i = 0; i < actions.length; i++) {
             dispatch(actions[i], args1[i], args2[i], scheduler, schedulerPermsLevel);
         }
-        delete pendingChanges[transactionHash];
         // TODO: do this in every method, as a function/modifier
         stateNonce++;
     }
@@ -361,7 +362,6 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         else if (action == ChangeType.UNFREEZE) {
             unfreeze(sender, senderPermsLevel);
         }
-        //TODO
         else if (action == ChangeType.ADD_BYPASS_BY_TARGET) {
             addBypassByTarget(sender, senderPermsLevel, address(uint256(arg1)), BypassPolicy(uint256(arg2)));
         }
@@ -457,8 +457,9 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         PendingChange memory pendingBypassCall = pendingBypassCalls[bypassCallHash];
         require(pendingBypassCall.dueTime != 0, "apply called for non existent pending bypass call");
         require(now >= pendingBypassCall.dueTime, "apply called before due time");
-        execute(target, value, encodedFunction);
-        emit BypassCallApplied(bypassCallHash);
+        delete pendingBypassCalls[bypassCallHash];
+        bool success = execute(target, value, encodedFunction);
+        emit BypassCallApplied(bypassCallHash, success);
         stateNonce++;
     }
 
@@ -493,18 +494,18 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         (uint256 delay, uint256 requiredConfirmations) = getBypassPolicy(target, value, encodedFunction);
         require(requiredConfirmations != uint256(- 1), "Call blocked by policy");
         require(delay == 0, "Call cannot be executed immediately.");
-        execute(target, value, encodedFunction);
-
+        bool success = execute(target, value, encodedFunction);
+        emit BypassCallExecuted(success);
         stateNonce++;
     }
 
     /*** Relay Recipient implementation **/
 
-    function getRecipientBalance() public view returns (uint256){
+    function getRecipientBalance() public pure returns (uint256){
         return 0;
     }
 
-    function preRelayedCall(bytes calldata) external returns (bytes32){
+    function preRelayedCall(bytes calldata) external pure returns (bytes32){
         return 0;
     }
 
@@ -520,9 +521,8 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
     }
 
     //TODO
-    function execute(address target, uint256 value, bytes memory encodedFunction) internal {
-        (bool success,) = target.call.value(value)(encodedFunction);
-        (success);
+    function execute(address target, uint256 value, bytes memory encodedFunction) internal returns (bool success){
+        (success,) = target.call.value(value)(encodedFunction);
         //TODO: ...
     }
 
