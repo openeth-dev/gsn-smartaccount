@@ -90,7 +90,7 @@ contract('GSN and Sponsor integration', async function (accounts) {
             to: gatekeeper.address,
             value: 0,
             data: calldata,
-            gas:7e6
+            gas: 5e6,
         });
         let decodedLogs = Gatekeeper.decodeLogs(res.logs);
         assert.equal(decodedLogs[0].event, "ConfigPending");
