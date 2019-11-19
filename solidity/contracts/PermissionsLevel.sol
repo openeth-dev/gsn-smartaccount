@@ -29,7 +29,7 @@ contract PermissionsLevel {
     uint32 public canCancel = canCancelSpend | canCancelConfigChanges | canCancelBypassCall;
 
     uint32 public ownerPermissions = canSpend | canCancel | canFreeze | canChangeConfig | canSignBoosts | canAddOperator | canChangeBypass | canExecuteBypassCall;
-    uint32 public adminPermissions = /*canChangeOwner |*/ canExecuteBoosts;
+    uint32 public adminPermissions = /*canChangeOwner |*/ canExecuteBoosts | canAddOperator | canApprove;
     uint32 public watchdogPermissions = canCancel | canFreeze;
 
 //    function comparePermissions(uint16 neededPermissions, uint16 senderPermissions) view internal {
