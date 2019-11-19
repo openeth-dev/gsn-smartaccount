@@ -1,6 +1,9 @@
 pragma solidity ^0.5.10;
 
 contract BypassPolicy {
+
+    uint256 constant WHITELIST = 0;
+    uint256 constant USE_DEFAULT = uint(-1);
     /**
      * policy for a specific command:
      * - delay - how much time this call has to be delayed (in seconds).
@@ -15,20 +18,6 @@ contract BypassPolicy {
 contract DefaultBypassPolicy is BypassPolicy {
     function getBypassPolicy(address target, uint256 value, bytes memory msgdata) public view returns (uint256 delay, uint256 requiredConfirmations ) {
         (target, value, msgdata);
-        return (uint256(-1) , 0);
-    }
-}
-
-contract WhiteListed is BypassPolicy {
-    mapping(address => bool) targets;
-
-    function addTarget(address target, bool on) public;
-
-    function getBypassPolicy(address target, uint256 value, bytes memory msgdata) public view returns (uint256 delay, uint256 requiredConfirmations) {
-        (target, value, msgdata);
-        if (targets[target])
-            return (0, 0);
-        else
-            return (1 days, 0);
+        return (USE_DEFAULT, USE_DEFAULT);
     }
 }

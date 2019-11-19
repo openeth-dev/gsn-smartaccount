@@ -428,7 +428,7 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
 
         (uint256 delay, uint256 requiredConfirmations) = getBypassPolicy(target, value, encodedFunction);
         require(!blockAcceleratedCalls || delay >= delays[extractLevel(senderPermsLevel)], "Accelerated calls blocked - delay too short");
-        require(requiredConfirmations != uint256(- 1), "Call blocked by policy");
+//        require(requiredConfirmations != uint256(- 1), "Call blocked by policy");
         // if delay == -1, default to level-configured delay
         if (delay == uint256(-1)) {
             delay = delays[extractLevel(senderPermsLevel)];
@@ -492,7 +492,7 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         require(!blockAcceleratedCalls, "Accelerated calls blocked");
 
         (uint256 delay, uint256 requiredConfirmations) = getBypassPolicy(target, value, encodedFunction);
-        require(requiredConfirmations != uint256(- 1), "Call blocked by policy");
+//        require(requiredConfirmations != uint256(- 1), "Call blocked by policy");
         require(delay == 0, "Call cannot be executed immediately.");
         bool success = execute(target, value, encodedFunction);
         emit BypassCallExecuted(success);
