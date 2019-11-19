@@ -51,10 +51,9 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
     struct PendingChange {
         uint256 dueTime;
         address caller;
-        // TODO: fully implement approvals mechanism, like:
-        // TODO:  1. removed participant probably should lose all approvals
-        // TODO:  2. cannot approve the same call twice, etc.
-        bool approved;
+        uint256 requiredApprovals;
+        uint256 approvals;
+        mapping (bytes32 => bool) approvers;
     }
 
     mapping(bytes32 => PendingChange) public pendingChanges;
@@ -112,10 +111,10 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         require(stateNonce == targetStateNonce, "contract state changed since transaction was created");
     }
 
-    uint constant maxParticipants = 20;
-    uint constant maxLevels = 10;
-    uint constant maxDelay = 365 days;
-    uint constant maxFreeze = 365 days;
+    uint256 constant maxParticipants = 20;
+    uint256 constant maxLevels = 10;
+    uint256 constant maxDelay = 365 days;
+    uint256 constant maxFreeze = 365 days;
 
 
     function initialConfig(
@@ -144,13 +143,13 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
 
     // ****** Immediately runnable functions below this point
 
-    function freeze(uint32 senderPermsLevel, uint8 levelToFreeze, uint duration)
+    function freeze(uint32 senderPermsLevel, uint8 levelToFreeze, uint256 duration)
     public
     {
         address sender = getSender();
         requirePermissions(sender, canFreeze, senderPermsLevel);
         requireNotFrozen(senderPermsLevel);
-        uint until = SafeMath.add(now, duration);
+        uint256 until = SafeMath.add(now, duration);
         uint8 senderLevel = extractLevel(senderPermsLevel);
         require(levelToFreeze <= senderLevel, "cannot freeze level that is higher than caller");
         require(levelToFreeze >= frozenLevel, "cannot freeze level that is lower than already frozen");
@@ -164,12 +163,20 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         stateNonce++;
     }
 
-    // TODO: require approval here; also, call it 'addOperatorImmediatelyDangerously'
-    function addOperator(uint32 senderPermsLevel, address operator) public {
+    function addOperatorNow(uint32 senderPermsLevel, address newOperator) public {
         address sender = getSender();
         requirePermissions(sender, canAddOperator, senderPermsLevel);
         requireNotFrozen(senderPermsLevel);
-        addParticipant(sender, senderPermsLevel, Utilities.participantHash(operator, ownerPermissions));
+        require(!blockAcceleratedCalls, "Accelerated calls blocked");
+        uint8[] memory actions = new uint8[](1);
+        bytes32[] memory args = new bytes32[](1);
+        actions[0] = uint8(ChangeType.ADD_PARTICIPANT);
+        args[0] = Utilities.participantHash(newOperator, ownerPermissions);
+        bytes32 hash = Utilities.transactionHash(actions, args, args, stateNonce, sender, senderPermsLevel, address(0), 0);
+        pendingChanges[hash] = PendingChange(SafeMath.add(now, delays[extractLevel(senderPermsLevel)]), getSender(), 1, 0);
+//        addParticipant(sender, senderPermsLevel, Utilities.participantHash(newOperator, ownerPermissions));
+
+        stateNonce++;
 
     }
 
@@ -236,7 +243,7 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         uint32 boosterPermsLevel
     ) internal {
         bytes32 transactionHash = Utilities.transactionHash(actions, args1, args2, stateNonce, sender, senderPermsLevel, booster, boosterPermsLevel);
-        pendingChanges[transactionHash] = PendingChange(SafeMath.add(now, delays[extractLevel(senderPermsLevel)]), sender, false);
+        pendingChanges[transactionHash] = PendingChange(SafeMath.add(now, delays[extractLevel(senderPermsLevel)]), sender, 0, 0);
         emit ConfigPending(transactionHash, sender, senderPermsLevel, booster, boosterPermsLevel, stateNonce, actions, args1, args2);
         stateNonce++;
     }
@@ -269,6 +276,42 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         stateNonce++;
     }
 
+    function approveConfig(
+        uint32 senderPermsLevel,
+        uint8[] memory actions,
+        bytes32[] memory args1,
+        bytes32[] memory args2,
+        uint256 scheduledStateId,
+        address scheduler,
+        uint32 schedulerPermsLevel,
+        address booster,
+        uint32 boosterPermsLevel) public {
+        address sender = getSender();
+        requirePermissions(sender, canApprove, senderPermsLevel);
+        requireNotFrozen(senderPermsLevel);
+        if (booster != address(0))
+        {
+            requireNotFrozen(boosterPermsLevel, "booster level is frozen");
+        }
+        else {
+            requireNotFrozen(schedulerPermsLevel, "scheduler level is frozen");
+        }
+        bytes32 transactionHash = Utilities.transactionHash(actions, args1, args2, scheduledStateId, scheduler, schedulerPermsLevel, booster, boosterPermsLevel);
+        PendingChange storage pendingChange = pendingChanges[transactionHash];
+        require(pendingChange.requiredApprovals > 0, "Operation doesn't support approvals");
+        require(!pendingChange.approvers[Utilities.participantHash(sender, senderPermsLevel)], "Cannot approve twice");
+        //TODO: separate the checks above to different function shared between applyConfig & approveConfig
+        pendingChange.approvals++;
+        if (pendingChange.approvals == pendingChange.requiredApprovals) {
+            applyConfig(senderPermsLevel, actions, args1, args2, scheduledStateId, scheduler, schedulerPermsLevel, booster, boosterPermsLevel);
+        }else {
+            stateNonce++;
+        }
+
+
+
+    }
+
     function applyConfig(
         uint32 senderPermsLevel,
         uint8[] memory actions,
@@ -293,10 +336,16 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         bytes32 transactionHash = Utilities.transactionHash(actions, args1, args2, scheduledStateId, scheduler, schedulerPermsLevel, booster, boosterPermsLevel);
         PendingChange memory pendingChange = pendingChanges[transactionHash];
         require(pendingChange.dueTime != 0, "apply called for non existent pending change");
-        require(now >= pendingChange.dueTime, "apply called before due time");
-        for (uint i = 0; i < actions.length; i++) {
+        // We can accelerate the config change with approvals - currently only  standalone (not batched operation) addOperator can be accelerated
+        if (pendingChange.requiredApprovals > 0 && pendingChange.dueTime < now) {
+            require(pendingChange.approvals >= pendingChange.requiredApprovals, "Pending approvals");
+        }else {
+            require(now >= pendingChange.dueTime, "apply called before due time");
+        }
+        for (uint256 i = 0; i < actions.length; i++) {
             dispatch(actions[i], args1[i], args2[i], scheduler, schedulerPermsLevel);
         }
+        delete pendingChanges[transactionHash];
         // TODO: do this in every method, as a function/modifier
         stateNonce++;
     }
@@ -385,7 +434,7 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
             delay = delays[extractLevel(senderPermsLevel)];
         }
         bytes32 bypassCallHash = Utilities.bypassCallHash(stateNonce, sender, senderPermsLevel, target, value, encodedFunction);
-        pendingBypassCalls[bypassCallHash] = PendingChange(SafeMath.add(now, delay), sender, false);
+        pendingBypassCalls[bypassCallHash] = PendingChange(SafeMath.add(now, delay), sender, 0, 0);
         emit BypassCallPending(bypassCallHash, stateNonce, sender, senderPermsLevel, target, value, encodedFunction);
 
         stateNonce++;
@@ -451,7 +500,7 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
 
     /*** Relay Recipient implementation **/
 
-    function getRecipientBalance() public view returns (uint){
+    function getRecipientBalance() public view returns (uint256){
         return 0;
     }
 
@@ -459,7 +508,7 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         return 0;
     }
 
-    function postRelayedCall(bytes calldata, bool, uint, bytes32) external {
+    function postRelayedCall(bytes calldata, bool, uint256, bytes32) external {
     }
 
     /****** Moved over from the Vault contract *******/
