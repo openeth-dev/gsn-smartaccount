@@ -93,7 +93,6 @@ async function applyDelayed({res, log}, fromParticipant, gatekeeper) {
 }
 
 contract('Gatekeeper', async function (accounts) {
-
     let gatekeeper;
     let utilities;
     let erc20;
@@ -275,6 +274,7 @@ contract('Gatekeeper', async function (accounts) {
         assert.equal(log.event, "BypassCallApplied");
         let hash = "0x" + utils.bypassCallHash(addedLog.stateNonce, operatorA.address, operatorA.permLevel, addedLog.target, addedLog.value, "").toString("hex");
         assert.equal(log.args.bypassHash, hash);
+        assert.equal(log.args.status, true);
 
         let balanceSenderAfter = parseInt(await web3.eth.getBalance(gatekeeper.address));
         let balanceReceiverAfter = parseInt(await web3.eth.getBalance(destinationAddress));
@@ -320,11 +320,25 @@ contract('Gatekeeper', async function (accounts) {
         log = res.logs[1];
         // TODO: TBD: should this event have other fields, or is it more reliable to lookup the 'scheduled' event?
         assert.equal(log.event, "BypassCallApplied");
+        assert.equal(log.args.status, true);
 
         let balanceSenderAfter = (await erc20.balanceOf(gatekeeper.address)).toNumber();
         let balanceReceiverAfter = (await erc20.balanceOf(destinationAddress)).toNumber();
         assert.equal(balanceSenderAfter, balanceSenderBefore - amount);
         assert.equal(balanceReceiverAfter, balanceReceiverBefore + amount);
+    });
+
+    it("should revert an attempt to re-apply a bypass call ", async function () {
+
+        let addedLog = await getLastEvent(gatekeeper.contract, "BypassCallPending", expectedDelayedEventsCount);
+        let balanceSenderBefore = (await erc20.balanceOf(gatekeeper.address)).toNumber();
+        let balanceReceiverBefore = (await erc20.balanceOf(destinationAddress)).toNumber();
+        assert.isAbove(balanceSenderBefore, amount);
+        await utils.increaseTime(timeGap, web3);
+
+        await expect(
+            gatekeeper.applyBypassCall(operatorA.permLevel, addedLog.sender, addedLog.senderPermsLevel, addedLog.stateNonce, addedLog.target, addedLog.value, addedLog.msgdata, {from: operatorA.address})
+        ).to.be.revertedWith("apply called for non existent pending bypass call");
     });
 
     describe("custom delay tests", async function () {
@@ -464,6 +478,31 @@ contract('Gatekeeper', async function (accounts) {
         await utils.validateConfigParticipants(
             [adminA.expect(), adminB, adminB1.expect(), adminC],
             gatekeeper);
+    });
+
+    it("should revert an attempt to re-apply a config change", async function () {
+        let stateId = await gatekeeper.stateNonce();
+        let changeType1 = ChangeType.ADD_PARTICIPANT;
+        let changeArg1 = utils.participantHash(adminB1.address, adminB1.permLevel);
+        await gatekeeper.changeConfiguration(operatorA.permLevel, [changeType1], [changeArg1], [changeArg1], stateId);
+
+        await expect(
+            gatekeeper.applyConfig(operatorA.permLevel, [changeType1], [changeArg1], [changeArg1], stateId, operatorA.address, operatorA.permLevel, zeroAddress, 0)
+        ).to.be.revertedWith("called before due time");
+
+        await utils.increaseTime(timeGap, web3);
+
+        let res = await gatekeeper.applyConfig(operatorA.permLevel, [changeType1], [changeArg1], [changeArg1], stateId, operatorA.address, operatorA.permLevel, zeroAddress, 0);
+
+        assert.equal(res.logs[0].event, "ParticipantAdded");
+
+        await utils.validateConfigParticipants(
+            [adminA.expect(), adminB1.expect(), adminC],
+            gatekeeper);
+
+        await expect(
+            gatekeeper.applyConfig(operatorA.permLevel, [changeType1], [changeArg1], [changeArg1], stateId, operatorA.address, operatorA.permLevel, zeroAddress, 0)
+        ).to.be.revertedWith("apply called for non existent pending change");
     });
 
     // it("should only allow one operator in vault", async function () {

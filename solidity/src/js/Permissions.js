@@ -8,8 +8,8 @@ let permissions = {
     CanFreeze: 1 << 6,
     CanCancelConfigChanges: 1 << 7,
     CanCancelSpend: 1 << 8,
-    canApprove: 1 << 9,
-    canAddOperator: 1 << 10
+    CanApprove: 1 << 9,
+    CanAddOperator: 1 << 10
 };
 
 Object.assign(permissions, {
