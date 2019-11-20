@@ -23,6 +23,8 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         REMOVE_PARTICIPANT, // arg: participant_hash
         ADD_BYPASS_BY_TARGET,
         ADD_BYPASS_BY_METHOD,
+        SET_ACCELERATED_CALLS,
+        SET_ADD_OPERATOR_NOW,
         UNFREEZE            // no args
     }
 
@@ -46,6 +48,8 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
     event BypassCallCancelled(bytes32 indexed bypassHash, address sender);
     event BypassCallApplied(bytes32 indexed bypassHash, bool status);
     event BypassCallExecuted(bool status);
+    event AcceleratedCAllSet(bool status);
+    event AddOperatorNowSet(bool status);
 
     DefaultBypassPolicy defaultBypassPolicy = new DefaultBypassPolicy();
 
@@ -63,7 +67,8 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
     mapping(bytes4 => BypassPolicy) bypassPoliciesByMethod; // interface (method sigs) level bypass exceptions
     // TODO: do not call this 'bypass calls', this does not describe what these are.
     mapping(bytes32 => PendingChange) public pendingBypassCalls;
-    bool public blockAcceleratedCalls;
+    bool public allowAcceleratedCalls;
+    bool public allowAddOperatorNow;
 
     function getDelays() public view returns (uint256[] memory) {
         return delays;
@@ -123,7 +128,8 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         uint256[] memory initialDelays,
         address _trustedForwarder,
         address _relayHub,
-        bool _blockAcceleratedCalls) public {
+        bool _allowAcceleratedCalls,
+        bool _allowAddOperatorNow) public {
         require(stateNonce == 0, "already initialized");
         require(initialParticipants.length <= maxParticipants, "too many participants");
         require(initialDelays.length <= maxLevels, "too many levels");
@@ -136,7 +142,8 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
             require(initialDelays[i] < maxDelay, "Delay too long");
         }
         delays = initialDelays;
-        blockAcceleratedCalls = _blockAcceleratedCalls;
+        allowAcceleratedCalls = _allowAcceleratedCalls;
+        allowAddOperatorNow = _allowAddOperatorNow;
 
         emit GatekeeperInitialized(initialParticipants, delays, _trustedForwarder, _relayHub);
         stateNonce++;
@@ -168,7 +175,7 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         address sender = getSender();
         requirePermissions(sender, canAddOperator, senderPermsLevel);
         requireNotFrozen(senderPermsLevel);
-        require(!blockAcceleratedCalls, "Accelerated calls blocked");
+        require(allowAddOperatorNow, "Call blocked");
         uint8[] memory actions = new uint8[](1);
         bytes32[] memory args = new bytes32[](1);
         actions[0] = uint8(ChangeType.ADD_PARTICIPANT);
@@ -368,6 +375,12 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         else if (action == ChangeType.ADD_BYPASS_BY_METHOD) {
             addBypassByMethod(sender, senderPermsLevel, bytes4(arg1), BypassPolicy(uint256(arg2)));
         }
+        else if (action == ChangeType.SET_ACCELERATED_CALLS) {
+            setAcceleratedCalls(sender, senderPermsLevel, uint256(arg1) != 0);
+        }
+        else if (action == ChangeType.SET_ADD_OPERATOR_NOW) {
+            setAddOperatorNow(sender, senderPermsLevel, uint256(arg1) != 0);
+        }
         else {
             revert("operation not supported");
         }
@@ -408,6 +421,18 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         emit UnfreezeCompleted();
     }
 
+    function setAcceleratedCalls(address sender, uint32 senderPermsLevel, bool allow) private {
+        requirePermissions(sender, canSetAcceleratedCalls, senderPermsLevel);
+        allowAcceleratedCalls = allow;
+        emit AcceleratedCAllSet(allow);
+    }
+
+    function setAddOperatorNow(address sender, uint32 senderPermsLevel, bool allow) private {
+        requirePermissions(sender, canSetAddOperatorNow, senderPermsLevel);
+        allowAddOperatorNow = allow;
+        emit AddOperatorNowSet(allow);
+    }
+
     //BYPASS SUPPORT
 
     function getBypassPolicy(address target, uint256 value, bytes memory encodedFunction) public view returns (uint256 delay, uint256 requiredConfirmations) {
@@ -427,7 +452,7 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         requireNotFrozen(senderPermsLevel);
 
         (uint256 delay, uint256 requiredConfirmations) = getBypassPolicy(target, value, encodedFunction);
-        require(!blockAcceleratedCalls || delay >= delays[extractLevel(senderPermsLevel)], "Accelerated calls blocked - delay too short");
+        require(allowAcceleratedCalls || delay >= delays[extractLevel(senderPermsLevel)], "Accelerated calls blocked - delay too short");
 //        require(requiredConfirmations != uint256(- 1), "Call blocked by policy");
         // if delay == -1, default to level-configured delay
         if (delay == uint256(-1)) {
@@ -489,7 +514,7 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         address sender = getSender();
         requirePermissions(sender, canExecuteBypassCall, senderPermsLevel);
         requireNotFrozen(senderPermsLevel);
-        require(!blockAcceleratedCalls, "Accelerated calls blocked");
+        require(allowAcceleratedCalls, "Accelerated calls blocked");
 
         (uint256 delay, uint256 requiredConfirmations) = getBypassPolicy(target, value, encodedFunction);
 //        require(requiredConfirmations != uint256(- 1), "Call blocked by policy");

@@ -3,7 +3,9 @@ const ChangeType = Object.freeze({
     REMOVE_PARTICIPANT: 1,
     ADD_BYPASS_BY_TARGET: 2,
     ADD_BYPASS_BY_METHOD: 3,
-    UNFREEZE: 4
+    SET_ACCELERATED_CALLS: 4,
+    SET_ADD_OPERATOR_NOW: 5,
+    UNFREEZE: 6
 });
 
 module.exports = ChangeType;
