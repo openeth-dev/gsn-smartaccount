@@ -180,7 +180,7 @@ contract('Gatekeeper', async function (accounts) {
         let wrongInitialDelays = [];
         let initialParticipants = Array(21).fill("0x1123123");
         await expect(
-            gatekeeper.initialConfig(initialParticipants, wrongInitialDelays, trustedForwarder, relayHub, false)
+            gatekeeper.initialConfig(initialParticipants, wrongInitialDelays, trustedForwarder, relayHub, true, true)
         ).to.be.revertedWith("too many participants");
     });
 
@@ -188,7 +188,7 @@ contract('Gatekeeper', async function (accounts) {
         let wrongInitialDelays = Array(11).fill(10);
         let initialParticipants = [];
         await expect(
-            gatekeeper.initialConfig(initialParticipants, wrongInitialDelays, trustedForwarder, relayHub, false)
+            gatekeeper.initialConfig(initialParticipants, wrongInitialDelays, trustedForwarder, relayHub, true, true)
         ).to.be.revertedWith("too many levels");
     });
 
@@ -196,7 +196,7 @@ contract('Gatekeeper', async function (accounts) {
         let wrongInitialDelays = Array.from({length: 10}, (x, i) => (i + 1) * yearInSec);
         let initialParticipants = [];
         await expect(
-            gatekeeper.initialConfig(initialParticipants, wrongInitialDelays, trustedForwarder, relayHub, false)
+            gatekeeper.initialConfig(initialParticipants, wrongInitialDelays, trustedForwarder, relayHub, true, true)
         ).to.be.revertedWith("Delay too long");
     });
 
@@ -213,7 +213,7 @@ contract('Gatekeeper', async function (accounts) {
             utils.bufferToHex(utils.participantHash(adminB2.address, adminB2.permLevel)),
         ];
 
-        let res = await gatekeeper.initialConfig(initialParticipants, initialDelays, trustedForwarder, relayHub, false, {from:operatorA.address});
+        let res = await gatekeeper.initialConfig(initialParticipants, initialDelays, trustedForwarder, relayHub, true, true, {from: operatorA.address});
         let log = res.logs[0];
         assert.equal(log.event, "GatekeeperInitialized");
 
@@ -236,7 +236,7 @@ contract('Gatekeeper', async function (accounts) {
         let initialDelays = [];
         let initialParticipants = [];
         await expect(
-            gatekeeper.initialConfig(initialParticipants, initialDelays, trustedForwarder, relayHub, false)
+            gatekeeper.initialConfig(initialParticipants, initialDelays, trustedForwarder, relayHub, true, true)
         ).to.be.revertedWith("already initialized");
     });
     // return;
@@ -614,7 +614,8 @@ contract('Gatekeeper', async function (accounts) {
 
     function getNonConfigChangers() {
         return [
-            adminA.expectError(`permissions missing: ${Permissions.CanChangeParticipants + Permissions.CanUnfreeze}`),
+            adminA.expectError(`permissions missing: ${Permissions.CanChangeParticipants + Permissions.CanUnfreeze +
+            Permissions.CanChangeBypass + Permissions.CanSetAcceleratedCalls + Permissions.CanSetAddOperatorNow}`),
             watchdogA.expectError(`permissions missing: ${Permissions.CanChangeConfig}`),
             wrongaddr.expectError("not participant")
         ];
@@ -622,7 +623,8 @@ contract('Gatekeeper', async function (accounts) {
 
     function getNonBoostees() {
         return [
-            adminA.expectError(`permissions missing: ${Permissions.CanSignBoosts + Permissions.CanUnfreeze + Permissions.CanChangeParticipants}`),
+            adminA.expectError(`permissions missing: ${Permissions.CanSignBoosts + Permissions.CanUnfreeze +
+            Permissions.CanChangeParticipants + Permissions.CanChangeBypass + Permissions.CanSetAcceleratedCalls + Permissions.CanSetAddOperatorNow}`),
             watchdogA.expectError(`permissions missing: ${Permissions.CanSignBoosts + Permissions.CanChangeConfig}`),
             wrongaddr.expectError("not participant")
         ];

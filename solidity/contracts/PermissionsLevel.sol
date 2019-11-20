@@ -25,25 +25,15 @@ contract PermissionsLevel {
     uint32 constant public canExecuteBypassCall = 1 << 11;
     uint32 constant public canCancelBypassCall = 1 << 12;
 
-    uint32 public canChangeConfig = canUnfreeze | canChangeParticipants /*| canChangeOwner*/ /* | canChangeDelays */;
+    uint32 constant public canSetAcceleratedCalls = 1 << 13;
+    uint32 constant public canSetAddOperatorNow = 1 << 14;
+
+    uint32 public canChangeConfig = canUnfreeze | canChangeParticipants | canAddOperator | canChangeBypass | canSetAcceleratedCalls | canSetAddOperatorNow/*| canChangeOwner*/ /* | canChangeDelays */;
     uint32 public canCancel = canCancelSpend | canCancelConfigChanges | canCancelBypassCall;
 
-    uint32 public ownerPermissions = canSpend | canCancel | canFreeze | canChangeConfig | canSignBoosts | canAddOperator | canChangeBypass | canExecuteBypassCall;
-    uint32 public adminPermissions = /*canChangeOwner |*/ canExecuteBoosts | canAddOperator | canApprove;
-    uint32 public watchdogPermissions = canCancel | canFreeze;
-
-//    function comparePermissions(uint16 neededPermissions, uint16 senderPermissions) view internal {
-//        uint16 missingPermissions = neededPermissions & (senderPermissions ^ uint16(- 1));
-//        string memory error = Assert.concat("permissions missing: ", missingPermissions);
-//        require(missingPermissions == 0, error);
-//        require(missingPermissions < 0x07FF, "permissions overflow"); // TODO: increase size of perm+level to drop this packing/unpacking hell
-//        require(
-//            senderPermissions == ownerPermissions ||
-//            senderPermissions == adminPermissions ||
-//            senderPermissions == watchdogPermissions,
-//            "use defaults or go compile your vault from sources");
-//
-//    }
+    uint32 public ownerPermissions = canSpend | canCancel | canFreeze | canChangeConfig | canSignBoosts | canExecuteBypassCall;
+    uint32 public adminPermissions = /*canChangeOwner |*/ canExecuteBoosts | canAddOperator;
+    uint32 public watchdogPermissions = canCancel | canFreeze | canApprove;
 
     function comparePermissions(uint32 neededPermissions, uint32 senderPermissions) view internal {
         uint32 missingPermissions = neededPermissions & (senderPermissions ^ uint32(- 1));
@@ -58,14 +48,6 @@ contract PermissionsLevel {
 
     }
 
-    // TODO: increase size
-//    function extractPermissionLevel(uint16 permLev) pure internal returns (uint16 permissions, uint8 level) {
-//        permissions = permLev & 0x07FF;
-//        // 0xFFFF >> 5
-//        level = uint8(permLev >> 11);
-//        // 32 levels ought to be enough for anybody©
-//    }
-
     function extractLevel(uint32 permLev) pure internal returns (uint8 level) {
         (, level) = extractPermissionLevel(permLev);
     }
@@ -73,12 +55,6 @@ contract PermissionsLevel {
     function extractPermission(uint32 permLev) pure internal returns (uint32 permission) {
         (permission,) = extractPermissionLevel(permLev);
     }
-
-//    function packPermissionLevel(uint16 permissions, uint8 level) pure internal returns (uint16 permLev) {
-//        require(permissions <= 0x07FF, "permissions overflow");
-//        require(level <= 0x1F, "level overflow");
-//        return (uint16(level) << 11) + permissions;
-//    }
 
     function packPermissionLevel(uint32 permissions, uint8 level) pure internal returns (uint32 permLev) {
         require(permissions <= 0x07FFFFFF, "permissions overflow");
