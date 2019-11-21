@@ -3,7 +3,7 @@ pragma solidity ^0.5.10;
 import "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
 import "tabookey-gasless/contracts/GsnUtils.sol";
 
-import "./BypassPolicy.sol";
+import "../BypassPolicy.sol";
 
 
 contract WhitelistBypassPolicy is BypassPolicy {
@@ -15,8 +15,11 @@ contract WhitelistBypassPolicy is BypassPolicy {
     mapping(address => bool) whitelist;
     address gatekeeper;
 
-    constructor(address _gatekeeper) public {
+    constructor(address _gatekeeper, address[] memory _whitelist) public {
         gatekeeper = _gatekeeper;
+        for (uint i = 0; i < _whitelist.length; i++) {
+            whitelist[_whitelist[i]] = true;
+        }
     }
 
     function addWhitelistedTarget(
