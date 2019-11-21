@@ -615,7 +615,7 @@ contract('Gatekeeper', async function (accounts) {
     function getNonConfigChangers() {
         return [
             adminA.expectError(`permissions missing: ${Permissions.CanChangeParticipants + Permissions.CanUnfreeze +
-            Permissions.CanChangeBypass + Permissions.CanSetAcceleratedCalls + Permissions.CanSetAddOperatorNow}`),
+            Permissions.CanChangeBypass + Permissions.CanSetAcceleratedCalls + Permissions.CanSetAddOperatorNow + Permissions.CanAddOperatorNow}`),
             watchdogA.expectError(`permissions missing: ${Permissions.CanChangeConfig}`),
             wrongaddr.expectError("not participant")
         ];
@@ -624,7 +624,8 @@ contract('Gatekeeper', async function (accounts) {
     function getNonBoostees() {
         return [
             adminA.expectError(`permissions missing: ${Permissions.CanSignBoosts + Permissions.CanUnfreeze +
-            Permissions.CanChangeParticipants + Permissions.CanChangeBypass + Permissions.CanSetAcceleratedCalls + Permissions.CanSetAddOperatorNow}`),
+            Permissions.CanChangeParticipants + Permissions.CanChangeBypass + Permissions.CanSetAcceleratedCalls 
+            + Permissions.CanSetAddOperatorNow + Permissions.CanAddOperatorNow}`),
             watchdogA.expectError(`permissions missing: ${Permissions.CanSignBoosts + Permissions.CanChangeConfig}`),
             wrongaddr.expectError("not participant")
         ];

@@ -27,8 +27,9 @@ contract PermissionsLevel {
 
     uint32 constant public canSetAcceleratedCalls = 1 << 13;
     uint32 constant public canSetAddOperatorNow = 1 << 14;
+    uint32 constant public canAddOperatorNow = 1 << 15;
 
-    uint32 public canChangeConfig = canUnfreeze | canChangeParticipants | canAddOperator | canChangeBypass | canSetAcceleratedCalls | canSetAddOperatorNow/*| canChangeOwner*/ /* | canChangeDelays */;
+    uint32 public canChangeConfig = canUnfreeze | canChangeParticipants | canAddOperator | canAddOperatorNow | canChangeBypass | canSetAcceleratedCalls | canSetAddOperatorNow/*| canChangeOwner*/ /* | canChangeDelays */;
     uint32 public canCancel = canCancelSpend | canCancelConfigChanges | canCancelBypassCall;
 
     uint32 public ownerPermissions = canSpend | canCancel | canFreeze | canChangeConfig | canSignBoosts | canExecuteBypassCall;
