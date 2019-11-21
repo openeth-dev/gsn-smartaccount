@@ -25,7 +25,8 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         ADD_BYPASS_BY_METHOD,
         SET_ACCELERATED_CALLS,
         SET_ADD_OPERATOR_NOW,
-        UNFREEZE            // no args
+        UNFREEZE,            // no args
+        ADD_OPERATOR_NOW
     }
 
     //***** events
@@ -40,10 +41,10 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
     event GatekeeperInitialized(bytes32[] participants, uint256[] delays, address trustedForwarder, address relayHub);
     event LevelFrozen(uint256 frozenLevel, uint256 frozenUntil, address sender);
     event UnfreezeCompleted();
-    event BypassByTargetAdded(address target, BypassPolicy bypass);
-    event BypassByMethodAdded(bytes4 method, BypassPolicy bypass);
-    event BypassByTargetRemoved(address target, BypassPolicy bypass);
-    event BypassByMethodRemoved(bytes4 method, BypassPolicy bypass);
+    event BypassByTargetAdded(address target, BypassPolicy  indexed bypass);
+    event BypassByMethodAdded(bytes4 method, BypassPolicy indexed bypass);
+    event BypassByTargetRemoved(address target, BypassPolicy indexed bypass);
+    event BypassByMethodRemoved(bytes4 method, BypassPolicy indexed bypass);
     event BypassCallPending(bytes32 indexed bypassHash, uint256 stateNonce, address sender, uint32 senderPermsLevel, address target, uint256 value, bytes msgdata);
     event BypassCallCancelled(bytes32 indexed bypassHash, address sender);
     event BypassCallApplied(bytes32 indexed bypassHash, bool status);
@@ -55,10 +56,7 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
 
     struct PendingChange {
         uint256 dueTime;
-        address caller;
-        uint256 requiredApprovals;
-        uint256 approvals;
-        mapping (bytes32 => bool) approvers;
+        bytes32[] approvers;
     }
 
     mapping(bytes32 => PendingChange) public pendingChanges;
@@ -69,6 +67,8 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
     mapping(bytes32 => PendingChange) public pendingBypassCalls;
     bool public allowAcceleratedCalls;
     bool public allowAddOperatorNow;
+    // 0 - no approvals needed before applying
+    uint256[] public requiredApprovalsPerLevel;
 
     function getDelays() public view returns (uint256[] memory) {
         return delays;
@@ -129,7 +129,8 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         address _trustedForwarder,
         address _relayHub,
         bool _allowAcceleratedCalls,
-        bool _allowAddOperatorNow) public {
+        bool _allowAddOperatorNow,
+        uint256[] memory _requiredApprovalsPerLevel) public {
         require(stateNonce == 0, "already initialized");
         require(initialParticipants.length <= maxParticipants, "too many participants");
         require(initialDelays.length <= maxLevels, "too many levels");
@@ -144,6 +145,7 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         delays = initialDelays;
         allowAcceleratedCalls = _allowAcceleratedCalls;
         allowAddOperatorNow = _allowAddOperatorNow;
+        requiredApprovalsPerLevel = _requiredApprovalsPerLevel;
 
         emit GatekeeperInitialized(initialParticipants, delays, _trustedForwarder, _relayHub);
         stateNonce++;
@@ -171,21 +173,38 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         stateNonce++;
     }
 
-    function addOperatorNow(uint32 senderPermsLevel, address newOperator) public {
+    function addOperatorNow(uint32 senderPermsLevel, address newOperatorAddress) public {
         address sender = getSender();
         requirePermissions(sender, canAddOperator, senderPermsLevel);
         requireNotFrozen(senderPermsLevel);
         require(allowAddOperatorNow, "Call blocked");
         uint8[] memory actions = new uint8[](1);
         bytes32[] memory args = new bytes32[](1);
-        actions[0] = uint8(ChangeType.ADD_PARTICIPANT);
-        args[0] = Utilities.participantHash(newOperator, ownerPermissions);
+        actions[0] = uint8(ChangeType.ADD_OPERATOR_NOW);
+        args[0] = Utilities.participantHash(newOperatorAddress, ownerPermissions);
         bytes32 hash = Utilities.transactionHash(actions, args, args, stateNonce, sender, senderPermsLevel, address(0), 0);
-        pendingChanges[hash] = PendingChange(SafeMath.add(now, delays[extractLevel(senderPermsLevel)]), getSender(), 1, 0);
-//        addParticipant(sender, senderPermsLevel, Utilities.participantHash(newOperator, ownerPermissions));
+        pendingChanges[hash] = PendingChange(SafeMath.add(now, delays[extractLevel(senderPermsLevel)]), new bytes32[](0));
 
         stateNonce++;
+    }
 
+    function approveAddOperatorNow( uint32 senderPermsLevel,
+        address newOperatorAddress,
+        uint256 scheduledStateId,
+        address scheduler,
+        uint32 schedulerPermsLevel) public {
+        requirePermissions(getSender(), canApprove, senderPermsLevel);
+        requireNotFrozen(senderPermsLevel);
+        uint8[] memory actions = new uint8[](1);
+        bytes32[] memory args = new bytes32[](1);
+        actions[0] = uint8(ChangeType.ADD_OPERATOR_NOW);
+        args[0] = Utilities.participantHash(newOperatorAddress, ownerPermissions);
+        bytes32 hash = Utilities.transactionHash(actions, args, args, scheduledStateId, scheduler, schedulerPermsLevel, address(0), 0);
+        require(pendingChanges[hash].dueTime != 0, "Pending change not found");
+        delete pendingChanges[hash];
+
+        participants[args[0]] = true;
+        emit ParticipantAdded(args[0]);
     }
 
     function removeBypassByTarget(uint32 senderPermsLevel, address target) public {
@@ -251,7 +270,7 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         uint32 boosterPermsLevel
     ) internal {
         bytes32 transactionHash = Utilities.transactionHash(actions, args1, args2, stateNonce, sender, senderPermsLevel, booster, boosterPermsLevel);
-        pendingChanges[transactionHash] = PendingChange(SafeMath.add(now, delays[extractLevel(senderPermsLevel)]), sender, 0, 0);
+        pendingChanges[transactionHash] = PendingChange(SafeMath.add(now, delays[extractLevel(senderPermsLevel)]), new bytes32[](0));
         emit ConfigPending(transactionHash, sender, senderPermsLevel, booster, boosterPermsLevel, stateNonce, actions, args1, args2);
         stateNonce++;
     }
@@ -284,6 +303,13 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         stateNonce++;
     }
 
+    function hasApproved(bytes32 participant, bytes32[] memory approvers) internal pure returns (bool) {
+        for (uint256 i=0; i < approvers.length; i++) {
+            if (approvers[i] == participant) return true;
+        }
+        return false;
+    }
+
     function approveConfig(
         uint32 senderPermsLevel,
         uint8[] memory actions,
@@ -306,17 +332,15 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         }
         bytes32 transactionHash = Utilities.transactionHash(actions, args1, args2, scheduledStateId, scheduler, schedulerPermsLevel, booster, boosterPermsLevel);
         PendingChange storage pendingChange = pendingChanges[transactionHash];
-        require(pendingChange.requiredApprovals > 0, "Operation doesn't support approvals");
-        require(!pendingChange.approvers[Utilities.participantHash(sender, senderPermsLevel)], "Cannot approve twice");
+        require(requiredApprovalsPerLevel[extractLevel(schedulerPermsLevel)] > 0, "Level doesn't support approvals");
+        require(!hasApproved(Utilities.participantHash(sender, senderPermsLevel), pendingChange.approvers), "Cannot approve twice");
         //TODO: separate the checks above to different function shared between applyConfig & approveConfig
-        pendingChange.approvals++;
-        if (pendingChange.approvals == pendingChange.requiredApprovals) {
+        pendingChange.approvers.push(Utilities.participantHash(sender, senderPermsLevel));
+        if (pendingChange.approvers.length >= requiredApprovalsPerLevel[extractLevel(schedulerPermsLevel)]) {
             applyConfig(senderPermsLevel, actions, args1, args2, scheduledStateId, scheduler, schedulerPermsLevel, booster, boosterPermsLevel);
         }else {
             stateNonce++;
         }
-
-
 
     }
 
@@ -344,13 +368,9 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         bytes32 transactionHash = Utilities.transactionHash(actions, args1, args2, scheduledStateId, scheduler, schedulerPermsLevel, booster, boosterPermsLevel);
         PendingChange memory pendingChange = pendingChanges[transactionHash];
         require(pendingChange.dueTime != 0, "apply called for non existent pending change");
+        require(now >= pendingChange.dueTime, "apply called before due time");
+        require(pendingChange.approvers.length >= requiredApprovalsPerLevel[extractLevel(schedulerPermsLevel)], "Pending approvals");
         delete pendingChanges[transactionHash];
-        // We can accelerate the config change with approvals - currently only  standalone (not batched operation) addOperator can be accelerated
-        if (pendingChange.requiredApprovals > 0 && pendingChange.dueTime < now) {
-            require(pendingChange.approvals >= pendingChange.requiredApprovals, "Pending approvals");
-        }else {
-            require(now >= pendingChange.dueTime, "apply called before due time");
-        }
         for (uint256 i = 0; i < actions.length; i++) {
             dispatch(actions[i], args1[i], args2[i], scheduler, schedulerPermsLevel);
         }
@@ -380,6 +400,9 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         }
         else if (action == ChangeType.SET_ADD_OPERATOR_NOW) {
             setAddOperatorNow(sender, senderPermsLevel, uint256(arg1) != 0);
+        }
+        else if (action == ChangeType.ADD_OPERATOR_NOW) {
+            revert("Use approveAddOperatorNow instead");
         }
         else {
             revert("operation not supported");
@@ -459,7 +482,7 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
             delay = delays[extractLevel(senderPermsLevel)];
         }
         bytes32 bypassCallHash = Utilities.bypassCallHash(stateNonce, sender, senderPermsLevel, target, value, encodedFunction);
-        pendingBypassCalls[bypassCallHash] = PendingChange(SafeMath.add(now, delay), sender, 0, 0);
+        pendingBypassCalls[bypassCallHash] = PendingChange(SafeMath.add(now, delay), new bytes32[](0));
         emit BypassCallPending(bypassCallHash, stateNonce, sender, senderPermsLevel, target, value, encodedFunction);
 
         stateNonce++;
