@@ -26,6 +26,7 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         SET_ACCELERATED_CALLS,
         SET_ADD_OPERATOR_NOW,
         UNFREEZE,            // no args
+        ADD_OPERATOR,
         ADD_OPERATOR_NOW
     }
 
@@ -291,6 +292,8 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         requireNotFrozen(senderPermsLevel);
         bytes32 hash = Utilities.transactionHash(actions, args1, args2, scheduledStateId, scheduler, schedulerPermsLevel, booster, boosterPermsLevel);
         require(pendingChanges[hash].dueTime > 0, "cannot cancel, operation does not exist");
+        //TODO add test
+        require(extractLevel(schedulerPermsLevel) <= extractLevel(senderPermsLevel), "cannot cancel operation from higher level");
         // TODO: refactor, make function or whatever
         if (booster != address(0)) {
             require(extractLevel(boosterPermsLevel) <= extractLevel(senderPermsLevel), "cannot cancel, booster is of higher level");
@@ -330,6 +333,9 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         else {
             requireNotFrozen(schedulerPermsLevel, "scheduler level is frozen");
         }
+        //TODO add test
+        require(extractLevel(schedulerPermsLevel) <= extractLevel(senderPermsLevel), "cannot cancel operation from higher level");
+
         bytes32 transactionHash = Utilities.transactionHash(actions, args1, args2, scheduledStateId, scheduler, schedulerPermsLevel, booster, boosterPermsLevel);
         PendingChange storage pendingChange = pendingChanges[transactionHash];
         require(requiredApprovalsPerLevel[extractLevel(schedulerPermsLevel)] > 0, "Level doesn't support approvals");
@@ -383,6 +389,9 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         if (action == ChangeType.ADD_PARTICIPANT) {
             addParticipant(sender, senderPermsLevel, arg1);
         }
+        else if (action == ChangeType.ADD_OPERATOR) {
+            addOperator(sender, senderPermsLevel, address(uint256(arg1)));
+        }
         else if (action == ChangeType.REMOVE_PARTICIPANT) {
             removeParticipant(sender, senderPermsLevel, arg1);
         }
@@ -414,6 +423,13 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
 
     function addParticipant(address sender, uint32 senderPermsLevel, bytes32 hash) private {
         requirePermissions(sender, canChangeParticipants, senderPermsLevel);
+        participants[hash] = true;
+        emit ParticipantAdded(hash);
+    }
+
+    function addOperator(address sender, uint32 senderPermsLevel, address newOperator) private {
+        requirePermissions(sender, canAddOperator, senderPermsLevel);
+        bytes32 hash = Utilities.participantHash(newOperator, ownerPermissions);
         participants[hash] = true;
         emit ParticipantAdded(hash);
     }
@@ -506,7 +522,7 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         require(pendingBypassCall.dueTime != 0, "apply called for non existent pending bypass call");
         require(now >= pendingBypassCall.dueTime, "apply called before due time");
         delete pendingBypassCalls[bypassCallHash];
-        bool success = execute(target, value, encodedFunction);
+        bool success = _execute(target, value, encodedFunction);
         emit BypassCallApplied(bypassCallHash, success);
         stateNonce++;
     }
@@ -542,7 +558,7 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         (uint256 delay, uint256 requiredConfirmations) = getBypassPolicy(target, value, encodedFunction);
 //        require(requiredConfirmations != uint256(- 1), "Call blocked by policy");
         require(delay == 0, "Call cannot be executed immediately.");
-        bool success = execute(target, value, encodedFunction);
+        bool success = _execute(target, value, encodedFunction);
         emit BypassCallExecuted(success);
         stateNonce++;
     }
@@ -569,7 +585,7 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
     }
 
     //TODO
-    function execute(address target, uint256 value, bytes memory encodedFunction) internal returns (bool success){
+    function _execute(address target, uint256 value, bytes memory encodedFunction) internal returns (bool success){
         (success,) = target.call.value(value)(encodedFunction);
         //TODO: ...
     }
