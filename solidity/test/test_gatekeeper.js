@@ -180,7 +180,7 @@ contract('Gatekeeper', async function (accounts) {
         let wrongInitialDelays = [];
         let initialParticipants = Array(21).fill("0x1123123");
         await expect(
-            gatekeeper.initialConfig(initialParticipants, wrongInitialDelays, trustedForwarder, relayHub, true, true)
+            gatekeeper.initialConfig(initialParticipants, wrongInitialDelays, trustedForwarder, relayHub, true, true, [0,0,0])
         ).to.be.revertedWith("too many participants");
     });
 
@@ -188,7 +188,7 @@ contract('Gatekeeper', async function (accounts) {
         let wrongInitialDelays = Array(11).fill(10);
         let initialParticipants = [];
         await expect(
-            gatekeeper.initialConfig(initialParticipants, wrongInitialDelays, trustedForwarder, relayHub, true, true)
+            gatekeeper.initialConfig(initialParticipants, wrongInitialDelays, trustedForwarder, relayHub, true, true, [0,0,0])
         ).to.be.revertedWith("too many levels");
     });
 
@@ -196,7 +196,7 @@ contract('Gatekeeper', async function (accounts) {
         let wrongInitialDelays = Array.from({length: 10}, (x, i) => (i + 1) * yearInSec);
         let initialParticipants = [];
         await expect(
-            gatekeeper.initialConfig(initialParticipants, wrongInitialDelays, trustedForwarder, relayHub, true, true)
+            gatekeeper.initialConfig(initialParticipants, wrongInitialDelays, trustedForwarder, relayHub, true, true, [0,0,0])
         ).to.be.revertedWith("Delay too long");
     });
 
@@ -213,7 +213,7 @@ contract('Gatekeeper', async function (accounts) {
             utils.bufferToHex(utils.participantHash(adminB2.address, adminB2.permLevel)),
         ];
 
-        let res = await gatekeeper.initialConfig(initialParticipants, initialDelays, trustedForwarder, relayHub, true, true, {from: operatorA.address});
+        let res = await gatekeeper.initialConfig(initialParticipants, initialDelays, trustedForwarder, relayHub, true, true, [0,0,0], {from: operatorA.address});
         let log = res.logs[0];
         assert.equal(log.event, "GatekeeperInitialized");
 
@@ -236,7 +236,7 @@ contract('Gatekeeper', async function (accounts) {
         let initialDelays = [];
         let initialParticipants = [];
         await expect(
-            gatekeeper.initialConfig(initialParticipants, initialDelays, trustedForwarder, relayHub, true, true)
+            gatekeeper.initialConfig(initialParticipants, initialDelays, trustedForwarder, relayHub, true, true, [0,0,0])
         ).to.be.revertedWith("already initialized");
     });
     // return;
@@ -254,7 +254,7 @@ contract('Gatekeeper', async function (accounts) {
         assert.equal(log.args.value, amount);
         let hash = "0x" + utils.bypassCallHash(stateId, operatorA.address, operatorA.permLevel, destinationAddress, amount, "").toString("hex");
         let pendingCall = await gatekeeper.pendingBypassCalls(hash);
-        assert.isAbove(pendingCall.dueTime.toNumber(), 0)
+        assert.isAbove(pendingCall.toNumber(), 0)
     });
 
     it("just funding the vault", async function () {
@@ -298,7 +298,7 @@ contract('Gatekeeper', async function (accounts) {
 
         let hash = "0x" + utils.bypassCallHash(log.args.stateNonce, log.args.sender, log.args.senderPermsLevel, log.args.target, log.args.value, log.args.msgdata).toString("hex");
         let pendingCall = await gatekeeper.pendingBypassCalls(hash);
-        assert.isAbove(pendingCall.dueTime.toNumber(), 0)
+        assert.isAbove(pendingCall.toNumber(), 0)
     });
 
     it("should allow the owner to execute a delayed erc20 transfer transaction after delay", async function () {
