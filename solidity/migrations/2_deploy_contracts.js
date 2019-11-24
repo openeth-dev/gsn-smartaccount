@@ -14,6 +14,6 @@ module.exports = async function (deployer) {
     // I think there is a bug in truffle, trying to deploy Gatekeeper first causes an error for no reason
     // console.log("Deploying Gatekeeper");
 
-    let gatekeeper = await deployer.deploy(Gatekeeper, zeroAddress, zeroAddress);
+    let gatekeeper = await deployer.deploy(Gatekeeper, zeroAddress, zeroAddress, zeroAddress);
     // console.log("Gatekeeper", Gatekeeper.address);
 };

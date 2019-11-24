@@ -84,9 +84,12 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
 
     uint256 public deployedBlock;
 
-    constructor(address _forwarder, address _hub) public {
+    address creator;
+
+    constructor(address _forwarder, address _hub, address _creator) public {
         setGsnForwarder(_forwarder, _hub);
         deployedBlock = block.number;
+        creator = _creator;
     }
 
 
@@ -131,6 +134,7 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         bool _allowAcceleratedCalls,
         bool _allowAddOperatorNow,
         uint256[] memory _requiredApprovalsPerLevel) public {
+        require(getSender() == creator, "initialConfig must be called by creator");
         require(stateNonce == 0, "already initialized");
         require(initialParticipants.length <= maxParticipants, "too many participants");
         require(initialDelays.length <= maxLevels, "too many levels");
@@ -149,6 +153,7 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
 
         emit GatekeeperInitialized(initialParticipants, delays);
         stateNonce++;
+        creator = address(0);
     }
 
     // ****** Immediately runnable functions below this point
@@ -591,7 +596,9 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
 
     function _acceptCall(address from, bytes memory encodedFunction) view internal returns (uint256 res, bytes memory data){
         uint32 senderRoleRank = uint32(GsnUtils.getParam(encodedFunction, 0));
-        if (isParticipant(from, senderRoleRank)) {
+
+        // TODO: think more about this 'is creator' thing...
+        if (creator == from || isParticipant(from, senderRoleRank)) {
             return (0, "");
         }
         else {
