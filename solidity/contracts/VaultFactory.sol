@@ -18,7 +18,7 @@ contract VaultFactory is GsnRecipient {
     event VaultCreated(address sender, Gatekeeper gatekeeper);
 
     function newVault() public {
-        Gatekeeper gatekeeper = new Gatekeeper(gsnForwarder, relayHub);
+        Gatekeeper gatekeeper = new Gatekeeper(gsnForwarder, relayHub, getSender());
         emit VaultCreated(getSender(), gatekeeper);
     }
 }

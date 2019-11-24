@@ -7,14 +7,12 @@ const RelayClient = require('tabookey-gasless/src/js/relayclient/RelayClient');
 const DAI = artifacts.require("./DAI.sol");
 const Gatekeeper = artifacts.require("./Gatekeeper.sol");
 
-// Ok, so here is a thing: Truffle has some weird internals; I need this object to exist
-const UtilitiesNetwork = artifacts.require("./Utilities.sol").network;
-
 const RelayHub = artifacts.require("RelayHub");
 const VaultFactory = artifacts.require("VaultFactory");
 const GsnForwarder = artifacts.require("GsnForwarder");
 const WhitelistFactory = artifacts.require("WhitelistFactory");
 const FreeRecipientSponsor = artifacts.require("FreeRecipientSponsor");
+const WhitelistBypassPolicy = artifacts.require("WhitelistBypassPolicy");
 
 const expect = Chai.expect;
 
@@ -47,6 +45,25 @@ contract("Vault Bootstrapping", async function (accounts) {
     let gatekeeper;
     let bypassModule;
 
+    async function callViaRelayHub(encodedFunctionCall, nonce) {
+        let from = ephemeralOperator.address;
+        let recipient = gsnForwarder.address;
+        let transactionFee = 1;
+        let gasPrice = 1;
+        let gasLimit = 5253380;
+        let hash = GsnUtils.getTransactionHash(
+            from, recipient, encodedFunctionCall, transactionFee,
+            gasPrice, gasLimit, nonce, relayHub.address, relay);
+        let signature = GsnUtils.getTransactionSignatureWithKey(ephemeralOperator.privateKey, hash);
+        let approvalData = [];
+        return await relayHub.relayCall(
+            from, recipient, encodedFunctionCall, transactionFee, gasPrice, gasLimit, nonce, signature, approvalData,
+            {
+                from: relay,
+                gasLimit: 1e10
+            });
+    }
+
     before(async function () {
 
         relayHub = await RelayHub.new();
@@ -62,60 +79,61 @@ contract("Vault Bootstrapping", async function (accounts) {
         Object.keys(VaultFactory.events).forEach(function (topic) {
             RelayHub.network.events[topic] = VaultFactory.events[topic];
         });
+        Object.keys(WhitelistFactory.events).forEach(function (topic) {
+            RelayHub.network.events[topic] = WhitelistFactory.events[topic];
+        });
+        Object.keys(Gatekeeper.events).forEach(function (topic) {
+            RelayHub.network.events[topic] = Gatekeeper.events[topic];
+        });
     });
 
     it("should sponsor creation of a vault", async function () {
         // Create a double-meta-transaction (clients should use a Web3.js provider from gsn-sponsor package instead)
         let newVaultCallData = vaultFactory.contract.methods.newVault().encodeABI();
-        let encodedFunctionCall = gsnForwarder.contract.methods.callRecipient(vaultFactory.address, newVaultCallData).encodeABI();
+        let encodedFunctionCall =
+            gsnForwarder.contract.methods.callRecipient(vaultFactory.address, newVaultCallData).encodeABI();
 
-        let from = ephemeralOperator.address;
-        let recipient = gsnForwarder.address;
-        let transactionFee = 1;
-        let gasPrice = 1;
-        let gasLimit = 5253380;
-        let nonce = 0;
-        let hash = GsnUtils.getTransactionHash(
-            from, recipient, encodedFunctionCall, transactionFee,
-            gasPrice, gasLimit, nonce, relayHub.address, relay);
-        let signature = GsnUtils.getTransactionSignatureWithKey(ephemeralOperator.privateKey, hash);
-        let approvalData = [];
-        let receipt = await relayHub.relayCall(from, recipient, encodedFunctionCall, transactionFee, gasPrice, gasLimit, nonce, signature, approvalData, {from: relay, gasLimit: 1e10});
+        let receipt = await callViaRelayHub(encodedFunctionCall, 0);
         let createdEvent = receipt.logs[0];
         assert.equal(createdEvent.event, "VaultCreated");
         assert.equal(createdEvent.args.sender.toLowerCase(), ephemeralOperator.address);
-        gatekeeper = createdEvent.args.gatekeeper;
-        assert.notEqual(gatekeeper, zeroAddress); // TODO: no sense to use 'not equal' in JS
+        assert.notEqual(createdEvent.args.gatekeeper, zeroAddress); // TODO: no sense to use 'not equal' in JS
+        gatekeeper = await Gatekeeper.at(createdEvent.args.gatekeeper);
 
     });
 
-    it.skip("should prevent an attacker from intercepting a deployed uninitialized vault", async function () {
-
+    it("should prevent an attacker from intercepting a deployed uninitialized vault", async function () {
+        await expect(
+            gatekeeper.initialConfig([attacker], [86400], true, true, [0, 0, 0], {from: attacker})
+        ).to.be.revertedWith("initialConfig must be called by creator");
     });
 
-    it.skip("should sponsor creation of a bypass module", async function () {
-        bypassModule =
-            await whitelistFactory.contract.methods.newWhitelist(gatekeeper, [anyAddress1, anyAddress2]).encodeABI();
+    it("should sponsor creation of a bypass module", async function () {
+        let newBypassModuleCallData =
+            whitelistFactory.contract.methods.newWhitelist(gatekeeper.address, [anyAddress1, anyAddress2]).encodeABI();
+        let encodedFunctionCall =
+            gsnForwarder.contract.methods.callRecipient(whitelistFactory.address, newBypassModuleCallData).encodeABI();
 
+        let receipt = await callViaRelayHub(encodedFunctionCall, 1);
+        let createdEvent = receipt.logs[0];
+        assert.equal(createdEvent.event, "WhitelistModuleCreated");
+        assert.equal(createdEvent.args.sender.toLowerCase(), ephemeralOperator.address);
+        assert.notEqual(createdEvent.args.module, zeroAddress); // TODO: no sense to use 'not equal' in JS
+        bypassModule = await WhitelistBypassPolicy.at(createdEvent.args.module);
     });
 
-    it.skip("should sponsor initialization of a vault with valid configuration and bypass modules", async function () {
+    it("should sponsor initialization of a vault with valid configuration and bypass modules", async function () {
+        let initialConfigCallData =
+            gatekeeper.contract.methods.initialConfig([attacker], [86400], true, true, [0, 0, 0]).encodeABI();
+        let encodedFunctionCall =
+            gsnForwarder.contract.methods.callRecipient(gatekeeper.address, initialConfigCallData).encodeABI();
 
-        //     bytes32[] memory initialParticipants,
-        //     uint256[] memory initialDelays,
-        //     address _trustedForwarder,
-        //     address _relayHub,
-        //     bool _allowAcceleratedCalls,
-        //     bool _allowAddOperatorNow
-        //     address[] bypassTargets,
-        //     bytes4[] bypassMethods,
-        //     address[] bypassModules
-        let initialParticipants = [ephemeralOperator.address];
-        let initialDelays = [1];
-        let _allowAcceleratedCalls;
-        let _allowAddOperatorNo;
-        let bypassTargets;
-        let bypassMethods;
-        let bypassModule;
+        let receipt = await callViaRelayHub(encodedFunctionCall, 2);
+        let createdEvent = receipt.logs[0];
+        assert.equal(createdEvent.event, "GatekeeperInitialized");
+
+        // MODULES!!!
     });
+
+    it("should not allow to initialize vault twice");
 });
