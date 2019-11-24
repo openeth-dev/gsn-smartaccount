@@ -39,7 +39,7 @@ contract('GSN and Sponsor integration', async function (accounts) {
 
     before(async function () {
         gsnForwarder = accounts[14];
-        gatekeeper = await Gatekeeper.deployed();
+        gatekeeper = await Gatekeeper.new(gsnForwarder, relayHub);
         web3 = new Web3(gatekeeper.contract.currentProvider);
         ownerPermissions = utils.bufferToHex(await gatekeeper.ownerPermissions());
         operatorA = new Participant(accounts[0], ownerPermissions, 1, "operatorA");
@@ -52,7 +52,7 @@ contract('GSN and Sponsor integration', async function (accounts) {
         const hourInSec = 60 * minuteInSec;
         const dayInSec = 24 * hourInSec;
         let initialDelays = Array.from({length: 10}, (x, i) => (i + 1) * dayInSec);
-        await gatekeeper.initialConfig(args, initialDelays, gsnForwarder, relayHub, true, true, [0,0,0]);
+        await gatekeeper.initialConfig(args, initialDelays, true, true, [0,0,0]);
     });
 
 
