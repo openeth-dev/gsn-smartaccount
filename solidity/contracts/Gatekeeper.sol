@@ -39,7 +39,7 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
     event ParticipantRemoved(bytes32 indexed participant);
     event OwnerChanged(address indexed newOwner);
     // TODO: not log participants
-    event GatekeeperInitialized(bytes32[] participants, uint256[] delays, address trustedForwarder, address relayHub);
+    event GatekeeperInitialized(bytes32[] participants, uint256[] delays);
     event LevelFrozen(uint256 frozenLevel, uint256 frozenUntil, address sender);
     event UnfreezeCompleted();
     event BypassByTargetAdded(address target, BypassPolicy  indexed bypass);
@@ -84,7 +84,8 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
 
     uint256 public deployedBlock;
 
-    constructor() public {
+    constructor(address _forwarder, address _hub) public {
+        setGsnForwarder(_forwarder, _hub);
         deployedBlock = block.number;
     }
 
@@ -127,8 +128,6 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
     function initialConfig(
         bytes32[] memory initialParticipants,
         uint256[] memory initialDelays,
-        address _trustedForwarder,
-        address _relayHub,
         bool _allowAcceleratedCalls,
         bool _allowAddOperatorNow,
         uint256[] memory _requiredApprovalsPerLevel) public {
@@ -136,7 +135,6 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         require(initialParticipants.length <= maxParticipants, "too many participants");
         require(initialDelays.length <= maxLevels, "too many levels");
 
-        setGsnForwarder(_trustedForwarder, _relayHub);
         for (uint8 i = 0; i < initialParticipants.length; i++) {
             participants[initialParticipants[i]] = true;
         }
@@ -148,7 +146,8 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         allowAddOperatorNow = _allowAddOperatorNow;
         requiredApprovalsPerLevel = _requiredApprovalsPerLevel;
 
-        emit GatekeeperInitialized(initialParticipants, delays, _trustedForwarder, _relayHub);
+
+        emit GatekeeperInitialized(initialParticipants, delays);
         stateNonce++;
     }
 
