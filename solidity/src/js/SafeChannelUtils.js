@@ -74,6 +74,12 @@ module.exports = {
             assert.equal(onchainDelays[i], delays[i]);
         }
     },
+    validateConfigApprovalsPerLevel: async function (approvalsPerLevel, gatekeeper) {
+        let onchainApprovals = await gatekeeper.getApprovalsPerLevel();
+        for (let i = 0; i < approvalsPerLevel.length; i++) {
+            assert.equal(onchainApprovals[i], approvalsPerLevel[i]);
+        }
+    },
 
     packPermissionLevel(permissions, level) {
         let permInt = parseInt(permissions);

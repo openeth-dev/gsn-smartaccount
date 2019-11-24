@@ -107,6 +107,7 @@ contract('Gatekeeper', async function (accounts) {
     let destinationAddress = accounts[2];
     let timeGap = 60 * 60 * 24 * 2 + 10;
     let initialDelays;
+    let requiredApprovalsPerLevel;
     let operatorA;
     let operatorB;
     let wrongaddr;
@@ -135,7 +136,7 @@ contract('Gatekeeper', async function (accounts) {
             Gatekeeper.network.events[topic] = DAI.events[topic];
         });
 
-        gatekeeper = await Gatekeeper.deployed();
+        gatekeeper = await Gatekeeper.new(zeroAddress, zeroAddress, accounts[0]);
         utilities = await Utilities.deployed();
         erc20 = await DAI.new();
         web3 = new Web3(gatekeeper.contract.currentProvider);
@@ -190,6 +191,10 @@ contract('Gatekeeper', async function (accounts) {
         await expect(
             gatekeeper.initialConfig(initialParticipants, wrongInitialDelays, true, true, [0,0,0])
         ).to.be.revertedWith("too many levels");
+        await expect(
+            gatekeeper.initialConfig(initialParticipants, [],  true, true, Array(11).fill(0))
+        ).to.be.revertedWith("too many levels again");
+
     });
 
     it("should not receive the initial configuration with delay too long", async function () {
@@ -203,6 +208,7 @@ contract('Gatekeeper', async function (accounts) {
     /* Initial configuration */
     it("should receive the initial vault configuration", async function () {
         initialDelays = Array.from({length: 10}, (x, i) => (i + 1) * dayInSec);
+        requiredApprovalsPerLevel = [0,0,1,2,3,4,5,6,7,8];
         let initialParticipants = [
             utils.bufferToHex(utils.participantHash(operatorA.address, operatorA.permLevel)),
             utils.bufferToHex(utils.participantHash(adminA.address, adminA.permLevel)),
@@ -213,7 +219,7 @@ contract('Gatekeeper', async function (accounts) {
             utils.bufferToHex(utils.participantHash(adminB2.address, adminB2.permLevel)),
         ];
 
-        let res = await gatekeeper.initialConfig(initialParticipants, initialDelays, true, true, [0,0,0], {from: operatorA.address});
+        let res = await gatekeeper.initialConfig(initialParticipants, initialDelays, true, true, requiredApprovalsPerLevel, {from: operatorA.address});
         let log = res.logs[0];
         assert.equal(log.event, "GatekeeperInitialized");
 
@@ -230,13 +236,14 @@ contract('Gatekeeper', async function (accounts) {
             wrongaddr];
         await utils.validateConfigParticipants(participants, gatekeeper);
         await utils.validateConfigDelays(initialDelays, gatekeeper);
+        await utils.validateConfigApprovalsPerLevel(requiredApprovalsPerLevel, gatekeeper);
     });
 
     it("should not receive the initial configuration after configured once", async function () {
         let initialDelays = [];
         let initialParticipants = [];
         await expect(
-            gatekeeper.initialConfig(initialParticipants, initialDelays, true, true, [0,0,0])
+            gatekeeper.initialConfig(initialParticipants, initialDelays, true, true, requiredApprovalsPerLevel, {from: operatorA.address})
         ).to.be.revertedWith("already initialized");
     });
     // return;
@@ -535,30 +542,37 @@ contract('Gatekeeper', async function (accounts) {
     //     await utils.validateConfigParticipants([wrongaddr], gatekeeper);
     // });
 
-    // TODO: these two tests are identical. Combine into 1 looped test.
-    /* Owner loses phone*/
-    // it("should allow the admin to replace the owner after a delay", async function () {
-    //     let participants = [operatorA.expect(), operatorB];
-    //     await utils.validateConfigParticipants(participants, gatekeeper);
-    //     let stateId = await gatekeeper.stateNonce();
-    //     let res = await gatekeeper.scheduleChangeOwner(adminA.permLevel, operatorB.address, stateId, {from: adminA.address});
-    //     await utils.increaseTime(timeGap, web3);
-    //     await applyDelayed({res}, adminA, gatekeeper);
-    //     participants = [operatorA, operatorB.expect()];
-    //     await utils.validateConfigParticipants(participants, gatekeeper);
-    // });
-    //
-    // /* There is no scenario where this is described, but this is how it was implemented and now it is documented*/
-    // it("should allow the owner to replace the owner after a delay", async function () {
-    //     let participants = [operatorA, operatorB.expect()];
-    //     await utils.validateConfigParticipants(participants, gatekeeper);
-    //     let stateId = await gatekeeper.stateNonce();
-    //     let res = await gatekeeper.scheduleChangeOwner(operatorA.permLevel, operatorA.address, stateId, {from: operatorB.address});
-    //     await utils.increaseTime(timeGap, web3);
-    //     await applyDelayed({res}, operatorB, gatekeeper);
-    //     participants = [operatorA.expect(), operatorB];
-    //     await utils.validateConfigParticipants(participants, gatekeeper);
-    // });
+    /* Owner loses phone */
+    it("should allow an admin to add an operator after a delay", async function () {
+        let participants = [operatorA.expect(), operatorB];
+        await utils.validateConfigParticipants(participants, gatekeeper);
+        let stateId = await gatekeeper.stateNonce();
+        assert.equal(true, await gatekeeper.isParticipant(adminA.address, adminA.permLevel));
+        assert.equal(false, await gatekeeper.isParticipant(operatorB.address, operatorB.permLevel));
+        let res = await gatekeeper.scheduleAddOperator(adminA.permLevel, operatorB.address, stateId, {from: adminA.address});
+        await expect(
+            applyDelayed({res}, adminA, gatekeeper)
+        ).to.be.revertedWith("apply called before due time")
+        await utils.increaseTime(timeGap, web3);
+        await applyDelayed({res}, adminA, gatekeeper);
+        participants = [operatorA.expect(), operatorB.expect()];
+        assert.equal(true, await gatekeeper.isParticipant(operatorB.address, operatorB.permLevel));
+        await utils.validateConfigParticipants(participants, gatekeeper);
+    });
+
+    /* There is no scenario where this is described, but this is how it was implemented and now it is documented*/
+    it("should allow an owner to an owner after a delay", async function () {
+        let participants = [operatorA.expect(), operatorB.expect()];
+        await utils.validateConfigParticipants(participants, gatekeeper);
+        let stateId = await gatekeeper.stateNonce();
+        let actions = [ChangeType.REMOVE_PARTICIPANT];
+        let args = [utils.participantHash(operatorB.address, operatorB.permLevel)];
+        let res = await gatekeeper.changeConfiguration(operatorA.permLevel, actions, args, args, stateId, {from: operatorA.address})
+        await utils.increaseTime(timeGap, web3);
+        await applyDelayed({res}, operatorB, gatekeeper);
+        participants = [operatorA.expect(), operatorB];
+        await utils.validateConfigParticipants(participants, gatekeeper);
+    });
 
     /* Owner finds the phone after losing it */
     it("should allow the owner to cancel an owner change");
@@ -624,7 +638,7 @@ contract('Gatekeeper', async function (accounts) {
     function getNonBoostees() {
         return [
             adminA.expectError(`permissions missing: ${Permissions.CanSignBoosts + Permissions.CanUnfreeze +
-            Permissions.CanChangeParticipants + Permissions.CanChangeBypass + Permissions.CanSetAcceleratedCalls 
+            Permissions.CanChangeParticipants + Permissions.CanChangeBypass + Permissions.CanSetAcceleratedCalls
             + Permissions.CanSetAddOperatorNow + Permissions.CanAddOperatorNow}`),
             watchdogA.expectError(`permissions missing: ${Permissions.CanSignBoosts + Permissions.CanChangeConfig}`),
             wrongaddr.expectError("not participant")
