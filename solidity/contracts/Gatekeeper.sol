@@ -39,7 +39,7 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
     event ParticipantRemoved(bytes32 indexed participant);
     event OwnerChanged(address indexed newOwner);
     // TODO: not log participants
-    event GatekeeperInitialized(bytes32[] participants, uint256[] delays);
+    event GatekeeperInitialized(bytes32[] participants, uint256[] delays, uint256[] requiredApprovalsPerLevel);
     event LevelFrozen(uint256 frozenLevel, uint256 frozenUntil, address sender);
     event UnfreezeCompleted();
     event BypassByTargetAdded(address target, BypassPolicy  indexed bypass);
@@ -71,6 +71,10 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
     // 0 - no approvals needed before applying
     uint256[] public requiredApprovalsPerLevel;
 
+    function getApprovalsPerLevel() public view returns (uint256[] memory) {
+        return requiredApprovalsPerLevel;
+    }
+
     function getDelays() public view returns (uint256[] memory) {
         return delays;
     }
@@ -84,7 +88,7 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
 
     uint256 public deployedBlock;
 
-    address creator;
+    address public creator;
 
     constructor(address _forwarder, address _hub, address _creator) public {
         setGsnForwarder(_forwarder, _hub);
@@ -104,7 +108,7 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         requireNotFrozen(senderPermsLevel, "level is frozen");
     }
 
-    function isParticipant(address participant, uint32 permsLevel) view internal returns (bool) {
+    function isParticipant(address participant, uint32 permsLevel) public view returns (bool) {
         return participants[Utilities.participantHash(participant, permsLevel)];
     }
 
@@ -138,6 +142,7 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         require(stateNonce == 0, "already initialized");
         require(initialParticipants.length <= maxParticipants, "too many participants");
         require(initialDelays.length <= maxLevels, "too many levels");
+        require(_requiredApprovalsPerLevel.length <= maxLevels, "too many levels again");
 
         for (uint8 i = 0; i < initialParticipants.length; i++) {
             participants[initialParticipants[i]] = true;
@@ -150,10 +155,8 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         allowAddOperatorNow = _allowAddOperatorNow;
         requiredApprovalsPerLevel = _requiredApprovalsPerLevel;
 
-
-        emit GatekeeperInitialized(initialParticipants, delays);
+        emit GatekeeperInitialized(initialParticipants, delays, requiredApprovalsPerLevel);
         stateNonce++;
-        creator = address(0);
     }
 
     // ****** Immediately runnable functions below this point
@@ -180,13 +183,13 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
 
     function addOperatorNow(uint32 senderPermsLevel, address newOperatorAddress) public {
         address sender = getSender();
-        requirePermissions(sender, canAddOperator, senderPermsLevel);
+        requirePermissions(sender, canAddOperatorNow, senderPermsLevel);
         requireNotFrozen(senderPermsLevel);
         require(allowAddOperatorNow, "Call blocked");
         uint8[] memory actions = new uint8[](1);
         bytes32[] memory args = new bytes32[](1);
         actions[0] = uint8(ChangeType.ADD_OPERATOR_NOW);
-        args[0] = Utilities.participantHash(newOperatorAddress, ownerPermissions);
+        args[0] = Utilities.participantHash(newOperatorAddress, packPermissionLevel(ownerPermissions, 1));
         bytes32 hash = Utilities.transactionHash(actions, args, args, stateNonce, sender, senderPermsLevel, address(0), 0);
         pendingChanges[hash] = PendingChange(SafeMath.add(now, delays[extractLevel(senderPermsLevel)]), new bytes32[](0));
 
@@ -203,13 +206,14 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         uint8[] memory actions = new uint8[](1);
         bytes32[] memory args = new bytes32[](1);
         actions[0] = uint8(ChangeType.ADD_OPERATOR_NOW);
-        args[0] = Utilities.participantHash(newOperatorAddress, ownerPermissions);
+        args[0] = Utilities.participantHash(newOperatorAddress, packPermissionLevel(ownerPermissions, 1));
         bytes32 hash = Utilities.transactionHash(actions, args, args, scheduledStateId, scheduler, schedulerPermsLevel, address(0), 0);
         require(pendingChanges[hash].dueTime != 0, "Pending change not found");
         delete pendingChanges[hash];
-
         participants[args[0]] = true;
         emit ParticipantAdded(args[0]);
+
+        stateNonce++;
     }
 
     function removeBypassByTarget(uint32 senderPermsLevel, address target) public {
@@ -219,6 +223,7 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         BypassPolicy bypass = bypassPoliciesByTarget[target];
         delete bypassPoliciesByTarget[target];
         emit BypassByTargetRemoved(target, bypass);
+        stateNonce++;
     }
 
     function removeBypassByMethod(uint32 senderPermsLevel, bytes4 method) public {
@@ -228,6 +233,7 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         BypassPolicy bypass = bypassPoliciesByMethod[method];
         delete bypassPoliciesByMethod[method];
         emit BypassByMethodRemoved(method, bypass);
+        stateNonce++;
     }
 
     function boostedConfigChange(
@@ -278,6 +284,17 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         pendingChanges[transactionHash] = PendingChange(SafeMath.add(now, delays[extractLevel(senderPermsLevel)]), new bytes32[](0));
         emit ConfigPending(transactionHash, sender, senderPermsLevel, booster, boosterPermsLevel, stateNonce, actions, args1, args2);
         stateNonce++;
+    }
+
+    function scheduleAddOperator(uint32 senderPermsLevel, address newOperator, uint256 targetStateNonce) public {
+        requirePermissions(getSender(), canAddOperator, senderPermsLevel);
+        requireNotFrozen(senderPermsLevel);
+        requireCorrectState(targetStateNonce);
+        uint8[] memory actions = new uint8[](1);
+        actions[0] = uint8(ChangeType.ADD_OPERATOR);
+        bytes32[] memory args = new bytes32[](1);
+        args[0] = bytes32(uint256(newOperator));
+        changeConfigurationInternal(actions, args, args, getSender(), senderPermsLevel, address(0), 0);
     }
 
     function cancelOperation(
@@ -433,7 +450,7 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
 
     function addOperator(address sender, uint32 senderPermsLevel, address newOperator) private {
         requirePermissions(sender, canAddOperator, senderPermsLevel);
-        bytes32 hash = Utilities.participantHash(newOperator, ownerPermissions);
+        bytes32 hash = Utilities.participantHash(newOperator, packPermissionLevel(ownerPermissions,1));
         participants[hash] = true;
         emit ParticipantAdded(hash);
     }
@@ -585,7 +602,7 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
     event FundsReceived(address sender, uint256 value);
 
     function() payable external {
-        emit FundsReceived(msg.sender, msg.value);
+        emit FundsReceived(getSender(), msg.value);
     }
 
     //TODO
