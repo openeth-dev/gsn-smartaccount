@@ -190,10 +190,7 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         bytes32[] memory args = new bytes32[](1);
         actions[0] = uint8(ChangeType.ADD_OPERATOR_NOW);
         args[0] = Utilities.participantHash(newOperatorAddress, packPermissionLevel(ownerPermissions, 1));
-        bytes32 hash = Utilities.transactionHash(actions, args, args, stateNonce, sender, senderPermsLevel, address(0), 0);
-        pendingChanges[hash] = PendingChange(SafeMath.add(now, delays[extractLevel(senderPermsLevel)]), new bytes32[](0));
-
-        stateNonce++;
+        changeConfigurationInternal(actions, args, args, sender, senderPermsLevel, address(0), 0);
     }
 
     function approveAddOperatorNow( uint32 senderPermsLevel,

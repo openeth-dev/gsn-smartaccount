@@ -561,17 +561,111 @@ contract('Gatekeeper', async function (accounts) {
     });
 
     /* There is no scenario where this is described, but this is how it was implemented and now it is documented*/
-    it("should allow an owner to an owner after a delay", async function () {
+    it("should allow an owner to remove an owner after a delay", async function () {
         let participants = [operatorA.expect(), operatorB.expect()];
         await utils.validateConfigParticipants(participants, gatekeeper);
         let stateId = await gatekeeper.stateNonce();
         let actions = [ChangeType.REMOVE_PARTICIPANT];
         let args = [utils.participantHash(operatorB.address, operatorB.permLevel)];
-        let res = await gatekeeper.changeConfiguration(operatorA.permLevel, actions, args, args, stateId, {from: operatorA.address})
+        let res = await gatekeeper.changeConfiguration(operatorA.permLevel, actions, args, args, stateId, {from: operatorA.address});
         await utils.increaseTime(timeGap, web3);
         await applyDelayed({res}, operatorB, gatekeeper);
         participants = [operatorA.expect(), operatorB];
         await utils.validateConfigParticipants(participants, gatekeeper);
+    });
+
+    describe("testing immediate operator addition", function () {
+        let res;
+
+        it("should revert an attempt to add operator immediately by normal applyConfig()", async function () {
+            let participants = [operatorA.expect(), operatorB];
+            await utils.validateConfigParticipants(participants, gatekeeper);
+            assert.equal(true, await gatekeeper.isParticipant(adminA.address, adminA.permLevel));
+            assert.equal(false, await gatekeeper.isParticipant(operatorB.address, operatorB.permLevel));
+            res = await gatekeeper.addOperatorNow(operatorA.permLevel, operatorB.address, {from: operatorA.address});
+            assert.equal(res.logs[0].event, "ConfigPending");
+            await expect(
+                applyDelayed({res}, operatorA, gatekeeper)
+            ).to.be.revertedWith("apply called before due time");
+            await utils.increaseTime(timeGap, web3);
+            await expect(
+                applyDelayed({res}, operatorA, gatekeeper)
+            ).to.be.revertedWith("Use approveAddOperatorNow instead");
+        });
+
+        it("should cancel addOperatorNow operation", async function () {
+            await expect(
+                cancelDelayed({res}, adminA, gatekeeper)
+            ).to.be.revertedWith("permissions missing");
+            res = await cancelDelayed({res}, watchdogA, gatekeeper);
+            assert.equal(res.logs[0].event, "ConfigCancelled");
+        });
+
+        it("should add operator immediately with watchdog's approval", async function () {
+            let participants = [operatorA.expect(), operatorB];
+            await utils.validateConfigParticipants(participants, gatekeeper);
+            assert.equal(true, await gatekeeper.isParticipant(adminA.address, adminA.permLevel));
+            assert.equal(false, await gatekeeper.isParticipant(operatorB.address, operatorB.permLevel));
+            res = await gatekeeper.addOperatorNow(operatorA.permLevel, operatorB.address, {from: operatorA.address});
+            assert.equal(res.logs[0].event, "ConfigPending");
+            await expect(
+                applyDelayed({res}, adminA, gatekeeper)
+            ).to.be.revertedWith("apply called before due time")
+            let stateId = res.logs[0].args.stateId;
+            await expect(
+                gatekeeper.approveAddOperatorNow(adminA.permLevel, operatorB.address, stateId, operatorA.address, operatorA.permLevel, {from: adminA.address})
+            ).to.be.revertedWith("permissions missing");
+            await gatekeeper.approveAddOperatorNow(watchdogA.permLevel, operatorB.address, stateId, operatorA.address, operatorA.permLevel, {from: watchdogA.address});
+            participants = [operatorA.expect(), operatorB.expect()];
+            assert.equal(true, await gatekeeper.isParticipant(operatorB.address, operatorB.permLevel));
+            await utils.validateConfigParticipants(participants, gatekeeper);
+
+        });
+
+        it("should disable adding operator immediately", async function() {
+            assert.equal(true, await gatekeeper.allowAddOperatorNow());
+            let stateId = await gatekeeper.stateNonce();
+            let actions = [ChangeType.SET_ADD_OPERATOR_NOW];
+            // bool to bytes32 basically...
+            let args = [Buffer.from("0".repeat(64),"hex")];
+            res = await gatekeeper.changeConfiguration(operatorA.permLevel, actions, args, args, stateId, {from: operatorA.address});
+            assert.equal(res.logs[0].event, "ConfigPending");
+            await expect(
+                applyDelayed({res}, operatorA, gatekeeper)
+            ).to.be.revertedWith("apply called before due time");
+            await utils.increaseTime(timeGap, web3);
+            applyDelayed({res}, operatorA, gatekeeper);
+            assert.equal(false, await gatekeeper.allowAddOperatorNow());
+            await expect(
+                gatekeeper.addOperatorNow(operatorA.permLevel, operatorB.address, {from: operatorA.address})
+            ).to.be.revertedWith("Call blocked")
+        });
+
+        it("should re-enable adding operator immediately", async function() {
+            assert.equal(false, await gatekeeper.allowAddOperatorNow());
+            let stateId = await gatekeeper.stateNonce();
+            let actions = [ChangeType.SET_ADD_OPERATOR_NOW];
+            // bool to bytes32 basically...
+            let args = [Buffer.from("1".repeat(64),"hex")];
+            res = await gatekeeper.changeConfiguration(operatorA.permLevel, actions, args, args, stateId, {from: operatorA.address});
+            assert.equal(res.logs[0].event, "ConfigPending");
+            await expect(
+                applyDelayed({res}, operatorA, gatekeeper)
+            ).to.be.revertedWith("apply called before due time");
+            await utils.increaseTime(timeGap, web3);
+            applyDelayed({res}, operatorA, gatekeeper);
+            assert.equal(true, await gatekeeper.allowAddOperatorNow());
+            res = await gatekeeper.addOperatorNow(operatorA.permLevel, operatorB.address, {from: operatorA.address});
+            await cancelDelayed({res}, watchdogA, gatekeeper);
+
+        });
+
+        it("should revert an attempt to add an operator immediately by anyone other than operator", async function () {
+            await expect(
+                gatekeeper.addOperatorNow(adminA.permLevel, operatorB.address, {from: adminA.address})
+            ).to.be.revertedWith("permissions missing")
+        });
+
     });
 
     /* Owner finds the phone after losing it */
@@ -944,6 +1038,7 @@ contract('Gatekeeper', async function (accounts) {
             gatekeeper.changeConfiguration(operatorA.permLevel, [changeType], [changeArgs], [changeArgs], stateId - 1)
         ).to.be.revertedWith("contract state changed since transaction was created")
     });
+
 
     it("should save the block number of the deployment transaction", async function () {
         // not much to check here - can't know the block number
