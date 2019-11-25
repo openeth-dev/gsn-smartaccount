@@ -181,7 +181,7 @@ contract('Gatekeeper', async function (accounts) {
         let wrongInitialDelays = [];
         let initialParticipants = Array(21).fill("0x1123123");
         await expect(
-            gatekeeper.initialConfig(initialParticipants, wrongInitialDelays, true, true, [0,0,0])
+            gatekeeper.initialConfig(initialParticipants, wrongInitialDelays, true, true, [0, 0, 0], [], [], [])
         ).to.be.revertedWith("too many participants");
     });
 
@@ -189,10 +189,10 @@ contract('Gatekeeper', async function (accounts) {
         let wrongInitialDelays = Array(11).fill(10);
         let initialParticipants = [];
         await expect(
-            gatekeeper.initialConfig(initialParticipants, wrongInitialDelays, true, true, [0,0,0])
+            gatekeeper.initialConfig(initialParticipants, wrongInitialDelays, true, true, [0, 0, 0], [], [], [])
         ).to.be.revertedWith("too many levels");
         await expect(
-            gatekeeper.initialConfig(initialParticipants, [],  true, true, Array(11).fill(0))
+            gatekeeper.initialConfig(initialParticipants, [], true, true, Array(11).fill(0), [], [], [])
         ).to.be.revertedWith("too many levels again");
 
     });
@@ -201,14 +201,14 @@ contract('Gatekeeper', async function (accounts) {
         let wrongInitialDelays = Array.from({length: 10}, (x, i) => (i + 1) * yearInSec);
         let initialParticipants = [];
         await expect(
-            gatekeeper.initialConfig(initialParticipants, wrongInitialDelays, true, true, [0,0,0])
+            gatekeeper.initialConfig(initialParticipants, wrongInitialDelays, true, true, [0, 0, 0], [], [], [])
         ).to.be.revertedWith("Delay too long");
     });
 
     /* Initial configuration */
     it("should receive the initial vault configuration", async function () {
         initialDelays = Array.from({length: 10}, (x, i) => (i + 1) * dayInSec);
-        requiredApprovalsPerLevel = [0,0,1,2,3,4,5,6,7,8];
+        requiredApprovalsPerLevel = [0, 0, 1, 2, 3, 4, 5, 6, 7, 8];
         let initialParticipants = [
             utils.bufferToHex(utils.participantHash(operatorA.address, operatorA.permLevel)),
             utils.bufferToHex(utils.participantHash(adminA.address, adminA.permLevel)),
@@ -219,7 +219,7 @@ contract('Gatekeeper', async function (accounts) {
             utils.bufferToHex(utils.participantHash(adminB2.address, adminB2.permLevel)),
         ];
 
-        let res = await gatekeeper.initialConfig(initialParticipants, initialDelays, true, true, requiredApprovalsPerLevel, {from: operatorA.address});
+        let res = await gatekeeper.initialConfig(initialParticipants, initialDelays, true, true, requiredApprovalsPerLevel, [], [], [], {from: operatorA.address});
         let log = res.logs[0];
         assert.equal(log.event, "GatekeeperInitialized");
 
@@ -243,7 +243,7 @@ contract('Gatekeeper', async function (accounts) {
         let initialDelays = [];
         let initialParticipants = [];
         await expect(
-            gatekeeper.initialConfig(initialParticipants, initialDelays, true, true, requiredApprovalsPerLevel, {from: operatorA.address})
+            gatekeeper.initialConfig(initialParticipants, initialDelays, true, true, requiredApprovalsPerLevel, [], [], [], {from: operatorA.address})
         ).to.be.revertedWith("already initialized");
     });
     // return;
@@ -622,12 +622,12 @@ contract('Gatekeeper', async function (accounts) {
 
         });
 
-        it("should disable adding operator immediately", async function() {
+        it("should disable adding operator immediately", async function () {
             assert.equal(true, await gatekeeper.allowAddOperatorNow());
             let stateId = await gatekeeper.stateNonce();
             let actions = [ChangeType.SET_ADD_OPERATOR_NOW];
             // bool to bytes32 basically...
-            let args = [Buffer.from("0".repeat(64),"hex")];
+            let args = [Buffer.from("0".repeat(64), "hex")];
             res = await gatekeeper.changeConfiguration(operatorA.permLevel, actions, args, args, stateId, {from: operatorA.address});
             assert.equal(res.logs[0].event, "ConfigPending");
             await expect(
@@ -641,12 +641,12 @@ contract('Gatekeeper', async function (accounts) {
             ).to.be.revertedWith("Call blocked")
         });
 
-        it("should re-enable adding operator immediately", async function() {
+        it("should re-enable adding operator immediately", async function () {
             assert.equal(false, await gatekeeper.allowAddOperatorNow());
             let stateId = await gatekeeper.stateNonce();
             let actions = [ChangeType.SET_ADD_OPERATOR_NOW];
             // bool to bytes32 basically...
-            let args = [Buffer.from("1".repeat(64),"hex")];
+            let args = [Buffer.from("1".repeat(64), "hex")];
             res = await gatekeeper.changeConfiguration(operatorA.permLevel, actions, args, args, stateId, {from: operatorA.address});
             assert.equal(res.logs[0].event, "ConfigPending");
             await expect(
