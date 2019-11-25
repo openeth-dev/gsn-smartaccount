@@ -25,7 +25,7 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         ADD_BYPASS_BY_METHOD,
         SET_ACCELERATED_CALLS,
         SET_ADD_OPERATOR_NOW,
-        UNFREEZE,            // no args
+        UNFREEZE, // no args
         ADD_OPERATOR,
         ADD_OPERATOR_NOW
     }
@@ -62,8 +62,8 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
 
     mapping(bytes32 => PendingChange) public pendingChanges;
     uint256[] public delays;
-    mapping(address => BypassPolicy) bypassPoliciesByTarget; // instance level bypass exceptions
-    mapping(bytes4 => BypassPolicy) bypassPoliciesByMethod; // interface (method sigs) level bypass exceptions
+    mapping(address => BypassPolicy) public bypassPoliciesByTarget; // instance level bypass exceptions
+    mapping(bytes4 => BypassPolicy) public bypassPoliciesByMethod; // interface (method sigs) level bypass exceptions
     // TODO: do not call this 'bypass calls', this does not describe what these are.
     mapping(bytes32 => PendingChange) public pendingBypassCalls;
     bool public allowAcceleratedCalls;
@@ -137,7 +137,11 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         uint256[] memory initialDelays,
         bool _allowAcceleratedCalls,
         bool _allowAddOperatorNow,
-        uint256[] memory _requiredApprovalsPerLevel) public {
+        uint256[] memory _requiredApprovalsPerLevel,
+        address[] memory bypassTargets,
+        bytes4[]  memory bypassMethods,
+        address[] memory bypassModules
+    ) public {
         require(getSender() == creator, "initialConfig must be called by creator");
         require(stateNonce == 0, "already initialized");
         require(initialParticipants.length <= maxParticipants, "too many participants");
@@ -156,6 +160,12 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         requiredApprovalsPerLevel = _requiredApprovalsPerLevel;
 
         emit GatekeeperInitialized(initialParticipants, delays, requiredApprovalsPerLevel);
+        for (uint8 i = 0; i < bypassTargets.length; i++) {
+            bypassPoliciesByTarget[bypassTargets[i]] = BypassPolicy(bypassModules[i]);
+        }
+        for (uint8 i = 0; i < bypassMethods.length; i++) {
+            bypassPoliciesByMethod[bypassMethods[i]] = BypassPolicy(bypassModules[i + bypassTargets.length]);
+        }
         stateNonce++;
     }
 
@@ -193,7 +203,7 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         changeConfigurationInternal(actions, args, args, sender, senderPermsLevel, address(0), 0);
     }
 
-    function approveAddOperatorNow( uint32 senderPermsLevel,
+    function approveAddOperatorNow(uint32 senderPermsLevel,
         address newOperatorAddress,
         uint256 scheduledStateId,
         address scheduler,
@@ -325,7 +335,7 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
     }
 
     function hasApproved(bytes32 participant, bytes32[] memory approvers) internal pure returns (bool) {
-        for (uint256 i=0; i < approvers.length; i++) {
+        for (uint256 i = 0; i < approvers.length; i++) {
             if (approvers[i] == participant) return true;
         }
         return false;
@@ -362,7 +372,7 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         pendingChange.approvers.push(Utilities.participantHash(sender, senderPermsLevel));
         if (pendingChange.approvers.length >= requiredApprovalsPerLevel[extractLevel(schedulerPermsLevel)]) {
             applyConfig(senderPermsLevel, actions, args1, args2, scheduledStateId, scheduler, schedulerPermsLevel, booster, boosterPermsLevel);
-        }else {
+        } else {
             stateNonce++;
         }
 
@@ -447,7 +457,7 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
 
     function addOperator(address sender, uint32 senderPermsLevel, address newOperator) private {
         requirePermissions(sender, canAddOperator, senderPermsLevel);
-        bytes32 hash = Utilities.participantHash(newOperator, packPermissionLevel(ownerPermissions,1));
+        bytes32 hash = Utilities.participantHash(newOperator, packPermissionLevel(ownerPermissions, 1));
         participants[hash] = true;
         emit ParticipantAdded(hash);
     }
@@ -512,7 +522,7 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         require(allowAcceleratedCalls || delay >= delays[extractLevel(senderPermsLevel)], "Accelerated calls blocked - delay too short");
 //        require(requiredConfirmations != uint256(- 1), "Call blocked by policy");
         // if delay == -1, default to level-configured delay
-        if (delay == uint256(-1)) {
+        if (delay == uint256(- 1)) {
             delay = delays[extractLevel(senderPermsLevel)];
         }
         bytes32 bypassCallHash = Utilities.bypassCallHash(stateNonce, sender, senderPermsLevel, target, value, encodedFunction);

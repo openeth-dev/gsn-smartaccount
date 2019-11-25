@@ -29,6 +29,8 @@ contract("Vault Bootstrapping", async function (accounts) {
 
     const anyAddress1 = "0x5409ED021D9299bf6814279A6A1411A7e866A631";
     const anyAddress2 = "0x2409ed021d9299bf6814279a6a1411a7e866a631";
+    const anyTarget1 = "0x9409ed021d9299bf6814279a6a1411a7e866a631";
+    const anyTarget2 = "0x7409ed021d9299bf6814279a6a1411a7e866a631";
     const zeroAddress = "0x0000000000000000000000000000000000000000";
 
     let relayHub;
@@ -42,6 +44,7 @@ contract("Vault Bootstrapping", async function (accounts) {
     let whitelistFactory;
     let vaultFactory;
 
+    let erc20;
     let gatekeeper;
     let bypassModule;
 
@@ -65,11 +68,11 @@ contract("Vault Bootstrapping", async function (accounts) {
     }
 
     before(async function () {
-
+        erc20 = await DAI.new();
         relayHub = await RelayHub.new();
         gsnSponsor = await FreeRecipientSponsor.new();
         gsnForwarder = await GsnForwarder.new(relayHub.address, gsnSponsor.address);
-        vaultFactory = await VaultFactory.new(gsnForwarder.address, relayHub.address, {gas:8e6});
+        vaultFactory = await VaultFactory.new(gsnForwarder.address, relayHub.address, {gas: 8e6});
         whitelistFactory = await WhitelistFactory.new(gsnForwarder.address, relayHub.address);
         ephemeralOperator = RelayClient.newEphemeralKeypair();
         await relayHub.stake(relay, 1231231, {from: accounts[2], value: 1e18});
@@ -104,7 +107,7 @@ contract("Vault Bootstrapping", async function (accounts) {
 
     it("should prevent an attacker from intercepting a deployed uninitialized vault", async function () {
         await expect(
-            gatekeeper.initialConfig([attacker], [86400], true, true, [0, 0, 0], {from: attacker})
+            gatekeeper.initialConfig([attacker], [86400], true, true, [0, 0, 0], [], [], [], {from: attacker})
         ).to.be.revertedWith("initialConfig must be called by creator");
     });
 
@@ -123,8 +126,24 @@ contract("Vault Bootstrapping", async function (accounts) {
     });
 
     it("should sponsor initialization of a vault with valid configuration and bypass modules", async function () {
+
+        let targetsForModule = [anyTarget1, anyTarget2];
+        let erc20Transfer = erc20.contract.methods.transfer(zeroAddress, 0).encodeABI().substring(0, 10);
+        let erc20Approve = erc20.contract.methods.approve(zeroAddress, 0).encodeABI().substring(0, 10);
+        let methodSignaturesForModule = [erc20Transfer, erc20Approve];
+        let modules = [anyAddress1, anyAddress2, bypassModule.address, anyTarget2];
+
         let initialConfigCallData =
-            gatekeeper.contract.methods.initialConfig([attacker], [86400], true, true, [0, 0, 0]).encodeABI();
+            gatekeeper.contract.methods.initialConfig(
+                [attacker],
+                [86400],
+                true,
+                true,
+                [0, 0, 0],
+                targetsForModule,
+                methodSignaturesForModule,
+                modules
+            ).encodeABI();
         let encodedFunctionCall =
             gsnForwarder.contract.methods.callRecipient(gatekeeper.address, initialConfigCallData).encodeABI();
 
@@ -132,8 +151,14 @@ contract("Vault Bootstrapping", async function (accounts) {
         let createdEvent = receipt.logs[0];
         assert.equal(createdEvent.event, "GatekeeperInitialized");
 
-        // MODULES!!!
-    });
+        let targetModule1 = await gatekeeper.bypassPoliciesByTarget(anyTarget1);
+        let targetModule2 = await gatekeeper.bypassPoliciesByTarget(anyTarget2);
+        assert.equal(targetModule1.toLowerCase(), anyAddress1.toLowerCase());
+        assert.equal(targetModule2.toLowerCase(), anyAddress2.toLowerCase());
 
-    it("should not allow to initialize vault twice");
+        let methodsModule1 = await gatekeeper.bypassPoliciesByMethod(erc20Transfer);
+        let methodsModule2 = await gatekeeper.bypassPoliciesByMethod(erc20Approve);
+        assert.equal(methodsModule1.toLowerCase(), bypassModule.address.toLowerCase());
+        assert.equal(methodsModule2.toLowerCase(), anyTarget2.toLowerCase());
+    });
 });
