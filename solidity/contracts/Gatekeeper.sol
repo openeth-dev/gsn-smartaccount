@@ -79,6 +79,10 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         return delays;
     }
 
+    function getPendingChange(bytes32 hash) public view returns (uint256, bytes32[] memory approvers) {
+        return (pendingChanges[hash].dueTime, pendingChanges[hash].approvers);
+    }
+
     mapping(bytes32 => bool) public participants;
 
     uint256 public frozenLevel;
@@ -216,6 +220,7 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         args[0] = Utilities.participantHash(newOperatorAddress, packPermissionLevel(ownerPermissions, 1));
         bytes32 hash = Utilities.transactionHash(actions, args, args, scheduledStateId, scheduler, schedulerPermsLevel, address(0), 0);
         require(pendingChanges[hash].dueTime != 0, "Pending change not found");
+//        if (requiredApprovalsPerLevel[extractLevel((schedulerPermsLevel))] > 0)
         delete pendingChanges[hash];
         participants[args[0]] = true;
         emit ParticipantAdded(args[0]);
@@ -362,7 +367,7 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
             requireNotFrozen(schedulerPermsLevel, "scheduler level is frozen");
         }
         //TODO add test
-        require(extractLevel(schedulerPermsLevel) <= extractLevel(senderPermsLevel), "cannot cancel operation from higher level");
+        require(extractLevel(schedulerPermsLevel) <= extractLevel(senderPermsLevel), "cannot approve operation from higher level");
 
         bytes32 transactionHash = Utilities.transactionHash(actions, args1, args2, scheduledStateId, scheduler, schedulerPermsLevel, booster, boosterPermsLevel);
         PendingChange storage pendingChange = pendingChanges[transactionHash];

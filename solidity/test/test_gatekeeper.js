@@ -35,7 +35,7 @@ async function getDelayedOpHashFromEvent(log, utilities) {
     let schedulerPermsLevel = log.args.senderPermsLevel;
     let boosterAddress = log.args.booster;
     let boosterPermsLevel = log.args.boosterPermsLevel;
-    return (await utilities.transactionHashPublic(actions, args1, args2, stateId, schedulerAddress, schedulerPermsLevel, boosterAddress, boosterPermsLevel));//utils.delayedOpHashNew(actions, args, stateId, schedulerAddress, schedulerPermsLevel, boosterAddress, boosterPermsLevel);
+    return (await utilities.transactionHashPublic(actions, args1, args2, stateId, schedulerAddress, schedulerPermsLevel, boosterAddress, boosterPermsLevel));
 }
 
 async function cancelDelayed({res, log}, fromParticipant, gatekeeper) {
@@ -136,6 +136,7 @@ contract('Gatekeeper', async function (accounts) {
     let requiredApprovalsPerLevel;
     let operatorA;
     let operatorB;
+    let operatorZ;
     let wrongaddr;
     let adminA;
     let adminB;
@@ -179,6 +180,7 @@ contract('Gatekeeper', async function (accounts) {
     function initParticipants() {
         operatorA = new Participant(accounts[0], ownerPermissions, level, "operatorA");
         operatorB = new Participant(accounts[11], ownerPermissions, level, "operatorB");
+        operatorZ = new Participant(accounts[14], ownerPermissions, 5, "operatorZ");
         wrongaddr = new Participant(accounts[1], ownerPermissions, level, "wrongAddress");
         adminA = new Participant(accounts[3], adminPermissions, level, "adminA");
         adminB = new Participant(accounts[4], adminPermissions, level, "adminB");
@@ -272,8 +274,125 @@ contract('Gatekeeper', async function (accounts) {
             gatekeeper.initialConfig(initialParticipants, initialDelays, true, true, requiredApprovalsPerLevel, [], [], [], {from: operatorA.address})
         ).to.be.revertedWith("already initialized");
     });
-    // return;
     /* Positive flows */
+
+    describe("testing accelerated calls flag", function () {
+        // it("should revert when trying to cancel a transfer transaction that does not exist", async function () {
+        //     await expect(
+        //         gatekeeper.cancelBypassCall(watchdogA.permLevel, operatorA.address, operatorA.permLevel, 0, zeroAddress, 0, [], {from: watchdogA.address})
+        //     ).to.be.revertedWith("cancel called for non existent pending bypass call");
+        // });
+        //
+        // it("should allow the owner to create a delayed ether transfer transaction", async function () {
+        //     let stateId = await gatekeeper.stateNonce();
+        //     let res = await gatekeeper.scheduleBypassCall(operatorA.permLevel, destinationAddress, amount, []);
+        //     expectedDelayedEventsCount++;
+        //     let log = res.logs[0];
+        //     assert.equal(log.event, "BypassCallPending");
+        //     assert.equal(log.address, gatekeeper.address);
+        //     assert.equal(log.args.target, destinationAddress);
+        //     assert.equal(log.args.value, amount);
+        //     let hash = "0x" + utils.bypassCallHash(stateId, operatorA.address, operatorA.permLevel, destinationAddress, amount, "").toString("hex");
+        //     let pendingCall = await gatekeeper.pendingBypassCalls(hash);
+        //     assert.isAbove(pendingCall.toNumber(), 0)
+        // });
+        //
+        // it("just funding the vault", async function () {
+        //     await web3.eth.sendTransaction({from: operatorA.address, to: gatekeeper.address, value: amount * 10});
+        // });
+        //
+        // it("should allow the owner to execute a delayed transfer transaction after delay", async function () {
+        //
+        //     let addedLog = await getLastEvent(gatekeeper.contract, "BypassCallPending", expectedDelayedEventsCount);
+        //     let balanceSenderBefore = parseInt(await web3.eth.getBalance(gatekeeper.address));
+        //     let balanceReceiverBefore = parseInt(await web3.eth.getBalance(destinationAddress));
+        //     assert.isAbove(balanceSenderBefore, amount);
+        //     await utils.increaseTime(timeGap, web3);
+        //     let res = await gatekeeper.applyBypassCall(operatorA.permLevel, operatorA.address, operatorA.permLevel, addedLog.stateNonce, addedLog.target, addedLog.value, [], {from: operatorA.address});
+        //     let log = res.logs[0];
+        //
+        //     assert.equal(log.event, "BypassCallApplied");
+        //     let hash = "0x" + utils.bypassCallHash(addedLog.stateNonce, operatorA.address, operatorA.permLevel, addedLog.target, addedLog.value, "").toString("hex");
+        //     assert.equal(log.args.bypassHash, hash);
+        //     assert.equal(log.args.status, true);
+        //
+        //     let balanceSenderAfter = parseInt(await web3.eth.getBalance(gatekeeper.address));
+        //     let balanceReceiverAfter = parseInt(await web3.eth.getBalance(destinationAddress));
+        //     assert.equal(balanceSenderAfter, balanceSenderBefore - amount);
+        //     assert.equal(balanceReceiverAfter, balanceReceiverBefore + amount);
+        // });
+        //
+        // it(`should allow the cancellers to cancel a delayed transfer transaction`, async function () {
+        //     await utils.asyncForEach(
+        //         [operatorA, watchdogA],
+        //         async (participant) => {
+        //             let res1 = await gatekeeper.scheduleBypassCall(operatorA.permLevel, destinationAddress, amount, []);
+        //             expectedDelayedEventsCount++;
+        //             let log1 = res1.logs[0];
+        //
+        //             let res2 = await gatekeeper.cancelBypassCall(
+        //                 participant.permLevel,
+        //                 log1.args.sender,
+        //                 log1.args.senderPermsLevel,
+        //                 log1.args.stateNonce,
+        //                 log1.args.target,
+        //                 log1.args.value,
+        //                 [],
+        //                 {from: participant.address});
+        //             let log2 = res2.logs[0];
+        //             assert.equal(log2.event, "BypassCallCancelled");
+        //             assert.equal(log2.address, log1.address);
+        //         });
+        // });
+
+        it("should disable accelerated calls", async function() {
+            await expect(
+                gatekeeper.executeBypassCall(operatorA.permLevel, destinationAddress, amount, [])
+            ).to.be.revertedWith("Call cannot be executed immediately")
+            assert.equal(true, await gatekeeper.allowAcceleratedCalls());
+            let stateId = await gatekeeper.stateNonce();
+            let actions = [ChangeType.SET_ACCELERATED_CALLS];
+            // bool to bytes32 basically...
+            let args = [Buffer.from("0".repeat(64),"hex")];
+            let res = await gatekeeper.changeConfiguration(operatorA.permLevel, actions, args, args, stateId, {from: operatorA.address});
+            assert.equal(res.logs[0].event, "ConfigPending");
+            await expect(
+                applyDelayed({res}, operatorA, gatekeeper)
+            ).to.be.revertedWith("apply called before due time");
+            await utils.increaseTime(timeGap, web3);
+            applyDelayed({res}, operatorA, gatekeeper);
+            assert.equal(false, await gatekeeper.allowAcceleratedCalls());
+        });
+
+        it("should revert accelerated calls when disabled", async function() {
+            await expect(
+                gatekeeper.executeBypassCall(operatorA.permLevel, destinationAddress, amount, [])
+            ).to.be.revertedWith("Accelerated calls blocked")
+        });
+
+
+
+        it("should re-enable accelerated calls", async function() {
+            assert.equal(false, await gatekeeper.allowAcceleratedCalls());
+            let stateId = await gatekeeper.stateNonce();
+            let actions = [ChangeType.SET_ACCELERATED_CALLS];
+            // bool to bytes32 basically...
+            let args = [Buffer.from("1".repeat(64),"hex")];
+            let res = await gatekeeper.changeConfiguration(operatorA.permLevel, actions, args, args, stateId, {from: operatorA.address});
+            assert.equal(res.logs[0].event, "ConfigPending");
+            await expect(
+                applyDelayed({res}, operatorA, gatekeeper)
+            ).to.be.revertedWith("apply called before due time");
+            await utils.increaseTime(timeGap, web3);
+            applyDelayed({res}, operatorA, gatekeeper);
+            assert.equal(true, await gatekeeper.allowAcceleratedCalls());
+            await expect(
+                gatekeeper.executeBypassCall(operatorA.permLevel, destinationAddress, amount, [])
+            ).to.be.revertedWith("Call cannot be executed immediately")
+
+        });
+
+    });
 
     /* Plain send */
     it("should allow the owner to create a delayed ether transfer transaction", async function () {
@@ -610,36 +729,6 @@ contract('Gatekeeper', async function (accounts) {
         ).to.be.revertedWith("apply called for non existent pending change");
     });
 
-    // it("should only allow one operator in vault", async function () {
-    //     // as we keep the 'require'-ment to use pre-approved permissions, operator
-    //     // is defined as an account with 'ownerPermissions'
-    //     let actions = [ChangeType.ADD_PARTICIPANT];
-    //     let args = [utils.participantHash(wrongaddr.address, wrongaddr.permLevel)];
-    //     let stateId = await gatekeeper.stateNonce();
-    //     let res1 = await gatekeeper.changeConfiguration(actions, args, stateId, operatorA.permLevel);
-    //
-    //     await utils.increaseTime(timeGap, web3);
-    //     await applyDelayed({res: res1}, operatorA, gatekeeper);
-    //     // as per spec file, another 'operator' can be added as a participant, but cannot use it's permissions
-    //     await utils.validateConfigParticipants([wrongaddr.expect()], gatekeeper);
-    //
-    //     actions = [ChangeType.ADD_PARTICIPANT];
-    //     args = [utils.participantHash(wrongaddr.address, wrongaddr.permLevel)];
-    //     stateId = await gatekeeper.stateNonce();
-    //     await expect(
-    //         gatekeeper.changeConfiguration(actions, args, stateId, operatorA.permLevel, {from: wrongaddr.address})
-    //     ).to.be.revertedWith("not a real operator");
-    //
-    //     // Clean up
-    //     actions = [ChangeType.REMOVE_PARTICIPANT];
-    //     args = [utils.participantHash(wrongaddr.address, wrongaddr.permLevel)];
-    //     stateId = await gatekeeper.stateNonce();
-    //     let res2 = await gatekeeper.changeConfiguration(actions, args, stateId, operatorA.permLevel);
-    //     await utils.increaseTime(timeGap, web3);
-    //     await applyDelayed({res: res2}, operatorA, gatekeeper);
-    //     await utils.validateConfigParticipants([wrongaddr], gatekeeper);
-    // });
-
     /* Owner loses phone */
     it("should allow an admin to add an operator after a delay", async function () {
         let participants = [operatorA.expect(), operatorB];
@@ -694,7 +783,7 @@ contract('Gatekeeper', async function (accounts) {
         it("should cancel addOperatorNow operation", async function () {
             await expect(
                 cancelDelayed({res}, adminA, gatekeeper)
-            ).to.be.revertedWith("permissions missing");
+            ).to.be.revertedWith(`permissions missing: ${Permissions.CanCancel}`);
             res = await cancelDelayed({res}, watchdogA, gatekeeper);
             assert.equal(res.logs[0].event, "ConfigCancelled");
         });
@@ -712,7 +801,7 @@ contract('Gatekeeper', async function (accounts) {
             let stateId = res.logs[0].args.stateId;
             await expect(
                 gatekeeper.approveAddOperatorNow(adminA.permLevel, operatorB.address, stateId, operatorA.address, operatorA.permLevel, {from: adminA.address})
-            ).to.be.revertedWith("permissions missing");
+            ).to.be.revertedWith(`permissions missing: ${Permissions.CanApprove}`);
             await gatekeeper.approveAddOperatorNow(watchdogA.permLevel, operatorB.address, stateId, operatorA.address, operatorA.permLevel, {from: watchdogA.address});
             participants = [operatorA.expect(), operatorB.expect()];
             assert.equal(true, await gatekeeper.isParticipant(operatorB.address, operatorB.permLevel));
@@ -761,7 +850,107 @@ contract('Gatekeeper', async function (accounts) {
         it("should revert an attempt to add an operator immediately by anyone other than operator", async function () {
             await expect(
                 gatekeeper.addOperatorNow(adminA.permLevel, operatorB.address, {from: adminA.address})
-            ).to.be.revertedWith("permissions missing")
+            ).to.be.revertedWith(`permissions missing: ${Permissions.CanAddOperatorNow}`)
+        });
+
+    });
+
+    describe("testing approval mechanism", function () {
+        let failCloseGK;
+        let res;
+
+        before(async function () {
+
+            failCloseGK = await Gatekeeper.new(zeroAddress, zeroAddress, accounts[0]);
+        });
+
+        it("should initialize gk with failclose levels", async function () {
+            initialDelays = Array.from({length: 10}, (x, i) => (i + 1) * dayInSec);
+            requiredApprovalsPerLevel = [1,1,1,2,3,2,5,6,7,8];
+            let initialParticipants = [
+                utils.bufferToHex(utils.participantHash(operatorA.address, operatorA.permLevel)),
+                utils.bufferToHex(utils.participantHash(operatorZ.address, operatorZ.permLevel)),
+                utils.bufferToHex(utils.participantHash(adminA.address, adminA.permLevel)),
+                utils.bufferToHex(utils.participantHash(adminB.address, adminB.permLevel)),
+                utils.bufferToHex(utils.participantHash(watchdogA.address, watchdogA.permLevel)),
+                utils.bufferToHex(utils.participantHash(watchdogZ.address, watchdogZ.permLevel)),
+                utils.bufferToHex(utils.participantHash(adminZ.address, adminZ.permLevel)),
+                utils.bufferToHex(utils.participantHash(adminB2.address, adminB2.permLevel)),
+            ];
+
+            res = await failCloseGK.initialConfig(initialParticipants, initialDelays, true, true, requiredApprovalsPerLevel, {from: operatorA.address});
+            let log = res.logs[0];
+            assert.equal(log.event, "GatekeeperInitialized");
+        });
+
+        it("should schedule and approve operation that requires one approval", async function () {
+            let stateId = await failCloseGK.stateNonce();
+            let changeType1 = ChangeType.ADD_PARTICIPANT;
+            let changeArg1 = utils.participantHash(adminB1.address, adminB1.permLevel);
+            await failCloseGK.changeConfiguration(operatorA.permLevel, [changeType1], [changeArg1], [changeArg1], stateId);
+
+            await expect(
+                failCloseGK.applyConfig(operatorA.permLevel, [changeType1], [changeArg1], [changeArg1], stateId, operatorA.address, operatorA.permLevel, zeroAddress, 0)
+            ).to.be.revertedWith("called before due time");
+
+            await utils.increaseTime(timeGap, web3);
+
+            await expect(
+                failCloseGK.applyConfig(operatorA.permLevel, [changeType1], [changeArg1], [changeArg1], stateId, operatorA.address, operatorA.permLevel, zeroAddress, 0)
+            ).to.be.revertedWith("Pending approvals");
+
+            await expect(
+                failCloseGK.approveConfig(operatorA.permLevel, [changeType1], [changeArg1], [changeArg1], stateId, operatorA.address, operatorA.permLevel, zeroAddress, 0)
+            ).to.be.revertedWith(`permissions missing: ${Permissions.CanApprove}`);
+
+            res = await failCloseGK.approveConfig(watchdogA.permLevel, [changeType1], [changeArg1], [changeArg1], stateId, operatorA.address, operatorA.permLevel, zeroAddress, 0, {from:watchdogA.address})
+
+            await expect(
+                failCloseGK.applyConfig(operatorA.permLevel, [changeType1], [changeArg1], [changeArg1], stateId, operatorA.address, operatorA.permLevel, zeroAddress, 0)
+            ).to.be.revertedWith("apply called for non existent pending change");
+
+        });
+
+        it("should schedule and approve operation that requires two approvals", async function () {
+            let stateId = await failCloseGK.stateNonce();
+            let changeType1 = ChangeType.ADD_PARTICIPANT;
+            let changeArg1 = utils.participantHash(adminB1.address, adminB1.permLevel);
+            res = await failCloseGK.changeConfiguration(operatorZ.permLevel, [changeType1], [changeArg1], [changeArg1], stateId, {from:operatorZ.address});
+
+            let txhash = await utilities.transactionHashPublic([changeType1], [changeArg1], [changeArg1], stateId, operatorZ.address, operatorZ.permLevel, zeroAddress, 0);
+
+            await expect(
+                failCloseGK.applyConfig(operatorA.permLevel, [changeType1], [changeArg1], [changeArg1], stateId, operatorZ.address, operatorZ.permLevel, zeroAddress, 0)
+            ).to.be.revertedWith("called before due time");
+
+            await utils.increaseTime(5*timeGap, web3);
+
+            await expect(
+                failCloseGK.applyConfig(operatorA.permLevel, [changeType1], [changeArg1], [changeArg1], stateId, operatorZ.address, operatorZ.permLevel, zeroAddress, 0)
+            ).to.be.revertedWith("Pending approvals");
+
+            await expect(
+                failCloseGK.approveConfig(operatorA.permLevel, [changeType1], [changeArg1], [changeArg1], stateId, operatorZ.address, operatorZ.permLevel, zeroAddress, 0)
+            ).to.be.revertedWith(`permissions missing: ${Permissions.CanApprove}`);
+
+            await expect(
+                failCloseGK.approveConfig(watchdogA.permLevel, [changeType1], [changeArg1], [changeArg1], stateId, operatorZ.address, operatorZ.permLevel, zeroAddress, 0, {from:watchdogA.address})
+            ).to.be.revertedWith(`cannot approve operation from higher level`);
+
+            await failCloseGK.approveConfig(watchdogZ.permLevel, [changeType1], [changeArg1], [changeArg1], stateId, operatorZ.address, operatorZ.permLevel, zeroAddress, 0, {from:watchdogZ.address})
+            assert.equal((await failCloseGK.getPendingChange(txhash)).approvers.length, 1)
+            await expect(
+                failCloseGK.approveConfig(watchdogZ.permLevel, [changeType1], [changeArg1], [changeArg1], stateId, operatorZ.address, operatorZ.permLevel, zeroAddress, 0, {from:watchdogZ.address})
+            ).to.be.revertedWith(`Cannot approve twice`);
+
+            await expect(
+                failCloseGK.applyConfig(operatorA.permLevel, [changeType1], [changeArg1], [changeArg1], stateId, operatorZ.address, operatorZ.permLevel, zeroAddress, 0)
+            ).to.be.revertedWith("Pending approvals");
+
+            await expect(
+                cancelDelayed({res}, watchdogA, failCloseGK)
+            ).to.be.revertedWith("cannot cancel operation from higher level");
+            await cancelDelayed({res}, watchdogZ, failCloseGK)
         });
 
     });
@@ -1034,6 +1223,7 @@ contract('Gatekeeper', async function (accounts) {
         assert.equal(log3.event, "UnfreezeCompleted");
 
         let res2 = await gatekeeper.scheduleBypassCall(operatorA.permLevel, destinationAddress, amount, [], {from: operatorA.address});
+        expectedDelayedEventsCount++;
         let log2 = res2.logs[0];
         assert.equal(log2.event, "BypassCallPending");
         assert.equal(log2.address, gatekeeper.address);
