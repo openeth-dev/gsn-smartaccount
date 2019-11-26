@@ -39,7 +39,7 @@ contract('GSN and Sponsor integration', async function (accounts) {
 
     before(async function () {
         gsnForwarder = accounts[14];
-        gatekeeper = await Gatekeeper.new(gsnForwarder, relayHub, accounts[0]);
+        gatekeeper = await Gatekeeper.new(gsnForwarder, relayHub, accounts[0], {gas:8e6});
         web3 = new Web3(gatekeeper.contract.currentProvider);
         ownerPermissions = utils.bufferToHex(await gatekeeper.ownerPermissions());
         operatorA = new Participant(accounts[0], ownerPermissions, 1, "operatorA");

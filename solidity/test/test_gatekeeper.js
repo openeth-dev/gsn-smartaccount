@@ -163,7 +163,7 @@ contract('Gatekeeper', async function (accounts) {
             Gatekeeper.network.events[topic] = DAI.events[topic];
         });
 
-        gatekeeper = await Gatekeeper.new(zeroAddress, zeroAddress, accounts[0]);
+        gatekeeper = await Gatekeeper.new(zeroAddress, zeroAddress, accounts[0], {gas:8e6});
         utilities = await Utilities.deployed();
         erc20 = await DAI.new();
         web3 = new Web3(gatekeeper.contract.currentProvider);
@@ -397,7 +397,7 @@ contract('Gatekeeper', async function (accounts) {
     /* Plain send */
     it("should allow the owner to create a delayed ether transfer transaction", async function () {
         let stateId = await gatekeeper.stateNonce();
-        let res = await gatekeeper.scheduleBypassCall(operatorA.permLevel, destinationAddress, amount, []);
+        let res = await gatekeeper.scheduleBypassCall(operatorA.permLevel, destinationAddress, amount, [], stateId);
         expectedDelayedEventsCount++;
         let log = res.logs[0];
         assert.equal(log.event, "BypassCallPending");
@@ -440,7 +440,8 @@ contract('Gatekeeper', async function (accounts) {
 
     it("should allow the owner to create a delayed erc20 transfer transaction", async function () {
         let calldata = erc20.contract.methods.transfer(destinationAddress, amount).encodeABI();
-        let res = await gatekeeper.scheduleBypassCall(operatorA.permLevel, erc20.address, 0, calldata);
+        let stateId = await gatekeeper.stateNonce()
+        let res = await gatekeeper.scheduleBypassCall(operatorA.permLevel, erc20.address, 0, calldata, stateId);
         expectedDelayedEventsCount++;
         let log = res.logs[0];
         assert.equal(log.event, "BypassCallPending");
@@ -561,7 +562,8 @@ contract('Gatekeeper', async function (accounts) {
             await expect(
                 gatekeeper.executeBypassCall(operatorA.permLevel, differentErc20.address, 0, calldata)
             ).to.be.revertedWith("Call cannot be executed immediately");
-            let res = await gatekeeper.scheduleBypassCall(operatorA.permLevel, differentErc20.address, 0, calldata);
+            let stateId = await gatekeeper.stateNonce();
+            let res = await gatekeeper.scheduleBypassCall(operatorA.permLevel, differentErc20.address, 0, calldata, stateId);
             await utils.increaseTime(timeGap, web3);
             let res2 = await applyBypass({res}, operatorA, gatekeeper);
             assert.equal(res2.logs[0].event, "Transfer");
@@ -769,7 +771,8 @@ contract('Gatekeeper', async function (accounts) {
             await utils.validateConfigParticipants(participants, gatekeeper);
             assert.equal(true, await gatekeeper.isParticipant(adminA.address, adminA.permLevel));
             assert.equal(false, await gatekeeper.isParticipant(operatorB.address, operatorB.permLevel));
-            res = await gatekeeper.addOperatorNow(operatorA.permLevel, operatorB.address, {from: operatorA.address});
+            let stateId = await gatekeeper.stateNonce();
+            res = await gatekeeper.addOperatorNow(operatorA.permLevel, operatorB.address, stateId, {from: operatorA.address});
             assert.equal(res.logs[0].event, "ConfigPending");
             await expect(
                 applyDelayed({res}, operatorA, gatekeeper)
@@ -793,12 +796,13 @@ contract('Gatekeeper', async function (accounts) {
             await utils.validateConfigParticipants(participants, gatekeeper);
             assert.equal(true, await gatekeeper.isParticipant(adminA.address, adminA.permLevel));
             assert.equal(false, await gatekeeper.isParticipant(operatorB.address, operatorB.permLevel));
-            res = await gatekeeper.addOperatorNow(operatorA.permLevel, operatorB.address, {from: operatorA.address});
+            let stateId = await gatekeeper.stateNonce();
+            res = await gatekeeper.addOperatorNow(operatorA.permLevel, operatorB.address, stateId, {from: operatorA.address});
             assert.equal(res.logs[0].event, "ConfigPending");
             await expect(
                 applyDelayed({res}, adminA, gatekeeper)
             ).to.be.revertedWith("apply called before due time")
-            let stateId = res.logs[0].args.stateId;
+            stateId = res.logs[0].args.stateId;
             await expect(
                 gatekeeper.approveAddOperatorNow(adminA.permLevel, operatorB.address, stateId, operatorA.address, operatorA.permLevel, {from: adminA.address})
             ).to.be.revertedWith(`permissions missing: ${Permissions.CanApprove}`);
@@ -806,7 +810,6 @@ contract('Gatekeeper', async function (accounts) {
             participants = [operatorA.expect(), operatorB.expect()];
             assert.equal(true, await gatekeeper.isParticipant(operatorB.address, operatorB.permLevel));
             await utils.validateConfigParticipants(participants, gatekeeper);
-
         });
 
         it("should disable adding operator immediately", async function () {
@@ -823,8 +826,9 @@ contract('Gatekeeper', async function (accounts) {
             await utils.increaseTime(timeGap, web3);
             applyDelayed({res}, operatorA, gatekeeper);
             assert.equal(false, await gatekeeper.allowAddOperatorNow());
+            stateId = await gatekeeper.stateNonce();
             await expect(
-                gatekeeper.addOperatorNow(operatorA.permLevel, operatorB.address, {from: operatorA.address})
+                gatekeeper.addOperatorNow(operatorA.permLevel, operatorB.address, stateId, {from: operatorA.address})
             ).to.be.revertedWith("Call blocked")
         });
 
@@ -842,14 +846,16 @@ contract('Gatekeeper', async function (accounts) {
             await utils.increaseTime(timeGap, web3);
             applyDelayed({res}, operatorA, gatekeeper);
             assert.equal(true, await gatekeeper.allowAddOperatorNow());
-            res = await gatekeeper.addOperatorNow(operatorA.permLevel, operatorB.address, {from: operatorA.address});
+            stateId = await gatekeeper.stateNonce();
+            res = await gatekeeper.addOperatorNow(operatorA.permLevel, operatorB.address, stateId, {from: operatorA.address});
             await cancelDelayed({res}, watchdogA, gatekeeper);
 
         });
 
         it("should revert an attempt to add an operator immediately by anyone other than operator", async function () {
+            let stateId = await gatekeeper.stateNonce();
             await expect(
-                gatekeeper.addOperatorNow(adminA.permLevel, operatorB.address, {from: adminA.address})
+                gatekeeper.addOperatorNow(adminA.permLevel, operatorB.address, stateId, {from: adminA.address})
             ).to.be.revertedWith(`permissions missing: ${Permissions.CanAddOperatorNow}`)
         });
 
@@ -861,7 +867,7 @@ contract('Gatekeeper', async function (accounts) {
 
         before(async function () {
 
-            failCloseGK = await Gatekeeper.new(zeroAddress, zeroAddress, accounts[0]);
+            failCloseGK = await Gatekeeper.new(zeroAddress, zeroAddress, accounts[0], {gas:8e6});
         });
 
         it("should initialize gk with failclose levels", async function () {
@@ -878,7 +884,7 @@ contract('Gatekeeper', async function (accounts) {
                 utils.bufferToHex(utils.participantHash(adminB2.address, adminB2.permLevel)),
             ];
 
-            res = await failCloseGK.initialConfig(initialParticipants, initialDelays, true, true, requiredApprovalsPerLevel, {from: operatorA.address});
+            res = await failCloseGK.initialConfig(initialParticipants, initialDelays, true, true, requiredApprovalsPerLevel, [], [], [], {from: operatorA.address});
             let log = res.logs[0];
             assert.equal(log.event, "GatekeeperInitialized");
         });
@@ -984,7 +990,8 @@ contract('Gatekeeper', async function (accounts) {
         await utils.asyncForEach(
             [operatorA, watchdogA],
             async (participant) => {
-                let res1 = await gatekeeper.scheduleBypassCall(operatorA.permLevel, destinationAddress, amount, []);
+                let stateId = await gatekeeper.stateNonce()
+                let res1 = await gatekeeper.scheduleBypassCall(operatorA.permLevel, destinationAddress, amount, [], stateId);
                 expectedDelayedEventsCount++;
                 let log1 = res1.logs[0];
 
@@ -1132,7 +1139,7 @@ contract('Gatekeeper', async function (accounts) {
         let reason = "level is frozen";
         stateId = await gatekeeper.stateNonce();
         await expect(
-            gatekeeper.scheduleBypassCall(operatorA.permLevel, destinationAddress, amount, [], {from: operatorA.address})
+            gatekeeper.scheduleBypassCall(operatorA.permLevel, destinationAddress, amount, [], stateId, {from: operatorA.address})
         ).to.be.revertedWith(reason);
 
         // On lower levels:
@@ -1225,15 +1232,16 @@ contract('Gatekeeper', async function (accounts) {
         await utils.increaseTime(timeGap, web3);
 
         // Operator still cannot send money, not time-caused unfreeze
+        stateId = await gatekeeper.stateNonce()
         await expect(
-            gatekeeper.scheduleBypassCall(operatorA.permLevel, destinationAddress, amount, [], {from: operatorA.address})
+            gatekeeper.scheduleBypassCall(operatorA.permLevel, destinationAddress, amount, [], stateId, {from: operatorA.address})
         ).to.be.revertedWith("level is frozen");
         let res3 = await applyDelayed({log: log1}, adminB1, gatekeeper);
         let log3 = res3.logs[0];
 
         assert.equal(log3.event, "UnfreezeCompleted");
-
-        let res2 = await gatekeeper.scheduleBypassCall(operatorA.permLevel, destinationAddress, amount, [], {from: operatorA.address});
+        stateId = await gatekeeper.stateNonce()
+        let res2 = await gatekeeper.scheduleBypassCall(operatorA.permLevel, destinationAddress, amount, [], stateId, {from: operatorA.address});
         expectedDelayedEventsCount++;
         let log2 = res2.logs[0];
         assert.equal(log2.event, "BypassCallPending");
