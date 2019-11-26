@@ -371,6 +371,7 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
 
         bytes32 transactionHash = Utilities.transactionHash(actions, args1, args2, scheduledStateId, scheduler, schedulerPermsLevel, booster, boosterPermsLevel);
         PendingChange storage pendingChange = pendingChanges[transactionHash];
+        require(pendingChange.dueTime != 0, "approve called for non existent pending change");
         require(requiredApprovalsPerLevel[extractLevel(schedulerPermsLevel)] > 0, "Level doesn't support approvals");
         require(!hasApproved(Utilities.participantHash(sender, senderPermsLevel), pendingChange.approvers), "Cannot approve twice");
         //TODO: separate the checks above to different function shared between applyConfig & approveConfig
