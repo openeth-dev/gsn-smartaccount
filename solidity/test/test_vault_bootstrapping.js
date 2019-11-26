@@ -100,7 +100,8 @@ contract("Vault Bootstrapping", async function (accounts) {
         let createdEvent = receipt.logs[0];
         assert.equal(createdEvent.event, "VaultCreated");
         assert.equal(createdEvent.args.sender.toLowerCase(), ephemeralOperator.address);
-        assert.notEqual(createdEvent.args.gatekeeper, zeroAddress); // TODO: no sense to use 'not equal' in JS
+        assert.equal(web3.utils.isAddress(createdEvent.args.gatekeeper), true);
+        assert.notEqual(createdEvent.args.gatekeeper, zeroAddress);
         gatekeeper = await Gatekeeper.at(createdEvent.args.gatekeeper);
 
     });
@@ -121,7 +122,8 @@ contract("Vault Bootstrapping", async function (accounts) {
         let createdEvent = receipt.logs[0];
         assert.equal(createdEvent.event, "WhitelistModuleCreated");
         assert.equal(createdEvent.args.sender.toLowerCase(), ephemeralOperator.address);
-        assert.notEqual(createdEvent.args.module, zeroAddress); // TODO: no sense to use 'not equal' in JS
+        assert.equal(web3.utils.isAddress(createdEvent.args.module), true);
+        assert.notEqual(createdEvent.args.module, zeroAddress);
         bypassModule = await WhitelistBypassPolicy.at(createdEvent.args.module);
     });
 
