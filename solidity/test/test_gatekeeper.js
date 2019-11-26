@@ -3,9 +3,11 @@ const Chai = require('chai');
 const Web3 = require('web3');
 
 /* truffle artifacts */
-const Gatekeeper = artifacts.require("./Gatekeeper.sol");
-const Utilities = artifacts.require("./Utilities.sol");
-const DAI = artifacts.require("./DAI.sol");
+const WhitelistBypassPolicy = artifacts.require("WhitelistBypassPolicy");
+const AllowAllPolicy = artifacts.require("AllowAllPolicy");
+const Gatekeeper = artifacts.require("Gatekeeper");
+const Utilities = artifacts.require("Utilities");
+const DAI = artifacts.require("DAI");
 
 const testUtils = require('./utils');
 const ChangeType = require('./etc/ChangeType');
@@ -64,6 +66,12 @@ function extractLog(log, res) {
     let boosterPermsLevel = log.args.boosterPermsLevel;
 
     let scheduledStateId = log.args.stateId;
+
+    let bypassHash = log.args.bypassHash;
+    let target = log.args.target;
+    let value = log.args.value;
+    let msgdata = log.args.msgdata;
+
     return {
         actions,
         args1,
@@ -72,8 +80,26 @@ function extractLog(log, res) {
         schedulerPermsLevel,
         boosterAddress,
         boosterPermsLevel,
+        bypassHash,
+        target,
+        value,
+        msgdata,
         scheduledStateId
     };
+}
+
+async function applyBypass({res, log}, fromParticipant, gatekeeper) {
+    let {msgdata, value, target, schedulerAddress, schedulerPermsLevel, boosterAddress, boosterPermsLevel, scheduledStateId} = extractLog(log, res);
+
+    return gatekeeper.applyBypassCall(
+        fromParticipant.permLevel,
+        schedulerAddress,
+        schedulerPermsLevel,
+        scheduledStateId,
+        target,
+        value,
+        msgdata,
+        {from: fromParticipant.address});
 }
 
 async function applyDelayed({res, log}, fromParticipant, gatekeeper) {
@@ -275,11 +301,11 @@ contract('Gatekeeper', async function (accounts) {
         let balanceReceiverBefore = parseInt(await web3.eth.getBalance(destinationAddress));
         assert.isAbove(balanceSenderBefore, amount);
         await utils.increaseTime(timeGap, web3);
-        let res = await gatekeeper.applyBypassCall(operatorA.permLevel, operatorA.address, operatorA.permLevel, addedLog.stateNonce, addedLog.target, addedLog.value, [], {from: operatorA.address});
+        let res = await gatekeeper.applyBypassCall(operatorA.permLevel, operatorA.address, operatorA.permLevel, addedLog.stateId, addedLog.target, addedLog.value, [], {from: operatorA.address});
         let log = res.logs[0];
 
         assert.equal(log.event, "BypassCallApplied");
-        let hash = "0x" + utils.bypassCallHash(addedLog.stateNonce, operatorA.address, operatorA.permLevel, addedLog.target, addedLog.value, "").toString("hex");
+        let hash = "0x" + utils.bypassCallHash(addedLog.stateId, operatorA.address, operatorA.permLevel, addedLog.target, addedLog.value, "").toString("hex");
         assert.equal(log.args.bypassHash, hash);
         assert.equal(log.args.status, true);
 
@@ -303,7 +329,7 @@ contract('Gatekeeper', async function (accounts) {
         assert.equal(log.args.value, 0);
         assert.equal(log.args.target, erc20.address);
 
-        let hash = "0x" + utils.bypassCallHash(log.args.stateNonce, log.args.sender, log.args.senderPermsLevel, log.args.target, log.args.value, log.args.msgdata).toString("hex");
+        let hash = "0x" + utils.bypassCallHash(log.args.stateId, log.args.sender, log.args.senderPermsLevel, log.args.target, log.args.value, log.args.msgdata).toString("hex");
         let pendingCall = await gatekeeper.pendingBypassCalls(hash);
         assert.isAbove(pendingCall.toNumber(), 0)
     });
@@ -316,7 +342,7 @@ contract('Gatekeeper', async function (accounts) {
         assert.isAbove(balanceSenderBefore, amount);
         await utils.increaseTime(timeGap, web3);
 
-        let res = await gatekeeper.applyBypassCall(operatorA.permLevel, addedLog.sender, addedLog.senderPermsLevel, addedLog.stateNonce, addedLog.target, addedLog.value, addedLog.msgdata, {from: operatorA.address});
+        let res = await gatekeeper.applyBypassCall(operatorA.permLevel, addedLog.sender, addedLog.senderPermsLevel, addedLog.stateId, addedLog.target, addedLog.value, addedLog.msgdata, {from: operatorA.address});
 
         let log = res.logs[0];
         assert.equal(log.event, "Transfer");
@@ -344,7 +370,7 @@ contract('Gatekeeper', async function (accounts) {
         await utils.increaseTime(timeGap, web3);
 
         await expect(
-            gatekeeper.applyBypassCall(operatorA.permLevel, addedLog.sender, addedLog.senderPermsLevel, addedLog.stateNonce, addedLog.target, addedLog.value, addedLog.msgdata, {from: operatorA.address})
+            gatekeeper.applyBypassCall(operatorA.permLevel, addedLog.sender, addedLog.senderPermsLevel, addedLog.stateId, addedLog.target, addedLog.value, addedLog.msgdata, {from: operatorA.address})
         ).to.be.revertedWith("apply called for non existent pending bypass call");
     });
 
@@ -363,6 +389,78 @@ contract('Gatekeeper', async function (accounts) {
         });
     });
 
+    describe("Bypass Modules", async function () {
+
+        let module;
+        let allowAll;
+        let whitelistedDestination;
+        let targetThatCanDoAll;
+        let differentErc20;
+
+        before(async function () {
+            whitelistedDestination = adminB2.address;
+            module = await WhitelistBypassPolicy.new(gatekeeper.address, [whitelistedDestination]);
+            allowAll = await AllowAllPolicy.new();
+            differentErc20 = await DAI.new();
+            targetThatCanDoAll = erc20.address;
+            await differentErc20.transfer(gatekeeper.address, 1000000);
+        });
+
+        it("should add a bypass module by target after delay", async function () {
+            let actions = [ChangeType.ADD_BYPASS_BY_TARGET];
+            let stateId = await gatekeeper.stateNonce();
+            let res = await gatekeeper.changeConfiguration(
+                operatorA.permLevel, actions, [targetThatCanDoAll], [allowAll.address], stateId);
+                // operatorA.permLevel, actions, [left_padded_target_address], [left_padded_module_address], stateId);
+            await utils.increaseTime(timeGap, web3);
+            let res2 = await applyDelayed({res}, operatorA, gatekeeper);
+            let bypassForTarget = await gatekeeper.bypassPoliciesByTarget(erc20.address);
+            assert.equal(res2.logs[0].event, "BypassByTargetAdded");
+            assert.equal(res2.logs[0].args.target, erc20.address);
+            assert.equal(res2.logs[0].args.bypass, allowAll.address);
+            assert.equal(bypassForTarget, allowAll.address);
+        });
+
+        it("should add a bypass module by method after delay", async function () {
+            let actions = [ChangeType.ADD_BYPASS_BY_METHOD];
+            let stateId = await gatekeeper.stateNonce();
+            let method = erc20.contract.methods.approve(operatorA.address, 0).encodeABI().substr(0, 10);
+            let methods = [method];
+            let res = await gatekeeper.changeConfiguration(
+                operatorA.permLevel, actions, methods, [module.address], stateId);
+            await utils.increaseTime(timeGap, web3);
+            let res2 = await applyDelayed({res}, operatorA, gatekeeper);
+            let bypassForMethod = await gatekeeper.bypassPoliciesByMethod(method);
+            assert.equal(res2.logs[0].event, "BypassByMethodAdded");
+            assert.equal(res2.logs[0].args.method, method);
+            assert.equal(res2.logs[0].args.bypass, module.address);
+            assert.equal(bypassForMethod, module.address);
+        });
+
+        it("should use default level settings if no module configured", async function () {
+            let calldata = erc20.contract.methods.transfer(whitelistedDestination, 1000000).encodeABI();
+            await expect(
+                gatekeeper.executeBypassCall(operatorA.permLevel, differentErc20.address, 0, calldata)
+            ).to.be.revertedWith("Call cannot be executed immediately");
+            let res = await gatekeeper.scheduleBypassCall(operatorA.permLevel, differentErc20.address, 0, calldata);
+            await utils.increaseTime(timeGap, web3);
+            let res2 = await applyBypass({res}, operatorA, gatekeeper);
+            assert.equal(res2.logs[0].event, "Transfer");
+            assert.equal(res2.logs[1].event, "BypassCallApplied");
+        });
+
+        it("should bypass a call by target first", async function () {
+            let calldata = erc20.contract.methods.increaseAllowance(whitelistedDestination, 1000000).encodeABI();
+            let res = await gatekeeper.executeBypassCall(operatorA.permLevel, targetThatCanDoAll, 0, calldata);
+            assert.equal(res.logs[0].event, "Approval");
+        });
+
+        it("should bypass a call by method if no module-by-target is set", async function () {
+            let calldata = erc20.contract.methods.approve(whitelistedDestination, 1000000).encodeABI();
+            let res = await gatekeeper.executeBypassCall(operatorA.permLevel, differentErc20.address, 0, calldata);
+            assert.equal(res.logs[0].event, "Approval");
+        });
+    });
 
     /* Canceled send, rejected send */
 
@@ -694,7 +792,7 @@ contract('Gatekeeper', async function (accounts) {
                     participant.permLevel,
                     log1.args.sender,
                     log1.args.senderPermsLevel,
-                    log1.args.stateNonce,
+                    log1.args.stateId,
                     log1.args.target,
                     log1.args.value,
                     [],

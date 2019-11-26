@@ -8,7 +8,7 @@ import "tabookey-gasless/contracts/GsnUtils.sol";
 
 import "./PermissionsLevel.sol";
 import "./Utilities.sol";
-import "./BypassPolicy.sol";
+import "./BypassModules/BypassPolicy.sol";
 
 
 contract Gatekeeper is PermissionsLevel, GsnRecipient {
@@ -17,6 +17,8 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
 
     // Nice idea to use mock token address for ETH instead of 'address(0)'
     address constant internal ETH_TOKEN_ADDRESS = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+
+    uint256 constant USE_DEFAULT = uint(- 1);
 
     enum ChangeType {
         ADD_PARTICIPANT, // arg: participant_hash
@@ -46,14 +48,12 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
     event BypassByMethodAdded(bytes4 method, BypassPolicy indexed bypass);
     event BypassByTargetRemoved(address target, BypassPolicy indexed bypass);
     event BypassByMethodRemoved(bytes4 method, BypassPolicy indexed bypass);
-    event BypassCallPending(bytes32 indexed bypassHash, uint256 stateNonce, address sender, uint32 senderPermsLevel, address target, uint256 value, bytes msgdata);
+    event BypassCallPending(bytes32 indexed bypassHash, uint256 stateId, address sender, uint32 senderPermsLevel, address target, uint256 value, bytes msgdata);
     event BypassCallCancelled(bytes32 indexed bypassHash, address sender);
     event BypassCallApplied(bytes32 indexed bypassHash, bool status);
     event BypassCallExecuted(bool status);
     event AcceleratedCAllSet(bool status);
     event AddOperatorNowSet(bool status);
-
-    DefaultBypassPolicy defaultBypassPolicy = new DefaultBypassPolicy();
 
     struct PendingChange {
         uint256 dueTime;
@@ -403,6 +403,7 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         PendingChange memory pendingChange = pendingChanges[transactionHash];
         require(pendingChange.dueTime != 0, "apply called for non existent pending change");
         require(now >= pendingChange.dueTime, "apply called before due time");
+        // TODO: also, should probably check that all approvers are still participants
         require(pendingChange.approvers.length >= requiredApprovalsPerLevel[extractLevel(schedulerPermsLevel)], "Pending approvals");
         delete pendingChanges[transactionHash];
         for (uint256 i = 0; i < actions.length; i++) {
@@ -427,10 +428,10 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
             unfreeze(sender, senderPermsLevel);
         }
         else if (action == ChangeType.ADD_BYPASS_BY_TARGET) {
-            addBypassByTarget(sender, senderPermsLevel, address(uint256(arg1)), BypassPolicy(uint256(arg2)));
+            addBypassByTarget(sender, senderPermsLevel, address(uint256(arg1) >> 96), BypassPolicy(uint256(arg2) >> 96));
         }
         else if (action == ChangeType.ADD_BYPASS_BY_METHOD) {
-            addBypassByMethod(sender, senderPermsLevel, bytes4(arg1), BypassPolicy(uint256(arg2)));
+            addBypassByMethod(sender, senderPermsLevel, bytes4(arg1), BypassPolicy(uint256(arg2) >> 96));
         }
         else if (action == ChangeType.SET_ACCELERATED_CALLS) {
             setAcceleratedCalls(sender, senderPermsLevel, uint256(arg1) != 0);
@@ -508,7 +509,7 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
             bypass = bypassPoliciesByMethod[encodedFunction.readBytes4(0)];
         }
         if (address(bypass) == address(0)) {
-            bypass = defaultBypassPolicy;
+            return (USE_DEFAULT, USE_DEFAULT);
         }
         return bypass.getBypassPolicy(target, value, encodedFunction);
     }
@@ -520,7 +521,7 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
 
         (uint256 delay, uint256 requiredConfirmations) = getBypassPolicy(target, value, encodedFunction);
         require(allowAcceleratedCalls || delay >= delays[extractLevel(senderPermsLevel)], "Accelerated calls blocked - delay too short");
-//        require(requiredConfirmations != uint256(- 1), "Call blocked by policy");
+        //        require(requiredConfirmations != uint256(- 1), "Call blocked by policy");
         // if delay == -1, default to level-configured delay
         if (delay == uint256(- 1)) {
             delay = delays[extractLevel(senderPermsLevel)];
@@ -584,7 +585,7 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         require(allowAcceleratedCalls, "Accelerated calls blocked");
 
         (uint256 delay, uint256 requiredConfirmations) = getBypassPolicy(target, value, encodedFunction);
-//        require(requiredConfirmations != uint256(- 1), "Call blocked by policy");
+        //        require(requiredConfirmations != uint256(- 1), "Call blocked by policy");
         require(delay == 0, "Call cannot be executed immediately.");
         bool success = _execute(target, value, encodedFunction);
         emit BypassCallExecuted(success);

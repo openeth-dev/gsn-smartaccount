@@ -3,12 +3,15 @@ pragma solidity ^0.5.10;
 import "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
 import "tabookey-gasless/contracts/GsnUtils.sol";
 
-import "../BypassPolicy.sol";
+import "./BypassPolicy.sol";
 
 
 contract WhitelistBypassPolicy is BypassPolicy {
 
     using LibBytes for bytes;
+
+    uint256 constant WHITELIST = 0;
+    uint256 constant USE_DEFAULT = uint(-1);
 
     event WhitelistChanged(address indexed destination, bool isWhitelisted);
 
