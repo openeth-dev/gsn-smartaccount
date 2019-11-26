@@ -4,7 +4,6 @@
   "version": "1.0.0",
   "scripts": {
     "test": "npx truffle test | sed -e 's/^,//;' ",
-    "test_gsn": "npx truffle test test/test_vault_bootstrapping.js | sed -e 's/^,//;' ",
     "ci-unlimited": "npx run-with-testrpc -p 8544 -a 15 -l 80000000 --allowUnlimitedContractSize 'npx truffle --network npmtest test'",
     "ci": "npx run-with-testrpc -p 8544 -a 15 -l 80000000 --allowUnlimitedContractSize 'npx truffle --network npmtest test'",
     "compile": "npx truffle compile|sed -e 's/^,//;' ",
