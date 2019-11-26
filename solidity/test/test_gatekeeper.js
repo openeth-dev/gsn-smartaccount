@@ -883,6 +883,17 @@ contract('Gatekeeper', async function (accounts) {
             assert.equal(log.event, "GatekeeperInitialized");
         });
 
+        it("should not approve non-exsiting change", async function () {
+            let stateId = await failCloseGK.stateNonce();
+            let changeType1 = ChangeType.ADD_PARTICIPANT;
+            let changeArg1 = utils.participantHash(adminB1.address, adminB1.permLevel);
+
+            await expect(
+                failCloseGK.approveConfig(watchdogA.permLevel, [changeType1], [changeArg1], [changeArg1], stateId, operatorA.address, operatorA.permLevel, zeroAddress, 0, {from:watchdogA.address})
+            ).to.be.revertedWith("approve called for non existent pending change");
+
+        });
+
         it("should schedule and approve operation that requires one approval", async function () {
             let stateId = await failCloseGK.stateNonce();
             let changeType1 = ChangeType.ADD_PARTICIPANT;
