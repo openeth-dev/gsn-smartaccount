@@ -53,7 +53,7 @@ contract("Vault Bootstrapping", async function (accounts) {
         let recipient = gsnForwarder.address;
         let transactionFee = 1;
         let gasPrice = 1;
-        let gasLimit = 5253380;
+        let gasLimit = 6e6;
         let hash = GsnUtils.getTransactionHash(
             from, recipient, encodedFunctionCall, transactionFee,
             gasPrice, gasLimit, nonce, relayHub.address, relay);

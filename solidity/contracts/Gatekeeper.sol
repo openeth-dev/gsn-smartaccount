@@ -195,10 +195,11 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         stateNonce++;
     }
 
-    function addOperatorNow(uint32 senderPermsLevel, address newOperatorAddress) public {
+    function addOperatorNow(uint32 senderPermsLevel, address newOperatorAddress, uint256 targetStateNonce) public {
         address sender = getSender();
         requirePermissions(sender, canAddOperatorNow, senderPermsLevel);
         requireNotFrozen(senderPermsLevel);
+        requireCorrectState(targetStateNonce);
         require(allowAddOperatorNow, "Call blocked");
         uint8[] memory actions = new uint8[](1);
         bytes32[] memory args = new bytes32[](1);
@@ -520,16 +521,17 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         return bypass.getBypassPolicy(target, value, encodedFunction);
     }
 
-    function scheduleBypassCall(uint32 senderPermsLevel, address target, uint256 value, bytes memory encodedFunction) public {
+    function scheduleBypassCall(uint32 senderPermsLevel, address target, uint256 value, bytes memory encodedFunction, uint256 targetStateNonce) public {
         address sender = getSender();
         requirePermissions(sender, canExecuteBypassCall, senderPermsLevel);
         requireNotFrozen(senderPermsLevel);
+        requireCorrectState(targetStateNonce);
 
         (uint256 delay, uint256 requiredConfirmations) = getBypassPolicy(target, value, encodedFunction);
         require(allowAcceleratedCalls || delay >= delays[extractLevel(senderPermsLevel)], "Accelerated calls blocked - delay too short");
         //        require(requiredConfirmations != uint256(- 1), "Call blocked by policy");
         // if delay == -1, default to level-configured delay
-        if (delay == uint256(- 1)) {
+        if (delay == uint256(-1)) {
             delay = delays[extractLevel(senderPermsLevel)];
         }
         bytes32 bypassCallHash = Utilities.bypassCallHash(stateNonce, sender, senderPermsLevel, target, value, encodedFunction);
@@ -537,6 +539,34 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         emit BypassCallPending(bypassCallHash, stateNonce, sender, senderPermsLevel, target, value, encodedFunction);
 
         stateNonce++;
+    }
+
+    function approveBypassCall(
+        uint32 senderPermsLevel,
+        address scheduler,
+        uint32 schedulerPermsLevel,
+        uint256 scheduledStateNonce,
+        address target,
+        uint256 value,
+        bytes memory encodedFunction)
+    public {
+        address sender = getSender();
+        requireParticipant(sender, senderPermsLevel);
+        requireNotFrozen(senderPermsLevel);
+        requireNotFrozen(schedulerPermsLevel);
+
+        bytes32 bypassCallHash = Utilities.bypassCallHash(scheduledStateNonce, scheduler, schedulerPermsLevel, target, value, encodedFunction);
+        PendingChange storage pendingBypassCall = pendingBypassCalls[bypassCallHash];
+        require(pendingBypassCall.dueTime != 0, "approve called for non existent pending bypass call");
+        require(requiredApprovalsPerLevel[extractLevel(schedulerPermsLevel)] > 0, "Level doesn't support approvals");
+        require(!hasApproved(Utilities.participantHash(sender, senderPermsLevel), pendingBypassCall.approvers), "Cannot approve twice");
+        pendingBypassCall.approvers.push(Utilities.participantHash(sender, senderPermsLevel));
+
+        if (pendingBypassCall.approvers.length >= requiredApprovalsPerLevel[extractLevel(schedulerPermsLevel)]) {
+            applyBypassCall(senderPermsLevel, scheduler, schedulerPermsLevel, scheduledStateNonce, target, value, encodedFunction);
+        }else {
+            stateNonce++;
+        }
     }
 
     function applyBypassCall(
@@ -551,11 +581,13 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         address sender = getSender();
         requireParticipant(sender, senderPermsLevel);
         requireNotFrozen(senderPermsLevel);
+        requireNotFrozen(schedulerPermsLevel);
 
         bytes32 bypassCallHash = Utilities.bypassCallHash(scheduledStateNonce, scheduler, schedulerPermsLevel, target, value, encodedFunction);
         PendingChange memory pendingBypassCall = pendingBypassCalls[bypassCallHash];
         require(pendingBypassCall.dueTime != 0, "apply called for non existent pending bypass call");
         require(now >= pendingBypassCall.dueTime, "apply called before due time");
+        require(pendingBypassCall.approvers.length >= requiredApprovalsPerLevel[extractLevel(schedulerPermsLevel)], "Pending approvals");
         delete pendingBypassCalls[bypassCallHash];
         bool success = _execute(target, value, encodedFunction);
         emit BypassCallApplied(bypassCallHash, success);
@@ -591,8 +623,8 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         require(allowAcceleratedCalls, "Accelerated calls blocked");
 
         (uint256 delay, uint256 requiredConfirmations) = getBypassPolicy(target, value, encodedFunction);
-        //        require(requiredConfirmations != uint256(- 1), "Call blocked by policy");
-        require(delay == 0, "Call cannot be executed immediately.");
+//        require(requiredConfirmations != uint256(- 1), "Call blocked by policy");
+        require(delay == 0 && requiredConfirmations == 0, "Call cannot be executed immediately");
         bool success = _execute(target, value, encodedFunction);
         emit BypassCallExecuted(success);
         stateNonce++;
