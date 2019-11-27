@@ -5,6 +5,8 @@ const Web3 = require('web3');
 /* truffle artifacts */
 const WhitelistBypassPolicy = artifacts.require("WhitelistBypassPolicy");
 const AllowAllPolicy = artifacts.require("AllowAllPolicy");
+const TestContract = artifacts.require("TestContract");
+const TestPolicy = artifacts.require("TestPolicy");
 const Gatekeeper = artifacts.require("Gatekeeper");
 const Utilities = artifacts.require("Utilities");
 const DAI = artifacts.require("DAI");
@@ -162,8 +164,11 @@ contract('Gatekeeper', async function (accounts) {
         Object.keys(DAI.events).forEach(function (topic) {
             Gatekeeper.network.events[topic] = DAI.events[topic];
         });
+        Object.keys(TestContract.events).forEach(function (topic) {
+            Gatekeeper.network.events[topic] = TestContract.events[topic];
+        });
 
-        gatekeeper = await Gatekeeper.new(zeroAddress, zeroAddress, accounts[0], {gas:8e6});
+        gatekeeper = await Gatekeeper.new(zeroAddress, zeroAddress, accounts[0], {gas: 8e6});
         utilities = await Utilities.deployed();
         erc20 = await DAI.new();
         web3 = new Web3(gatekeeper.contract.currentProvider);
@@ -345,7 +350,7 @@ contract('Gatekeeper', async function (accounts) {
         //         });
         // });
 
-        it("should disable accelerated calls", async function() {
+        it("should disable accelerated calls", async function () {
             await expect(
                 gatekeeper.executeBypassCall(operatorA.permLevel, destinationAddress, amount, [])
             ).to.be.revertedWith("Call cannot be executed immediately")
@@ -353,7 +358,7 @@ contract('Gatekeeper', async function (accounts) {
             let stateId = await gatekeeper.stateNonce();
             let actions = [ChangeType.SET_ACCELERATED_CALLS];
             // bool to bytes32 basically...
-            let args = [Buffer.from("0".repeat(64),"hex")];
+            let args = [Buffer.from("0".repeat(64), "hex")];
             let res = await gatekeeper.changeConfiguration(operatorA.permLevel, actions, args, args, stateId, {from: operatorA.address});
             assert.equal(res.logs[0].event, "ConfigPending");
             await expect(
@@ -364,20 +369,19 @@ contract('Gatekeeper', async function (accounts) {
             assert.equal(false, await gatekeeper.allowAcceleratedCalls());
         });
 
-        it("should revert accelerated calls when disabled", async function() {
+        it("should revert accelerated calls when disabled", async function () {
             await expect(
                 gatekeeper.executeBypassCall(operatorA.permLevel, destinationAddress, amount, [])
             ).to.be.revertedWith("Accelerated calls blocked")
         });
 
 
-
-        it("should re-enable accelerated calls", async function() {
+        it("should re-enable accelerated calls", async function () {
             assert.equal(false, await gatekeeper.allowAcceleratedCalls());
             let stateId = await gatekeeper.stateNonce();
             let actions = [ChangeType.SET_ACCELERATED_CALLS];
             // bool to bytes32 basically...
-            let args = [Buffer.from("1".repeat(64),"hex")];
+            let args = [Buffer.from("1".repeat(64), "hex")];
             let res = await gatekeeper.changeConfiguration(operatorA.permLevel, actions, args, args, stateId, {from: operatorA.address});
             assert.equal(res.logs[0].event, "ConfigPending");
             await expect(
@@ -509,29 +513,35 @@ contract('Gatekeeper', async function (accounts) {
         });
     });
 
+    /**
+     * If running this 'describe' only, do not forget to initialize and fund the gatekeeper
+     */
     describe("Bypass Modules", async function () {
 
         let module;
         let allowAll;
-        let whitelistedDestination;
-        let targetThatCanDoAll;
+        let testPolicy;
+        let testContract;
         let differentErc20;
+        let targetThatCanDoAll;
+        let whitelistedDestination;
 
         before(async function () {
             whitelistedDestination = adminB2.address;
             module = await WhitelistBypassPolicy.new(gatekeeper.address, [whitelistedDestination]);
             allowAll = await AllowAllPolicy.new();
+            testPolicy = await TestPolicy.new();
+            testContract = await TestContract.new();
             differentErc20 = await DAI.new();
             targetThatCanDoAll = erc20.address;
             await differentErc20.transfer(gatekeeper.address, 1000000);
         });
 
         it("should add a bypass module by target after delay", async function () {
-            let actions = [ChangeType.ADD_BYPASS_BY_TARGET];
+            let actions = [ChangeType.ADD_BYPASS_BY_TARGET, ChangeType.ADD_BYPASS_BY_TARGET];
             let stateId = await gatekeeper.stateNonce();
             let res = await gatekeeper.changeConfiguration(
-                operatorA.permLevel, actions, [targetThatCanDoAll], [allowAll.address], stateId);
-                // operatorA.permLevel, actions, [left_padded_target_address], [left_padded_module_address], stateId);
+                operatorA.permLevel, actions, [targetThatCanDoAll, testContract.address], [allowAll.address, testPolicy.address], stateId);
             await utils.increaseTime(timeGap, web3);
             let res2 = await applyDelayed({res}, operatorA, gatekeeper);
             let bypassForTarget = await gatekeeper.bypassPoliciesByTarget(erc20.address);
@@ -580,6 +590,39 @@ contract('Gatekeeper', async function (accounts) {
             let calldata = erc20.contract.methods.approve(whitelistedDestination, 1000000).encodeABI();
             let res = await gatekeeper.executeBypassCall(operatorA.permLevel, differentErc20.address, 0, calldata);
             assert.equal(res.logs[0].event, "Approval");
+        });
+
+        it("should apply call once approval is given if the policy allows this", async function () {
+            let stateId = await gatekeeper.stateNonce();
+            await gatekeeper.scheduleBypassCall(operatorA.permLevel, testContract.address, 7, [], stateId);
+            await expect(
+                gatekeeper.applyBypassCall(operatorA.permLevel, operatorA.address, operatorA.permLevel, stateId, testContract.address, 7, [])
+            ).to.be.revertedWith("Pending approvals");
+            await gatekeeper.approveBypassCall(
+                adminA.permLevel, operatorA.address, operatorA.permLevel, stateId, testContract.address, 7, [],
+                {
+                    from: adminA.address
+                }
+            );
+            let res = await gatekeeper.applyBypassCall(operatorA.permLevel, operatorA.address, operatorA.permLevel, stateId, testContract.address, 7, []);
+            assert.equal(res.logs[0].event, "DoNotWaitForDelay");
+        });
+
+        it("should apply call only after delay even if approval is given", async function () {
+            let stateId = await gatekeeper.stateNonce();
+            await gatekeeper.scheduleBypassCall(operatorA.permLevel, testContract.address, 6, [], stateId);
+            await gatekeeper.approveBypassCall(
+                adminA.permLevel, operatorA.address, operatorA.permLevel, stateId, testContract.address, 6, [],
+                {
+                    from: adminA.address
+                }
+            );
+            await expect(
+                gatekeeper.applyBypassCall(operatorA.permLevel, operatorA.address, operatorA.permLevel, stateId, testContract.address, 6, [])
+            ).to.be.revertedWith("apply called before due time");
+            await utils.increaseTime(timeGap, web3);
+            let res = await gatekeeper.applyBypassCall(operatorA.permLevel, operatorA.address, operatorA.permLevel, stateId, testContract.address, 6, []);
+            assert.equal(res.logs[0].event, "WaitForDelay");
         });
     });
 
@@ -867,12 +910,12 @@ contract('Gatekeeper', async function (accounts) {
 
         before(async function () {
 
-            failCloseGK = await Gatekeeper.new(zeroAddress, zeroAddress, accounts[0], {gas:8e6});
+            failCloseGK = await Gatekeeper.new(zeroAddress, zeroAddress, accounts[0], {gas: 8e6});
         });
 
         it("should initialize gk with failclose levels", async function () {
             initialDelays = Array.from({length: 10}, (x, i) => (i + 1) * dayInSec);
-            requiredApprovalsPerLevel = [1,1,1,2,3,2,5,6,7,8];
+            requiredApprovalsPerLevel = [1, 1, 1, 2, 3, 2, 5, 6, 7, 8];
             let initialParticipants = [
                 utils.bufferToHex(utils.participantHash(operatorA.address, operatorA.permLevel)),
                 utils.bufferToHex(utils.participantHash(operatorZ.address, operatorZ.permLevel)),
@@ -895,7 +938,7 @@ contract('Gatekeeper', async function (accounts) {
             let changeArg1 = utils.participantHash(adminB1.address, adminB1.permLevel);
 
             await expect(
-                failCloseGK.approveConfig(watchdogA.permLevel, [changeType1], [changeArg1], [changeArg1], stateId, operatorA.address, operatorA.permLevel, zeroAddress, 0, {from:watchdogA.address})
+                failCloseGK.approveConfig(watchdogA.permLevel, [changeType1], [changeArg1], [changeArg1], stateId, operatorA.address, operatorA.permLevel, zeroAddress, 0, {from: watchdogA.address})
             ).to.be.revertedWith("approve called for non existent pending change");
 
         });
@@ -920,7 +963,7 @@ contract('Gatekeeper', async function (accounts) {
                 failCloseGK.approveConfig(operatorA.permLevel, [changeType1], [changeArg1], [changeArg1], stateId, operatorA.address, operatorA.permLevel, zeroAddress, 0)
             ).to.be.revertedWith(`permissions missing: ${Permissions.CanApprove}`);
 
-            await failCloseGK.approveConfig(watchdogA.permLevel, [changeType1], [changeArg1], [changeArg1], stateId, operatorA.address, operatorA.permLevel, zeroAddress, 0, {from:watchdogA.address})
+            await failCloseGK.approveConfig(watchdogA.permLevel, [changeType1], [changeArg1], [changeArg1], stateId, operatorA.address, operatorA.permLevel, zeroAddress, 0, {from: watchdogA.address})
             await failCloseGK.applyConfig(operatorA.permLevel, [changeType1], [changeArg1], [changeArg1], stateId, operatorA.address, operatorA.permLevel, zeroAddress, 0)
             await expect(
                 failCloseGK.applyConfig(operatorA.permLevel, [changeType1], [changeArg1], [changeArg1], stateId, operatorA.address, operatorA.permLevel, zeroAddress, 0)
@@ -932,7 +975,7 @@ contract('Gatekeeper', async function (accounts) {
             let stateId = await failCloseGK.stateNonce();
             let changeType1 = ChangeType.ADD_PARTICIPANT;
             let changeArg1 = utils.participantHash(adminB1.address, adminB1.permLevel);
-            res = await failCloseGK.changeConfiguration(operatorZ.permLevel, [changeType1], [changeArg1], [changeArg1], stateId, {from:operatorZ.address});
+            res = await failCloseGK.changeConfiguration(operatorZ.permLevel, [changeType1], [changeArg1], [changeArg1], stateId, {from: operatorZ.address});
 
             let txhash = await utilities.transactionHashPublic([changeType1], [changeArg1], [changeArg1], stateId, operatorZ.address, operatorZ.permLevel, zeroAddress, 0);
 
@@ -940,7 +983,7 @@ contract('Gatekeeper', async function (accounts) {
                 failCloseGK.applyConfig(operatorA.permLevel, [changeType1], [changeArg1], [changeArg1], stateId, operatorZ.address, operatorZ.permLevel, zeroAddress, 0)
             ).to.be.revertedWith("called before due time");
 
-            await utils.increaseTime(5*timeGap, web3);
+            await utils.increaseTime(5 * timeGap, web3);
 
             await expect(
                 failCloseGK.applyConfig(operatorA.permLevel, [changeType1], [changeArg1], [changeArg1], stateId, operatorZ.address, operatorZ.permLevel, zeroAddress, 0)
@@ -951,13 +994,13 @@ contract('Gatekeeper', async function (accounts) {
             ).to.be.revertedWith(`permissions missing: ${Permissions.CanApprove}`);
 
             await expect(
-                failCloseGK.approveConfig(watchdogA.permLevel, [changeType1], [changeArg1], [changeArg1], stateId, operatorZ.address, operatorZ.permLevel, zeroAddress, 0, {from:watchdogA.address})
+                failCloseGK.approveConfig(watchdogA.permLevel, [changeType1], [changeArg1], [changeArg1], stateId, operatorZ.address, operatorZ.permLevel, zeroAddress, 0, {from: watchdogA.address})
             ).to.be.revertedWith(`cannot approve operation from higher level`);
 
-            await failCloseGK.approveConfig(watchdogZ.permLevel, [changeType1], [changeArg1], [changeArg1], stateId, operatorZ.address, operatorZ.permLevel, zeroAddress, 0, {from:watchdogZ.address})
+            await failCloseGK.approveConfig(watchdogZ.permLevel, [changeType1], [changeArg1], [changeArg1], stateId, operatorZ.address, operatorZ.permLevel, zeroAddress, 0, {from: watchdogZ.address})
             assert.equal((await failCloseGK.getPendingChange(txhash)).approvers.length, 1)
             await expect(
-                failCloseGK.approveConfig(watchdogZ.permLevel, [changeType1], [changeArg1], [changeArg1], stateId, operatorZ.address, operatorZ.permLevel, zeroAddress, 0, {from:watchdogZ.address})
+                failCloseGK.approveConfig(watchdogZ.permLevel, [changeType1], [changeArg1], [changeArg1], stateId, operatorZ.address, operatorZ.permLevel, zeroAddress, 0, {from: watchdogZ.address})
             ).to.be.revertedWith(`Cannot approve twice`);
 
             await expect(
