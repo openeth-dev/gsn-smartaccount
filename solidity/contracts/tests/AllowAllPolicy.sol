@@ -12,6 +12,7 @@ contract AllowAllPolicy is BypassPolicy {
         uint256 value,
         bytes memory encodedFunction)
     public view returns (uint256, uint256, bool) {
+		(target,value,encodedFunction);
         return (WHITELIST, WHITELIST, false);
     }
 }

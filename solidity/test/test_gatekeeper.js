@@ -169,7 +169,7 @@ contract('Gatekeeper', async function (accounts) {
             Gatekeeper.network.events[topic] = TestContract.events[topic];
         });
 
-        gatekeeper = await Gatekeeper.new(zeroAddress, zeroAddress, accounts[0], {gas: 8e6});
+        gatekeeper = await Gatekeeper.new(zeroAddress, accounts[0], {gas: 8e6});
         utilities = await Utilities.deployed();
         erc20 = await DAI.new();
         web3 = new Web3(gatekeeper.contract.currentProvider);

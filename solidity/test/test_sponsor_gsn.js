@@ -1,7 +1,9 @@
 const Chai = require('chai');
 const Web3 = require('web3');
 
+const RelayHub = artifacts.require("./RelayHub.sol");
 const Gatekeeper = artifacts.require("./Gatekeeper.sol");
+const MockGsnForwarder = artifacts.require('./MockGsnForwarder');
 const ChangeType = require('./etc/ChangeType');
 
 const Participant = require('../src/js/Participant');
@@ -38,8 +40,10 @@ contract('GSN and Sponsor integration', async function (accounts) {
     }
 
     before(async function () {
-        gsnForwarder = accounts[14];
-        gatekeeper = await Gatekeeper.new(gsnForwarder, relayHub, accounts[0], {gas:8e6});
+        // gsnForwarder = accounts[14];
+        hub = await RelayHub.new();
+        gsnForwarder = await MockGsnForwarder.new(hub.address)
+        gatekeeper = await Gatekeeper.new(gsnForwarder.address, accounts[0], {gas:8e6});
         web3 = new Web3(gatekeeper.contract.currentProvider);
         ownerPermissions = utils.bufferToHex(await gatekeeper.ownerPermissions());
         operatorA = new Participant(accounts[0], ownerPermissions, 1, "operatorA");
@@ -83,41 +87,24 @@ contract('GSN and Sponsor integration', async function (accounts) {
 
     it("should execute a schedule operation when called via the GSN", async function () {
         let calldata = gatekeeper.contract.methods.changeConfiguration(operatorA.permLevel, actions, args, args, await nonce()).encodeABI();
-        calldata += utils.removeHexPrefix(operatorA.address);
 
-        let res = await web3.eth.sendTransaction({
-            from: gsnForwarder,
-            to: gatekeeper.address,
-            value: 0,
-            data: calldata,
-            gas: 5e6,
-        });
-        let decodedLogs = Gatekeeper.decodeLogs(res.logs);
+        let res = await gsnForwarder.mockCallRecipient(operatorA.address, gatekeeper.address, calldata, {gas: 5e6});
+        let decodedLogs = Gatekeeper.decodeLogs(res.receipt.rawLogs);
         assert.equal(decodedLogs[0].event, "ConfigPending");
     });
 
     it("should revert a relayed call if it doesn't come from a trusted GSN Forwarder", async function () {
         let calldata = gatekeeper.contract.methods.changeConfiguration(operatorA.permLevel, actions, args, args, await nonce()).encodeABI();
-        calldata += utils.removeHexPrefix(operatorA.address);
-        await expect(web3.eth.sendTransaction({
-                from: nonParticipant.address,
-                to: gatekeeper.address,
-                value: 0,
-                data: calldata
-            })
+
+        await expect(
+            gsnForwarder.mockCallRecipient(nonParticipant.address, gatekeeper.address, calldata)
         ).to.be.revertedWith("not participant")
     });
 
     it("should revert a relayed call if it doesn't come from a valid participant", async function () {
         let calldata = gatekeeper.contract.methods.changeConfiguration(operatorA.permLevel, actions, args, args, await nonce()).encodeABI();
-        calldata += utils.removeHexPrefix(nonParticipant.address);
         await expect(
-            web3.eth.sendTransaction({
-                from: gsnForwarder,
-                to: gatekeeper.address,
-                value: 0,
-                data: calldata
-            })
+            gsnForwarder.mockCallRecipient( nonParticipant.address, gatekeeper.address, calldata )
         ).to.be.revertedWith("not participant");
     });
 

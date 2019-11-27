@@ -94,8 +94,8 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
 
     address public creator;
 
-    constructor(address _forwarder, address _hub, address _creator) public {
-        setGsnForwarder(_forwarder, _hub);
+    constructor(address _forwarder, address _creator) public {
+        setGsnForwarder(_forwarder);
         deployedBlock = block.number;
         creator = _creator;
     }
