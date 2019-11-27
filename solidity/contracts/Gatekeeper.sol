@@ -549,7 +549,6 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         bytes32 bypassCallHash = Utilities.bypassCallHash(scheduledStateNonce, scheduler, schedulerPermsLevel, target, value, encodedFunction);
         PendingChange storage pendingBypassCall = pendingBypassCalls[bypassCallHash];
         require(pendingBypassCall.dueTime != 0, "approve called for non existent pending bypass call");
-        require(requiredApprovalsPerLevel[extractLevel(schedulerPermsLevel)] > 0, "Level doesn't support approvals");
         require(!hasApproved(Utilities.participantHash(sender, senderPermsLevel), pendingBypassCall.approvers), "Cannot approve twice");
         pendingBypassCall.approvers.push(Utilities.participantHash(sender, senderPermsLevel));
         stateNonce++;
