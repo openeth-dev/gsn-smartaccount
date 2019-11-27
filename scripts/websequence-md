@@ -1,0 +1,125 @@
+#!/usr/bin/perl
+#help: websequence-md - update WebSequence image in a markdown (md) file
+
+$viewoutfile = "/tmp/tmp.md";
+$pidfile = "/tmp/tmp.md.pid";
+
+$URL="http://www.websequencediagrams.com/cgi-bin/cdraw?s=rose&m=";
+
+sub usage() {
+die "
+Update websequencediagram in markdown (md) files.
+usage:
+	$0 [options] {file.md}
+	-n - dry run. 
+	-v - view mode. don't update file in-place, but update $viewoutfile
+	     the file is update every second
+
+- will search for diagram in the file with that title - surrounded with ```
+- update the 'm=' portion of the URL
+Add this to your MD file:
+
+	![Diagram Title](http://www.websequencediagrams.com/cgi-bin/cdraw?s=rose&m=)
+
+	```
+	title Diagram Title
+	a->b: hello
+	b-->a: world
+	```
+
+";
+
+}
+
+while ( $ARGV[0] =~ /^-./ ) {
+	$opt = shift;
+	if ( $opt eq "-v" ) {
+	  $viewmode=1;
+	} elsif ( $opt eq "-n" ) {
+	  $dry=1;
+	} elsif ( $opt eq "-d" ) {
+	  $debug=1;
+	} else {
+	  warn "unknown option: $opt\n"; usage();
+	}
+}
+
+usage() unless $ARGV[0];
+
+if ( $viewmode && $#ARGV >0 ) {
+	die "fatal: -v can work with only one file name\n";
+}
+
+if ( $viewmode && -r $pidfile ) {
+	$pid = `cat $pidfile`;
+	print "killing old viewmode instance: $pid" if $debug;
+	system "kill -9 $pid";
+	unlink $pidfile;
+}
+
+while (1) {
+	processFiles();
+	last unless $viewmode;
+	system "echo $$ > $pidfile";
+	sleep(1);
+}
+
+
+sub processFiles {
+
+    foreach $fname ( @ARGV ) {
+	if ( $viewmode ) {
+		warn "Auto-updating $viewoutfile for changes in $fname\n" unless $quiet;
+		$quiet=1;
+	}
+
+	$out = $viewmode ? $viewoutfile : $fname;
+	undef $/;
+	open( FILE, $fname)|| die "unable to open $fname\n";
+	$file=<FILE>;
+	close FILE;
+	$save=$file;
+	$file=~s!\[([^\)\n]*)\]\s*\((http://(?:www.)?websequencediagrams.com.*?)\)!process($1,$2)!ge;
+	if ( -r $out && $save eq $file ) {
+		warn qq{not modifed (no "www.websequencediagrams.com/m=" links) in $out\n} unless $quiet;
+		next;
+	}
+	if ( $dry ) {
+		warn "dry run: not updating $out\n";
+		next;
+	}
+	if ( $out eq "-" ) {
+		print $file;
+	} else {
+		open( FILE, ">$out.new") || die "unable to write to $out.new\n";
+		print FILE $file;
+		close FILE;
+		rename $out, "$out~";
+		rename "$out.new", $out;
+		warn "Updated $count links in $out (old file in $out.old)\n" unless $quiet;
+	}
+    }
+
+}
+
+sub process {
+	$count++;
+	local ( $title, $url ) = @_;
+	($body)=$file=~/\`\s*(title\s*$title\s[^`]*?)\s*\`/;
+	#($body) = $file =~ m/(title)/;
+	die "no sequence with title \"$title\"\n" unless $body;
+	warn "replaced diagram \"$title\"\n" unless $quiet;
+	#($c) = $body=~ m/\`\s*([^`]*?)\s*\`/;
+	$c=$body;
+	$c=~s/^[\s`]*//;
+	$c=~s/[\s`]*$//;
+	die "no content in $body\n" unless $c;
+	$c=~s/([^a-zA-Z0-9\-\/])/sprintf( "%%%02x",ord($1))/ge;
+	$c=~s/%20/\+/g;
+	# $url=~s/m=.*/m=$c/;
+	$url = $URL.$c;
+	warn "title=$title url=$url\n" if $debug;
+
+	return "[$title]($url)";
+}
+
