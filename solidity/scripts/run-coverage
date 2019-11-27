@@ -1,0 +1,24 @@
+#!/bin/bash -e
+
+report=coverage/report.txt
+tests="test/test_gatekeeper.js  test/test_sponsor_gsn.js  test/test_vault_bootstrapping.js  test/test_vault_factory.js  test/test_whitelist_policy.js test/application_tests/test_app.js"
+
+echo "=== Running coverage of tests: $tests"
+
+yarn run clean-coverage 
+MODE=coverage npx truffle --network coverage test $tests
+exitcode=$?
+
+mkdir -p coverage
+istanbul report text --color > $report
+
+#dump report on errors too, but only if there is SOME coverage...
+if grep -q "[.]sol" $report; then
+
+cat $report
+istanbul report html 
+echo to view: open coverage/index.html
+
+fi
+
+exit $exitcode
