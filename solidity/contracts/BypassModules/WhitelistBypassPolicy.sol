@@ -38,7 +38,7 @@ contract WhitelistBypassPolicy is BypassPolicy {
         address target,
         uint256 value,
         bytes memory encodedFunction)
-    public view returns (uint256 /* delay */, uint256 /* requiredConfirmations */) {
+    public view returns (uint256 /* delay */, uint256 /* requiredConfirmations */, bool) {
         if (value > 0) {
             return getPolicyForRecipient(target);
         }
@@ -53,10 +53,10 @@ contract WhitelistBypassPolicy is BypassPolicy {
         revert("method signature is not recognised");
     }
 
-    function getPolicyForRecipient(address recipient) internal view returns (uint256, uint256) {
+    function getPolicyForRecipient(address recipient) internal view returns (uint256, uint256, bool) {
         if (whitelist[recipient])
-            return (WHITELIST, WHITELIST);
+            return (WHITELIST, WHITELIST, false);
         else
-            return (USE_DEFAULT, USE_DEFAULT);
+            return (USE_DEFAULT, USE_DEFAULT, true);
     }
 }

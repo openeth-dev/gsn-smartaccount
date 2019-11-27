@@ -510,13 +510,13 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
 
     //BYPASS SUPPORT
 
-    function getBypassPolicy(address target, uint256 value, bytes memory encodedFunction) public view returns (uint256 delay, uint256 requiredConfirmations) {
+    function getBypassPolicy(address target, uint256 value, bytes memory encodedFunction) public view returns (uint256 delay, uint256 requiredApprovals, bool requireBothDelayAndApprovals) {
         BypassPolicy bypass = bypassPoliciesByTarget[target];
         if (address(bypass) == address(0) && encodedFunction.length > 4) {
             bypass = bypassPoliciesByMethod[encodedFunction.readBytes4(0)];
         }
         if (address(bypass) == address(0)) {
-            return (USE_DEFAULT, USE_DEFAULT);
+            return (USE_DEFAULT, USE_DEFAULT, true);
         }
         return bypass.getBypassPolicy(target, value, encodedFunction);
     }
@@ -527,11 +527,9 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         requireNotFrozen(senderPermsLevel);
         requireCorrectState(targetStateNonce);
 
-        (uint256 delay, uint256 requiredConfirmations) = getBypassPolicy(target, value, encodedFunction);
+        (uint256 delay,,) = getBypassPolicy(target, value, encodedFunction);
         require(allowAcceleratedCalls || delay >= delays[extractLevel(senderPermsLevel)], "Accelerated calls blocked - delay too short");
-        //        require(requiredConfirmations != uint256(- 1), "Call blocked by policy");
-        // if delay == -1, default to level-configured delay
-        if (delay == uint256(-1)) {
+        if (delay == USE_DEFAULT) {
             delay = delays[extractLevel(senderPermsLevel)];
         }
         bytes32 bypassCallHash = Utilities.bypassCallHash(stateNonce, sender, senderPermsLevel, target, value, encodedFunction);
@@ -585,13 +583,16 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
 
         bytes32 bypassCallHash = Utilities.bypassCallHash(scheduledStateNonce, scheduler, schedulerPermsLevel, target, value, encodedFunction);
         PendingChange memory pendingBypassCall = pendingBypassCalls[bypassCallHash];
-        require(pendingBypassCall.dueTime != 0, "apply called for non existent pending bypass call");
-        require(now >= pendingBypassCall.dueTime, "apply called before due time");
-        (uint256 _, uint256 requiredConfirmations) = getBypassPolicy(target, value, encodedFunction);
-        if (requiredConfirmations == USE_DEFAULT) {
-            requiredConfirmations = requiredApprovalsPerLevel[extractLevel(schedulerPermsLevel)];
+        (uint256 delay, uint256 requiredApprovals, bool requireBothDelayAndApprovals) = getBypassPolicy(target, value, encodedFunction);
+        if (delay == USE_DEFAULT && requiredApprovals == USE_DEFAULT) {
+            requireBothDelayAndApprovals = true;
         }
-        require(pendingBypassCall.approvers.length >= requiredConfirmations, "Pending approvals");
+        require(pendingBypassCall.dueTime != 0, "apply called for non existent pending bypass call");
+        require(now >= pendingBypassCall.dueTime || !requireBothDelayAndApprovals, "apply called before due time");
+        if (requiredApprovals == USE_DEFAULT) {
+            requiredApprovals = requiredApprovalsPerLevel[extractLevel(schedulerPermsLevel)];
+        }
+        require(pendingBypassCall.approvers.length >= requiredApprovals, "Pending approvals");
         delete pendingBypassCalls[bypassCallHash];
         bool success = _execute(target, value, encodedFunction);
         emit BypassCallApplied(bypassCallHash, success);
@@ -626,9 +627,9 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         requireNotFrozen(senderPermsLevel);
         require(allowAcceleratedCalls, "Accelerated calls blocked");
 
-        (uint256 delay, uint256 requiredConfirmations) = getBypassPolicy(target, value, encodedFunction);
-//        require(requiredConfirmations != uint256(- 1), "Call blocked by policy");
-        require(delay == 0 && requiredConfirmations == 0, "Call cannot be executed immediately");
+        (uint256 delay, uint256 requiredApprovals,) = getBypassPolicy(target, value, encodedFunction);
+//        require(requiredApprovals != uint256(- 1), "Call blocked by policy");
+        require(delay == 0 && requiredApprovals == 0, "Call cannot be executed immediately");
         bool success = _execute(target, value, encodedFunction);
         emit BypassCallExecuted(success);
         stateNonce++;
