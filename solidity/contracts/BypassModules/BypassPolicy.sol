@@ -10,5 +10,5 @@ interface BypassPolicy {
      *      -1 == use default
      * Revert means block call
      */
-    function getBypassPolicy(address target, uint256 value, bytes calldata msgdata) external view returns (uint256 delay, uint256 requiredConfirmations);
+    function getBypassPolicy(address target, uint256 value, bytes calldata msgdata) external view returns (uint256 delay, uint256 requiredApprovals, bool requireBothDelayAndApprovals);
 }
