@@ -542,7 +542,7 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         bytes memory encodedFunction)
     public {
         address sender = getSender();
-        requireParticipant(sender, senderPermsLevel);
+        requirePermissions(sender, canApprove, senderPermsLevel);
         requireNotFrozen(senderPermsLevel);
         requireNotFrozen(schedulerPermsLevel);
 

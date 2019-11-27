@@ -135,6 +135,7 @@ contract('Gatekeeper', async function (accounts) {
     let destinationAddress = accounts[2];
     let timeGap = 60 * 60 * 24 * 2 + 10;
     let initialDelays;
+    let initialParticipants;
     let requiredApprovalsPerLevel;
     let operatorA;
     let operatorB;
@@ -242,7 +243,7 @@ contract('Gatekeeper', async function (accounts) {
     it("should receive the initial vault configuration", async function () {
         initialDelays = Array.from({length: 10}, (x, i) => (i + 1) * dayInSec);
         requiredApprovalsPerLevel = [0, 0, 1, 2, 3, 4, 5, 6, 7, 8];
-        let initialParticipants = [
+        initialParticipants = [
             utils.bufferToHex(utils.participantHash(operatorA.address, operatorA.permLevel)),
             utils.bufferToHex(utils.participantHash(adminA.address, adminA.permLevel)),
             utils.bufferToHex(utils.participantHash(adminB.address, adminB.permLevel)),
@@ -598,10 +599,19 @@ contract('Gatekeeper', async function (accounts) {
             await expect(
                 gatekeeper.applyBypassCall(operatorA.permLevel, operatorA.address, operatorA.permLevel, stateId, testContract.address, 7, [])
             ).to.be.revertedWith("Pending approvals");
+
+            await expect(
+                gatekeeper.approveBypassCall(
+                    adminA.permLevel, operatorA.address, operatorA.permLevel, stateId, testContract.address, 7, [],
+                    {
+                        from: adminA.address
+                    }
+                )
+            ).to.be.revertedWith(`permissions missing: ${Permissions.CanApprove}`);
             await gatekeeper.approveBypassCall(
-                adminA.permLevel, operatorA.address, operatorA.permLevel, stateId, testContract.address, 7, [],
+                watchdogA.permLevel, operatorA.address, operatorA.permLevel, stateId, testContract.address, 7, [],
                 {
-                    from: adminA.address
+                    from: watchdogA.address
                 }
             );
             let res = await gatekeeper.applyBypassCall(operatorA.permLevel, operatorA.address, operatorA.permLevel, stateId, testContract.address, 7, []);
@@ -611,10 +621,18 @@ contract('Gatekeeper', async function (accounts) {
         it("should apply call only after delay even if approval is given", async function () {
             let stateId = await gatekeeper.stateNonce();
             await gatekeeper.scheduleBypassCall(operatorA.permLevel, testContract.address, 6, [], stateId);
+            await expect(
+                gatekeeper.approveBypassCall(
+                    adminA.permLevel, operatorA.address, operatorA.permLevel, stateId, testContract.address, 6, [],
+                    {
+                        from: adminA.address
+                    }
+                )
+            ).to.be.revertedWith(`permissions missing: ${Permissions.CanApprove}`);
             await gatekeeper.approveBypassCall(
-                adminA.permLevel, operatorA.address, operatorA.permLevel, stateId, testContract.address, 6, [],
+                watchdogA.permLevel, operatorA.address, operatorA.permLevel, stateId, testContract.address, 6, [],
                 {
-                    from: adminA.address
+                    from: watchdogA.address
                 }
             );
             await expect(
@@ -916,16 +934,7 @@ contract('Gatekeeper', async function (accounts) {
         it("should initialize gk with failclose levels", async function () {
             initialDelays = Array.from({length: 10}, (x, i) => (i + 1) * dayInSec);
             requiredApprovalsPerLevel = [1, 1, 1, 2, 3, 2, 5, 6, 7, 8];
-            let initialParticipants = [
-                utils.bufferToHex(utils.participantHash(operatorA.address, operatorA.permLevel)),
-                utils.bufferToHex(utils.participantHash(operatorZ.address, operatorZ.permLevel)),
-                utils.bufferToHex(utils.participantHash(adminA.address, adminA.permLevel)),
-                utils.bufferToHex(utils.participantHash(adminB.address, adminB.permLevel)),
-                utils.bufferToHex(utils.participantHash(watchdogA.address, watchdogA.permLevel)),
-                utils.bufferToHex(utils.participantHash(watchdogZ.address, watchdogZ.permLevel)),
-                utils.bufferToHex(utils.participantHash(adminZ.address, adminZ.permLevel)),
-                utils.bufferToHex(utils.participantHash(adminB2.address, adminB2.permLevel)),
-            ];
+            initialParticipants.push(utils.bufferToHex(utils.participantHash(operatorZ.address, operatorZ.permLevel)));
 
             res = await failCloseGK.initialConfig(initialParticipants, initialDelays, true, true, requiredApprovalsPerLevel, [], [], [], {from: operatorA.address});
             let log = res.logs[0];
