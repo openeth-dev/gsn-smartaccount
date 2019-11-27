@@ -14,8 +14,10 @@
   "author": "Dror Tirosh <dror@tabookey.com>",
   "license": "MIT",
   "dependencies": {
+    "@truffle/contract": "latest",
     "chai": "^4.2.0",
     "chai-as-promised": "^7.1.1",
+    "web3": "1.0.0-beta.37",
     "mocha": "^6.2.2"
   },
   "devDependencies": {
@@ -29,6 +31,8 @@
     "eslint-plugin-standard": "^4.0.1",
     "esm": "^3.2.25",
     "sinon": "^7.5.0",
-    "standard": "^14.3.1"
+    "standard": "^14.3.1",
+    "tabookey-gasless": "0.4.1",
+    "web3-utils": "1.2.1"
   }
 }
