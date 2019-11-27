@@ -8,9 +8,7 @@
     "ci": "npx run-with-testrpc -p 8544 -a 15 -l 80000000 --allowUnlimitedContractSize 'npx truffle --network npmtest test'",
     "compile": "npx truffle compile|sed -e 's/^,//;' ",
     "trace": "MODE=trace npx truffle test --network cov",
-    "coverage": "./scripts/run-coverage",
-    "clean-coverage": "",
-    "coverage-if-changed": "./scripts/run-coverage-if-changed.sh yarn run coverage"
+    "coverage": "rm -rf coverage ; rm -rf .0x-artifacts ; MODE=coverage npx truffle test --network cov; istanbul report text; istanbul report html"
   },
   "devDependencies": {
     "@0x/contracts-utils": "3.1.6",

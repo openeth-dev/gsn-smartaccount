@@ -39,7 +39,3 @@ jobs:
       - run: 
           name: solidity-test
           command: node solidity/extract_abi.js && cd solidity && yarn ci 
-
-      - run: 
-          name: coverage
-          command: cd solidity && yarn run coverage-if-changed
