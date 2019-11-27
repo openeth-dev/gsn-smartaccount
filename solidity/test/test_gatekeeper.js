@@ -920,8 +920,8 @@ contract('Gatekeeper', async function (accounts) {
                 failCloseGK.approveConfig(operatorA.permLevel, [changeType1], [changeArg1], [changeArg1], stateId, operatorA.address, operatorA.permLevel, zeroAddress, 0)
             ).to.be.revertedWith(`permissions missing: ${Permissions.CanApprove}`);
 
-            res = await failCloseGK.approveConfig(watchdogA.permLevel, [changeType1], [changeArg1], [changeArg1], stateId, operatorA.address, operatorA.permLevel, zeroAddress, 0, {from:watchdogA.address})
-
+            await failCloseGK.approveConfig(watchdogA.permLevel, [changeType1], [changeArg1], [changeArg1], stateId, operatorA.address, operatorA.permLevel, zeroAddress, 0, {from:watchdogA.address})
+            await failCloseGK.applyConfig(operatorA.permLevel, [changeType1], [changeArg1], [changeArg1], stateId, operatorA.address, operatorA.permLevel, zeroAddress, 0)
             await expect(
                 failCloseGK.applyConfig(operatorA.permLevel, [changeType1], [changeArg1], [changeArg1], stateId, operatorA.address, operatorA.permLevel, zeroAddress, 0)
             ).to.be.revertedWith("apply called for non existent pending change");
@@ -966,7 +966,7 @@ contract('Gatekeeper', async function (accounts) {
 
             await expect(
                 cancelDelayed({res}, watchdogA, failCloseGK)
-            ).to.be.revertedWith("cannot cancel operation from higher level");
+            ).to.be.revertedWith("cannot cancel, scheduler is of higher level");
             await cancelDelayed({res}, watchdogZ, failCloseGK)
         });
 

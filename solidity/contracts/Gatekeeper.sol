@@ -221,7 +221,6 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         args[0] = Utilities.participantHash(newOperatorAddress, packPermissionLevel(ownerPermissions, 1));
         bytes32 hash = Utilities.transactionHash(actions, args, args, scheduledStateId, scheduler, schedulerPermsLevel, address(0), 0);
         require(pendingChanges[hash].dueTime != 0, "Pending change not found");
-//        if (requiredApprovalsPerLevel[extractLevel((schedulerPermsLevel))] > 0)
         delete pendingChanges[hash];
         participants[args[0]] = true;
         emit ParticipantAdded(args[0]);
@@ -326,8 +325,6 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         requireNotFrozen(senderPermsLevel);
         bytes32 hash = Utilities.transactionHash(actions, args1, args2, scheduledStateId, scheduler, schedulerPermsLevel, booster, boosterPermsLevel);
         require(pendingChanges[hash].dueTime > 0, "cannot cancel, operation does not exist");
-        //TODO add test
-        require(extractLevel(schedulerPermsLevel) <= extractLevel(senderPermsLevel), "cannot cancel operation from higher level");
         // TODO: refactor, make function or whatever
         if (booster != address(0)) {
             require(extractLevel(boosterPermsLevel) <= extractLevel(senderPermsLevel), "cannot cancel, booster is of higher level");
@@ -377,11 +374,7 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         require(!hasApproved(Utilities.participantHash(sender, senderPermsLevel), pendingChange.approvers), "Cannot approve twice");
         //TODO: separate the checks above to different function shared between applyConfig & approveConfig
         pendingChange.approvers.push(Utilities.participantHash(sender, senderPermsLevel));
-        if (pendingChange.approvers.length >= requiredApprovalsPerLevel[extractLevel(schedulerPermsLevel)]) {
-            applyConfig(senderPermsLevel, actions, args1, args2, scheduledStateId, scheduler, schedulerPermsLevel, booster, boosterPermsLevel);
-        } else {
-            stateNonce++;
-        }
+        stateNonce++;
 
     }
 
@@ -559,12 +552,7 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         require(requiredApprovalsPerLevel[extractLevel(schedulerPermsLevel)] > 0, "Level doesn't support approvals");
         require(!hasApproved(Utilities.participantHash(sender, senderPermsLevel), pendingBypassCall.approvers), "Cannot approve twice");
         pendingBypassCall.approvers.push(Utilities.participantHash(sender, senderPermsLevel));
-
-        if (pendingBypassCall.approvers.length >= requiredApprovalsPerLevel[extractLevel(schedulerPermsLevel)]) {
-            applyBypassCall(senderPermsLevel, scheduler, schedulerPermsLevel, scheduledStateNonce, target, value, encodedFunction);
-        }else {
-            stateNonce++;
-        }
+        stateNonce++;
     }
 
     function applyBypassCall(
@@ -628,7 +616,6 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         require(allowAcceleratedCalls, "Accelerated calls blocked");
 
         (uint256 delay, uint256 requiredApprovals,) = getBypassPolicy(target, value, encodedFunction);
-//        require(requiredApprovals != uint256(- 1), "Call blocked by policy");
         require(delay == 0 && requiredApprovals == 0, "Call cannot be executed immediately");
         bool success = _execute(target, value, encodedFunction);
         emit BypassCallExecuted(success);
