@@ -587,7 +587,11 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         PendingChange memory pendingBypassCall = pendingBypassCalls[bypassCallHash];
         require(pendingBypassCall.dueTime != 0, "apply called for non existent pending bypass call");
         require(now >= pendingBypassCall.dueTime, "apply called before due time");
-        require(pendingBypassCall.approvers.length >= requiredApprovalsPerLevel[extractLevel(schedulerPermsLevel)], "Pending approvals");
+        (uint256 _, uint256 requiredConfirmations) = getBypassPolicy(target, value, encodedFunction);
+        if (requiredConfirmations == USE_DEFAULT) {
+            requiredConfirmations = requiredApprovalsPerLevel[extractLevel(schedulerPermsLevel)];
+        }
+        require(pendingBypassCall.approvers.length >= requiredConfirmations, "Pending approvals");
         delete pendingBypassCalls[bypassCallHash];
         bool success = _execute(target, value, encodedFunction);
         emit BypassCallApplied(bypassCallHash, success);
