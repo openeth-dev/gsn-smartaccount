@@ -621,19 +621,6 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         stateNonce++;
     }
 
-    /*** Relay Recipient implementation **/
-
-    function getRecipientBalance() public pure returns (uint256){
-        return 0;
-    }
-
-    function preRelayedCall(bytes calldata) external pure returns (bytes32){
-        return 0;
-    }
-
-    function postRelayedCall(bytes calldata, bool, uint256, bytes32) external {
-    }
-
     /****** Moved over from the Vault contract *******/
 
     event FundsReceived(address sender, uint256 value);
