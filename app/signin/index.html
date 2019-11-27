@@ -1,0 +1,82 @@
+<html>
+<meta name="google-signin-client_id" content="202746986880-u17rbgo95h7ja4fghikietupjknd1bln.apps.googleusercontent.com">
+<body onload="init()">
+<!-- <script src="https://apis.google.com/js/platform.js" async defer></script> -->
+<script src="https://apis.google.com/js/platform.js?onload=init" ></script>
+
+<script type="text/javascript">
+
+
+function init() {
+      gapi.load('auth2', function() {
+        console.log( "gapi loaded")
+  });
+    // dump( "init")
+}
+async function dump(msg) {
+    console.log( "dump : ", msg)
+    authInst = gapi.auth2.getAuthInstance()
+    if ( !authInst ) { return console.log( "no getAuthInstance")}
+    let cur = authInst.currentUser;
+    if ( !cur ) { return console.log( "no currentUser")}
+    let user = cur.get()
+    if ( !user ) { return console.log( "no user")}
+    let profile = user.getBasicProfile();
+    if ( !profile ) { return console.log( "no profile")}
+    console.log( "email=", profile.getEmail())
+}
+
+function onSignIn(user) {
+    console.log( "onSignIn: ", user)
+    console.log( "token: ", user.getAuthResponse().id_token )
+    dump( "from onSignIn")
+}
+
+function oneTimeAuthorize() {
+    console.log( "onetime")
+    gapi.auth2.authorize({
+      client_id: '202746986880-u17rbgo95h7ja4fghikietupjknd1bln.apps.googleusercontent.com',
+      scope: 'email openid',
+      realm: "what realm",
+      fetch_basic_profile:false,
+      response_type: 'id_token',
+      nonce: "hello-world"
+    }, (resp)=>{
+        console.log( "AuthorizeResponse", resp )
+        console.log( "id_token:", resp.id_token)
+        console.log( "access:", resp.access_token)
+        setOut(resp.id_token)
+    })
+}
+
+function setOut(tok) {
+  str = JSON.stringify(JSON.parse(atob(tok.split('.')[1])), null,2)
+  out.innerText = str
+}
+</script>
+<h1>Hello, world</h1>
+
+<p/>
+<input type=submit value="onetime" onclick="oneTimeAuthorize()" /><p>
+
+<!-- <div class="g-signin2" data-onsuccess="onSignIn"></div> -->
+
+<pre>
+<div id=out>
+  output here...
+</div>
+</pre>
+
+<a href="#" onclick="signOut();">Sign out</a>
+<script>
+  function signOut() {
+    var auth2 = gapi.auth2.getAuthInstance();
+    auth2.signOut().then(function () {
+      console.log('User signed out.');
+    });
+  }
+</script>
+
+</body>
+
+</html>html>
