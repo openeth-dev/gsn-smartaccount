@@ -12,6 +12,7 @@ contract TestPolicy is BypassPolicy {
         uint256 value,
         bytes memory encodedFunction)
     public view returns (uint256, uint256, bool) {
+        (target,value,encodedFunction);
         if (value == 7) {
             // Use default delay, require 1 approval, do not wait for delay if have approvals
             return (USE_DEFAULT, 1, false);

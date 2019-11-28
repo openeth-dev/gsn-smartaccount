@@ -928,7 +928,7 @@ contract('Gatekeeper', async function (accounts) {
 
         before(async function () {
 
-            failCloseGK = await Gatekeeper.new(zeroAddress, zeroAddress, accounts[0], {gas: 8e6});
+            failCloseGK = await Gatekeeper.new(zeroAddress, accounts[0], {gas: 8e6});
         });
 
         it("should initialize gk with failclose levels", async function () {
