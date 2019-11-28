@@ -94,8 +94,8 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
 
     address public creator;
 
-    constructor(address _forwarder, address _hub, address _creator) public {
-        setGsnForwarder(_forwarder, _hub);
+    constructor(address _forwarder, address _creator) public {
+        setGsnForwarder(_forwarder);
         deployedBlock = block.number;
         creator = _creator;
     }
@@ -619,19 +619,6 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         bool success = _execute(target, value, encodedFunction);
         emit BypassCallExecuted(success);
         stateNonce++;
-    }
-
-    /*** Relay Recipient implementation **/
-
-    function getRecipientBalance() public pure returns (uint256){
-        return 0;
-    }
-
-    function preRelayedCall(bytes calldata) external pure returns (bytes32){
-        return 0;
-    }
-
-    function postRelayedCall(bytes calldata, bool, uint256, bytes32) external {
     }
 
     /****** Moved over from the Vault contract *******/

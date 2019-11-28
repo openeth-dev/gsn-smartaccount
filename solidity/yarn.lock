@@ -128,6 +128,22 @@
     ethereumjs-util "^5.1.1"
     lodash "^4.17.11"
 
+"@0x/contracts-utils@^3.2.1":
+  version "3.2.4"
+  resolved "https://registry.yarnpkg.com/@0x/contracts-utils/-/contracts-utils-3.2.4.tgz#b5ae80684ac0542eb59925f52113ce2c8b1bdb2b"
+  integrity sha512-Jk3Ntdt4SUNaHua49ZBty9hMv3gwUJN5US9OLxotbrJSmqdMpZ47FD4MzQ8ORLNcnMRbtyecQabq6pJbezu2jw==
+  dependencies:
+    "@0x/base-contract" "^5.4.0"
+    "@0x/order-utils" "^8.4.0"
+    "@0x/types" "^2.4.3"
+    "@0x/typescript-typings" "^4.3.0"
+    "@0x/utils" "^4.5.2"
+    "@0x/web3-wrapper" "^6.0.13"
+    bn.js "^4.11.8"
+    ethereum-types "^2.1.6"
+    ethereumjs-util "^5.1.1"
+    lodash "^4.17.11"
+
 "@0x/dev-utils@^2.2.3":
   version "2.2.3"
   resolved "https://registry.yarnpkg.com/@0x/dev-utils/-/dev-utils-2.2.3.tgz#2c650558d525bcb25010043774cfb6d327af1fd0"
@@ -186,7 +202,7 @@
     ethers "~4.0.4"
     lodash "^4.17.11"
 
-"@0x/order-utils@^8.1.1":
+"@0x/order-utils@^8.1.1", "@0x/order-utils@^8.4.0":
   version "8.4.0"
   resolved "https://registry.yarnpkg.com/@0x/order-utils/-/order-utils-8.4.0.tgz#f7fe9c73f9fd82ab05ec3c04951049e904aab46a"
   integrity sha512-EQh/YpfSKZSbfxetgN6RQmYuc2EpbpWF4f6WUAzm/JjXkCNAK429cMgofVr6Zy4U9ldj89zcODsnK6y6gnNIZQ==
@@ -4000,10 +4016,14 @@ growl@1.10.5:
   resolved "https://registry.yarnpkg.com/growl/-/growl-1.10.5.tgz#f2735dc2283674fa67478b10181059355c369e5e"
   integrity sha512-qBr4OuELkhPenW6goKVXiv47US3clb3/IbuWF9KNKEijAy9oeHxU9IgzjvJhHkUzhaj7rOUD7+YGWqUjLp5oSA==
 
-gsn-sponsor@^0.0.3-beta.1:
-  version "0.0.3-beta.1"
-  resolved "https://registry.yarnpkg.com/gsn-sponsor/-/gsn-sponsor-0.0.3-beta.1.tgz#db158af970fd7403bc2472175034db4343e7821d"
-  integrity sha512-ay806uTjFfBzQ4fI1mu4X2dkQONxsIczeG59Xy355k7fICC031Nn/Es/UUCrBHSdIhKnum/Bau3TPlP4dRtwWQ==
+gsn-sponsor@^0.0.3-beta.5:
+  version "0.0.3-beta.5"
+  resolved "https://registry.yarnpkg.com/gsn-sponsor/-/gsn-sponsor-0.0.3-beta.5.tgz#8075ed96782579c3b0eb04c5d8dbdd06529a0a4c"
+  integrity sha512-HwObENwl/AcAfITHA1W3r9Wakf99TSOJGUjnDpiSLUbk17faH30jty815pkxK9/Ru8yIInoh4XINdtpCqTy7/g==
+  dependencies:
+    "@0x/contracts-utils" "^3.2.1"
+    openzeppelin-solidity "^2.3.0"
+    tabookey-gasless "^0.4.1"
 
 gzip-size@^5.0.0:
   version "5.1.1"
@@ -7182,7 +7202,7 @@ swarm-js@0.1.37:
     tar.gz "^1.0.5"
     xhr-request-promise "^0.1.2"
 
-tabookey-gasless@0.4.1:
+tabookey-gasless@0.4.1, tabookey-gasless@^0.4.1:
   version "0.4.1"
   resolved "https://registry.yarnpkg.com/tabookey-gasless/-/tabookey-gasless-0.4.1.tgz#638f7db56b0da55cd66e19136b996b2c6e3d441c"
   integrity sha512-bB5rV4X+QVDrQxb4Blg7Hh2M/R02x8XQS2T2rDxuiAoDqG0RThUqCytNoW6FpRYQi40onPBWPC3iZ9sPmqs6RA==

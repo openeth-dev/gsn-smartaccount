@@ -6,14 +6,16 @@ import "./WhitelistBypassPolicy.sol";
 
 contract WhitelistFactory is GsnRecipient {
 
-    constructor(address _forwarder, address _hub) public {
-        setGsnForwarder(_forwarder, _hub);
+    constructor(address _forwarder) public {
+        setGsnForwarder(_forwarder);
     }
 
     function _acceptCall(
         address from,
         bytes memory encodedFunction)
     view internal returns (uint256 res, bytes memory data){
+
+        (from,encodedFunction);
         return (0, "");
     }
 

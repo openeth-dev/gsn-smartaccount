@@ -3,10 +3,10 @@
   "description": "solidity contracts and truffle tests)",
   "version": "1.0.0",
   "scripts": {
-    "test": "npx truffle test | sed -e 's/^,//;' ",
+    "test": "npx truffle test | sed -l -e 's/^,//;' ",
     "ci-unlimited": "npx run-with-testrpc -p 8544 -a 15 -l 80000000 --allowUnlimitedContractSize 'npx truffle --network npmtest test'",
     "ci": "npx run-with-testrpc -p 8544 -a 15 -l 80000000 --allowUnlimitedContractSize 'npx truffle --network npmtest test'",
-    "compile": "npx truffle compile|sed -e 's/^,//;' ",
+    "compile": "npx truffle compile|sed -l -e 's/^,//;' ",
     "trace": "MODE=trace npx truffle test --network cov",
     "coverage": "rm -rf coverage ; rm -rf .0x-artifacts ; MODE=coverage npx truffle test --network cov; istanbul report text; istanbul report html"
   },
@@ -31,7 +31,7 @@
     "chai-as-promised": "7.1.1",
     "ethereumjs-abi": "0.6.8",
     "ethereumjs-util": "6.1.0",
-    "gsn-sponsor": "^0.0.3-beta.1",
+    "gsn-sponsor": "^0.0.3-beta.5",
     "openzeppelin-solidity": "2.3.0",
     "tabookey-gasless": "0.4.1",
     "truffle-artifactor": "4.0.17",
