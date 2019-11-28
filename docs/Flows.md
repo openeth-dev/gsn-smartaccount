@@ -50,7 +50,7 @@
 <a name="createVault"></a>
 ### Vault Creation
 
-![Vault Creation](http://www.websequencediagrams.com/cgi-bin/cdraw?s=rose&m=title+Vault+Creation%0a%0aparticipant+someone+as+user%0aparticipant+webapp+as+app%0aparticipant+%22Backend%22+as+be%0aparticipant+google%0aparticipant+Sponsor%5cn%28Via+GSN%29+as+sponsor%0aparticipant+factory%0aparticipant+vault%0auser-%3e%2bapp%3a+login%0aapp-%3egoogle%3a+gapi%2esignIn%28%29%0agoogle--%3eapp%3a+JWT%0aapp-%3e%2bbe%3acreateAccount%28jwt%2c+phone%29%0adeactivate+app%0abe-%3e-user%3a+SMS+click+here+%28email%2cserver-nonce%29%0auser-%3e%2bapp%3a+click%0aapp-%3egoogle%3a+gapi%2eauthenticate%28email%2c+nonce%28address%29%29%0agoogle--%3eapp%3a+JWT%0aapp-%3e%2bbe%3acreateVault%28JWT%2c+server-nonce%29%0anote+over+be%3a+validate+nonce%2c%5cnsave+email%2cphone%2c%5cnparse+JWT%2c%5cnsign+with+ECDSA%0abe-%3e-sponsor%3a+createVault%5cn%28approvalData%28email%2csig%29%29%0aactivate+sponsor%0asponsor-%3e-factory%3a+createVault%0afactory-%3e%2bvault%3a+create%0avault--%3e-webapp%3a+monitor+changes)
+![Vault Creation](http://www.websequencediagrams.com/cgi-bin/cdraw?s=rose&m=title+Vault+Creation%0a%0aparticipant+someone+as+user%0aparticipant+webapp+as+app%0aparticipant+%22Backend%22+as+be%0aparticipant+google%0aparticipant+Sponsor%5cn%28Via+GSN%29+as+sponsor%0aparticipant+factory%0aparticipant+vault%0auser-%3e%2bapp%3a+login%0aapp-%3egoogle%3a+gapi%2esignIn%28%29%0agoogle--%3eapp%3a+JWT%0aapp-%3e%2bbe%3avalidatePhone%28jwt%2c+phone%29%0adeactivate+app%0abe-%3e-user%3a+SMS+click+here+%28server-nonce%29%0auser-%3e%2bapp%3a+click%0aapp-%3egoogle%3a+gapi%2eauthenticate%28email%2c+nonce%28address%29%29%0agoogle--%3eapp%3a+JWT%0aapp-%3e%2bbe%3acreateVault%28JWT%2c+server-nonce%29%0anote+over+be%3a+validate+nonce%2c%5cnsave+email%2cphone%2c%5cnparse+JWT%2c%5cnsign+with+ECDSA%0abe-%3e-sponsor%3a+createVault%5cn%28approvalData%28email%2csig%29%29%0aactivate+sponsor%0asponsor-%3e-factory%3a+createVault%0afactory-%3e%2bvault%3a+create%0avault--%3e-webapp%3a+monitor+changes)
 
 
 <a name="addDeviceImmediate" ></a>
@@ -191,7 +191,7 @@ update with "websequence-md Flows.md", to read these flows into the images above
 ```
 title Vault Creation
 
-participant someone as user
+participant user
 participant webapp as app
 participant "Backend" as be
 participant google
@@ -200,19 +200,21 @@ participant factory
 participant vault
 user->+app: login
 app->google: gapi.signIn()
+note over google: Prompt User to\nselect Account
 google-->app: JWT
-app->+be:createAccount(jwt, phone)
+app->+be:validatePhone(jwt, phone)
 deactivate app
-be->-user: SMS click here (email,server-nonce)
+be->-user: SMS click here (smsUrl)
 user->+app: click
 app->google: gapi.authenticate(email, nonce(address))
 google-->app: JWT
-app->+be:createVault(JWT, server-nonce)
-note over be: validate nonce,\nsave email,phone,\nparse JWT,\nsign with ECDSA
-be->-sponsor: createVault\n(approvalData(email,sig))
+app->+be:createAccount(JWT, smsUrl)
+note over be: validate nonce,\nsave email,phone,\nparse JWT,\nsalt=hash(email)\nsign with ECDSA
+be-->-app: approvalData(salt,timestamp,sig)
+app->sponsor: createVault(salt, { approvalData:{ salt,timestamp,sig }} )
 activate sponsor
 sponsor->-factory: createVault
-factory->+vault: create
+factory->+vault: create2
 vault-->-webapp: monitor changes
 ```
 

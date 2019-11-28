@@ -6,6 +6,7 @@ $pidfile = "/tmp/tmp.md.pid";
 
 $URL="http://www.websequencediagrams.com/cgi-bin/cdraw?s=rose&m=";
 
+$verbose=0;
 sub usage() {
 die "
 Update websequencediagram in markdown (md) files.
@@ -53,9 +54,17 @@ if ( $viewmode && $#ARGV >0 ) {
 if ( $viewmode && -r $pidfile ) {
 	$pid = `cat $pidfile`;
 	print "killing old viewmode instance: $pid" if $debug;
-	system "kill -9 $pid";
+	system "kill -9 $pid" if $pid;
 	unlink $pidfile;
 }
+
+$SIG{INT} = sub { 
+	unlink $pidfile;
+	unlink $viewoutfile;
+	undef $viewmode;
+	processFiles();
+	die "\nUpdated $fname\n";
+};
 
 while (1) {
 	processFiles();
@@ -79,9 +88,10 @@ sub processFiles {
 	$file=<FILE>;
 	close FILE;
 	$save=$file;
+	undef $count;
 	$file=~s!\[([^\)\n]*)\]\s*\((http://(?:www.)?websequencediagrams.com.*?)\)!process($1,$2)!ge;
-	if ( -r $out && $save eq $file ) {
-		warn qq{not modifed (no "www.websequencediagrams.com/m=" links) in $out\n} unless $quiet;
+	if ( ! $viewmode && -r $out && $save eq $file ) {
+		warn qq{not modifed (no "www.websequencediagrams.com/m=" links) in $fname\n}; ##unless $quiet;
 		next;
 	}
 	if ( $dry ) {
@@ -92,11 +102,18 @@ sub processFiles {
 		print $file;
 	} else {
 		open( FILE, ">$out.new") || die "unable to write to $out.new\n";
+		if ( $viewmode ) {
+			$pwd = `pwd`;
+			chomp $pwd;
+			$pwd=~s/\s+//g;
+			$fullname = $fname=~/^\// ? $fname : "$pwd/$fname";
+			# print FILE "Temporary, auto-updating version of [$fname]($fullname)\n\n";
+		}
 		print FILE $file;
 		close FILE;
 		rename $out, "$out~";
 		rename "$out.new", $out;
-		warn "Updated $count links in $out (old file in $out.old)\n" unless $quiet;
+		warn "Updated $count links in $out (old file in $out.old)\n" if $verbose;
 	}
     }
 
@@ -105,9 +122,12 @@ sub processFiles {
 sub process {
 	$count++;
 	local ( $title, $url ) = @_;
-	($body)=$file=~/\`\s*(title\s*$title\s[^`]*?)\s*\`/;
+	($body)=$file=~/\`\s*(title\s*$title\s*\n[^`]*?)\s*\`/;
 	#($body) = $file =~ m/(title)/;
-	die "no sequence with title \"$title\"\n" unless $body;
+	if ( ! $body ) {
+	    warn "no sequence with title \"$title\"\n";
+	    return "[$title]($url)";
+	}
 	warn "replaced diagram \"$title\"\n" unless $quiet;
 	#($c) = $body=~ m/\`\s*([^`]*?)\s*\`/;
 	$c=$body;
