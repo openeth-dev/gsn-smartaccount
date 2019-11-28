@@ -1,37 +1,52 @@
-
-//API of the main factory object.
-class FactoryApi {
+//static object in client app.
+// core API to access iframe (google account, address, sign)
+class WalletFactoryApi {
 
     getAccount() {
-        error('current google logged in account email account, or null')
-    }
-
-    googleLogin() {
-        error( "redirect to google auth, and redirect back. iframe is now auth'ed with google" )
+        error('return current google logged in account email account, or null')
     }
 
     getOwner() {
-        error( "return owner's address (a cookey in an iframe)" )
+        error("return owner's address (a cookie in an iframe)")
     }
 
-    hasWallet(account) {
-        error( "check if a wallet exists for this account (its 'create2' address deployed)" )
+    async googleLogin() {
+        error("open google auth popup. save to localStorage email,address. return {jwt, email, address}. throw if canceled/failed")
     }
 
-    loadWallet(account) {
-        error( "return a SampleWallet object for this account" )
-    }
-    createWallet(owner, account) {
-        error( 'trigger create-account flow. should create a "fresh" OAuth token, with owner address as nonce' )
+    async googleAuthenticate() {
+        error( "return fresh JWT token, with no UI (almost identical to googleLogin())")
     }
 
-    createWallet2(owner, account, token) {
-        error("once token is signed, create a wallet for user.")
+    async getVaultAddress(account) {
+        error( "return the CREATE2 wallet address (valid even before created)")
     }
 
-    recoverWallet(owner, account) {
+    async hasWallet(account) {
+        error("check if a wallet exists for this account (its 'create2' address deployed)")
+    }
+
+    async loadWallet(account) {
+        error("return a SampleWallet object for this account")
+    }
+
+    async createAccount({jwt, smsUrl}) {
+        error("create a new account (not contract) for user on BE. return approvalData")
+    }
+
+    createVault({owner, approvalData}) {
+        error('create contract via GSN')
+    }
+
+    recoverWallet({owner, account}) {
         error("trigger recover flow")
+    }
+
+    signTransaction({address, tx}) {
+        error("access iframe and sign tx on behalf of user. address must be the getOwner account")
     }
 }
 
-
+function error(msg) {
+    throw new Error(msg)
+}
