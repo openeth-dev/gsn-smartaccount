@@ -14,6 +14,10 @@ class AccountApi {
         error("iframe: return owner's address (a cookie in an iframe)")
     }
 
+    async createOwner() {
+        error( "for current email (google account), create owner address and private-key")
+    }
+
     async googleLogin() {
         error("iframe: open google auth popup. save to localStorage email,address. return {jwt, email, address}. throw if canceled/failed")
     }
@@ -24,6 +28,10 @@ class AccountApi {
 
     async signTransaction({tx}) {
         error("sign transaction. might popup UI for user")
+    }
+
+    async signOut() {
+        error( "forget current address,private key and google account")
     }
 }
 

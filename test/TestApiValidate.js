@@ -66,7 +66,6 @@ describe("test interface", () => {
 
     })
 
-    it("pending")
 })
 
 
