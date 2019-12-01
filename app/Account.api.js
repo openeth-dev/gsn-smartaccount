@@ -1,6 +1,11 @@
 // our wallet Account: (iframe: account.safechannel.com)
 class AccountApi {
 
+    constructor() {
+        //validate child contract implemented all core functions
+        require('./XfaceValidate')(AccountApi, this)
+    }
+
     getEmail() {
         error('iframe: return current google logged in email (google account), or null')
     }
@@ -14,10 +19,12 @@ class AccountApi {
     }
 
     async googleAuthenticate() {
-        error( "iframe: return fresh JWT token, with no UI (almost identical to googleLogin())")
+        error("iframe: return fresh JWT token, with no UI (almost identical to googleLogin())")
     }
 
     async signTransaction({tx}) {
-        error( "sign transaction. might popup UI for user")
+        error("sign transaction. might popup UI for user")
     }
 }
+
+module.exports = {AccountApi}

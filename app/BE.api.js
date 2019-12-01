@@ -1,6 +1,11 @@
 //API of the main factory object.
 class BEapi {
 
+    constructor() {
+        //validate child contract implemented all core functions
+        require('./XfaceValidate')(BEapi, this)
+    }
+
     validatePhone({jwt, phone}) {
         error("validate jwt, return SMS url to pass to createVault")
     }
@@ -20,3 +25,4 @@ class BEapi {
 }
 
 
+module.exports = {BEapi}
