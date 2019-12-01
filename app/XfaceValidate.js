@@ -23,7 +23,7 @@ function validate(baseClass, inst) {
             errors.push("Implemented method not in baseclass: " + name)
         }
     })
-    if ( errors )
+    if ( errors && errors.length )
         throw new Error( "Interface error for "+inst+": \n"+errors.join("\n"))
 }
 
