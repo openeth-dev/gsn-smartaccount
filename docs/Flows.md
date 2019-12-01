@@ -50,18 +50,23 @@
 <a name="createVault"></a>
 ### Vault Creation
 
-![Vault Creation](http://www.websequencediagrams.com/cgi-bin/cdraw?s=rose&m=title+Vault+Creation%0a%0aparticipant+someone+as+user%0aparticipant+webapp+as+app%0aparticipant+%22Backend%22+as+be%0aparticipant+google%0aparticipant+Sponsor%5cn%28Via+GSN%29+as+sponsor%0aparticipant+factory%0aparticipant+vault%0auser-%3e%2bapp%3a+login%0aapp-%3egoogle%3a+gapi%2esignIn%28%29%0agoogle--%3eapp%3a+JWT%0aapp-%3e%2bbe%3avalidatePhone%28jwt%2c+phone%29%0adeactivate+app%0abe-%3e-user%3a+SMS+click+here+%28server-nonce%29%0auser-%3e%2bapp%3a+click%0aapp-%3egoogle%3a+gapi%2eauthenticate%28email%2c+nonce%28address%29%29%0agoogle--%3eapp%3a+JWT%0aapp-%3e%2bbe%3acreateVault%28JWT%2c+server-nonce%29%0anote+over+be%3a+validate+nonce%2c%5cnsave+email%2cphone%2c%5cnparse+JWT%2c%5cnsign+with+ECDSA%0abe-%3e-sponsor%3a+createVault%5cn%28approvalData%28email%2csig%29%29%0aactivate+sponsor%0asponsor-%3e-factory%3a+createVault%0afactory-%3e%2bvault%3a+create%0avault--%3e-webapp%3a+monitor+changes)
+![Vault Creation](http://www.websequencediagrams.com/cgi-bin/cdraw?s=rose&m=title+Vault+Creation%0a%0aparticipant+user%0aparticipant+webapp+as+app%0aparticipant+%22Backend%22+as+be%0aparticipant+google%0aparticipant+Sponsor%5cn%28Via+GSN%29+as+sponsor%0aparticipant+factory%0aparticipant+vault%0auser-%3e%2bapp%3a+login%0aapp-%3egoogle%3a+gapi%2esignIn%28%29%0anote+over+google%3a+Prompt+User+to%5cnselect+Account%0agoogle--%3eapp%3a+JWT%28email%29%0aapp-%3e%2bbe%3avalidatePhone%28jwt%2c+phone%29%0adeactivate+app%0abe-%3e-user%3a+SMS+click+here+%28smsUrl-verifyCode%29%0auser-%3e%2bapp%3a+click+%28or+enter+code%29%0anote+over+app%3a+create%5cnaddress%2cPK%5cnsave+in+LocalStorage%0aapp-%3egoogle%3a+gapi%2eauthenticate%28email%2c+nonce%3aaddress%29%0agoogle--%3eapp%3a+JWT%28email%2cnonce%3aaddress%29%0aapp-%3e%2bbe%3acreateAccount%28JWT%2c+smsVerifyCode%29%0anote+over+be%3a+validate+JWT%2c%5cnsave+email%2cphone%2c%5cnparse+JWT%2c%5cnsalt%3dhash%28email%29%5cnsign+with+ECDSA%0abe--%3e-app%3a+approvalData%28salt%2ctimestamp%2csig%29%0aapp-%3esponsor%3a+createVault%28salt%2c+%7b+approvalData%3a%7b+salt%2ctimestamp%2csig+%7d%7d+%29%0aactivate+sponsor%0anote+over+sponsor%3a+validate+backend-sig%5cnon+salt%2ctimestamp%0asponsor-%3e-factory%3a+createVault%0aactivate+factory%0afactory-%3evault%3a+create2%0afactory-%3evault%3a+configure%0adeactivate+factory%0avault--%3e-webapp%3a+monitor+changes)
 
 
 <a name="addDeviceImmediate" ></a>
 ### Add Device Immediate
 
-![Add Device Immediate](http://www.websequencediagrams.com/cgi-bin/cdraw?s=rose&m=title+Add+Device+Immediate%0a%0aparticipant+%22NewDevice%22+as+new%0aparticipant+%22OldDevice%22+as+user%0aparticipant+webapp+as+app%0aparticipant+%22Backend%22+as+be%0aparticipant+vault%0aparticipant+google%0a%0anew-%3e%2bapp%3a+login%0aactivate+new%0aapp-%3egoogle%3a+authenticate%28email%2c+nonce%28newaddr%29%29%0agoogle--%3eapp%3a+JWT%0aapp-%3e-be%3aaddDeviceNow%28jwt%29%0aactivate+be%0anote+over+be%3a+get+SMS+for+email%0abe-%3euser%3a+SMS%3a+click+to+add+%28newaddr%29%0adeactivate+be%0auser-%3e%2bapp%3a+click%0anote+over+app%3a+auth%0aapp-%3e-vault%3a+addOperatorNow%28newaddr%29%0anote+over+vault%3a+PendingChange%0avault--%3e%2bbe%3a+monitor+changes%0anote+over+be%3a+approve+with%5cnno+SMS%0abe-%3e-vault%3a+approve%28%29%5cnas+Watchdog%0avault--%3enew%3a+monitor+change)
+- Add new device.
+- SMS is used to pass new device info (address, title) to old device.
+- SMS **must** also be used as 2FA authentication: guardian should approve only
+    if it can verify SMS was used.
+     
+![Add Device Immediate](http://www.websequencediagrams.com/cgi-bin/cdraw?s=rose&m=title+Add+Device+Immediate%0a%0aparticipant+%22NewDevice%22+as+new%0aparticipant+%22OldDevice%22+as+user%0aparticipant+webapp+as+app%0aparticipant+%22Backend%22+as+be%0aparticipant+vault%0aparticipant+google%0a%0anew-%3e%2bapp%3a+login%0aactivate+new%0aapp-%3egoogle%3a+authenticate%28email%2c+nonce%28newaddr%29%29%0agoogle--%3eapp%3a+JWT%0aapp-%3e-be%3aaddDeviceNow%28jwt%29%0aactivate+be%0anote+over+be%3a+get+phone+for+email%5cnstore+temporarily%3a%5cn%28vault-addr%2cnewaddr%2ctimestamp%29+%0abe-%3euser%3a+SMS%3a+click+to+add+%28newaddr%29%0adeactivate+be%0auser-%3e%2bapp%3a+click%0aapp-%3egoogle%3a+authenticate%28email%29%0agoogle--%3eapp%3a+JWT%0anote+over+app%3a+Propt+user%3a+Click+here+to%5cnadd+XXX+as+new+device%0aapp-%3e-vault%3a+addOperatorNow%28newaddr%29%0anote+over+vault%3a+PendingChange%0avault--%3e%2bbe%3a+monitor+changes%0anote+over+be%3a+validate+has+%28vault-addr%2cnewaddr%29%5cnin+memory%0abe-%3e-vault%3a+approve%28%29%5cnas+Watchdog%0avault--%3enew%3a+monitor+change)
 
 <a name="recoverDevice" ></a>
 ### Recover Device
 
-![Recover Device](http://www.websequencediagrams.com/cgi-bin/cdraw?s=rose&m=title+Recover+Device%0a%0aparticipant+%22OldDevice%22+as+user%0aparticipant+%22NewDevice%22+as+new%0aparticipant+webapp+as+app%0aparticipant+%22Backend%22+as+be%0aparticipant+vault%0aparticipant+google%0a%0anote+over+user%3a+device%5cnlost%2e%2e%2e%0anote+over+new%3a+recover+SIM%0anew-%3e%2bapp%3a+login+%28%29%0aactivate+new%0aapp-%3egoogle%3a+authenticate%28email%29%0agoogle--%3eapp%3a+JWT%0aapp-%3e-be%3arecoverDevice%28jwt%29%0aactivate+be%0anote+over+be%3a+get+SMS+for+email%0adeactivate+new%0abe-%3enew%3a+SMS%3a+click+to+recover%5cn%28email%2bserver-nonce%29%0adeactivate+be%0anew-%3e%2bapp%3a+click%0aapp-%3egoogle%3a+authenticate%28email%2c+nonce%28newaddr%29%29%0agoogle--%3eapp%3a+JWT%28with+email%2cnewaddr%29%0aapp-%3e-be%3a+addOperator%5cn%28jwt%2c+server-nonce%29%0aactivate+be%0anote+over+be%3a+validate%5cnserver-nonce%0abe-%3evault%3a+addOperator%28newaddr%29%5cnas+Admin%0anote+over+vault%3a+PendingChange%0avault--%3eapp%3a+monitor+changes%0avault--%3euser%3a+monitor+changes%0auser-%3evault%3a+%5bOPTIONAL%5d+cancelPending%0anote+over+be%3a+time+passes%2e%2e%0abe-%3e-vault%3a+apply%28%29+as+Watchdog%0avault--%3eapp%3a+monitor+change)
+![Recover Device](http://www.websequencediagrams.com/cgi-bin/cdraw?s=rose&m=title+Recover+Device%0a%0aparticipant+%22OldDevice%22+as+user%0aparticipant+%22NewDevice%22+as+new%0aparticipant+%22webapp%5cnon+newDevice%22+as+app%0aparticipant+%22Backend%22+as+be%0aparticipant+vault%0aparticipant+google%0a%0anote+over+user%3a+device%5cnlost%2e%2e%2e%0anote+over+new%3a+recover+SIM%0anew-%3e%2bapp%3a+login+%28%29%0aactivate+new%0aapp-%3egoogle%3a+authenticate%28email%29%0agoogle--%3eapp%3a+JWT%0aapp-%3e-be%3arecoverDevice%28jwt%29%0aactivate+be%0anote+over+be%3a+get+phone+for+email%0adeactivate+new%0abe-%3enew%3a+SMS%3a+click+to+recover%5cn%28email%2bserver-nonce%29%0adeactivate+be%0anew-%3e%2bapp%3a+click%0aapp-%3egoogle%3a+authenticate%28email%2c+nonce%28newaddr%29%29%0agoogle--%3eapp%3a+JWT%28with+email%2cnewaddr%29%0aapp-%3e-be%3a+addOperator%5cn%28jwt%2c+server-nonce%29%0aactivate+be%0anote+over+be%3a+validate%5cnserver-nonce%0abe-%3evault%3a+addOperator%28newaddr%29%5cnas+Admin%0anote+over+vault%3a+PendingChange%0avault--%3eapp%3a+monitor+changes%0avault--%3euser%3a+monitor+changes%0auser-%3evault%3a+%5bOPTIONAL%5d+cancelPending%0anote+over+be%3a+time+passes%2e%2e%0abe-%3e-vault%3a+apply%28%29+as+Watchdog%0avault--%3eapp%3a+monitor+change)
 
 
 <a name="transfer"></a>
@@ -201,20 +206,25 @@ participant vault
 user->+app: login
 app->google: gapi.signIn()
 note over google: Prompt User to\nselect Account
-google-->app: JWT
+google-->app: JWT(email)
 app->+be:validatePhone(jwt, phone)
 deactivate app
-be->-user: SMS click here (smsUrl)
-user->+app: click
-app->google: gapi.authenticate(email, nonce(address))
-google-->app: JWT
-app->+be:createAccount(JWT, smsUrl)
-note over be: validate nonce,\nsave email,phone,\nparse JWT,\nsalt=hash(email)\nsign with ECDSA
+be->-user: SMS click here (smsUrl-verifyCode)
+user->+app: click (or enter code)
+note over app: create\naddress,PK\nsave in LocalStorage
+app->google: gapi.authenticate(email, nonce:address)
+google-->app: JWT(email,nonce:address)
+app->+be:createAccount(JWT, smsVerifyCode)
+note over be: validate JWT,\nsave email,phone,\nparse JWT,\nsalt=hash(email)\nsign with ECDSA
 be-->-app: approvalData(salt,timestamp,sig)
 app->sponsor: createVault(salt, { approvalData:{ salt,timestamp,sig }} )
 activate sponsor
+note over sponsor: validate backend-sig\non salt,timestamp
 sponsor->-factory: createVault
-factory->+vault: create2
+activate factory
+factory->vault: create2
+factory->vault: configure
+deactivate factory
 vault-->-webapp: monitor changes
 ```
 
@@ -235,15 +245,17 @@ app->google: authenticate(email, nonce(newaddr))
 google-->app: JWT
 app->-be:addDeviceNow(jwt)
 activate be
-note over be: get SMS for email
+note over be: get phone for email\nstore temporarily:\n(vault-addr,newaddr,timestamp) 
 be->user: SMS: click to add (newaddr)
 deactivate be
 user->+app: click
-note over app: auth
+app->google: authenticate(email)
+google-->app: JWT
+note over app: Propt user: Click here to\nadd XXX as new device
 app->-vault: addOperatorNow(newaddr)
 note over vault: PendingChange
 vault-->+be: monitor changes
-note over be: approve with\nno SMS
+note over be: validate has (vault-addr,newaddr)\nin memory
 be->-vault: approve()\nas Watchdog
 vault-->new: monitor change
 ```
@@ -253,7 +265,7 @@ title Recover Device
 
 participant "OldDevice" as user
 participant "NewDevice" as new
-participant webapp as app
+participant "webapp\non newDevice" as app
 participant "Backend" as be
 participant vault
 participant google
@@ -266,7 +278,7 @@ app->google: authenticate(email)
 google-->app: JWT
 app->-be:recoverDevice(jwt)
 activate be
-note over be: get SMS for email
+note over be: get phone for email
 deactivate new
 be->new: SMS: click to recover\n(email+server-nonce)
 deactivate be
