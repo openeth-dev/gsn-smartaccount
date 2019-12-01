@@ -1,4 +1,6 @@
 /* npm modules */
+const ethUtils = require('ethereumjs-util');
+const ABI = require('ethereumjs-abi');
 const Chai = require('chai');
 const GsnUtils = require('tabookey-gasless/src/js/relayclient/utils');
 const RelayClient = require('tabookey-gasless/src/js/relayclient/RelayClient');
@@ -39,6 +41,7 @@ contract("Vault Bootstrapping", async function (accounts) {
 
     let ephemeralOperator;
     let relay = accounts[0];
+    let vfOwner = accounts[1];
     let attacker = accounts[5];
 
     let whitelistFactory;
@@ -48,7 +51,15 @@ contract("Vault Bootstrapping", async function (accounts) {
     let gatekeeper;
     let bypassModule;
 
-    async function callViaRelayHub(encodedFunctionCall, nonce) {
+    function fixSigFormat( buf) {
+        return Buffer.concat([buf.slice(1,33), buf.slice(33, buf.length), Buffer.from(buf[0].toString(16),"hex")]);
+    }
+
+    function padIntTo32ByteHex(num) {
+        return "0".repeat(64 - num.toString(16).length) + num.toString(16)
+    }
+
+    async function callViaRelayHub(encodedFunctionCall, nonce, approvalData = []) {
         let from = ephemeralOperator.address;
         let recipient = gsnForwarder.address;
         let transactionFee = 1;
@@ -58,7 +69,6 @@ contract("Vault Bootstrapping", async function (accounts) {
             from, recipient, encodedFunctionCall, transactionFee,
             gasPrice, gasLimit, nonce, relayHub.address, relay);
         let signature = GsnUtils.getTransactionSignatureWithKey(ephemeralOperator.privateKey, hash);
-        let approvalData = [];
         return await relayHub.relayCall(
             from, recipient, encodedFunctionCall, transactionFee, gasPrice, gasLimit, nonce, signature, approvalData,
             {
@@ -72,7 +82,7 @@ contract("Vault Bootstrapping", async function (accounts) {
         relayHub = await RelayHub.new();
         gsnSponsor = await FreeRecipientSponsor.new();
         gsnForwarder = await GsnForwarder.new(relayHub.address, gsnSponsor.address);
-        vaultFactory = await VaultFactory.new(gsnForwarder.address, {gas: 8e6});
+        vaultFactory = await VaultFactory.new(gsnForwarder.address, {gas: 9e6, from:vfOwner});
         whitelistFactory = await WhitelistFactory.new(gsnForwarder.address);
         ephemeralOperator = RelayClient.newEphemeralKeypair();
         await relayHub.stake(relay, 1231231, {from: accounts[2], value: 1e18});
@@ -92,11 +102,36 @@ contract("Vault Bootstrapping", async function (accounts) {
 
     it("should sponsor creation of a vault", async function () {
         // Create a double-meta-transaction (clients should use a Web3.js provider from gsn-sponsor package instead)
-        let newVaultCallData = vaultFactory.contract.methods.newVault().encodeABI();
+        let vaultId = Buffer.from("a3a6839853586edc9133e9c71d4ccfac678b4fc3f5475fd3014845ad5287870f","hex"); //crypto.randomBytes(32)
+        let newVaultCallData = vaultFactory.contract.methods.newVault(vaultId).encodeABI();
         let encodedFunctionCall =
             gsnForwarder.contract.methods.callRecipient(vaultFactory.address, newVaultCallData).encodeABI();
 
-        let receipt = await callViaRelayHub(encodedFunctionCall, 0);
+        let timestampInt = Math.floor(Date.now()/1000);//1575229433
+        let timestamp = Buffer.from(padIntTo32ByteHex(timestampInt),"hex");
+        //let backendSignature = crypto.randomBytes(65);
+        // backendSignature[0] = 0x1b;
+        // Mocking backed signature
+        let backendSignature = Buffer.from("1b403b57c556f419306af87f80bed54e4358f323a806e9ef35f5b4c77b77a34ac467a020cff280c045518b098409d6ad4924dd1eaa90c70c0a9298f7665a444b68","hex")
+        let hash = ABI.soliditySHA3(["bytes32", "uint256"], [vaultId, timestampInt]);
+        let signer = ethUtils.bufferToHex(ethUtils.pubToAddress(ethUtils.ecrecover(
+            hash, backendSignature[0], backendSignature.slice(1,33), backendSignature.slice(33,backendSignature.length))));
+        // Adding mocked signer as trusted caller i.e. backend ethereum address
+        await vaultFactory.addTrustedSigners([signer],{from:vfOwner});
+        let approvalData = Buffer.concat([timestamp, fixSigFormat(backendSignature)]);
+
+        // console.log("vaultId = ", vaultId.toString("hex"))
+        // console.log("timestampInt = ", timestampInt)
+        // console.log("hash = ", hash.toString("hex"))
+        // console.log("blockchain hash = ", await vaultFactory.getFuckingHash(vaultId, timestampInt))
+        // console.log("backendSignature = ", backendSignature.toString("hex"))
+        // console.log("fixed backendSignature = ", fixSigFormat(backendSignature).toString("hex"))
+        // console.log("signer = ", signer)
+        // console.log("blockchain signer = ", await vaultFactory.getApprovedSigner(hash, fixSigFormat(backendSignature)))
+        // console.log("is approved signer?  ", await vaultFactory.isApprovedSigner(hash, fixSigFormat(backendSignature)))
+        // console.log("approvalData = ", approvalData.toString("hex"))
+
+        let receipt = await callViaRelayHub(encodedFunctionCall, 0, approvalData);
         let createdEvent = receipt.logs[0];
         assert.equal(createdEvent.event, "VaultCreated");
         assert.equal(createdEvent.args.sender.toLowerCase(), ephemeralOperator.address);

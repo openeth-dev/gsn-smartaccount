@@ -1,10 +1,12 @@
 const VaultFactory = artifacts.require("./VaultFactory.sol");
+const crypto = require("crypto");
 
 contract('VaultFactory', function (accounts) {
 
     it("should deploy vault and gatekeper", async function () {
         let vaultFactory = await VaultFactory.deployed();
-        let res = await vaultFactory.newVault();
+
+        let res = await vaultFactory.newVault(crypto.randomBytes(32));
         let event = res.logs[0];
 
         assert.equal(event.event, "VaultCreated");
