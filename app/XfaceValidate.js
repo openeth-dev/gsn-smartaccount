@@ -14,6 +14,10 @@ function validate (baseClass, inst) {
     impl[name] = true
     if (inst.abstract) return // a member named "abstract" skip the "missing implementation" check
     if (baseClass.prototype[name] === inst[name]) {
+      // only report if baseclass method is not "really implemented"
+      if (!baseClass.prototype[name].toString().match(/error\(/)) {
+        return
+      }
       errors.push('Baseclass method not implemented: ' + name)
     }
   })

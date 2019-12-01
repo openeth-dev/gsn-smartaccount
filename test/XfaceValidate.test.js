@@ -1,4 +1,4 @@
-/* global describe it */
+/* global error describe it */
 
 const { assert } = require('chai')
 
@@ -8,9 +8,11 @@ class BaseApi {
   }
 
   baseFunction () {
+    error('api')
   }
 
   baseFunction2 () {
+    error('api')
   }
 
   _baseInternalFunction () {

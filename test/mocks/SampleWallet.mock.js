@@ -1,14 +1,8 @@
 /* global error */
-// wallet API.
-// This is the template to into actual (and mock) implementation objects.
-// (I wish javascript had better "abstract" methods...)
 
-// eslint-disable-next-line no-unused-vars
-class SampleWalletApi {
-  constructor () {
-    require('./XfaceValidate')(SampleWalletApi, this)
-  }
+const { SampleWalletApi } = require('../../app/SampleWallet.api')
 
+class SampleWalletMock extends SampleWalletApi {
   transfer ({ destAddr, amount, token }) {
     error('initiate transfer operation. adds a pending item, depending on transfer policy')
   }
@@ -141,4 +135,4 @@ class SampleWalletApi {
   }
 }
 
-module.exports = { SampleWalletApi }
+module.exports = { SampleWalletMock }
