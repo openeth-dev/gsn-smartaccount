@@ -1,42 +1,42 @@
 /* global error */
 
-import { SimpleManagerApi } from '../../app/SimpleManager.api.js'
+const { SimpleManagerApi } = require('../../app/SimpleManager.api.js')
+const { SampleWalletMock } = require('./SampleWallet.mock.js')
+const { AccountMock } = require('./Account.mock')
 
 // API of the main factory object.
-class SimpleManager extends SimpleManagerApi {
-  getAccount () {
-    return 'user@domain.com'
+class SimpleManagerMock extends SimpleManagerApi {
+  constructor (props) {
+    super(props)
+    this.accountApi = new AccountMock()
   }
 
-  async googleLogin () {
-    console.log('login UI')
+  async getWalletAddress () {
+    if (this.hasWallet()) {
+      return this.wallet.address
+    }
+
+    return null
   }
 
-  getOwner () {
-    return this.address
+  hasWallet () {
+    return this.wallet != null
   }
 
-  hasWallet (account) {
-    return this.wallets[account] != null
-  }
-
-  loadWallet (account) {
-    return this.wallets[account]
+  loadWallet () {
+    this.wallet = new SampleWalletMock({ email: this.getEmail(), owner: this.getOwner() })
+    return this.wallet
   }
 
   async createAccount () {
 
   }
 
-  async createWallet (owner, account) {
-    if (this.hasWallet(account)) {
+  async createWallet ({ owner, email, approvalData }) {
+    if (this.hasWallet()) {
       throw new Error('wallet already exists')
     }
-    return { type: 'token', email: account }
-  }
-
-  createWallet2 (owner, account, token) {
-    error('once token is signed, create a wallet for user.')
+    return this.loadWallet()
   }
 
   recoverWallet (owner, account) {
@@ -44,4 +44,4 @@ class SimpleManager extends SimpleManagerApi {
   }
 }
 
-module.exports = SimpleManager
+module.exports = { SimpleManagerMock }

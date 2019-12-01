@@ -3,6 +3,7 @@
 // eslint-disable-next-line no-unused-vars
 class SimpleManagerApi {
   constructor () {
+    require('./XfaceValidate')(SimpleManagerApi, this)
     this.accountApi = undefined
   }
 
@@ -24,12 +25,12 @@ class SimpleManagerApi {
     return this.accountApi.googleAuthenticate()
   }
 
-  async getWalletAddress (email) {
+  async getWalletAddress () {
     error('return the wallet address (valid only after is was created)')
   }
 
-  async hasWallet (email) {
-    error('check if a wallet exists for this email (its \'create2\' address deployed)')
+  async hasWallet () {
+    error('check if a wallet exists for this email)')
   }
 
   async loadWallet (email) {
@@ -53,4 +54,4 @@ function error (msg) {
   throw new Error(msg)
 }
 
-module.exports = SimpleManagerApi
+module.exports = { SimpleManagerApi }
