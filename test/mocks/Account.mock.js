@@ -1,59 +1,62 @@
 // our wallet Account: (iframe: account.safechannel.com)
-const {AccountApi} = require("../../app/Account.api")
+const { AccountApi } = require('../../app/Account.api')
 
-localStorage = {}
+const localStorage = {}
 
 class AccountMock extends AccountApi {
+  constructor (options) {
+    super()
+    this.options = options
+  }
 
-    constructor(options) {
-        super()
-        this.options = options
+  getEmail () {
+    return localStorage.email
+  }
+
+  createOwner () {
+    if (localStorage.ownerAddress) {
+      throw new Error('owner already created')
     }
-    getEmail() {
-        return localStorage.email
-    }
-
-    createOwner() {
-        if (localStorage.ownerAddress)
-            throw new Error("owner already created")
-        if ( !localStorage.email)
-            throw new Error( "not logged in")
-
-        localStorage.ownerAddress = "addr"
-        localStorage.privateKey = "privKey"
+    if (!localStorage.email) {
+      throw new Error('not logged in')
     }
 
-    getOwner() {
-        return localStorage.ownerAddress
-    }
+    localStorage.ownerAddress = 'addr'
+    localStorage.privateKey = 'privKey'
+  }
 
-    async googleLogin() {
-        if ( this.verbose )
-            console.log("open google auth popup. prompt user for google account.\n");
-        localStorage.email = "user@email.com"
+  getOwner () {
+    return localStorage.ownerAddress
+  }
 
-        return {
-            jwt: {email: localStorage.email, nonce: localStorage.ownerAddress || "nonce"},
-            email: localStorage.email,
-            address: localStorage.ownerAddress
-        }
+  async googleLogin () {
+    if (this.verbose) {
+      console.log('open google auth popup. prompt user for google account.\n')
     }
+    localStorage.email = 'user@email.com'
 
-    async googleAuthenticate() {
-        return {
-            jwt: {email: localStorage.email, nonce: localStorage.ownerAddress || "nonce"},
-            email: localStorage.email,
-            address: localStorage.ownerAddress
-        }
+    return {
+      jwt: { email: localStorage.email, nonce: localStorage.ownerAddress || 'nonce' },
+      email: localStorage.email,
+      address: localStorage.ownerAddress
     }
+  }
 
-    async signOut() {
-        localStorage.email = localStorage.ownerAddress = localStorage.privateKey = undefined
+  async googleAuthenticate () {
+    return {
+      jwt: { email: localStorage.email, nonce: localStorage.ownerAddress || 'nonce' },
+      email: localStorage.email,
+      address: localStorage.ownerAddress
     }
+  }
 
-    async signTransaction({tx}) {
-        return {...tx, signature: "SIGSIGSIG"}
-    }
+  async signOut () {
+    localStorage.email = localStorage.ownerAddress = localStorage.privateKey = undefined
+  }
+
+  async signTransaction ({ tx }) {
+    return { ...tx, signature: 'SIGSIGSIG' }
+  }
 }
 
-module.exports = {AccountMock}
+module.exports = { AccountMock }

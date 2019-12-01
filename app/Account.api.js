@@ -1,38 +1,39 @@
+/* global error */
 // our wallet Account: (iframe: account.safechannel.com)
+// eslint-disable-next-line no-unused-vars
 class AccountApi {
+  constructor () {
+    // validate child contract implemented all core functions
+    require('./XfaceValidate')(AccountApi, this)
+  }
 
-    constructor() {
-        //validate child contract implemented all core functions
-        require('./XfaceValidate')(AccountApi, this)
-    }
+  getEmail () {
+    error('iframe: return current google logged in email (google account), or null')
+  }
 
-    getEmail() {
-        error('iframe: return current google logged in email (google account), or null')
-    }
+  getOwner () {
+    error('iframe: return owner\'s address (a cookie in an iframe)')
+  }
 
-    getOwner() {
-        error("iframe: return owner's address (a cookie in an iframe)")
-    }
+  async createOwner () {
+    error('for current email (google account), create owner address and private-key')
+  }
 
-    async createOwner() {
-        error( "for current email (google account), create owner address and private-key")
-    }
+  async googleLogin () {
+    error('iframe: open google auth popup. save to localStorage email,address. return {jwt, email, address}. throw if canceled/failed')
+  }
 
-    async googleLogin() {
-        error("iframe: open google auth popup. save to localStorage email,address. return {jwt, email, address}. throw if canceled/failed")
-    }
+  async googleAuthenticate () {
+    error('iframe: return fresh JWT token, with no UI (almost identical to googleLogin())')
+  }
 
-    async googleAuthenticate() {
-        error("iframe: return fresh JWT token, with no UI (almost identical to googleLogin())")
-    }
+  async signTransaction ({ tx }) {
+    error('sign transaction. might popup UI for user')
+  }
 
-    async signTransaction({tx}) {
-        error("sign transaction. might popup UI for user")
-    }
-
-    async signOut() {
-        error( "forget current address,private key and google account")
-    }
+  async signOut () {
+    error('forget current address,private key and google account')
+  }
 }
 
-module.exports = {AccountApi}
+module.exports = { AccountApi }

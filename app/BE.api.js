@@ -1,28 +1,28 @@
-//API of the main factory object.
+/* global error */
+
+// API of the main factory object.
+// eslint-disable-next-line no-unused-vars
 class BEapi {
+  constructor () {
+    // validate child contract implemented all core functions
+    require('./XfaceValidate')(BEapi, this)
+  }
 
-    constructor() {
-        //validate child contract implemented all core functions
-        require('./XfaceValidate')(BEapi, this)
-    }
+  validatePhone ({ jwt, phone }) {
+    error('validate jwt, return SMS url to pass to createVault')
+  }
 
-    validatePhone({jwt, phone}) {
-        error("validate jwt, return SMS url to pass to createVault")
-    }
+  createAccount ({ jwt, smsUrl }) {
+    error('validate fresh jwt, validate phone (from smsUrl). return approvalData')
+  }
 
-    createAccount({jwt, smsUrl}) {
-        error("validate fresh jwt, validate phone (from smsUrl). return approvalData")
-    }
+  addDeviceNow ({ jwt, newaddr }) {
+    error('validate jwt, return "click to add" SMS')
+  }
 
-    addDeviceNow({jwt, newaddr}) {
-        error('validate jwt, return "click to add" SMS')
-    }
-
-    handleNotifications() {
-        error('monitor pending changes. can subscribe for events, but need also to handle due events.')
-    }
-
+  handleNotifications () {
+    error('monitor pending changes. can subscribe for events, but need also to handle due events.')
+  }
 }
 
-
-module.exports = {BEapi}
+module.exports = { BEapi }

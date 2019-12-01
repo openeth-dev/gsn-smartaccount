@@ -1,35 +1,35 @@
-const {assert, expect} = require('chai')
-const {AccountMock} = require('./mocks/Account.mock')
+/* global describe beforeEach it */
 
-context('test account mock', () => {
-    let acct
-    beforeEach("test account", () => {
+const { assert, expect } = require('chai')
+const { AccountMock } = require('./mocks/Account.mock')
 
-        localStorage = {}
-        acct = new AccountMock()
-    })
+describe('test account mock', () => {
+  let acct
+  beforeEach('test account', () => {
+    acct = new AccountMock()
+    acct.signOut()
+  })
 
-    it("getEmail", () => {
+  it('getEmail', () => {
+    assert.equal(acct.getEmail(), null)
+    acct.googleLogin()
+    assert.equal(acct.getEmail(), 'user@email.com')
+  })
 
-        assert.equal(acct.getEmail(), null)
-        acct.googleLogin()
-        assert.equal(acct.getEmail(), "user@email.com")
-    })
+  it('createOwner should fail before login', async () => {
+    expect(acct.createOwner).to.throw('not logged in')
+  })
 
-    it("createOwner should fail before login", async () => {
-        expect(acct.createOwner).to.throw("not logged in")
-    })
+  it('getOwner after createOwner should return address', async () => {
+    assert.equal(acct.getOwner(), null)
+    await acct.googleLogin()
+    acct.createOwner()
+    assert.equal(acct.getOwner(), 'addr')
+  })
 
-    it("getOwner after createOwner should return address", async () => {
-        assert.equal(acct.getOwner(), null)
-        acct.googleLogin()
-        acct.createOwner()
-        assert.equal(acct.getOwner(), "addr")
-    })
-
-    it("createOwner should fail if called twice", async () => {
-        acct.googleLogin()
-        acct.createOwner()
-        expect(acct.createOwner).to.throw("owner already created")
-    })
+  it('createOwner should fail if called twice', async () => {
+    await acct.googleLogin()
+    acct.createOwner()
+    expect(acct.createOwner).to.throw('owner already created')
+  })
 })

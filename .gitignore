@@ -12,7 +12,7 @@ node_modules
 /.idea/dictionaries/
 /.idea/encodings.xml
 /.idea/misc.xml
-/.idea/vcs.xml
+.idea
 /.idea/workspace.xml
 js_client/.gradle/
 js_client/gradle/
@@ -21,7 +21,7 @@ js_client/gradlew.bat
 /.idea/artifacts/
 /.idea/gradle.xml
 /.idea/modules.xml
+.idea/*
 /.idea/$PRODUCT_WORKSPACE_FILE$
-/.idea/testkotlinjs.iml
 .idea/safechannels.iml
 /solidity/src/js/generated/
