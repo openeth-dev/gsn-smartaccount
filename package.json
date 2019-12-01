@@ -2,7 +2,14 @@
   "name": "sc-sample",
   "version": "1.0.0",
   "main": "index.js",
+  "scripts" : {
+	"test" : "mocha test"
+  },
   "repository": "https://github.com/tabookey/sc-sample.git",
   "author": "Dror Tirosh <dror@tabookey.com>",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "chai": "^4.2.0",
+    "mocha": "^6.2.2"
+  }
 }

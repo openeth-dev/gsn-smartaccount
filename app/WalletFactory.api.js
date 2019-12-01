@@ -1,27 +1,29 @@
+
 //static object in client app.
 // core API to access iframe (google email, address, sign)
 class WalletFactoryApi {
 
+    let accountApi
     //wrapper calls for the background IFRAME:
 
     getEmail() {
-        error('iframe: return current google logged in email (google account), or null')
+        return this.accountApi.getEmail()
     }
 
     getOwner() {
-        error("iframe: return owner's address (a cookie in an iframe)")
+        return this.accountApi.getOwner()
     }
 
     async googleLogin() {
-        error("iframe: open google auth popup. save to localStorage email,address. return {jwt, email, address}. throw if canceled/failed")
+        return this.accountApi.googleLogin()
     }
 
     async googleAuthenticate() {
-        error( "iframe: return fresh JWT token, with no UI (almost identical to googleLogin())")
+        return this.accountApi.googleAuthenticate()
     }
 
     async getWalletAddress(email) {
-        error( "return the CREATE2 wallet address (valid even before created)")
+        error( "return the wallet address (valid only after is was created)")
     }
 
     async hasWallet(email) {
@@ -43,6 +45,7 @@ class WalletFactoryApi {
     recoverWallet({owner, email}) {
         error("trigger recover flow")
     }
+
 }
 
 function error(msg) {

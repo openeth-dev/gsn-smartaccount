@@ -18,7 +18,6 @@ js_client/.gradle/
 js_client/gradle/
 js_client/gradlew
 js_client/gradlew.bat
-/.idea/modules/
 /.idea/artifacts/
 /.idea/gradle.xml
 /.idea/modules.xml
