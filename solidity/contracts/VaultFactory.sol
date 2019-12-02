@@ -4,11 +4,9 @@ import "./Gatekeeper.sol";
 import "tabookey-gasless/contracts/GsnUtils.sol";
 import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
 import "openzeppelin-solidity/contracts/cryptography/ECDSA.sol";
-import "@0x/contracts-utils/contracts/src/LibBytes.sol";
 
 contract VaultFactory is GsnRecipient, Ownable {
     using GsnUtils for bytes;
-    using LibBytes for bytes;
     using ECDSA for bytes32;
 
     event VaultCreated(address sender, Gatekeeper gatekeeper, bytes32 salt);
@@ -30,14 +28,6 @@ contract VaultFactory is GsnRecipient, Ownable {
         return trustedSigners[hash.recover(sig)];
     }
 
-//    function getApprovedSigner(bytes32 hash, bytes memory sig) public pure returns (address) {
-//        return hash.recover(sig);
-//    }
-//
-//    function getMessageHash( bytes32 vaultId, bytes4 timestamp) public pure returns (bytes32){
-//        return keccak256(abi.encodePacked(vaultId, timestamp));
-//    }
-
     function acceptRelayedCall(
         address relay, address from, bytes calldata encodedFunction,
         uint256 transactionFee, uint256 gasPrice, uint256 gasLimit,
@@ -50,8 +40,6 @@ contract VaultFactory is GsnRecipient, Ownable {
         require(methodSig == this.newVault.selector, "Call must be only newVault()");
         bytes32 vaultId = bytes32(encodedFunction.getParam(0));
         require(knownVaults[vaultId] == address(0), "Vault already created for this id");
-//        bytes4 timestamp = approvalData.readBytes4(0);
-//        bytes memory sig = approvalData.slice(4, approvalData.length);
         (bytes4 timestamp, bytes memory sig) = abi.decode(approvalData,(bytes4, bytes));
         require(now >= uint32(timestamp), "Outdated request");
         bytes32 hash = keccak256(abi.encodePacked(vaultId, timestamp));
@@ -67,16 +55,4 @@ contract VaultFactory is GsnRecipient, Ownable {
         knownVaults[vaultId] = address(gatekeeper);
         emit VaultCreated(getSender(), gatekeeper, vaultId);
     }
-
-    //    function newVault2(bytes32 salt) public {
-    //        address payable gkAddr;
-    //        bytes memory code = type(Gatekeeper).creationCode;
-    //        assembly {
-    //            gkAddr := create2(0, add(code, 0x20), mload(code), salt)
-    //            if iszero(extcodesize(gkAddr)) {
-    //                revert(0, 0)
-    //            }
-    //        }
-    //        emit VaultCreated(getSender(), Gatekeeper(gkAddr), salt);
-    //    }
 }
