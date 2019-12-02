@@ -2,10 +2,12 @@
 
 // API of the main factory object.
 // eslint-disable-next-line no-unused-vars
-class BEapi {
+import validate from '../utils/XfaceValidate'
+
+export default class BEapi {
   constructor () {
     // validate child contract implemented all core functions
-    require('./XfaceValidate')(BEapi, this)
+    validate(BEapi, this)
   }
 
   validatePhone ({ jwt, phone }) {
@@ -24,5 +26,3 @@ class BEapi {
     error('monitor pending changes. can subscribe for events, but need also to handle due events.')
   }
 }
-
-module.exports = { BEapi }

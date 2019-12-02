@@ -1,10 +1,12 @@
 /* global error describe it */
 
-const { assert } = require('chai')
+import validate from '../app/utils/XfaceValidate'
+
+import { assert } from 'chai'
 
 class BaseApi {
   constructor () {
-    require('../app/XfaceValidate')(BaseApi, this)
+    validate(BaseApi, this)
   }
 
   baseFunction () {

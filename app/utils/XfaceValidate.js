@@ -1,5 +1,5 @@
 /* eslint-disable no-proto */
-function validate (baseClass, inst) {
+export default function validate (baseClass, inst) {
   if (!baseClass.prototype) {
     throw new Error(`${baseClass}: not a class (no "prototype")`)
   }
@@ -30,5 +30,3 @@ function validate (baseClass, inst) {
   })
   if (errors && errors.length) { throw new Error('Interface error for ' + inst + ': \n' + errors.join('\n')) }
 }
-
-module.exports = validate

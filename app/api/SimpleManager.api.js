@@ -1,9 +1,12 @@
 // static object in client app.
 // core API to access iframe (google email, address, sign)
 // eslint-disable-next-line no-unused-vars
-class SimpleManagerApi {
+
+import validate from '../utils/XfaceValidate'
+
+export default class SimpleManagerApi {
   constructor () {
-    require('./XfaceValidate')(SimpleManagerApi, this)
+    validate(SimpleManagerApi, this)
     this.accountApi = undefined
   }
 
@@ -53,5 +56,3 @@ class SimpleManagerApi {
 function error (msg) {
   throw new Error(msg)
 }
-
-module.exports = { SimpleManagerApi }

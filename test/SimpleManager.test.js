@@ -1,7 +1,7 @@
 /* global describe beforeEach it */
 
 // const { assert, expect } = require('chai')
-const { SimpleManagerMock } = require('./mocks/SimpleManager.mock')
+import SimpleManagerMock from './mocks/SimpleManager.mock'
 
 describe('test mgr mock', () => {
   let mgr

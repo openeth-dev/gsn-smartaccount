@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "yarn run lint && mocha test",
+    "test": "yarn run lint && mocha --require esm test",
     "lint": "yarn run lint:js",
     "lint:fix": "yarn run lint:js:fix",
     "lint:js": "eslint -f unix --ignore-path .gitignore .",
@@ -25,6 +25,7 @@
     "eslint-plugin-node": "^10.0.0",
     "eslint-plugin-promise": "^4.2.1",
     "eslint-plugin-standard": "^4.0.1",
+    "esm": "^3.2.25",
     "standard": "^14.3.1"
   }
 }
