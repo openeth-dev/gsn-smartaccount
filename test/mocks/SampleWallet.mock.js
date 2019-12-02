@@ -1,8 +1,8 @@
 /* global error */
 
-const { SampleWalletApi } = require('../../app/SampleWallet.api')
+import SampleWalletApi from '../../app/api/SampleWallet.api'
 
-class SampleWalletMock extends SampleWalletApi {
+export default class SampleWalletMock extends SampleWalletApi {
   transfer ({ destAddr, amount, token }) {
     error('initiate transfer operation. adds a pending item, depending on transfer policy')
   }
@@ -134,5 +134,3 @@ class SampleWalletMock extends SampleWalletApi {
     ]
   }
 }
-
-module.exports = { SampleWalletMock }

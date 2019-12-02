@@ -1,7 +1,7 @@
 /* global describe before it */
-import { SimpleManager } from '../mocks/SimpleManager.mock'
+import SimpleManager from '../mocks/SimpleManager.mock'
 
-const assert = require('assert')
+import assert from 'assert'
 
 describe('SimpleManager', async function () {
   describe('constructor', async function () {

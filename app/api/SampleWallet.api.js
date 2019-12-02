@@ -3,10 +3,11 @@
 // This is the template to into actual (and mock) implementation objects.
 // (I wish javascript had better "abstract" methods...)
 
+import validate from '../utils/XfaceValidate'
 // eslint-disable-next-line no-unused-vars
-class SampleWalletApi {
+export default class SampleWalletApi {
   constructor () {
-    require('./XfaceValidate')(SampleWalletApi, this)
+    validate(SampleWalletApi, this)
   }
 
   transfer ({ destAddr, amount, token }) {
@@ -140,5 +141,3 @@ class SampleWalletApi {
     ]
   }
 }
-
-module.exports = { SampleWalletApi }

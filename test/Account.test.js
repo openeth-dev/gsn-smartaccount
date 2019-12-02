@@ -1,7 +1,8 @@
 /* global describe beforeEach it */
 
-const { assert, expect } = require('chai')
-const { AccountMock } = require('./mocks/Account.mock')
+import AccountMock from './mocks/Account.mock'
+
+import { assert, expect } from 'chai'
 
 describe('test account mock', () => {
   let acct

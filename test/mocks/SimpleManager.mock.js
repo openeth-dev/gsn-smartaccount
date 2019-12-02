@@ -1,11 +1,11 @@
 /* global error */
 
-const { SimpleManagerApi } = require('../../app/SimpleManager.api.js')
-const { SampleWalletMock } = require('./SampleWallet.mock.js')
-const { AccountMock } = require('./Account.mock')
+import SimpleManagerApi from '../../app/api/SimpleManager.api.js'
+import SampleWalletMock from './SampleWallet.mock.js'
+import AccountMock from './Account.mock'
 
 // API of the main factory object.
-class SimpleManagerMock extends SimpleManagerApi {
+export default class SimpleManagerMock extends SimpleManagerApi {
   constructor (props) {
     super(props)
     this.accountApi = new AccountMock()

@@ -1,10 +1,11 @@
 /* global error */
 // our wallet Account: (iframe: account.safechannel.com)
 // eslint-disable-next-line no-unused-vars
-class AccountApi {
+import validate from '../utils/XfaceValidate'
+export default class AccountApi {
   constructor () {
     // validate child contract implemented all core functions
-    require('./XfaceValidate')(AccountApi, this)
+    validate(AccountApi, this)
   }
 
   getEmail () {
@@ -35,5 +36,3 @@ class AccountApi {
     error('forget current address,private key and google account')
   }
 }
-
-module.exports = { AccountApi }

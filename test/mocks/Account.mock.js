@@ -1,9 +1,9 @@
 // our wallet Account: (iframe: account.safechannel.com)
-const { AccountApi } = require('../../app/Account.api')
+import AccountApi from '../../app/api/Account.api'
 
 const localStorage = {}
 
-class AccountMock extends AccountApi {
+export default class AccountMock extends AccountApi {
   constructor (options) {
     super()
     this.options = options
@@ -58,5 +58,3 @@ class AccountMock extends AccountApi {
     return { ...tx, signature: 'SIGSIGSIG' }
   }
 }
-
-module.exports = { AccountMock }
