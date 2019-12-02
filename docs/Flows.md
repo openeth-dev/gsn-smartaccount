@@ -18,7 +18,7 @@
     * **getAddress()** - return address
     * **createAccount()** - authenticate and create address,privkey
     * **sign(data)** - use privkey to sign data
-* **sponsor**: 
+* **sponsor**:
   - accepts calls to `factory`, with a signed approval from BE (jwt is fresh)
   - accepst calls to existing vault, from `isParticipant`<br>
     **TBD:** charge vault for such operations.
@@ -50,7 +50,7 @@
 <a name="createVault"></a>
 ### Vault Creation
 
-![Vault Creation](http://www.websequencediagrams.com/cgi-bin/cdraw?s=rose&m=title+Vault+Creation%0a%0aparticipant+user%0aparticipant+webapp+as+app%0aparticipant+%22Backend%22+as+be%0aparticipant+google%0aparticipant+Sponsor%5cn%28Via+GSN%29+as+sponsor%0aparticipant+factory%0aparticipant+vault%0auser-%3e%2bapp%3a+login%0aapp-%3egoogle%3a+gapi%2esignIn%28%29%0anote+over+google%3a+Prompt+User+to%5cnselect+Account%0agoogle--%3eapp%3a+JWT%28email%29%0aapp-%3e%2bbe%3avalidatePhone%28jwt%2c+phone%29%0adeactivate+app%0abe-%3e-user%3a+SMS+click+here+%28smsUrl-verifyCode%29%0auser-%3e%2bapp%3a+click+%28or+enter+code%29%0anote+over+app%3a+create%5cnaddress%2cPK%5cnsave+in+LocalStorage%0aapp-%3egoogle%3a+gapi%2eauthenticate%28email%2c+nonce%3aaddress%29%0agoogle--%3eapp%3a+JWT%28email%2cnonce%3aaddress%29%0aapp-%3e%2bbe%3acreateAccount%28JWT%2c+smsVerifyCode%29%0anote+over+be%3a+validate+JWT%2c%5cnsave+email%2cphone%2c%5cnparse+JWT%2c%5cnsalt%3dhash%28email%29%5cnsign+with+ECDSA%0abe--%3e-app%3a+approvalData%28salt%2ctimestamp%2csig%29%0aapp-%3esponsor%3a+createVault%28salt%2c+%7b+approvalData%3a%7b+salt%2ctimestamp%2csig+%7d%7d+%29%0aactivate+sponsor%0anote+over+sponsor%3a+validate+backend-sig%5cnon+salt%2ctimestamp%0asponsor-%3e-factory%3a+createVault%0aactivate+factory%0afactory-%3evault%3a+create2%0afactory-%3evault%3a+configure%0adeactivate+factory%0avault--%3e-webapp%3a+monitor+changes)
+![Vault Creation](http://www.websequencediagrams.com/cgi-bin/cdraw?s=rose&m=title+Vault+Creation%0a%0aparticipant+user%0aparticipant+webapp+as+app%0aparticipant+%22Backend%22+as+be%0aparticipant+google%0aparticipant+Sponsor%5cn%28Via+GSN%29+as+sponsor%0aparticipant+factory%0aparticipant+vault%0auser-%3e%2bapp%3a+login%0aapp-%3egoogle%3a+gapi%2esignIn%28%29%0anote+over+google%3a+Prompt+User+to%5cnselect+Account%0agoogle--%3eapp%3a+JWT%28email%29%0aapp-%3e%2bbe%3avalidatePhone%28jwt%2c+phone%29%0adeactivate+app%0abe-%3e-user%3a+SMS+click+here+%28smsUrl-verifyCode%29%0auser-%3e%2bapp%3a+click+%28or+enter+code%29%0anote+over+app%3a+create%5cnaddress%2cPK%5cnsave+in+LocalStorage%0aapp-%3egoogle%3a+gapi%2eauthenticate%28email%2c+nonce%3aaddress%29%0agoogle--%3eapp%3a+JWT%28email%2cnonce%3aaddress%29%0aapp-%3e%2bbe%3acreateAccount%28JWT%2c+smsVerifyCode%29%0anote+over+be%0avalidate+JWT%2c%0asave+email%2cphone%2c%0aparse+JWT%2c%0asalt%3dhash%28email%29%0asig+%3d+ecdsaSign%28salt%2ctimestamp%29%0aend+note%0abe--%3e-app%3a+approvalData%28salt%2ctimestamp%2csig%29%0aapp-%3esponsor%3a+createVault%28salt%2c+%7b+approvalData%3a%7btimestamp+%7c%7c+sig+%7d%7d+%29%0aactivate+sponsor%0anote+over+sponsor%3a+validate+backend-sig%5cnon+salt%2ctimestamp%0asponsor-%3e-factory%3a+createVault%0aactivate+factory%0afactory-%3evault%3a+create2%0afactory-%3evault%3a+configure%0adeactivate+factory%0avault--%3e-webapp%3a+monitor+changes)
 
 
 <a name="addDeviceImmediate" ></a>
@@ -60,8 +60,8 @@
 - SMS is used to pass new device info (address, title) to old device.
 - SMS **must** also be used as 2FA authentication: guardian should approve only
     if it can verify SMS was used.
-     
-![Add Device Immediate](http://www.websequencediagrams.com/cgi-bin/cdraw?s=rose&m=title+Add+Device+Immediate%0a%0aparticipant+%22NewDevice%22+as+new%0aparticipant+%22OldDevice%22+as+user%0aparticipant+webapp+as+app%0aparticipant+%22Backend%22+as+be%0aparticipant+vault%0aparticipant+google%0a%0anew-%3e%2bapp%3a+login%0aactivate+new%0aapp-%3egoogle%3a+authenticate%28email%2c+nonce%28newaddr%29%29%0agoogle--%3eapp%3a+JWT%0aapp-%3e-be%3aaddDeviceNow%28jwt%29%0aactivate+be%0anote+over+be%3a+get+phone+for+email%5cnstore+temporarily%3a%5cn%28vault-addr%2cnewaddr%2ctimestamp%29+%0abe-%3euser%3a+SMS%3a+click+to+add+%28newaddr%29%0adeactivate+be%0auser-%3e%2bapp%3a+click%0aapp-%3egoogle%3a+authenticate%28email%29%0agoogle--%3eapp%3a+JWT%0anote+over+app%3a+Propt+user%3a+Click+here+to%5cnadd+XXX+as+new+device%0aapp-%3e-vault%3a+addOperatorNow%28newaddr%29%0anote+over+vault%3a+PendingChange%0avault--%3e%2bbe%3a+monitor+changes%0anote+over+be%3a+validate+has+%28vault-addr%2cnewaddr%29%5cnin+memory%0abe-%3e-vault%3a+approve%28%29%5cnas+Watchdog%0avault--%3enew%3a+monitor+change)
+
+![Add Device Immediate](http://www.websequencediagrams.com/cgi-bin/cdraw?s=rose&m=title+Add+Device+Immediate%0a%0aparticipant+%22NewDevice%22+as+new%0aparticipant+%22OldDevice%22+as+user%0aparticipant+webapp+as+app%0aparticipant+%22Backend%22+as+be%0aparticipant+vault%0aparticipant+google%0a%0anew-%3e%2bapp%3a+login%0aactivate+new%0aapp-%3egoogle%3a+authenticate%28email%2c+nonce%28newaddr%29%29%0agoogle--%3eapp%3a+JWT%0aapp-%3e-be%3aaddDeviceNow%28jwt%29%0aactivate+be%0anote+over+be%3a+get+phone+for+email%5cnstore+temporarily%3a%5cn%28vault-addr%2cnewaddr%2ctimestamp%29%0abe-%3euser%3a+SMS%3a+click+to+add+%28newaddr%29%0adeactivate+be%0auser-%3e%2bapp%3a+click%0aapp-%3egoogle%3a+authenticate%28email%29%0agoogle--%3eapp%3a+JWT%0anote+over+app%3a+Propt+user%3a+Click+here+to%5cnadd+XXX+as+new+device%0aapp-%3e-vault%3a+addOperatorNow%28newaddr%29%0anote+over+vault%3a+PendingChange%0avault--%3e%2bbe%3a+monitor+changes%0anote+over+be%3a+validate+has+%28vault-addr%2cnewaddr%29%5cnin+memory%0abe-%3e-vault%3a+approve%28%29%5cnas+Watchdog%0avault--%3enew%3a+monitor+change)
 
 <a name="recoverDevice" ></a>
 ### Recover Device
@@ -162,7 +162,7 @@ This is more techincal flow of using google auth and a separate "secured" iframe
 This means that the trusted app that contacts google OAuth service is not the sample app, but
 "accounts.safechannel.com", which doesn't change between apps.
 
-![Google Auth2 using iframe](http://www.websequencediagrams.com/cgi-bin/cdraw?s=rose&m=title+Google+Auth2+using+iframe%0aparticipant+user%0aparticipant+webapp+as+app%0aparticipant+iframe%0aparticipant+google%0a%0auser-%3eapp%3a+login%0aapp-%3eiframe%3a+getAddress%28%29%0aiframe--%3eapp%3a+null%0aapp-%3eiframe%3a+signIn%28%29%0aiframe-%3egoogle%3a+gapi%2esignIn%28%29%0agoogle-%3eiframe%3a+onSignIn%28JWT%29%0aiframe-%3eapp%3a+onSignIn%28JWT%29%0aapp-%3eiframe%3a+createAccount%28%29%0anote+over+iframe%3a+create%5cnPrivateKey%2c%5cnaddress%0aiframe-%3egoogle%3a+authenticate%28nonce%3aaddress%29%0anote+right+of+app%3a+%0aJWT+contains%3a+%0aemail%2c+timestamp%2c+nonce%3aaddress%0a%28also+iframe-url%2c+signature%29%0aend+note%0agoogle--%3eiframe%3a+jwt%0aiframe-%3eapp%3a+jwt)
+![Google Auth2 using iframe](http://www.websequencediagrams.com/cgi-bin/cdraw?s=rose&m=title+Google+Auth2+using+iframe%0aparticipant+user%0aparticipant+webapp+as+app%0aparticipant+iframe%0aparticipant+google%0a%0auser-%3eapp%3a+login%0aapp-%3eiframe%3a+getAddress%28%29%0aiframe--%3eapp%3a+null%0aapp-%3eiframe%3a+signIn%28%29%0aiframe-%3egoogle%3a+gapi%2esignIn%28%29%0agoogle-%3eiframe%3a+onSignIn%28JWT%29%0aiframe-%3eapp%3a+onSignIn%28JWT%29%0aapp-%3eiframe%3a+createAccount%28%29%0anote+over+iframe%3a+create%5cnPrivateKey%2c%5cnaddress%0aiframe-%3egoogle%3a+authenticate%28nonce%3aaddress%29%0anote+right+of+app%3a%0aJWT+contains%3a%0aemail%2c+timestamp%2c+nonce%3aaddress%0a%28also+iframe-url%2c+signature%29%0aend+note%0agoogle--%3eiframe%3a+jwt%0aiframe-%3eapp%3a+jwt)
 
 ```
 title Google Auth2 using iframe
@@ -181,8 +181,8 @@ iframe->app: onSignIn(JWT)
 app->iframe: createAccount()
 note over iframe: create\nPrivateKey,\naddress
 iframe->google: authenticate(nonce:address)
-note right of app: 
-JWT contains: 
+note right of app:
+JWT contains:
 email, timestamp, nonce:address
 (also iframe-url, signature)
 end note
@@ -215,9 +215,15 @@ note over app: create\naddress,PK\nsave in LocalStorage
 app->google: gapi.authenticate(email, nonce:address)
 google-->app: JWT(email,nonce:address)
 app->+be:createAccount(JWT, smsVerifyCode)
-note over be: validate JWT,\nsave email,phone,\nparse JWT,\nsalt=hash(email)\nsign with ECDSA
+note over be
+validate JWT,
+save email,phone,
+parse JWT,
+salt=hash(email)
+sig = ecdsaSign(salt,timestamp)
+end note
 be-->-app: approvalData(salt,timestamp,sig)
-app->sponsor: createVault(salt, { approvalData:{ salt,timestamp,sig }} )
+app->sponsor: createVault(salt, { approvalData:{timestamp || sig }} )
 activate sponsor
 note over sponsor: validate backend-sig\non salt,timestamp
 sponsor->-factory: createVault
@@ -245,7 +251,7 @@ app->google: authenticate(email, nonce(newaddr))
 google-->app: JWT
 app->-be:addDeviceNow(jwt)
 activate be
-note over be: get phone for email\nstore temporarily:\n(vault-addr,newaddr,timestamp) 
+note over be: get phone for email\nstore temporarily:\n(vault-addr,newaddr,timestamp)
 be->user: SMS: click to add (newaddr)
 deactivate be
 user->+app: click
@@ -333,4 +339,3 @@ guardian->vault: apply
 
 end
 ```
-
