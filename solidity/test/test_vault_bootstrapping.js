@@ -108,7 +108,7 @@ contract("Vault Bootstrapping", async function (accounts) {
             gsnForwarder.contract.methods.callRecipient(vaultFactory.address, newVaultCallData).encodeABI();
 
         let timestampInt = Math.floor(Date.now()/1000);//1575229433
-        let timestamp = Buffer.from(padIntTo32ByteHex(timestampInt),"hex");
+        // let timestamp = Buffer.from(padIntTo32ByteHex(timestampInt),"hex");
         //let backendSignature = crypto.randomBytes(65);
         // backendSignature[0] = 0x1b;
         // Mocking backed signature
@@ -118,18 +118,19 @@ contract("Vault Bootstrapping", async function (accounts) {
             hash, backendSignature[0], backendSignature.slice(1,33), backendSignature.slice(33,backendSignature.length))));
         // Adding mocked signer as trusted caller i.e. backend ethereum address
         await vaultFactory.addTrustedSigners([signer],{from:vfOwner});
-        let approvalData = Buffer.concat([timestamp, fixSigFormat(backendSignature)]);
+        // let approvalData = Buffer.concat([timestamp, fixSigFormat(backendSignature)]);
+        let approvalData = ABI.rawEncode(["uint256", "bytes"], [timestampInt, fixSigFormat(backendSignature)]);
 
-        // console.log("vaultId = ", vaultId.toString("hex"))
-        // console.log("timestampInt = ", timestampInt)
-        // console.log("hash = ", hash.toString("hex"))
-        // console.log("blockchain hash = ", await vaultFactory.getFuckingHash(vaultId, timestampInt))
-        // console.log("backendSignature = ", backendSignature.toString("hex"))
-        // console.log("fixed backendSignature = ", fixSigFormat(backendSignature).toString("hex"))
-        // console.log("signer = ", signer)
-        // console.log("blockchain signer = ", await vaultFactory.getApprovedSigner(hash, fixSigFormat(backendSignature)))
-        // console.log("is approved signer?  ", await vaultFactory.isApprovedSigner(hash, fixSigFormat(backendSignature)))
-        // console.log("approvalData = ", approvalData.toString("hex"))
+        console.log("vaultId = ", vaultId.toString("hex"))
+        console.log("timestampInt = ", timestampInt)
+        console.log("hash = ", hash.toString("hex"))
+        console.log("blockchain hash = ", await vaultFactory.getFuckingHash(vaultId, timestampInt))
+        console.log("backendSignature = ", backendSignature.toString("hex"))
+        console.log("fixed backendSignature = ", fixSigFormat(backendSignature).toString("hex"))
+        console.log("signer = ", signer)
+        console.log("blockchain signer = ", await vaultFactory.getApprovedSigner(hash, fixSigFormat(backendSignature)))
+        console.log("is approved signer?  ", await vaultFactory.isApprovedSigner(hash, fixSigFormat(backendSignature)))
+        console.log("approvalData = ", approvalData.toString("hex"))
 
         let receipt = await callViaRelayHub(encodedFunctionCall, 0, approvalData);
         let createdEvent = receipt.logs[0];
