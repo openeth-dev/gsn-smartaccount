@@ -1,6 +1,6 @@
 /* global error */
 
-import SampleWalletApi from '../../app/api/SampleWallet.api'
+import SampleWalletApi from '../../src/js/api/SampleWallet.api'
 
 export default class SampleWalletMock extends SampleWalletApi {
   transfer ({ destAddr, amount, token }) {

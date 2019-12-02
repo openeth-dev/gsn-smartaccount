@@ -1,6 +1,6 @@
 /* global error */
 
-import SimpleManagerApi from '../../app/api/SimpleManager.api.js'
+import SimpleManagerApi from '../../src/js/api/SimpleManager.api.js'
 import SampleWalletMock from './SampleWallet.mock.js'
 import AccountMock from './Account.mock'
 

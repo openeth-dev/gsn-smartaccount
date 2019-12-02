@@ -1,5 +1,5 @@
 // our wallet Account: (iframe: account.safechannel.com)
-import AccountApi from '../../app/api/Account.api'
+import AccountApi from '../../src/js/api/Account.api'
 
 const localStorage = {}
 
