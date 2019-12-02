@@ -28,16 +28,15 @@ contract VaultFactory is GsnRecipient, Ownable {
 
     function isApprovedSigner(bytes32 hash, bytes memory sig) public view returns (bool) {
         return trustedSigners[hash.recover(sig)];
-//        return true;
     }
 
-    function getApprovedSigner(bytes32 hash, bytes memory sig) public pure returns (address) {
-        return hash.recover(sig);
-    }
-
-    function getFuckingHash( bytes32 vaultId, uint256 timestamp) public pure returns (bytes32){
-        return keccak256(abi.encodePacked(vaultId, timestamp));
-    }
+//    function getApprovedSigner(bytes32 hash, bytes memory sig) public pure returns (address) {
+//        return hash.recover(sig);
+//    }
+//
+//    function getMessageHash( bytes32 vaultId, bytes4 timestamp) public pure returns (bytes32){
+//        return keccak256(abi.encodePacked(vaultId, timestamp));
+//    }
 
     function acceptRelayedCall(
         address relay, address from, bytes calldata encodedFunction,
@@ -51,10 +50,10 @@ contract VaultFactory is GsnRecipient, Ownable {
         require(methodSig == this.newVault.selector, "Call must be only newVault()");
         bytes32 vaultId = bytes32(encodedFunction.getParam(0));
         require(knownVaults[vaultId] == address(0), "Vault already created for this id");
-//        uint256 timestamp = approvalData.readUint256(0);
-//        bytes memory sig = approvalData.slice(32, approvalData.length);
-        (uint256 timestamp, bytes memory sig) = abi.decode(approvalData,(uint256, bytes));
-        require(now >= timestamp, "Outdated request");
+//        bytes4 timestamp = approvalData.readBytes4(0);
+//        bytes memory sig = approvalData.slice(4, approvalData.length);
+        (bytes4 timestamp, bytes memory sig) = abi.decode(approvalData,(bytes4, bytes));
+        require(now >= uint32(timestamp), "Outdated request");
         bytes32 hash = keccak256(abi.encodePacked(vaultId, timestamp));
         require(isApprovedSigner(hash, sig), "Not signed by approved signer");
 
