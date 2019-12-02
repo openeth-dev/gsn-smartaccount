@@ -1,5 +1,8 @@
 /* npm modules */
 const ethUtils = require('ethereumjs-util');
+const ethWallet = require('ethereumjs-wallet');
+const ethCrypto = require('eth-crypto');
+const web3Utils = require('web3-utils');
 const ABI = require('ethereumjs-abi');
 const Chai = require('chai');
 const GsnUtils = require('tabookey-gasless/src/js/relayclient/utils');
@@ -51,12 +54,12 @@ contract("Vault Bootstrapping", async function (accounts) {
     let gatekeeper;
     let bypassModule;
 
-    function fixSigFormat( buf) {
-        return Buffer.concat([buf.slice(1,33), buf.slice(33, buf.length), Buffer.from(buf[0].toString(16),"hex")]);
-    }
-
-    function padIntTo32ByteHex(num) {
-        return "0".repeat(64 - num.toString(16).length) + num.toString(16)
+    function newEphemeralKeypair() {
+        let a = ethWallet.generate();
+        return {
+            privateKey: a.privKey,
+            address: "0x" + a.getAddress().toString('hex')
+        }
     }
 
     async function callViaRelayHub(encodedFunctionCall, nonce, approvalData = []) {
@@ -108,15 +111,16 @@ contract("Vault Bootstrapping", async function (accounts) {
             gsnForwarder.contract.methods.callRecipient(vaultFactory.address, newVaultCallData).encodeABI();
 
         let timestamp = Buffer.from(Math.floor(Date.now()/1000).toString(16), "hex");//1575229433
-        // Mocking backed signature
-        let backendSignature = Buffer.from("1b403b57c556f419306af87f80bed54e4358f323a806e9ef35f5b4c77b77a34ac467a020cff280c045518b098409d6ad4924dd1eaa90c70c0a9298f7665a444b68","hex")
+        let keyPair = newEphemeralKeypair();
+        // Mocking backend signature
         let hash = ABI.soliditySHA3(["bytes32", "bytes4"], [vaultId, timestamp]);
         hash = ABI.soliditySHA3(["string", "bytes32"], ["\x19Ethereum Signed Message:\n32", hash]);
-        let signer = ethUtils.bufferToHex(ethUtils.pubToAddress(ethUtils.ecrecover(
-            hash, backendSignature[0], backendSignature.slice(1,33), backendSignature.slice(33,backendSignature.length))));
+        let sig = ethUtils.ecsign(hash, keyPair.privateKey);
+        let backendSignature = Buffer.concat([sig.r, sig.s, Buffer.from(sig.v.toString(16),"hex")]);
         // Adding mocked signer as trusted caller i.e. backend ethereum address
+        let signer = keyPair.address
         await vaultFactory.addTrustedSigners([signer],{from:vfOwner});
-        let approvalData = ABI.rawEncode(["bytes4", "bytes"], [timestamp, fixSigFormat(backendSignature)]);
+        let approvalData = ABI.rawEncode(["bytes4", "bytes"], [timestamp, backendSignature]);
 
         let receipt = await callViaRelayHub(encodedFunctionCall, 0, approvalData);
         let createdEvent = receipt.logs[0];
