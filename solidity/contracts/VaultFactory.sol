@@ -9,6 +9,8 @@ contract VaultFactory is GsnRecipient, Ownable {
     using GsnUtils for bytes;
     using ECDSA for bytes32;
 
+    uint256 constant APPROVAL_VALIDITY = 1 days;
+
     event VaultCreated(address sender, Gatekeeper gatekeeper, bytes32 salt);
 
     mapping(address => bool) public trustedSigners;
@@ -41,7 +43,7 @@ contract VaultFactory is GsnRecipient, Ownable {
         bytes32 vaultId = bytes32(encodedFunction.getParam(0));
         require(knownVaults[vaultId] == address(0), "Vault already created for this id");
         (bytes4 timestamp, bytes memory sig) = abi.decode(approvalData,(bytes4, bytes));
-        require(now >= uint32(timestamp), "Outdated request");
+        require(uint32(timestamp) + APPROVAL_VALIDITY > now, "Outdated request");
         bytes32 hash = keccak256(abi.encodePacked(vaultId, timestamp)).toEthSignedMessageHash();
         require(isApprovedSigner(hash, sig), "Not signed by approved signer");
 
