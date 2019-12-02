@@ -42,7 +42,7 @@ contract VaultFactory is GsnRecipient, Ownable {
         require(knownVaults[vaultId] == address(0), "Vault already created for this id");
         (bytes4 timestamp, bytes memory sig) = abi.decode(approvalData,(bytes4, bytes));
         require(now >= uint32(timestamp), "Outdated request");
-        bytes32 hash = keccak256(abi.encodePacked(vaultId, timestamp));
+        bytes32 hash = keccak256(abi.encodePacked(vaultId, timestamp)).toEthSignedMessageHash();
         require(isApprovedSigner(hash, sig), "Not signed by approved signer");
 
         return (0, "");

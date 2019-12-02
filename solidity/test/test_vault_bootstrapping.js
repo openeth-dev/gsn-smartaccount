@@ -111,6 +111,7 @@ contract("Vault Bootstrapping", async function (accounts) {
         // Mocking backed signature
         let backendSignature = Buffer.from("1b403b57c556f419306af87f80bed54e4358f323a806e9ef35f5b4c77b77a34ac467a020cff280c045518b098409d6ad4924dd1eaa90c70c0a9298f7665a444b68","hex")
         let hash = ABI.soliditySHA3(["bytes32", "bytes4"], [vaultId, timestamp]);
+        hash = ABI.soliditySHA3(["string", "bytes32"], ["\x19Ethereum Signed Message:\n32", hash]);
         let signer = ethUtils.bufferToHex(ethUtils.pubToAddress(ethUtils.ecrecover(
             hash, backendSignature[0], backendSignature.slice(1,33), backendSignature.slice(33,backendSignature.length))));
         // Adding mocked signer as trusted caller i.e. backend ethereum address
