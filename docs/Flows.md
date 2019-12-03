@@ -50,7 +50,7 @@
 <a name="createVault"></a>
 ### Vault Creation
 
-![Vault Creation](http://www.websequencediagrams.com/cgi-bin/cdraw?s=rose&m=title+Vault+Creation%0a%0aparticipant+user%0aparticipant+webapp+as+app%0aparticipant+%22Backend%22+as+be%0aparticipant+google%0aparticipant+Sponsor%5cn%28Via+GSN%29+as+sponsor%0aparticipant+factory%0aparticipant+vault%0auser-%3e%2bapp%3a+login%0aapp-%3egoogle%3a+gapi%2esignIn%28%29%0anote+over+google%3a+Prompt+User+to%5cnselect+Account%0agoogle--%3eapp%3a+JWT%28email%29%0aapp-%3e%2bbe%3avalidatePhone%28jwt%2c+phone%29%0adeactivate+app%0abe-%3e-user%3a+SMS+click+here+%28smsUrl-verifyCode%29%0auser-%3e%2bapp%3a+click+%28or+enter+code%29%0anote+over+app%3a+create%5cnaddress%2cPK%5cnsave+in+LocalStorage%0aapp-%3egoogle%3a+gapi%2eauthenticate%28email%2c+nonce%3aaddress%29%0agoogle--%3eapp%3a+JWT%28email%2cnonce%3aaddress%29%0aapp-%3e%2bbe%3acreateAccount%28JWT%2c+smsVerifyCode%29%0anote+over+be%0avalidate+JWT%2c%0asave+email%2cphone%2c%0aparse+JWT%2c%0asalt%3dhash%28email%29%0asig+%3d+ecdsaSign%28salt%2ctimestamp%29%0aend+note%0abe--%3e-app%3a+approvalData%28salt%2ctimestamp%2csig%29%0aapp-%3esponsor%3a+createVault%28salt%2c+%7b+approvalData%3a%7btimestamp+%7c%7c+sig+%7d%7d+%29%0aactivate+sponsor%0anote+over+sponsor%3a+validate+backend-sig%5cnon+salt%2ctimestamp%0asponsor-%3e-factory%3a+createVault%0aactivate+factory%0afactory-%3evault%3a+create2%0afactory-%3evault%3a+configure%0adeactivate+factory%0avault--%3e-webapp%3a+monitor+changes)
+![Vault Creation](http://www.websequencediagrams.com/cgi-bin/cdraw?s=rose&m=title+Vault+Creation%0a%0aparticipant+user%0aparticipant+webapp+as+app%0aparticipant+iframe%0aparticipant+google%0aparticipant+%22Backend%22+as+be%0aparticipant+Sponsor%5cn%28Via+GSN%29+as+sponsor%0aparticipant+factory%0aparticipant+vault%0auser-%3e%2bapp%3a+googleLogin%28%29%0aapp-%3e%2biframe%3a+googleLogin%28%29%0aiframe-%3egoogle%3a+gapi%2esignIn%28%29%0anote+over+google%3a+Prompt+User+to%5cnselect+Account%0agoogle--%3eiframe%3a+JWT%28email%29%0aiframe--%3e-app%3a+JWT%0aapp-%3e-user%3a+JWT%0anote+over+user%3a+prompt+for+phone%0auser-%3e%2bapp%3a+validatePhone%28jwt%2c+phone%29%0aapp-%3e%2bbe%3avalidatePhone%28jwt%2c+phone%29%0anote+over+user%3a+wait+for+sms%0adeactivate+app%0abe-%3e-user%3a+SMS+click+here+%28smsUrl-verifyCode%29%0auser-%3e%2bapp%3a+createWallet%28%7bsms-verifyCode%7d%29%0anote+over+app%3a+create%5cnaddress%2cPK%5cnsave+in+LocalStorage%0aapp-%3egoogle%3a+gapi%2eauthenticate%28email%2c+nonce%3aaddress%29%0agoogle--%3eapp%3a+JWT%28email%2cnonce%3aaddress%29%0aapp-%3e%2bbe%3acreateAccount%28JWT%2c+smsVerifyCode%29%0anote+over+be%0avalidate+JWT%2c%0asave+email%2cphone%2c%0aparse+JWT%2c%0asalt%3dhash%28email%29%0asig+%3d+ecdsaSign%28salt%2ctimestamp%29%0aend+note%0abe--%3e-app%3a+approvalData%28salt%2ctimestamp%2csig%29%0aapp-%3esponsor%3a+createVault%28salt%2c+%7b+approvalData%3a%7btimestamp+%7c%7c+sig+%7d%7d+%29%0aactivate+sponsor%0anote+over+sponsor%3a+validate+backend-sig%5cnon+salt%2ctimestamp%0asponsor-%3e-factory%3a+createVault%0aactivate+factory%0afactory-%3evault%3a+create2%0afactory-%3evault%3a+configure%0adeactivate+factory%0avault--%3e-webapp%3a+monitor+changes)
 
 
 <a name="addDeviceImmediate" ></a>
@@ -198,19 +198,26 @@ title Vault Creation
 
 participant user
 participant webapp as app
-participant "Backend" as be
+participant iframe
 participant google
+participant "Backend" as be
 participant Sponsor\n(Via GSN) as sponsor
 participant factory
 participant vault
-user->+app: login
-app->google: gapi.signIn()
+user->+app: googleLogin()
+app->+iframe: googleLogin()
+iframe->google: gapi.signIn()
 note over google: Prompt User to\nselect Account
-google-->app: JWT(email)
+google-->iframe: JWT(email)
+iframe-->-app: JWT
+app->-user: JWT
+note over user: prompt for phone
+user->+app: validatePhone(jwt, phone)
 app->+be:validatePhone(jwt, phone)
+note over user: wait for sms
 deactivate app
 be->-user: SMS click here (smsUrl-verifyCode)
-user->+app: click (or enter code)
+user->+app: createWallet({sms-verifyCode})
 note over app: create\naddress,PK\nsave in LocalStorage
 app->google: gapi.authenticate(email, nonce:address)
 google-->app: JWT(email,nonce:address)

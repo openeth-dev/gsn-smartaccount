@@ -3,7 +3,7 @@ import SimpleManager from '../mocks/SimpleManager.mock'
 
 import assert from 'assert'
 
-describe('SimpleManager', async function () {
+describe.skip('SimpleManager', async function () {
   describe('constructor', async function () {
     const invalidEmail = 'hello@world.com'
     it('should refuse to accept invalid email as parameter', async function () {
