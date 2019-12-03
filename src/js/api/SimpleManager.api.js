@@ -3,9 +3,11 @@
 // eslint-disable-next-line no-unused-vars
 
 import validate from '../utils/XfaceValidate'
+import EventEmitter from 'events'
 
-export default class SimpleManagerApi {
+export default class SimpleManagerApi extends EventEmitter {
   constructor () {
+    super()
     validate(SimpleManagerApi, this)
     this.accountApi = undefined
   }
@@ -13,19 +15,19 @@ export default class SimpleManagerApi {
   // wrapper calls for the background IFRAME:
 
   getEmail () {
-    return this.accountApi.getEmail()
+    error('return this.accountApi.getEmail()')
   }
 
   getOwner () {
-    return this.accountApi.getOwner()
+    error('return this.accountApi.getOwner()')
   }
 
   async googleLogin () {
-    return this.accountApi.googleLogin()
+    error('return this.accountApi.googleLogin()')
   }
 
   async googleAuthenticate () {
-    return this.accountApi.googleAuthenticate()
+    error('return this.accountApi.googleAuthenticate()')
   }
 
   async getWalletAddress () {
@@ -36,16 +38,16 @@ export default class SimpleManagerApi {
     error('check if a wallet exists for this email)')
   }
 
-  async loadWallet (email) {
-    error('return a SampleWallet object for this email (after it was created)')
+  async loadWallet () {
+    error('return a SampleWallet object for the current google account (after it was created)')
   }
 
-  async createAccount ({ jwt, smsVerificationCode }) {
-    error('create user account (mapping of email/userinfo/phone on BE, not contract). return approvalData')
+  async validatePhone ({ jwt, phone }) {
+    error('contact backend to send SMS with verification code to client). mock emit event "mocksms". real server sends SMS')
   }
 
-  createWallet ({ owner, email, approvalData }) {
-    error('create contract via GSN')
+  async createWallet ({ owner, email }) {
+    error('create contract via GSN. returns after wallet created on chain.')
   }
 
   recoverWallet ({ owner, email }) {

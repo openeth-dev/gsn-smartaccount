@@ -73,71 +73,14 @@ export default class SampleWalletApi {
   }
 
   listTokens () {
-    return [
-      { token: 'ETH', balance: 10e18, decimals: 18 },
-      { token: 'DAI', balance: 10e18, decimals: 18 },
-      { token: 'BAT', balance: 10e18, decimals: 18 }
-    ]
+    error('return static list of {token,balance,decimals} - loaded with refresh()')
   }
 
   listPending () {
-    return {
-      operations: [
-        { type: 'transfer', value: 100, token: 'ETH' },
-        {
-          id: 0x222,
-          state: 'mining',
-          dueTime: '',
-          canCancel: true,
-          operations: [
-            { type: 'addDevice' }
-          ]
-        },
-        {
-          id: 0x333,
-          state: 'mined',
-          dueTime: '<>',
-          operations: [
-            { type: 'addWhiteList', params: ['0x1234'] },
-            { type: 'addWhiteList', params: ['0x5678'] }
-          ]
-        }
-      ]
-    }
+    error('return pending operations from memory')
   }
 
   listBypassPolicies () {
-    return [
-      {
-        id: '0x12345',
-        name: 'WhiteListed Addresses',
-        description: ' Whitelisted address where transfer operations are immediate',
-        targetMethods: [
-          'transfer(uint,uint)',
-          'approve(uint, uint)'
-        ],
-        adminActions: [
-          {
-            method: 'addWhiteList(address)',
-            title: 'Add',
-            params: [
-              { type: 'address', description: 'address to whitelist' }
-            ]
-          },
-          {
-            method: 'removeWhiteList(address)',
-            title: 'Remove',
-            params: [
-              {
-                type: 'address',
-                description: 'address to remove from whitelist',
-                values: '$contract.listAddresses()'
-              }
-            ]
-          }
-        ]
-
-      }
-    ]
+    error('return list of pending ops from memory')
   }
 }

@@ -1,57 +1,56 @@
 // our wallet Account: (iframe: account.safechannel.com)
 import AccountApi from '../../src/js/api/Account.api'
 
-const localStorage = {}
-
 export default class AccountMock extends AccountApi {
   constructor (options) {
     super()
-    this.options = options
+    this.options = options || {}
+    this.storage = this.options.localStorage || {}
   }
 
   getEmail () {
-    return localStorage.email
+    return this.storage.email
   }
 
   createOwner () {
-    if (localStorage.ownerAddress) {
+    if (this.storage.ownerAddress) {
       throw new Error('owner already created')
     }
-    if (!localStorage.email) {
+    if (!this.storage.email) {
       throw new Error('not logged in')
     }
 
-    localStorage.ownerAddress = 'addr'
-    localStorage.privateKey = 'privKey'
+    this.storage.ownerAddress = 'addr'
+    this.storage.privateKey = 'privKey'
   }
 
   getOwner () {
-    return localStorage.ownerAddress
+    return this.storage.ownerAddress
   }
 
   async googleLogin () {
     if (this.verbose) {
       console.log('open google auth popup. prompt user for google account.\n')
     }
-    localStorage.email = 'user@email.com'
+    this.storage.email = 'user@email.com'
 
     return {
-      jwt: { email: localStorage.email, nonce: localStorage.ownerAddress || 'nonce' },
-      email: localStorage.email,
-      address: localStorage.ownerAddress
+      jwt: { email: this.storage.email, nonce: this.storage.ownerAddress || 'nonce' },
+      email: this.storage.email,
+      address: this.storage.ownerAddress
     }
   }
 
   async googleAuthenticate () {
     return {
-      jwt: { email: localStorage.email, nonce: localStorage.ownerAddress || 'nonce' },
-      email: localStorage.email,
-      address: localStorage.ownerAddress
+      jwt: { email: this.storage.email, nonce: this.storage.ownerAddress || 'nonce' },
+      email: this.storage.email,
+      address: this.storage.ownerAddress
     }
   }
 
   async signOut () {
-    localStorage.email = localStorage.ownerAddress = localStorage.privateKey = undefined
+    this.storage.email = this.storage.ownerAddress = this.storage.privateKey = undefined
   }
 
   async signTransaction ({ tx }) {

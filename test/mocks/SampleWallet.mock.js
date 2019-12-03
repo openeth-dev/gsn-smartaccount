@@ -3,6 +3,12 @@
 import SampleWalletApi from '../../src/js/api/SampleWallet.api'
 
 export default class SampleWalletMock extends SampleWalletApi {
+  constructor ({ email, address }) {
+    super()
+    this.email = email
+    this.address = address
+  }
+
   transfer ({ destAddr, amount, token }) {
     error('initiate transfer operation. adds a pending item, depending on transfer policy')
   }
@@ -42,6 +48,7 @@ export default class SampleWalletMock extends SampleWalletApi {
   getWalletInfo () {
     let addr
     return {
+      address: this.address,
       options: {
         allowAddOperatorNow: false,
         allowAcceleratedCalls: false
