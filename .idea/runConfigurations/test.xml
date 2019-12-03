@@ -9,7 +9,7 @@
     <extra-mocha-options>--require esm</extra-mocha-options>
     <test-kind>DIRECTORY</test-kind>
     <test-directory>$PROJECT_DIR$/test</test-directory>
-    <recursive>false</recursive>
+    <recursive>true</recursive>
     <method v="2" />
   </configuration>
 </component>

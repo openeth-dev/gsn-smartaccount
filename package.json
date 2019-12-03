@@ -14,6 +14,8 @@
   "license": "MIT",
   "dependencies": {
     "chai": "^4.2.0",
+    "chai-as-promised": "^7.1.1",
+    "email-validator": "^2.0.4",
     "mocha": "^6.2.2"
   },
   "devDependencies": {
@@ -26,6 +28,7 @@
     "eslint-plugin-promise": "^4.2.1",
     "eslint-plugin-standard": "^4.0.1",
     "esm": "^3.2.25",
+    "sinon": "^7.5.0",
     "standard": "^14.3.1"
   }
 }
