@@ -35,7 +35,6 @@ contract('VaultFactory', function (accounts) {
         // TODO: this should be 'await vaultFactory.newVault(crypto.randomBytes(32),{from: mockHub})'
         //  once we remove redundant tests inside recipient & forwarder constructors and setters.
         let res = await mockForwarder.mockCallRecipient(sender, vaultFactory.address, callData)
-        console.log("WTF", res)
         let event = res.logs[0];
 
         assert.equal(event.event, "VaultCreated");
