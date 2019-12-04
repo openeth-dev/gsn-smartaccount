@@ -4,7 +4,6 @@ import SimpleManagerApi from '../../src/js/api/SimpleManager.api.js'
 import SampleWalletMock from './SampleWallet.mock.js'
 import AccountMock from './Account.mock'
 import SMSmock from './SMS.mock'
-import assert from 'assert'
 
 // API of the main factory object.
 export default class SimpleManagerMock extends SimpleManagerApi {
@@ -46,19 +45,22 @@ export default class SimpleManagerMock extends SimpleManagerApi {
   async validatePhone ({ jwt, phone }) {
     // TODO: use mock SMS service..
     setTimeout(() => {
-      const smsVerificationCode = 'verified:' + phone
+      const smsVerificationCode = 'v:' + phone
       const smsUrl = 'http://server.com/?verify=' + smsVerificationCode
       this.smsApi.sendSms({
         phone: phone,
-        message: `click url ${smsUrl}\n
-                  verificationCode ${smsVerificationCode}`
+        message: 'To verify your email,\n' +
+          'enter verification code: ' + smsVerificationCode + '\n' +
+          'or click here: ' + smsUrl + '\n'
       })
     }, 10)
   }
 
   async createWallet ({ jwt, phone, smsVerificationCode }) {
-    assert.eq(smsVerificationCode, 'verified:' + phone,
-      'not our sms verification code')
+    if (smsVerificationCode !== 'v:' + phone) {
+      throw new Error('not our sms verification code')
+    }
+
     if (this.hasWallet()) {
       throw new Error('wallet already exists')
     }

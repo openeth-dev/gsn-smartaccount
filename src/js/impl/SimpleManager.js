@@ -1,20 +1,29 @@
 /* global error */
 
 import SimpleManagerApi from '../api/SimpleManager.api.js'
-import { validate } from 'email-validator'
+import AccountMock from '../../../test/mocks/Account.mock'
 
 // API of the main factory object.
 export default class SimpleManagerMock extends SimpleManagerApi {
-  constructor ({ email }) {
+  constructor ({ accountApi }) {
     super()
-    if (!validate(email)) {
-      throw Error('Illegal email')
-    }
-    this.email = email
+    this.accountApi = accountApi || new AccountMock()
   }
 
   getEmail () {
-    return this.email
+    return this.accountApi.getEmail()
+  }
+
+  getOwner () {
+    return this.accountApi.getOwner()
+  }
+
+  async googleLogin () {
+    return this.accountApi.googleLogin()
+  }
+
+  async googleAuthenticate () {
+    return this.accountApi.googleAuthenticate()
   }
 
   validatePhone ({ jwt, phone }) {
@@ -34,9 +43,6 @@ export default class SimpleManagerMock extends SimpleManagerApi {
   }
 
   loadWallet () {
-  }
-
-  async createAccount () {
   }
 
   async createWallet ({ owner, email, approvalData }) {
