@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "yarn run lint && mocha --require esm test",
+    "test": "mocha --require esm --recursive test",
+    "ci": "yarn run lint && yarn test",
     "lint": "yarn run lint:js",
     "lint:fix": "yarn run lint:js:fix",
     "lint:js": "eslint -f unix --ignore-path .gitignore .",
@@ -15,7 +16,6 @@
   "dependencies": {
     "chai": "^4.2.0",
     "chai-as-promised": "^7.1.1",
-    "email-validator": "^2.0.4",
     "mocha": "^6.2.2"
   },
   "devDependencies": {

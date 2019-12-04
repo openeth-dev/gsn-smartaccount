@@ -17,25 +17,7 @@ describe('SimpleManager', async function () {
   let sm
 
   beforeEach(async function () {
-    sm = new SimpleManager({ email: email })
-  })
-
-  describe('constructor', async function () {
-    // TODO: implement test
-    const invalidEmails = ['2', 'hello@worldcom', '2']
-    it('should refuse to accept invalid email as parameter', async function () {
-      invalidEmails.forEach(invalidEmail => {
-        // eslint-disable-next-line no-new
-        expect(() => { new SimpleManager({ email: invalidEmail }) }).to.throw('Illegal email')
-      })
-    })
-  })
-
-  describe('#getEmail()', async function () {
-    it('should return the email', async function () {
-      const retEmail = sm.getEmail()
-      assert.strictEqual(retEmail, email)
-    })
+    sm = new SimpleManager({})
   })
 
   describe('#googleLogin()', async function () {
