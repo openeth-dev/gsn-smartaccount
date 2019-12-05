@@ -2,15 +2,17 @@
 
 const solc = require('solc');
 const fs = require('fs');
+const path = require('path');
 
 // TODO: pass all these things as parameters
 const projectFolder = "solidity/";
 const contractsFolder = projectFolder + "contracts";
 const outAbiFolder = "solidity/src/js/generated";
 
-const contractsToExtract = ["Gatekeeper", "VaultFactory", "Utilities"];
+const contractsToExtract = ["Gatekeeper", "VaultFactory", "Utilities", "tests/FreeRecipientSponsor", "tests/MockHub", "tests/MockGsnForwarder"];
 
 function compileFile(contractFile, c) {
+    console.log("compiling " + contractFile)
     let contractSource = fs.readFileSync(contractFile, {encoding: 'utf8'});
 
     let input = {
@@ -31,9 +33,12 @@ function compileFile(contractFile, c) {
     let result;
     let abi;
     let binary;
+    let parts = c.split('/');
+    let lastSegment = parts.pop() || parts.pop();
     try {
         let compile = solc.compile(JSON.stringify(input), function (path) {
-            let realPath = contractsFolder + "/" + path;
+            let subPath = parts.length == 0 ? "" : "/" + parts.join("/")
+            let realPath = contractsFolder + subPath + "/" + path;
             if (!fs.existsSync(realPath)) {
                 realPath = projectFolder + "node_modules/" + path;
             }
@@ -44,8 +49,8 @@ function compileFile(contractFile, c) {
             }
         });
         result = JSON.parse(compile);
-        abi = JSON.stringify(result.contracts.contractFile[c].abi);
-        binary = result.contracts.contractFile[c].evm.bytecode.object;
+        abi = JSON.stringify(result.contracts.contractFile[lastSegment].abi);
+        binary = result.contracts.contractFile[lastSegment].evm.bytecode.object;
     } catch (e) {
         console.log(e)
     }
@@ -77,11 +82,24 @@ contractsToExtract.forEach(c => {
     */
     let {abi, binary} = compileFile(contractFile, c);
 
-    fs.writeFileSync(outAbiFile, abi);
-    fs.writeFileSync(outNodeFile, "module.exports=" + abi);
-    fs.writeFileSync(outBinFile, binary);
-    console.log("written \"" + outAbiFile + "\"");
-    console.log("written \"" + outNodeFile + "\"");
-    console.log("written \"" + outBinFile + "\"");
+    createDirectories(outAbiFile, function () {
+        fs.writeFileSync(outAbiFile, abi);
+        fs.writeFileSync(outNodeFile, "module.exports=" + abi);
+        fs.writeFileSync(outBinFile, binary);
+        console.log("written \"" + outAbiFile + "\"");
+        console.log("written \"" + outNodeFile + "\"");
+        console.log("written \"" + outBinFile + "\"");
+    })
 });
 
+
+function createDirectories(pathname, callback) {
+    const __dirname = path.resolve();
+    pathname = pathname.replace(/^\.*\/|\/?[^\/]+\.[a-z]+|\/$/g, ''); // Remove leading directory markers, and remove ending /file-name.extension
+    fs.mkdir(path.resolve(__dirname, pathname), { recursive: true }, e => {
+        if (e) {
+            console.error(e);
+        }
+        callback(e)
+    });
+}

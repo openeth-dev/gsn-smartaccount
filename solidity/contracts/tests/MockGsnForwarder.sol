@@ -23,9 +23,3 @@ contract MockGsnForwarder is GsnForwarder {
         return 0;
     }
 }
-
-library notabs {
-    function asd() internal {
-        new MockGsnForwarder(IRelayHub(address(0)));
-    }
-}
