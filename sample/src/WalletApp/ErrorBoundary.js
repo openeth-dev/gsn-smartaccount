@@ -1,3 +1,6 @@
+import React from 'react'
+
+// eslint-disable-next-line no-unused-vars
 class ErrorBoundary extends React.Component {
   constructor (props) {
     super(props)
@@ -12,7 +15,7 @@ class ErrorBoundary extends React.Component {
     // Catch errors in any components below and re-render with error message
     this.setState({
       error: error,
-      errorInfo: errorInfo,
+      errorInfo: errorInfo
     })
     // You can also log error messages to an error reporting service here
   }
@@ -32,6 +35,7 @@ class ErrorBoundary extends React.Component {
       )
     }
     // Normally, just render children
+    // eslint-disable-next-line react/prop-types
     return this.props.children
   }
 }

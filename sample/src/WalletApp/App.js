@@ -1,4 +1,4 @@
-/* global prompt */
+/* global prompt alert */
 /* eslint  "react/prop-types":"off"   */
 
 import React from 'react'
@@ -7,6 +7,7 @@ import './App.css'
 import SimpleManagerMock from '../js/mocks/SimpleManager.mock'
 
 var mgr, sms
+
 const Button = ({ title, action }) => <input type="submit" onClick={action} value={title}/>
 
 function GoogleLogin ({ refresh }) {
@@ -75,7 +76,6 @@ function RecoverOrNewDevice ({ email, walletAddr }) {
 }
 
 function WalletComponent (options) {
-
   const { walletAddr, email, walletInfo } = options
 
   if (!email) {
@@ -103,15 +103,15 @@ class App extends React.Component {
       }, 1000)
     })
 
-    this.readMgrState().then(x => this.state = x)
+    this.readMgrState().then(x => { this.state = x })
   }
 
   async readMgrState () {
-    let mgrState = {
+    const mgrState = {
       ownerAddr: mgr.getOwner(),
       walletAddr: await mgr.getWalletAddress(),
       email: mgr.getEmail(),
-      walletInfo: undefined,
+      walletInfo: undefined
     }
     if (mgr.wallet) {
       mgrState.walletInfo = await mgr.loadWallet().getWalletInfo()
@@ -136,10 +136,10 @@ class App extends React.Component {
   signout () {
     mgr.signOut()
 
-    //clear entire react state:
-    let keys = Object.keys(this.state)
-    let obj = this.state
-    for (let k in keys) {
+    // clear entire react state:
+    const keys = Object.keys(this.state)
+    const obj = this.state
+    for (const k in keys) {
       obj[keys[k]] = undefined
     }
     console.log('signout state=', this.state)
@@ -163,7 +163,6 @@ class App extends React.Component {
   }
 
   render () {
-
     return (
       <div style={{ margin: '10px' }}>
         <h1>SampleWallet app</h1>
@@ -172,8 +171,7 @@ class App extends React.Component {
         </div>
         {
           !!mgr.wallet ||
-          <div><Button title="debug: activate wallet"
-                       action={this.debugActiveWallet.bind(this)}/><p/></div>
+          <div><Button title="debug: activate wallet" action={this.debugActiveWallet.bind(this)}/><p/></div>
         }
         <Button title="signout" action={this.signout.bind(this)}/><p/>
         <WalletComponent
