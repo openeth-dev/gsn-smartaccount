@@ -1,7 +1,7 @@
 {
-  "name": "solidity",
-  "description": "solidity contracts and truffle tests)",
-  "version": "1.0.0",
+  "name": "safechannels-contracts",
+  "description": "solidity contracts, utilities and generated ABIs for Safe Channels",
+  "version": "0.0.1-beta.1",
   "scripts": {
     "test": "npx truffle test | sed -l -e 's/^,//;' ",
     "ci-unlimited": "npx run-with-testrpc -p 8544 -a 15 -l 80000000 --allowUnlimitedContractSize 'npx truffle --network npmtest test'",
