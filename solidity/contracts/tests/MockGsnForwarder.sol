@@ -6,6 +6,9 @@ import "gsn-sponsor/contracts/GsnForwarder.sol";
 //for testing: GsnForwarder which is called directly, not via relay.
 contract MockGsnForwarder is GsnForwarder {
 
+    // Just so truffle can parse the event when call wrapped by 'mockCallRecipient'
+    event VaultCreated(address sender, address gatekeeper, bytes32 salt);
+
     constructor(IRelayHub hub) GsnForwarder(hub, IRelayRecipient (0)) public {
     }
     //mock callRecipient, with custom sender
