@@ -1,0 +1,20 @@
+{
+  "envelope": {
+    "alg": "RS256",
+    "kid": "5b5dd9be40b5e1cf121e3573c8e49f12527183d3",
+    "typ": "JWT"
+  },
+  "payload": {
+    "iss": "accounts.google.com",
+    "azp": "202746986880-u17rbgo95h7ja4fghikietupjknd1bln.apps.googleusercontent.com",
+    "aud": "202746986880-u17rbgo95h7ja4fghikietupjknd1bln.apps.googleusercontent.com",
+    "sub": "115413947684299685449",
+    "hd": "tabookey.com",
+    "email": "shahaf@tabookey.com",
+    "email_verified": true,
+    "nonce": "hello-world",
+    "iat": 1575559980,
+    "exp": 1575563580,
+    "jti": "c55829e85116fe6ae276fced3bbd253fd0dab64c"
+  }
+}
