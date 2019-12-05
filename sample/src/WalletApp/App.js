@@ -1,12 +1,13 @@
+/* global prompt */
+/* eslint  "react/prop-types":"off"   */
+
 import React from 'react'
 import './App.css'
 
 import SimpleManagerMock from '../js/mocks/SimpleManager.mock'
 
 var mgr, sms
-
-const Button = ({ title, action }) => <input type="submit" onClick={action}
-  value={title}/>
+const Button = ({ title, action }) => <input type="submit" onClick={action} value={title}/>
 
 function GoogleLogin ({ refresh }) {
   async function login () {
@@ -53,9 +54,9 @@ function CreateWallet ({ refresh, jwt, email }) {
 function ActiveWallet ({ walletInfo }) {
   const info = JSON.stringify(walletInfo, null, 2)
   return <pre>
-        Wallet Info:
+    Wallet Info:
     {info}
-    </pre>
+  </pre>
 }
 
 function RecoverOrNewDevice ({ email, walletAddr }) {
@@ -93,7 +94,6 @@ function WalletComponent (options) {
 }
 
 class App extends React.Component {
-
   constructor (props) {
     super(props)
     mgr = new SimpleManagerMock()
@@ -170,8 +170,7 @@ class App extends React.Component {
         </div>
         {
           !!mgr.wallet ||
-          <div><Button title="debug: activate wallet"
-            action={this.debugActiveWallet.bind(this)}/><p/></div>
+          <div><Button title="debug: activate wallet" action={this.debugActiveWallet.bind(this)}/><p/></div>
         }
         <Button title="signout" action={this.signout.bind(this)}/><p/>
         <WalletComponent
