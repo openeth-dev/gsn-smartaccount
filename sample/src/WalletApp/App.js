@@ -53,9 +53,9 @@ function CreateWallet ({ refresh, jwt, email }) {
 function ActiveWallet ({ walletInfo }) {
   const info = JSON.stringify(walletInfo, null, 2)
   return <pre>
-    Wallet Info:
+        Wallet Info:
     {info}
-  </pre>
+    </pre>
 }
 
 function RecoverOrNewDevice ({ email, walletAddr }) {
@@ -75,6 +75,7 @@ function RecoverOrNewDevice ({ email, walletAddr }) {
 }
 
 function WalletComponent (options) {
+
   const { walletAddr, email, walletInfo } = options
 
   if (!email) {
@@ -92,6 +93,7 @@ function WalletComponent (options) {
 }
 
 class App extends React.Component {
+
   constructor (props) {
     super(props)
     mgr = new SimpleManagerMock()
@@ -110,8 +112,7 @@ class App extends React.Component {
       ownerAddr: mgr.getOwner(),
       walletAddr: await mgr.getWalletAddress(),
       email: mgr.getEmail(),
-      walletInfo: undefined,
-      deployed: mgr.deployedWalletAddress
+      walletInfo: undefined
     }
     // TODO: this is hack: we want to check if it already loaded, not load it.
     if (mgr.wallet) {
@@ -138,7 +139,7 @@ class App extends React.Component {
   signout () {
     mgr.signOut()
 
-    // clear entire react state:
+    //clear entire react state:
     const keys = Object.keys(this.state)
     const obj = this.state
     for (const k in keys) {
@@ -160,6 +161,7 @@ class App extends React.Component {
   }
 
   render () {
+
     return (
       <div style={{ margin: '10px' }}>
         <h1>SampleWallet app</h1>
