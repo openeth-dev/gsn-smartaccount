@@ -7,7 +7,7 @@ jobs:
   build:
     docker:
       # specify the version you desire here
-      - image: circleci/node:10.10
+      - image: circleci/node:10.15
 
       # Specify service dependencies here if necessary
       # CircleCI maintains a library of pre-built images
@@ -22,20 +22,25 @@ jobs:
       # Download and cache dependencies
       - restore_cache:
           keys:
-            - v1-dependencies-{{ checksum "solidity/package.json" }}
+            - deps-{{ checksum "solidity/package.json" }} {{ checksum "sample/package.json" }}
             # fallback to using the latest cache if no exact match is found
-            - v1-dependencies-
+            - deps-
       - run:         
-          name: yarn-install in solidity project
-          command: cd solidity && yarn install
+          name: yarn-install 
+          command: ( cd solidity && yarn install ) && (cd sample && yarn install )
 
       - save_cache:
           paths:
             - ./solidity/node_modules
+            - ./sample/node_modules
           # TODO: cache by all package.json files in the repo!!!
-          key: v1-dependencies-{{ checksum "solidity/package.json" }}
+          key: deps-{{ checksum "solidity/package.json" }} {{ checksum "sample/package.json" }}
 
       # run tests!
       - run: 
           name: solidity-test
           command: node solidity/extract_abi.js && cd solidity && yarn ci 
+
+      - run: 
+          name: sample-test
+          command: cd sample && yarn ci
