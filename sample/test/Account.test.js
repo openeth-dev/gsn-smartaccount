@@ -1,6 +1,6 @@
 /* global describe beforeEach it */
 
-import AccountMock from './mocks/Account.mock'
+import AccountMock from '../src/js/mocks/Account.mock'
 
 import chai, { assert, expect } from 'chai'
 import chaiAsPromised from 'chai-as-promised'

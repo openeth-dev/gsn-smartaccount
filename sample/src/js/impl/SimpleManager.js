@@ -5,6 +5,8 @@ import FactoryContractInteractor from 'safechannels-contracts/src/js/FactoryCont
 
 import SimpleWallet from './SimpleWallet'
 import SimpleManagerApi from '../api/SimpleManager.api.js'
+import AccountMock from '../../../test/mocks/Account.mock'
+import AccountMock from '../mocks/Account.mock'
 
 // API of the main factory object.
 export default class SimpleManager extends SimpleManagerApi {
@@ -23,6 +25,8 @@ export default class SimpleManager extends SimpleManagerApi {
     return this.accountApi.googleLogin()
   }
 
+  async signOut () {
+    this.accountApi.signout()
   getOwner () {
     return this.accountApi.getOwner()
   }

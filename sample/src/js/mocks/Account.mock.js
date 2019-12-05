@@ -1,5 +1,5 @@
 // our wallet Account: (iframe: account.safechannel.com)
-import AccountApi from '../../src/js/api/Account.api'
+import AccountApi from '../api/Account.api'
 
 export default class AccountMock extends AccountApi {
   constructor (options) {

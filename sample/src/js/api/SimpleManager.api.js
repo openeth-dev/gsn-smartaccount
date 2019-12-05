@@ -26,6 +26,13 @@ export default class SimpleManagerApi extends EventEmitter {
     error('return this.accountApi.googleLogin()')
   }
 
+  async signOut() {
+    error( 'sign out of google account, forget local private/public keys')
+  }
+  async googleAuthenticate () {
+    error('return this.accountApi.googleAuthenticate()')
+  }
+
   async getWalletAddress () {
     error('return the wallet address (valid only after is was created)')
   }
