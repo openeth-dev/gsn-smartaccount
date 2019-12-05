@@ -1,10 +1,11 @@
 import TruffleContract from '@truffle/contract'
-/* global error */
+
 import VaultFactoryABI from 'safechannels-contracts/src/js/generated/VaultFactory'
 import FactoryContractInteractor from 'safechannels-contracts/src/js/FactoryContractInteractor'
 
 import SimpleWallet from './SimpleWallet'
 import SimpleManagerApi from '../api/SimpleManager.api.js'
+import AccountMock from '../mocks/Account.mock'
 
 // API of the main factory object.
 export default class SimpleManager extends SimpleManagerApi {

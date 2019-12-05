@@ -33,7 +33,6 @@ export default class SimpleManagerApi extends EventEmitter {
   async googleAuthenticate () {
     error('return this.accountApi.googleAuthenticate()')
   }
-
   async getWalletAddress () {
     error('return the wallet address (valid only after is was created)')
   }

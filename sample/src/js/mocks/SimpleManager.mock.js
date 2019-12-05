@@ -1,7 +1,7 @@
 /* global error */
 
 import SimpleManagerApi from '../api/SimpleManager.api.js'
-import SimpleWalletMock from './SimpleWallet.mock.js'
+import SampleWalletMock from './SampleWallet.mock.js'
 import AccountMock from './Account.mock'
 import SMSmock from './SMS.mock'
 
@@ -71,7 +71,6 @@ export default class SimpleManagerMock extends SimpleManagerApi {
   }
 
   async createWallet ({ jwt, phone, smsVerificationCode }) {
-    console.log('asd')
     if (smsVerificationCode !== 'v' + phone) {
       throw new Error('wrong verification code')
     }

@@ -1,6 +1,3 @@
-/* global prompt alert */
-/* eslint  "react/prop-types":"off"   */
-
 import React from 'react'
 import './App.css'
 
