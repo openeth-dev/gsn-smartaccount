@@ -36,13 +36,13 @@ export default class SimpleManagerMock extends SimpleManagerApi {
   }
 
   async getWalletAddress () {
-    if ( this.getEmail()==null ) {
-      console.log( "getWalletAddress: no email, no addr")
-      return null;
+    if (this.getEmail() == null) {
+      console.log('getWalletAddress: no email, no addr')
+      return null
     }
 
     // console.log( "getWalletAddress: has email. addr=", this.deployedWalletAddress)
-    return this.deployedWalletAddress || null;
+    return this.deployedWalletAddress || null
   }
 
   async hasWallet () {
@@ -86,11 +86,12 @@ export default class SimpleManagerMock extends SimpleManagerApi {
       if (!this.getEmail()) {
         throw new Error('not logged in')
       }
-      if ( !this.getWalletAddress() ) {
-        throw new Error( "wallet not deployed")
+      if (!this.getWalletAddress()) {
+        throw new Error('wallet not deployed')
       }
       // wallet address is derived from email...
-      this.wallet = new SampleWalletMock({ email: this.getEmail(), address: this.deployedWalletAddress })
+      this.wallet = new SampleWalletMock(
+        { email: this.getEmail(), address: this.deployedWalletAddress })
     }
     return this.wallet
   }

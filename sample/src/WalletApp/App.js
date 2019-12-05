@@ -1,11 +1,13 @@
+/* global prompt */
+/* eslint  "react/prop-types":"off"   */
+
 import React from 'react'
 import './App.css'
 
 import SimpleManagerMock from '../js/mocks/SimpleManager.mock'
 
 var mgr, sms
-
-let Button = ({ title, action }) => <input type="submit" onClick={action} value={title}/>
+const Button = ({ title, action }) => <input type="submit" onClick={action} value={title}/>
 
 function GoogleLogin ({ refresh }) {
   async function login () {
@@ -42,17 +44,18 @@ function CreateWallet ({ refresh, jwt, email }) {
     }
   }
   return <div>
-    Hello <b>{email}</b>, you don't have a wallet yet.<br/>
+    Hello <b>{email}</b>, you dont have a wallet yet.<br/>
     Click <Button title="here to verify phone" action={startCreate}/><br/>
     Click here to enter SMS verification code <Button title="verify" action={createWallet}/>
   </div>
 }
 
 function ActiveWallet ({ walletInfo }) {
+  const info = JSON.stringify(walletInfo, null, 2)
   return <pre>
-        Wallet Info:
-    {JSON.stringify(walletInfo, null, 2)}
-    </pre>
+    Wallet Info:
+    {info}
+  </pre>
 }
 
 function RecoverOrNewDevice ({ email, walletAddr }) {
@@ -61,8 +64,12 @@ function RecoverOrNewDevice ({ email, walletAddr }) {
     You have wallet on-chain, but this device is not its operator.<br/>
     You can either<br/>
     <ul>
-      <li><Button title="add new operator"/> (requires approval on your old device) or,</li>
-      <li><Button title="Recover your vault"/> (You don't need your old device, but it takes time</li>
+      <li><Button title="add new operator"/> (requires approval on your old
+        device) or,
+      </li>
+      <li><Button title="Recover your vault"/> (You dont need your old device,
+        but it takes time
+      </li>
     </ul>
   </div>
 }
@@ -86,7 +93,6 @@ function WalletComponent (options) {
 }
 
 class App extends React.Component {
-
   constructor (props) {
     super(props)
     mgr = new SimpleManagerMock()
@@ -105,7 +111,7 @@ class App extends React.Component {
       ownerAddr: mgr.getOwner(),
       walletAddr: await mgr.getWalletAddress(),
       email: mgr.getEmail(),
-      walletInfo: undefined
+      walletInfo: undefined,
     }
     if (mgr.wallet) {
       mgrState.walletInfo = await mgr.loadWallet().getWalletInfo()
@@ -132,7 +138,7 @@ class App extends React.Component {
 
     //clear entire react state:
     let keys = Object.keys(this.state)
-    let obj=this.state
+    let obj = this.state
     for (let k in keys) {
       obj[keys[k]] = undefined
     }
@@ -166,10 +172,12 @@ class App extends React.Component {
         </div>
         {
           !!mgr.wallet ||
-          <div><Button title="debug: activate wallet" action={this.debugActiveWallet.bind(this)}/><p/></div>
+          <div><Button title="debug: activate wallet"
+                       action={this.debugActiveWallet.bind(this)}/><p/></div>
         }
         <Button title="signout" action={this.signout.bind(this)}/><p/>
-        <WalletComponent refresh={(extra) => this.reloadState(extra)} {...this.state} />
+        <WalletComponent
+          refresh={(extra) => this.reloadState(extra)} {...this.state} />
         {
           this.state && this.state.err && <div style={{ color: 'red' }}>
             <h2>Error: {this.state.err} </h2>
