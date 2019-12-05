@@ -85,6 +85,7 @@ contract("Vault Bootstrapping", async function (accounts) {
         relayHub = await RelayHub.new();
         gsnSponsor = await FreeRecipientSponsor.new();
         gsnForwarder = await GsnForwarder.new(relayHub.address, gsnSponsor.address);
+        await gsnSponsor.setForwarder(gsnForwarder.address)
         vaultFactory = await VaultFactory.new(gsnForwarder.address, {gas: 9e6, from:vfOwner});
         whitelistFactory = await WhitelistFactory.new(gsnForwarder.address);
         ephemeralOperator = RelayClient.newEphemeralKeypair();

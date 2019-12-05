@@ -4,13 +4,25 @@ const Web3 = require('web3');
 
 const Utils = require('./Utils');
 
-const VaultFactoryABI = require('./generated/VaultFactory');
-
 const VaultCreatedEvent = require('./events/VaultCreatedEvent');
+const FreeRecipientSponsorABI = require('./generated/tests/MockGsnForwarder');
+const VaultFactoryABI = require('./generated/VaultFactory');
+const GatekeeperABI = require('./generated/Gatekeeper');
+
 
 let VaultFactoryContract = TruffleContract({
     contractName: "VaultFactory",
     abi: VaultFactoryABI
+});
+
+let GatekeeperContract = TruffleContract({
+    contractName: "Gatekeeper",
+    abi: GatekeeperABI
+});
+
+let FreeRecipientSponsorContract = TruffleContract({
+    contractName: "FreeRecipientSponsorABI",
+    abi: FreeRecipientSponsorABI
 });
 
 const vaultCreatedEvent = "VaultCreated";
@@ -48,40 +60,95 @@ class FactoryContractInteractor {
         }
         this.vaultFactory = await VaultFactoryContract.at(this.vaultFactoryAddress);
     }
+
+    static async deployContract(path, name, link, params, from, ethNodeUrl) {
+        let abi = require('./' + path);
+        let bin = fs.readFileSync(__dirname + "/" + path + ".bin");
+        let contract = TruffleContract({
+            // NOTE: this string is later passed to a regex constructor when resolving, escape everything
+            contractName: name,
+            abi: abi,
+            binary: bin,
+        });
+        contract.setProvider(new Web3.providers.HttpProvider(ethNodeUrl));
+        link.forEach(function (it) {
+            contract.setNetwork(it.network_id);
+            contract.link(it);
+        })
+        let promise
+        if (params && params.length > 0) {
+            promise = contract.new(...params, { from: from, gas: 1e8 })
+        } else {
+            promise = contract.new({ from: from, gas: 1e8 })
+        }
+        let instance = await promise
+        contract.address = instance.address
+        return { instance, contract }
+    }
+
+    static async deployMockHub(from, ethNodeUrl) {
+        let {instance} = await this.deployContract(
+          "generated/tests/MockHub",
+          "MockHub",
+          [], [], from, ethNodeUrl
+        )
+        return instance
+    }
+
+    static async deploySponsor(from, relayHub, ethNodeUrl) {
+        let {instance} = await this.deployContract(
+          "generated/tests/FreeRecipientSponsor",
+          "FreeRecipientSponsor",
+          [], [], from, ethNodeUrl
+        )
+        await instance.setRelayHub(relayHub, {from: from})
+        return instance
+    }
+
+    static async deployNewMockForwarder(from, ethNodeUrl, hub) {
+        let {instance} = await this.deployContract(
+          "generated/tests/MockGsnForwarder",
+          "MockGsnForwarder",
+          [], [hub], from, ethNodeUrl
+        )
+        return instance
+    }
+
     /**
      * Migrated this from test code to allow the Factory Interactor to deploy the Factory Contract.
      * This is mainly useful for tests, but anyways, JS-Foundation is the easiest place to put this code.
-     * @param from
-     * @param ethNodeUrl
      * @returns {Promise<String>} - the address of the newly deployed Factory
      */
-    static async deployNewVaultFactory(from, ethNodeUrl){
-
-        let utilitiesABI = require('./generated/Utilities');
-        let utilitiesBin = fs.readFileSync(__dirname + "/generated/Utilities.bin");
+    static async deployNewVaultFactory(from, ethNodeUrl, forwarder) {
         let utilitiesLibraryPlaceholder = "\\$" + Web3.utils.keccak256("Utilities.sol:Utilities").substr(2, 34) + "\\$";
-        let utilitiesContract = TruffleContract({
-            // NOTE: this string is later passed to a regex constructor when resolving, escape everything
-            contractName: utilitiesLibraryPlaceholder,
-            abi: utilitiesABI,
-            binary: utilitiesBin,
+        let {instance, contract: utilitiesContract} = await this.deployContract(
+          "generated/Utilities", utilitiesLibraryPlaceholder, [],[], from, ethNodeUrl)
+        let { instance: vaultFactory } = await this.deployContract("generated/VaultFactory", "VaultFactory", [utilitiesContract], [forwarder], from, ethNodeUrl)
+        return vaultFactory;
+    }
+
+    static linkEventsTopics(from, to){
+        Object.keys(from.events).forEach(function (topic) {
+            to.network.events[topic] = from.events[topic];
         });
-        let provider = new Web3.providers.HttpProvider(ethNodeUrl);
-        utilitiesContract.setProvider(provider);
-        let utilitiesLibrary = await utilitiesContract.new({from: from});
-        utilitiesContract.address = utilitiesLibrary.address;
-        let vaultFactoryABI = require('./generated/VaultFactory');
-        let vaultFactoryBin = fs.readFileSync(__dirname + "/generated/VaultFactory.bin");
-        let vaultFactoryContract = TruffleContract({
-            contractName: "VaultFactory",
-            abi: vaultFactoryABI,
-            binary: vaultFactoryBin,
-        });
-        vaultFactoryContract.setProvider(provider);
-        vaultFactoryContract.setNetwork(utilitiesContract.network_id);
-        vaultFactoryContract.link(utilitiesContract);
-        let vaultFactory = await vaultFactoryContract.new({from: from});
-        return vaultFactory.address;
+    }
+
+    static async getGsnForwarder({address, provider}) {
+        FreeRecipientSponsorContract.setProvider(provider);
+        return FreeRecipientSponsorContract.at(address)
+    }
+
+    static async getCreatedVault({factoryAddress, blockNumber, sender, provider}) {
+        VaultFactoryContract.setProvider(provider);
+        GatekeeperContract.setProvider(provider);
+        let vaultFactory = await VaultFactoryContract.at(factoryAddress);
+        let options = { fromBlock: blockNumber, toBlock: blockNumber }
+        let events = await Utils.getEvents(vaultFactory, vaultCreatedEvent, options, VaultCreatedEvent);
+        events = events.filter(event => event.sender.toLowerCase() === sender)
+        if (events.length !== 1) {
+            throw new Error("Invalid vault created events array size");
+        }
+        return GatekeeperContract.at(events[0].gatekeeper);
     }
 
 
