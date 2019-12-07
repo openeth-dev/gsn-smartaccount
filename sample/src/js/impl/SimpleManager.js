@@ -1,5 +1,5 @@
 import TruffleContract from '@truffle/contract'
-
+/* global error */
 import VaultFactoryABI from 'safechannels-contracts/src/js/generated/VaultFactory'
 import FactoryContractInteractor from 'safechannels-contracts/src/js/FactoryContractInteractor'
 
@@ -21,12 +21,15 @@ export default class SimpleManager extends SimpleManagerApi {
     return this.accountApi.getEmail()
   }
 
+
   async googleLogin () {
     return this.accountApi.googleLogin()
   }
 
   async signOut () {
     this.accountApi.signout()
+  }
+
   getOwner () {
     return this.accountApi.getOwner()
   }
@@ -52,10 +55,10 @@ export default class SimpleManager extends SimpleManagerApi {
     return this.wallet != null
   }
 
-  async loadWallet () {
+  loadWallet () {
   }
 
-  async recoverWallet ({ owner, email }) {
+  async createWallet ({ owner, email, approvalData }) {
   }
 
   /**
@@ -69,7 +72,6 @@ export default class SimpleManager extends SimpleManagerApi {
     VaultFactoryContract.setProvider(provider)
     this.vaultFactory = await VaultFactoryContract.at(factoryAddress)
   }
-
   async createWallet ({ jwt, phone, smsVerificationCode }) {
     if (this.vaultFactory === undefined) {
       await this._initializeFactory(this.factoryConfig)

@@ -1,10 +1,8 @@
-/* eslint-disable no-proto */
-
 function sig (method) {
   const regex = method.toString().match(/^((?:async)?\s*\w+\s*\(.*?\))/)
   return regex[1]
 }
-
+/* eslint-disable no-proto */
 export default function validate (baseClass, inst) {
   if (!baseClass.prototype) {
     throw new Error(`${baseClass}: not a class (no "prototype")`)
@@ -45,7 +43,7 @@ export default function validate (baseClass, inst) {
   })
   if (errors && errors.length) {
     throw new Error(
-      'Interface error for class ' + inst.constructor.name + ': \n' +
+    'Interface error for class ' + inst.constructor.name + ': \n' +
     errors.join('\n'))
   }
 }
