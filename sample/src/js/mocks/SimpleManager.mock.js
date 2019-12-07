@@ -79,7 +79,7 @@ export default class SimpleManagerMock extends SimpleManagerApi {
       throw new Error('wallet already exists')
     }
     this.deployedWalletAddress = 'waddr'
-    return this.loadWallet()
+    return await this.loadWallet()
   }
 
   async loadWallet () {

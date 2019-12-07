@@ -16,6 +16,7 @@ export default class AccountApi {
     error('iframe: return owner\'s address (a cookie in an iframe)')
   }
 
+
   async googleLogin () {
     error('iframe: open google auth popup. save to localStorage email,address (and privKey). return {jwt, email, address}. throw if canceled/failed')
   }

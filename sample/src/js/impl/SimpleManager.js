@@ -27,11 +27,9 @@ export default class SimpleManager extends SimpleManagerApi {
   async googleAuthenticate () {
     return this.accountApi.googleAuthenticate()
   }
-
   async signOut () {
     this.accountApi.signout()
   }
-
   getOwner () {
     return this.accountApi.getOwner()
   }
@@ -57,7 +55,7 @@ export default class SimpleManager extends SimpleManagerApi {
     return this.wallet != null
   }
 
-  async loadWallet () {
+  loadWallet () {
   }
 
   async recoverWallet ({ owner, email }) {
