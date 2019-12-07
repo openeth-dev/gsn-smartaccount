@@ -18,19 +18,19 @@ describe('test account mock', () => {
   })
 
   it('createOwner should fail before login', async () => {
-    expect(() => acct.createOwner()).to.throw('not logged in')
+    await expect(acct.createOwner()).to.eventually.be.rejectedWith('not logged in')
   })
 
   it('getOwner after createOwner should return address', async () => {
     assert.equal(acct.getOwner(), null)
     await acct.googleLogin()
-    acct.createOwner()
+    await acct.createOwner()
     assert.equal(acct.getOwner(), 'addr')
   })
 
   it('createOwner should fail if called twice', async () => {
     await acct.googleLogin()
     acct.createOwner()
-    expect(() => acct.createOwner()).to.throw('owner already created')
+    await expect(acct.createOwner()).to.eventually.be.rejectedWith('owner already created')
   })
 })

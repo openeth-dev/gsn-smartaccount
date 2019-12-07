@@ -42,11 +42,11 @@ export default class SimpleManagerApi extends EventEmitter {
     error('contact backend to send SMS with verification code to client). mock emit event "mocksms". real server sends SMS')
   }
 
-  async createWallet ({ owner, email }) {
+  async createWallet ({ jwt, phone, smsVerificationCode }) {
     error('create contract via GSN. returns after wallet created on chain.')
   }
 
-  recoverWallet ({ owner, email }) {
+  async recoverWallet ({ owner, email }) {
     error('trigger recover flow')
   }
 }

@@ -27,14 +27,14 @@ export default class SimpleManagerMock extends SimpleManagerApi {
   }
 
   async getWalletAddress () {
-    if (this.hasWallet()) {
+    if (await this.hasWallet()) {
       return this.wallet.address
     }
 
     return null
   }
 
-  hasWallet () {
+  async hasWallet () {
     return this.wallet != null
   }
 
@@ -57,7 +57,7 @@ export default class SimpleManagerMock extends SimpleManagerApi {
       throw new Error('not our sms verification code')
     }
 
-    if (this.hasWallet()) {
+    if (await this.hasWallet()) {
       throw new Error('wallet already exists')
     }
     return this.loadWallet()
@@ -65,12 +65,13 @@ export default class SimpleManagerMock extends SimpleManagerApi {
 
   async loadWallet () {
     if (!this.wallet) {
-      this.wallet = new SampleWalletMock({ email: this.getEmail(), address: await this.getWalletAddress() })
+      this.wallet = new SampleWalletMock(
+        { email: this.getEmail(), address: await this.getWalletAddress() })
     }
     return this.wallet
   }
 
-  recoverWallet (owner, account) {
+  async recoverWallet ({ owner, email }) {
     error('trigger recover flow')
   }
 }

@@ -49,7 +49,7 @@ describe('test interface', () => {
       new TestImpl()
     } catch (e) {
       assert.equal(e.message,
-        'Interface error for [object Object]: \n' +
+        'Interface error for class TestImpl: \n' +
         'Baseclass method not implemented: baseFunction2\n' +
         'Implemented method not in baseclass: extraFunction')
     }
@@ -61,7 +61,7 @@ describe('test interface', () => {
       new Impl2()
     } catch (e) {
       assert.equal(e.message,
-        'Interface error for [object Object]: \n' +
+        'Interface error for class Impl2: \n' +
         'Implemented method not in baseclass: extraFunction')
     }
   })

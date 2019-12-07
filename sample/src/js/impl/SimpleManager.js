@@ -37,18 +37,18 @@ export default class SimpleManager extends SimpleManagerApi {
   }
 
   async getWalletAddress () {
-    if (this.hasWallet()) {
+    if (await this.hasWallet()) {
       return this.wallet.address
     }
 
     return null
   }
 
-  hasWallet () {
+  async hasWallet () {
     return this.wallet != null
   }
 
-  loadWallet () {
+  async loadWallet () {
   }
 
   recoverWallet (owner, account) {

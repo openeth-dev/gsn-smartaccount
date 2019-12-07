@@ -1,4 +1,10 @@
 /* eslint-disable no-proto */
+
+function sig (method) {
+  const regex = method.toString().match(/^((?:async)?\s*\w+\s*\(.*?\))/)
+  return regex[1]
+}
+
 export default function validate (baseClass, inst) {
   if (!baseClass.prototype) {
     throw new Error(`${baseClass}: not a class (no "prototype")`)
@@ -20,6 +26,15 @@ export default function validate (baseClass, inst) {
       }
       errors.push('Baseclass method not implemented: ' + name)
     }
+    if (name !== 'constructor') {
+      const baseSig = sig(baseClass.prototype[name])
+      const instSig = sig(inst[name])
+      if (baseSig !== instSig) {
+        errors.push(
+          'Wrong method signature: ' + instSig + '\n' +
+          '             should be: ' + baseSig)
+      }
+    }
   })
   Object.getOwnPropertyNames(inst.__proto__).forEach(name => {
     if (name[0] === '_') return // ignore methods starting with "_"
@@ -28,5 +43,9 @@ export default function validate (baseClass, inst) {
       errors.push('Implemented method not in baseclass: ' + name)
     }
   })
-  if (errors && errors.length) { throw new Error('Interface error for ' + inst + ': \n' + errors.join('\n')) }
+  if (errors && errors.length) {
+    throw new Error(
+      'Interface error for class ' + inst.constructor.name + ': \n' +
+    errors.join('\n'))
+  }
 }
