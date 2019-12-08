@@ -22,7 +22,8 @@ describe('Test Flows', () => {
       assert.equal(await mgr.getWalletAddress(), null)
 
       // jwt is "opaque". we also get the plain values back.
-      const { jwt, email, address } = await mgr.googleLogin()
+      const { jwt: _jwt, email, address } = await mgr.googleLogin()
+      jwt = _jwt
 
       expect(jwt).to.not.equal(null)
       assert.equal(email, userEmail) // only in mock...
@@ -31,8 +32,6 @@ describe('Test Flows', () => {
     })
 
     it('after user inputs phone', async () => {
-      jwt = (await mgr.googleAuthenticate()).jwt
-
       phone = 'phoneNumber' // user input
 
       mgr.validatePhone({ jwt, phone })

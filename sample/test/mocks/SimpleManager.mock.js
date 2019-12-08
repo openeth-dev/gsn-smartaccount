@@ -26,10 +26,6 @@ export default class SimpleManagerMock extends SimpleManagerApi {
     return this.accountApi.googleLogin()
   }
 
-  async googleAuthenticate () {
-    return this.accountApi.googleAuthenticate()
-  }
-
   async getWalletAddress () {
     if (this.hasWallet()) {
       return this.wallet.address

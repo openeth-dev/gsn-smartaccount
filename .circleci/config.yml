@@ -25,8 +25,13 @@ jobs:
             - deps-{{ checksum "solidity/package.json" }} {{ checksum "sample/package.json" }}
             # fallback to using the latest cache if no exact match is found
             - deps-
-      - run:         
-          name: yarn-install 
+
+      - run:
+          name: extract_abi
+          command: node solidity/extract_abi.js
+
+      - run:
+          name: yarn-install
           command: ( cd solidity && yarn install ) && (cd sample && yarn install )
 
       - save_cache:
@@ -35,12 +40,11 @@ jobs:
             - ./sample/node_modules
           # TODO: cache by all package.json files in the repo!!!
           key: deps-{{ checksum "solidity/package.json" }} {{ checksum "sample/package.json" }}
-
       # run tests!
-      - run: 
-          name: solidity-test
-          command: node solidity/extract_abi.js && cd solidity && yarn ci 
-
-      - run: 
+      - run:
           name: sample-test
           command: cd sample && yarn ci
+
+      - run:
+          name: solidity-test
+          command: cd solidity && yarn ci
