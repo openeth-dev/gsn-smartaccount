@@ -16,7 +16,7 @@ describe('Test Flows', () => {
     })
 
     it('new browser attempt login', async () => {
-      assert.equal(mgr.hasWallet(), false)
+      assert.equal(await mgr.hasWallet(), false)
       assert.equal(mgr.getOwner(), null)
       assert.equal(mgr.getEmail(), null)
       assert.equal(await mgr.getWalletAddress(), null)

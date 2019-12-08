@@ -37,21 +37,21 @@ export default class SimpleManager extends SimpleManagerApi {
   }
 
   async getWalletAddress () {
-    if (this.hasWallet()) {
+    if (await this.hasWallet()) {
       return this.wallet.address
     }
 
     return null
   }
 
-  hasWallet () {
+  async hasWallet () {
     return this.wallet != null
   }
 
-  loadWallet () {
+  async loadWallet () {
   }
 
-  recoverWallet (owner, account) {
+  async recoverWallet ({ owner, email }) {
   }
 
   /**
@@ -66,12 +66,14 @@ export default class SimpleManager extends SimpleManagerApi {
     this.vaultFactory = await VaultFactoryContract.at(factoryAddress)
   }
 
-  async createWallet ({ sms }) {
+  async createWallet ({ jwt, phone, smsVerificationCode }) {
     if (this.vaultFactory === undefined) {
       await this._initializeFactory(this.factoryConfig)
     }
-    const { jwt } = this.accountApi.googleAuthenticate()
-    const response = await this.backend.createAccount({ jwt, sms })
+    if (!jwt) {
+      jwt = this.accountApi.googleAuthenticate().jwt
+    }
+    const response = await this.backend.createAccount({ jwt, smsVerificationCode })
 
     const sender = this.getOwner()
     // TODO: next commit: make 'FactoryContractInteractor.deployNewGatekeeper' do this job
