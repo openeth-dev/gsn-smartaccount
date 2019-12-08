@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "mocha --require esm --recursive test",
+    "test": "mocha --require esm --recursive test --exit",
     "ci": "yarn run lint && npx run-with-testrpc -d -a 15 -l 100000000 --allowUnlimitedContractSize 'yarn test'",
     "lint": "yarn run lint:js",
     "lint:fix": "yarn run lint:js:fix",
