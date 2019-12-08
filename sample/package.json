@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "mocha" : "mocha --require esm --recursive test --exit",
+    "mocha": "mocha --require esm --recursive test --exit",
     "test": "npx run-with-testrpc -d -a 15 -l 100000000 --allowUnlimitedContractSize 'yarn mocha'",
     "ci": "yarn run lint && yarn test",
     "lint": "yarn run lint:js",
@@ -20,19 +20,19 @@
   "license": "MIT",
   "dependencies": {
     "@truffle/contract": "latest",
-"axios": "^0.19.0",
-    "ethereumjs-util": "^6.2.0",
-    "ethereumjs-wallet": "^0.6.3",
-    "react": "^16.12.0",
+    "axios": "^0.19.0",
+    "body-parser": "^1.19.0",
     "ethereumjs-abi": "^0.6.8",
     "ethereumjs-util": "^6.2.0",
     "ethereumjs-wallet": "^0.6.3",
     "express": "^4.17.1",
     "google-auth-library": "^5.5.1",
-    "phone": "^2.4.3"
+    "jsonrpc-lite": "^2.1.0",
+    "phone": "^2.4.3",
+    "react": "^16.12.0",
     "react-scripts": "3.2.0",
     "tabookey-gasless": "^0.4.4",
-    "safechannels-contracts": "file:../solidity/",
+    "safechannels-contracts": "file:../solidity/"
   },
   "devDependencies": {
     "mocha": "^6.2.2",

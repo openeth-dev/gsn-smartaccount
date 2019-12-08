@@ -2,8 +2,7 @@
 
 import { Account, Backend } from '../../src/js/backend/Backend'
 import { assert /* , expect */ } from 'chai'
-import SMSmock from '../mocks/SMS.mock'
-// import SimpleManagerMock from '../mocks/SimpleManager.mock'
+import SMSmock from '../../src/js/mocks/SMS.mock'
 import { LoginTicket } from 'google-auth-library/build/src/auth/loginticket'
 
 const ethUtils = require('ethereumjs-util')
@@ -27,7 +26,7 @@ function hookBackend (backend, verifyFn) {
     } catch (e) {
       console.log('hooking google auth verifyIdToken() function')
       if (e.toString().includes('Error: Token used too late')) {
-        const rawTicket = JSON.parse(fs.readFileSync('./src/js/backend/ticket.json', 'utf8'))
+        const rawTicket = JSON.parse(fs.readFileSync('./test/backend/ticket.json', 'utf8'))
         const loginTicket = new LoginTicket(rawTicket.envelope, rawTicket.payload)
         return loginTicket
       }
@@ -55,7 +54,6 @@ describe('Backend', async function () {
   let verifyFn
 
   before(async function () {
-    console.log('before')
     // webapp = new SimpleManagerMock()
     smsProvider = new SMSmock()
 
@@ -134,7 +132,7 @@ describe('Backend', async function () {
     it('should createAccount by verifying sms code', async function () {
       console.log('smsCode', smsCode)
       const approvalData = (await backend.createAccount({ jwt, smsCode, phoneNumber })).toString('hex')
-      console.log('approval data', approvalData)
+      // console.log('approval data', approvalData)
       assert.isTrue(ethUtils.isHexString('0x' + approvalData))
       const account = new Account(
         {

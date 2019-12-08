@@ -53,7 +53,7 @@ export class Backend extends BEapi {
     return approvalData
   }
 
-  addDeviceNow ({ jwt, newaddr }) {
+  async addDeviceNow ({ jwt, newaddr }) {
     throw new Error('validate jwt, return "click to add" SMS')
   }
 

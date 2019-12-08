@@ -10,15 +10,15 @@ export default class BEapi {
     validate(BEapi, this)
   }
 
-  validatePhone ({ jwt, phone }) {
+  async validatePhone ({ jwt, phoneNumber }) {
     error('validate jwt, return SMS url to pass to createVault')
   }
 
-  createAccount ({ jwt, phone, smsVerificationCode }) {
+  async createAccount ({ jwt, smsCode, phoneNumber }) {
     error('validate fresh jwt, validate phone (from smsUrl). return { approvalData, vaultId }')
   }
 
-  addDeviceNow ({ jwt, newaddr }) {
+  async addDeviceNow ({ jwt, newaddr }) {
     error('validate jwt, return "click to add" SMS')
   }
 
