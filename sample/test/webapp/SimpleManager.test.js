@@ -5,12 +5,12 @@ import chai, { expect } from 'chai'
 import chaiAsPromised from 'chai-as-promised'
 import sinon from 'sinon'
 import Web3 from 'web3'
-import Web3Utils from 'web3-utils'
 
 import FactoryContractInteractor from 'safechannels-contracts/src/js/FactoryContractInteractor'
 
 import { SponsorProvider } from 'gsn-sponsor'
 
+import RelayServerMock from '../mocks/RelayServer.mock'
 import SimpleManager from '../../src/js/impl/SimpleManager'
 
 chai.use(chaiAsPromised)
@@ -85,7 +85,6 @@ describe('SimpleManager', async function () {
     let factory
     let sponsor
     let forward
-    let web3
     let web3provider
 
     before(async function () {
@@ -95,7 +94,6 @@ describe('SimpleManager', async function () {
       const forwarderAddress = await sponsor.contract.methods.getGsnForwarder().call()
       forward = await FactoryContractInteractor.getGsnForwarder({ address: forwarderAddress, provider: web3provider })
       factory = await FactoryContractInteractor.deployNewVaultFactory(from, ethNodeUrl, forward.address)
-      web3 = new Web3(web3provider)
       if (!verbose) {
         return
       }
@@ -109,15 +107,37 @@ describe('SimpleManager', async function () {
 
     describe('main flows', async function () {
       const approvalData = '0x1234'
+      let factoryConfig
       let sm
-      beforeEach(async function () {
-        sm = new SimpleManager({ email: email })
-        sm.accountApi = {
+
+      before(async function () {
+        const relayOptions = {
+          httpSend: new RelayServerMock({
+            mockHubContract: mockhub,
+            relayServerAddress: from,
+            web3provider: web3provider
+          }),
+          sponsor: sponsor.address,
+          proxyOwner: {
+            address: '0x90f8bf6a479f320ead074411a4b0e7944ea8c9c1',
+            privateKey: '0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d'
+          }
+        }
+        const sponsorProvider = await SponsorProvider.init(web3provider, relayOptions)
+        factoryConfig =
+          {
+            provider: sponsorProvider,
+            factoryAddress: factory.address
+          }
+        const accountApi = {
+          getOwner: function () {
+            return '0x90f8bf6a479f320ead074411a4b0e7944ea8c9c1'
+          },
           googleAuthenticate: function () {
             return { jwt: 'TODO' }
           }
         }
-        sm.backend = {
+        const backend = {
           createAccount: function () {
             return {
               vaultId: '0x203040',
@@ -125,77 +145,19 @@ describe('SimpleManager', async function () {
             }
           }
         }
-        sm.factoryConfig =
-          {
-            factoryAddress: factory.address
-          }
+        sm = new SimpleManager({ email: email, accountApi: accountApi, backend: backend, factoryConfig: factoryConfig })
       })
 
       it('should deploy a new vault using SponsorProvider', async function () {
-        const httpSend = {
-          send: function (url, jsd, callback) {
-            if (url.includes('hello world/getaddr')) {
-              callback(null, {
-                Ready: true,
-                MinGasPrice: 0,
-                RelayServerAddress: from,
-                relayUrl: 'hello world',
-                transactionFee: 0
-              })
-              return
-            }
-            if (url.includes('hello world/relay')) {
-              const sig = Web3Utils.bytesToHex(jsd.signature)
-              const appr = Web3Utils.bytesToHex(jsd.approvalData)
-              const encodeABI = mockhub.contract.methods.relayCall(
-                jsd.from, jsd.to, jsd.encodedFunction,
-                jsd.relayFee, jsd.gasPrice, jsd.gasLimit, jsd.RecipientNonce, sig, appr).encodeABI()
-              mockhub.relayCall(
-                jsd.from, jsd.to, jsd.encodedFunction,
-                jsd.relayFee, jsd.gasPrice, jsd.gasLimit, jsd.RecipientNonce, sig, appr, {
-                  from: from,
-                  gasPrice: jsd.gasPrice,
-                  gas: jsd.gasLimit
-                })
-                .then(res => {
-                  web3.eth.getTransactionCount(from)
-                    .then(nonce => {
-                      const relayedTx = {
-                        nonce: nonce - 1,
-                        v: res.receipt.v,
-                        r: res.receipt.r,
-                        s: res.receipt.s,
-                        gasPrice: jsd.gasPrice,
-                        gas: jsd.gasLimit,
-                        to: res.receipt.to,
-                        value: 0,
-                        input: encodeABI
-                      }
-                      callback(null, relayedTx)
-                    })
-                })
-            }
-          }
-        }
-        sm.factoryConfig.provider = await SponsorProvider.init(web3provider,
-          {
-            httpSend: httpSend,
-            verbose: false,
-            sponsor: sponsor.address,
-            proxyOwner: sm.getOwner()
-          })
-        await sm._initializeFactory(sm.factoryConfig)
         const wallet = await sm.createWallet({ approvalData })
-        const operator = sm.getOwner().address.toLowerCase()
+        const operator = sm.getOwner().toLowerCase()
         const creator = (await wallet.contract.creator()).toLowerCase()
         assert.strictEqual(creator, operator)
       })
     })
 
     describe('secondary flows', async function () {
-      it('should initialize vault factory contract if not initialized')
-
-      it('should throw if there is no operator key')
+      it('should throw if there is no operator set')
 
       it('should throw if this user already has a vault deployed')
     })

@@ -24,10 +24,7 @@ export default class SimpleManager extends SimpleManagerApi {
   }
 
   getOwner () {
-    return {
-      address: '0x90f8bf6a479f320ead074411a4b0e7944ea8c9c1',
-      privateKey: '0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d'
-    }
+    return this.accountApi.getOwner()
   }
 
   async validatePhone ({ jwt, phone }) {
@@ -76,7 +73,7 @@ export default class SimpleManager extends SimpleManagerApi {
     const { jwt } = this.accountApi.googleAuthenticate()
     const response = await this.backend.createAccount({ jwt, sms })
 
-    const sender = this.getOwner().address
+    const sender = this.getOwner()
     // TODO: next commit: make 'FactoryContractInteractor.deployNewGatekeeper' do this job
     const receipt = await this.vaultFactory.newVault(response.vaultId, { from: sender, gas: 1e8 })
     const vault = await FactoryContractInteractor.getCreatedVault(
@@ -89,7 +86,8 @@ export default class SimpleManager extends SimpleManagerApi {
     return new SimpleWallet(vault)
   }
 
-  _validateConfig () {
+  _validateConfig (factoryConfig) {
     // TODO: check all needed fields of config
+    return factoryConfig
   }
 }
