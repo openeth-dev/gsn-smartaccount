@@ -4,7 +4,7 @@ contract MockHub {
     event RelayAdded(address indexed relay, address indexed owner, uint256 transactionFee, uint256 stake, uint256 unstakeDelay, string url);
 
     constructor() public {
-        emit RelayAdded(address(0), address(0), 0, 0, 0, "hello world");
+        emit RelayAdded(address(0), address(0), 0, 0, 0, "http://mock.relay.event");
     }
     function balanceOf(address) pure public returns (uint256) {
         return 0;
