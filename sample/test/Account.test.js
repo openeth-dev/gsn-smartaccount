@@ -2,7 +2,10 @@
 
 import AccountMock from './mocks/Account.mock'
 
-import { assert, expect } from 'chai'
+import chai, { assert, expect } from 'chai'
+import chaiAsPromised from 'chai-as-promised'
+
+chai.use(chaiAsPromised)
 
 describe('test account mock', () => {
   let acct
