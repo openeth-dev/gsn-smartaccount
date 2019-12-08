@@ -95,14 +95,14 @@ describe('SimpleManager', async function () {
       const forwarderAddress = await sponsor.contract.methods.getGsnForwarder().call()
       forward = await FactoryContractInteractor.getGsnForwarder({ address: forwarderAddress, provider: web3provider })
       factory = await FactoryContractInteractor.deployNewVaultFactory(from, ethNodeUrl, forward.address)
+      if (!verbose) {
+        return
+      }
       const spHub = await sponsor.contract.methods.getHubAddr().call()
       const fwHub = await forward.contract.methods.getHubAddr().call()
       const vfHub = await factory.contract.methods.getHubAddr().call()
       const vfFwd = await factory.contract.methods.getGsnForwarder().call()
       web3 = new Web3(web3provider)
-      if (!verbose) {
-        return
-      }
       console.log(`spHub = ${spHub} fwHub=${fwHub} vfHub=${vfHub} vfFwd=${vfFwd}`)
       console.log(`mockhub = ${mockhub.address} factory=${factory.address} sponsor=${sponsor.address} forward=${forward.address}`)
     })
@@ -180,7 +180,7 @@ describe('SimpleManager', async function () {
         sm.factoryConfig.provider = await SponsorProvider.init(web3provider,
           {
             httpSend: httpSend,
-            verbose: true,
+            verbose: false,
             sponsor: sponsor.address,
             proxyOwner: sm.getOwner()
           })

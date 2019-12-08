@@ -4,7 +4,7 @@
   "main": "index.js",
   "scripts": {
     "test": "mocha --require esm --recursive test",
-    "ci": "yarn run lint && yarn test",
+    "ci": "yarn run lint && npx run-with-testrpc -d -a 15 -l 100000000 --allowUnlimitedContractSize 'yarn test'",
     "lint": "yarn run lint:js",
     "lint:fix": "yarn run lint:js:fix",
     "lint:js": "eslint -f unix --ignore-path .gitignore .",
@@ -30,6 +30,7 @@
     "eslint-plugin-promise": "^4.2.1",
     "eslint-plugin-standard": "^4.0.1",
     "esm": "^3.2.25",
+    "run-with-testrpc": "0.3.1",
     "sinon": "^7.5.0",
     "standard": "^14.3.1",
     "tabookey-gasless": "0.4.1",
