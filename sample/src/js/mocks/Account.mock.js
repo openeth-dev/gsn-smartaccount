@@ -47,6 +47,11 @@ export default class AccountMock extends AccountApi {
     this.storage.email = this.storage.ownerAddress = this.storage.privateKey = undefined
   }
 
+  async signMessage ({ message, messageHash }) {
+    error(
+      'sign message with "Ethereum Signed Message" prefix. might popup UI for user. messageHash is shorthand of "keccak(message)" ')
+  }
+
   async signTransaction ({ tx }) {
     return { ...tx, signature: 'SIGSIGSIG' }
   }
