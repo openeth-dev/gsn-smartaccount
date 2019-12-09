@@ -1,10 +1,11 @@
 import TruffleContract from '@truffle/contract'
-
+/* global error */
 import VaultFactoryABI from 'safechannels-contracts/src/js/generated/VaultFactory'
 import FactoryContractInteractor from 'safechannels-contracts/src/js/FactoryContractInteractor'
 
 import SimpleWallet from './SimpleWallet'
 import SimpleManagerApi from '../api/SimpleManager.api.js'
+import AccountMock from '../../../test/mocks/Account.mock'
 import AccountMock from '../mocks/Account.mock'
 
 // API of the main factory object.
@@ -20,6 +21,7 @@ export default class SimpleManager extends SimpleManagerApi {
     return this.accountApi.getEmail()
   }
 
+
   async googleLogin () {
     return this.accountApi.googleLogin()
   }
@@ -27,9 +29,11 @@ export default class SimpleManager extends SimpleManagerApi {
   async googleAuthenticate () {
     return this.accountApi.googleAuthenticate()
   }
+
   async signOut () {
     this.accountApi.signout()
   }
+
   getOwner () {
     return this.accountApi.getOwner()
   }
@@ -55,7 +59,7 @@ export default class SimpleManager extends SimpleManagerApi {
     return this.wallet != null
   }
 
-  loadWallet () {
+  async loadWallet () {
   }
 
   async recoverWallet ({ owner, email }) {
@@ -73,7 +77,6 @@ export default class SimpleManager extends SimpleManagerApi {
     VaultFactoryContract.setProvider(provider)
     this.vaultFactory = await VaultFactoryContract.at(factoryAddress)
   }
-
   async createWallet ({ jwt, phone, smsVerificationCode }) {
     if (!jwt || !phone || !smsVerificationCode) {
       throw Error('All parameters are required')
