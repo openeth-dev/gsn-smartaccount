@@ -48,7 +48,7 @@ describe('Test Flows', () => {
     it('after wallet creation', async () => {
       const wallet = await mgr.loadWallet()
 
-      assert.equal(wallet.getWalletInfo().address, await mgr.getWalletAddress())
+      assert.equal((await wallet.getWalletInfo()).address, await mgr.getWalletAddress())
 
       // todo: validate more wallet info..
     })

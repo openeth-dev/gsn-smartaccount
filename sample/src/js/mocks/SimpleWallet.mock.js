@@ -1,6 +1,6 @@
 /* global error */
 
-import SimpleWalletApi from '../../src/js/api/SimpleWallet.api'
+import SimpleWalletApi from '../api/SimpleWallet.api'
 
 export default class SimpleWalletMock extends SimpleWalletApi {
   constructor ({ email, address }) {
