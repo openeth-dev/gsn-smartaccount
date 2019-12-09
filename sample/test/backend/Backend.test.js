@@ -1,4 +1,4 @@
-/* global describe before it */
+/* global describe before afterEach it */
 
 import { Account, Backend } from '../../src/js/backend/Backend'
 import { assert /* , expect */ } from 'chai'
@@ -8,15 +8,6 @@ import { LoginTicket } from 'google-auth-library/build/src/auth/loginticket'
 const ethUtils = require('ethereumjs-util')
 const phone = require('phone')
 const fs = require('fs')
-// const ethWallet = require('ethereumjs-wallet')
-//
-// function newEphemeralKeypair () {
-//   let a = ethWallet.generate()
-//   return {
-//     privateKey: a.privKey,
-//     address: '0x' + a.getAddress().toString('hex')
-//   }
-// }
 
 function hookBackend (backend, verifyFn) {
   backend.gclient._orig_verifyIdToken = backend.gclient.verifyIdToken
@@ -67,6 +58,45 @@ describe('Backend', async function () {
     // hooking google-api so we don't actually send jwt tot their server
     hookBackend(backend, verifyFn)
   })
+  describe('sms code generation', async function () {
+    let ts
+    let firstCode
+    let formattedNumber
+    before(async function () {
+      formattedNumber = backend._formatPhoneNumber(phoneNumber)
+      ts = backend._getMinuteTimestamp({})
+      firstCode = backend._calcSmsCode(
+        { phoneNumber: formattedNumber, email: 'shahaf@tabookey.com', minuteTimeStamp: ts })
+    })
+    afterEach(async function () {
+      Date.now = Date.nowOrig
+      delete Date.nowOrig
+    })
+    it('should generate the same sms code for calls within 10 minute window', function () {
+      Date.nowOrig = Date.now
+      Date.now = function () {
+        return Date.nowOrig() + 5e5 // ~9 minutes in the future
+      }
+      // calculate desired timestamp from a given sms code
+      ts = backend._getMinuteTimestamp({ expectedSmsCode: firstCode })
+      const secondCode = backend._calcSmsCode(
+        { phoneNumber: formattedNumber, email: 'shahaf@tabookey.com', minuteTimeStamp: ts })
+      assert.equal(firstCode, secondCode)
+    })
+
+    it('should generate different sms code for calls out of the 10 minute window', function () {
+      Date.nowOrig = Date.now
+      Date.now = function () {
+        return Date.nowOrig() + 6e5 // = 10 minutes in the future
+      }
+      // calculate desired timestamp from a given sms code
+      ts = backend._getMinuteTimestamp({ expectedSmsCode: firstCode })
+      const secondCode = backend._calcSmsCode(
+        { phoneNumber: formattedNumber, email: 'shahaf@tabookey.com', minuteTimeStamp: ts })
+      assert.isTrue(parseInt(secondCode).toString() === secondCode.toString())
+      assert.notEqual(firstCode, secondCode)
+    })
+  })
 
   describe('validatePhone', async function () {
     it('should throw on invalid phone number', async function () {
@@ -108,7 +138,9 @@ describe('Backend', async function () {
       console.log('\nvalidate phone')
       // let jwt = 'eyJhbGciOiJSUzI1NiIsImtpZCI6IjViNWRkOWJlNDBiNWUxY2YxMjFlMzU3M2M4ZTQ5ZjEyNTI3MTgzZDMiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJhY2NvdW50cy5nb29nbGUuY29tIiwiYXpwIjoiMjAyNzQ2OTg2ODgwLXUxN3JiZ285NWg3amE0ZmdoaWtpZXR1cGprbmQxYmxuLmFwcHMuZ29vZ2xldXNlcmNvbnRlbnQuY29tIiwiYXVkIjoiMjAyNzQ2OTg2ODgwLXUxN3JiZ285NWg3amE0ZmdoaWtpZXR1cGprbmQxYmxuLmFwcHMuZ29vZ2xldXNlcmNvbnRlbnQuY29tIiwic3ViIjoiMTE1NDEzOTQ3Njg0Mjk5Njg1NDQ5IiwiaGQiOiJ0YWJvb2tleS5jb20iLCJlbWFpbCI6InNoYWhhZkB0YWJvb2tleS5jb20iLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwibm9uY2UiOiJoZWxsby13b3JsZCIsImlhdCI6MTU3NTM5Njg2NiwiZXhwIjoxNTc1NDAwNDY2LCJqdGkiOiJiMDk2YzYwY2EzZjlmNGRjN2Y5MzEwM2U4ZGRkOGU1YzAyOWVlOTgwIn0.nXcDojzPnXp300gXYhGQ_uPEU2MGRszNHTbka__FZbnHg0PdmZpEd-4JAOh_rRq0UsmOzelLPd49XlBiCS62US0JqZUxqVJd1UvvvetwMJ9X3Nds_CkkTVF3Dx0hjzLrbDlvf3YOOuUPkoI1OTbtsN2iJtJLBNEQIz_l7rrZVv287-6JvgperPkLu9Dbqpneas7kzB7EDWj8lAI2a4Ru06YkZKb017RDtQNRaLHcMb9hHqqFYXaIaafFOXhS0ESHQa4GhDNMxEYTxW47-MXYjPKnxK_g4APWua2aFAwjfpmZmmXyCnv8wNvPyHrYJxIqvL2z2-IYj36cQtpFgp8Asg'
       try {
-        smsCode = await backend.validatePhone({ jwt, phoneNumber })
+        await backend.validatePhone({ jwt, phoneNumber })
+        smsCode = backend._getSmsCode(
+          { phoneNumber: backend._formatPhoneNumber(phoneNumber), email: 'shahaf@tabookey.com' })
         assert.notEqual(smsCode, undefined)
       } catch (e) {
         console.log(e)
@@ -120,7 +152,6 @@ describe('Backend', async function () {
   describe('createAccount', async function () {
     it('should throw on invalid sms code', async function () {
       const wrongSmsCode = smsCode - 1
-      console.log('smsCode', wrongSmsCode)
       try {
         await backend.createAccount({ jwt, smsCode: wrongSmsCode, phoneNumber })
         assert.fail()

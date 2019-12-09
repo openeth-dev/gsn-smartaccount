@@ -15,12 +15,14 @@ export class Account {
 export class Backend extends BEapi {
   constructor ({ smsProvider, audience, ecdsaKeyPair }) {
     super()
-    this.accounts = {}
-    this.smsProvider = smsProvider
-    this.audience = audience
-    this.gclient = new gauth.OAuth2Client(audience)
-    this.ecdsaKeyPair = ecdsaKeyPair
-    this.secretSMSCodeSeed = crypto.randomBytes(32)
+    Object.assign(this, {
+      accounts: {},
+      smsProvider,
+      audience,
+      gclient: new gauth.OAuth2Client(audience),
+      ecdsaKeyPair,
+      secretSMSCodeSeed: crypto.randomBytes(32)
+    })
   }
 
   async validatePhone ({ jwt, phoneNumber }) {
@@ -29,8 +31,7 @@ export class Backend extends BEapi {
     const ticket = await this._verifyJWT(jwt)
 
     const email = ticket.getPayload().email
-    const code = await this._sendSMS({ phoneNumber: p, email })
-    return code
+    await this._sendSMS({ phoneNumber: p, email })
   }
 
   async createAccount ({ jwt, smsCode, phoneNumber }) {
@@ -100,6 +101,11 @@ export class Backend extends BEapi {
   }
 
   _getSmsCode ({ phoneNumber, email, expectedSmsCode }) {
+    const minuteTimeStamp = this._getMinuteTimestamp({ expectedSmsCode })
+    return this._calcSmsCode({ phoneNumber, email, minuteTimeStamp })
+  }
+
+  _getMinuteTimestamp ({ expectedSmsCode }) {
     let minuteTimeStamp = Math.floor(Date.now() / 1000 / 60)
     if (expectedSmsCode !== undefined) {
       expectedSmsCode = parseInt(expectedSmsCode)
@@ -111,7 +117,10 @@ export class Backend extends BEapi {
       minuteTimeStamp = minuteTimeStamp.toString()
       minuteTimeStamp = replaceAt(minuteTimeStamp, minuteTimeStamp.length - replacement.length, replacement)
     }
+    return minuteTimeStamp
+  }
 
+  _calcSmsCode ({ phoneNumber, email, minuteTimeStamp }) {
     const dataToHash = 'PAD' + this.secretSMSCodeSeed.toString('hex') + phoneNumber[0] + email + minuteTimeStamp + 'PAD'
     let code = parseInt(abi.soliditySHA3(['string'], [dataToHash]).toString('hex').slice(0, 6), 16) % 1e7
     code = code.toString() + (minuteTimeStamp % 10).toString()
