@@ -27,12 +27,13 @@
     "ethereumjs-wallet": "^0.6.3",
     "express": "^4.17.1",
     "google-auth-library": "^5.5.1",
+    "gsn-sponsor": "0.0.3-beta.6",
     "jsonrpc-lite": "^2.1.0",
     "phone": "^2.4.3",
     "react": "^16.12.0",
     "react-scripts": "3.2.0",
-    "tabookey-gasless": "^0.4.4",
-    "safechannels-contracts": "file:../solidity/"
+    "safechannels-contracts": "file:../solidity/",
+    "tabookey-gasless": "^0.4.4"
   },
   "devDependencies": {
     "mocha": "^6.2.2",
