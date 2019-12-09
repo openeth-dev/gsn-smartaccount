@@ -78,7 +78,7 @@ export default class SimpleManagerMock extends SimpleManagerApi {
     }
 
     this.deployedWalletAddress = 'waddr'
-    return await this.loadWallet()
+    return this.loadWallet()
   }
 
   async loadWallet () {
@@ -96,7 +96,7 @@ export default class SimpleManagerMock extends SimpleManagerApi {
     return this.wallet
   }
 
-  recoverWallet ({ owner, email }) {
+  async recoverWallet ({ owner, email }) {
     error('trigger recover flow')
   }
 }

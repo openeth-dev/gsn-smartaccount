@@ -43,7 +43,7 @@ export default function validate (baseClass, inst) {
   })
   if (errors && errors.length) {
     throw new Error(
-    'Interface error for class ' + inst.constructor.name + ': \n' +
+      'Interface error for class ' + inst.constructor.name + ': \n' +
     errors.join('\n'))
   }
 }

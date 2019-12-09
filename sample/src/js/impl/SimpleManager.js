@@ -5,8 +5,6 @@ import FactoryContractInteractor from 'safechannels-contracts/src/js/FactoryCont
 
 import SimpleWallet from './SimpleWallet'
 import SimpleManagerApi from '../api/SimpleManager.api.js'
-import AccountMock from '../../../test/mocks/Account.mock'
-import AccountMock from '../mocks/Account.mock'
 
 // API of the main factory object.
 export default class SimpleManager extends SimpleManagerApi {
@@ -21,9 +19,12 @@ export default class SimpleManager extends SimpleManagerApi {
     return this.accountApi.getEmail()
   }
 
-
   async googleLogin () {
     return this.accountApi.googleLogin()
+  }
+
+  async googleAuthenticate () {
+    return this.accountApi.googleAuthenticate()
   }
 
   async signOut () {
@@ -55,10 +56,11 @@ export default class SimpleManager extends SimpleManagerApi {
     return this.wallet != null
   }
 
-  loadWallet () {
+  async loadWallet () {
   }
 
-  async createWallet ({ owner, email, approvalData }) {
+  async recoverWallet ({ owner, email }) {
+    error('trigger recover flow')
   }
 
   /**
@@ -72,6 +74,7 @@ export default class SimpleManager extends SimpleManagerApi {
     VaultFactoryContract.setProvider(provider)
     this.vaultFactory = await VaultFactoryContract.at(factoryAddress)
   }
+
   async createWallet ({ jwt, phone, smsVerificationCode }) {
     if (this.vaultFactory === undefined) {
       await this._initializeFactory(this.factoryConfig)

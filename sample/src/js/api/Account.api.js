@@ -16,7 +16,7 @@ export default class AccountApi {
     error('iframe: return owner\'s address (a cookie in an iframe)')
   }
 
-  createOwner () {
+  async createOwner () {
     error('for current email (google account), create owner address and private-key')
   }
 
