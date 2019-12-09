@@ -29,7 +29,10 @@ export default class AccountMock extends AccountApi {
     if (!this.storage.ownerAddress) { this._createOwner() }
 
     return {
-      jwt: { email: this.storage.email, nonce: this.storage.ownerAddress || 'nonce' },
+      jwt: {
+        email: this.storage.email,
+        nonce: this.storage.ownerAddress || 'nonce'
+      },
       email: this.storage.email,
       address: this.storage.ownerAddress
     }
@@ -37,7 +40,10 @@ export default class AccountMock extends AccountApi {
 
   async googleAuthenticate () {
     return {
-      jwt: { email: this.storage.email, nonce: this.storage.ownerAddress || 'nonce' },
+      jwt: {
+        email: this.storage.email,
+        nonce: this.storage.ownerAddress || 'nonce'
+      },
       email: this.storage.email,
       address: this.storage.ownerAddress
     }
@@ -48,8 +54,7 @@ export default class AccountMock extends AccountApi {
   }
 
   async signMessage ({ message, messageHash }) {
-    error(
-      'sign message with "Ethereum Signed Message" prefix. might popup UI for user. messageHash is shorthand of "keccak(message)" ')
+    return 'sign-' + (messageHash || 'hash(' + message + ')')
   }
 
   async signTransaction ({ tx }) {

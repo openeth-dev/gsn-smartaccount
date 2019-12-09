@@ -55,8 +55,7 @@ export default class Account extends AccountApi {
       console.log('open google auth popup. prompt user for google account.\n')
     }
     this.storage.email = 'user@email.com'
-    if ( !this.storage.ownerAddr)
-      this._createOwner()
+    if (!this.storage.ownerAddr) { this._createOwner() }
 
     return {
       jwt: this._generateMockJwt({

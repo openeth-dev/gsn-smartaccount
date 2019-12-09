@@ -1,4 +1,4 @@
-/* global prompt */
+/* global prompt alert */
 /* eslint  "react/prop-types":"off"   */
 
 import React from 'react'
@@ -76,7 +76,6 @@ function RecoverOrNewDevice ({ email, walletAddr }) {
 }
 
 function WalletComponent (options) {
-
   const { walletAddr, email, walletInfo } = options
 
   if (!email) {
@@ -139,7 +138,7 @@ class App extends React.Component {
   signout () {
     mgr.signOut()
 
-    //clear entire react state:
+    // clear entire react state:
     const keys = Object.keys(this.state)
     const obj = this.state
     for (const k in keys) {
@@ -161,7 +160,6 @@ class App extends React.Component {
   }
 
   render () {
-
     return (
       <div style={{ margin: '10px' }}>
         <h1>SampleWallet app</h1>

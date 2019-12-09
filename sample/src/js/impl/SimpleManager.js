@@ -19,7 +19,6 @@ export default class SimpleManager extends SimpleManagerApi {
     return this.accountApi.getEmail()
   }
 
-
   async googleLogin () {
     return this.accountApi.googleLogin()
   }
@@ -75,6 +74,7 @@ export default class SimpleManager extends SimpleManagerApi {
     VaultFactoryContract.setProvider(provider)
     this.vaultFactory = await VaultFactoryContract.at(factoryAddress)
   }
+
   async createWallet ({ jwt, phone, smsVerificationCode }) {
     if (!jwt || !phone || !smsVerificationCode) {
       throw Error('All parameters are required')

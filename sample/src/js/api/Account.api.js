@@ -16,7 +16,6 @@ export default class AccountApi {
     error('iframe: return owner\'s address (a cookie in an iframe)')
   }
 
-
   async googleLogin () {
     error('iframe: open google auth popup. save to localStorage email,address. return {jwt, email, address}. throw if canceled/failed')
   }
@@ -30,8 +29,9 @@ export default class AccountApi {
   }
 
   async signMessage ({ message, messageHash }) {
-    error( 'sign hash(message) or given messageHash with "Ethereum Signed Message" prefix. return sig. might pop UI for user')
+    error('sign hash(message) or given messageHash with "Ethereum Signed Message" prefix. return sig. might pop UI for user')
   }
+
   async signOut () {
     error('forget current address,private key and google account')
   }

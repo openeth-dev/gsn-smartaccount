@@ -101,4 +101,3 @@ export default class SimpleManagerMock extends SimpleManagerApi {
     error('trigger recover flow')
   }
 }
-
