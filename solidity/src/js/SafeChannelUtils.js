@@ -53,6 +53,11 @@ module.exports = {
         return ABI.soliditySHA3(["address", "uint32"], [admin, permLevel])
     },
 
+    // TODO: fix this mess, Alex!
+    participantHashUnpacked: function (admin, perms, level) {
+        return this.participantHash(admin, this.packPermissionLevel(perms, level))
+    },
+
     bypassCallHash: function (stateNonce, sender, senderPermsLevel, target, value, msgdata) {
         assert.equal(typeof msgdata, "string")
         let calldataBuffer = Buffer.from(this.removeHexPrefix(msgdata), "hex");
