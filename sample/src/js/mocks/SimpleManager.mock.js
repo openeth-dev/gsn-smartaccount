@@ -23,7 +23,8 @@ export default class SimpleManagerMock extends SimpleManagerApi {
   }
 
   async googleLogin () {
-    return this.accountApi.googleLogin()
+    const ret = await this.accountApi.googleLogin()
+    return ret
   }
 
   async signOut () {
@@ -70,6 +71,7 @@ export default class SimpleManagerMock extends SimpleManagerApi {
   }
 
   async createWallet ({ jwt, phone, smsVerificationCode }) {
+    console.log('asd')
     if (smsVerificationCode !== 'v' + phone) {
       throw new Error('wrong verification code')
     }

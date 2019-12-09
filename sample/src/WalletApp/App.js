@@ -8,7 +8,8 @@ import SimpleManagerMock from '../js/mocks/SimpleManager.mock'
 
 var mgr, sms
 
-const Button = ({ title, action }) => <input type="submit" onClick={action} value={title}/>
+const Button = ({ title, action }) => <input type="submit" onClick={action}
+  value={title}/>
 
 function GoogleLogin ({ refresh }) {
   async function login () {
@@ -47,7 +48,8 @@ function CreateWallet ({ refresh, jwt, email }) {
   return <div>
     Hello <b>{email}</b>, you dont have a wallet yet.<br/>
     Click <Button title="here to verify phone" action={startCreate}/><br/>
-    Click here to enter SMS verification code <Button title="verify" action={createWallet}/>
+    Click here to enter SMS verification code <Button title="verify"
+      action={createWallet}/>
   </div>
 }
 
@@ -111,10 +113,13 @@ class App extends React.Component {
       ownerAddr: mgr.getOwner(),
       walletAddr: await mgr.getWalletAddress(),
       email: mgr.getEmail(),
-      walletInfo: undefined
+      walletInfo: undefined,
+      deployed: mgr.deployedWalletAddress
     }
+    // TODO: this is hack: we want to check if it already loaded, not load it.
     if (mgr.wallet) {
-      mgrState.walletInfo = await mgr.loadWallet().getWalletInfo()
+      const wallet = await mgr.loadWallet()
+      mgrState.walletInfo = wallet.getWalletInfo()
     }
     return mgrState
   }
@@ -147,19 +152,14 @@ class App extends React.Component {
   }
 
   async debugActiveWallet () {
-    console.log('debugActiveWallet:')
     const { jwt } = await mgr.googleLogin()
     // await mgr.validatePhone({jwt, phone:123})
-    console.log(mgr.hasWallet())
-    if (!mgr.hasWallet()) {
+    if (!await mgr.hasWallet()) {
       await mgr.createWallet({ jwt, phone: '123', smsVerificationCode: 'v123' })
     } else {
-      mgr.loadWallet()
+      await mgr.loadWallet()
     }
     this.reloadState()
-    // console.log( this.readMgrState())
-    // this.reloadState({jwt, email:mgr.getEmail(), walletAddr:'waddr'})
-    // this.setState( null)//{email: "user@email.com", ownerAddr: undefined, walletAddr: "waddr"})
   }
 
   render () {
@@ -171,7 +171,8 @@ class App extends React.Component {
         </div>
         {
           !!mgr.wallet ||
-          <div><Button title="debug: activate wallet" action={this.debugActiveWallet.bind(this)}/><p/></div>
+          <div><Button title="debug: activate wallet"
+            action={this.debugActiveWallet.bind(this)}/><p/></div>
         }
         <Button title="signout" action={this.signout.bind(this)}/><p/>
         <WalletComponent

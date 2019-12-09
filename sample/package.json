@@ -9,20 +9,31 @@
     "lint": "yarn run lint:js",
     "lint:fix": "yarn run lint:js:fix",
     "lint:js": "eslint -f unix --ignore-path .gitignore .",
-    "lint:js:fix": "eslint --ignore-path .gitignore . --fix"
+    "lint:js:fix": "eslint --ignore-path .gitignore . --fix",
+    "react-start": "react-scripts start",
+    "react-build": "react-scripts build",
+    "react-test": "react-scripts test",
+    "react-eject": "react-scripts eject"
   },
   "repository": "https://github.com/tabookey/sc-sample.git",
   "author": "Dror Tirosh <dror@tabookey.com>",
   "license": "MIT",
   "dependencies": {
     "@truffle/contract": "latest",
-    "chai": "^4.2.0",
-    "chai-as-promised": "^7.1.1",
     "web3": "1.0.0-beta.37",
-    "eslint-plugin-react": "^7.17.0",
-    "mocha": "^6.2.2"
+    "ethereumjs-util": "^6.2.0",
+    "ethereumjs-wallet": "^0.6.3",
+    "react": "^16.12.0",
+    "react-dom": "^16.12.0",
+    "react-scripts": "3.2.0",
+    "tabookey-gasless": "^0.4.4",
+    "safechannels-contracts": "file:../solidity/",
+    "web3-utils": "1.2.1"
   },
   "devDependencies": {
+    "mocha": "^6.2.2",
+    "chai": "^4.2.0",
+    "chai-as-promised": "^7.1.1",
     "babel-eslint": "^10.0.3",
     "eslint": "^6.7.2",
     "eslint-config-standard": "^14.1.0",
@@ -31,12 +42,22 @@
     "eslint-plugin-node": "^10.0.0",
     "eslint-plugin-promise": "^4.2.1",
     "eslint-plugin-standard": "^4.0.1",
+    "eslint-plugin-react": "^7.17.0",
     "esm": "^3.2.25",
     "run-with-testrpc": "0.3.1",
     "sinon": "^7.5.0",
-    "standard": "^14.3.1",
-    "tabookey-gasless": "0.4.1",
-    "safechannels-contracts": "file:../solidity/",
-    "web3-utils": "1.2.1"
+    "standard": "^14.3.1"
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
   }
 }
