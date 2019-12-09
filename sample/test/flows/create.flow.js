@@ -1,7 +1,7 @@
 /* global describe it */
 
-const { assert, expect } = require('chai')
-const { SimpleManagerMock } = require('../mocks/SimpleManager.mock')
+import { assert, expect } from 'chai'
+import SimpleManagerMock from '../../src/js/mocks/SimpleManager.mock'
 
 describe('Test Flows', () => {
   describe('create flow', async () => {

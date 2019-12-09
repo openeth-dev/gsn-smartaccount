@@ -1,10 +1,9 @@
-/* eslint-disable no-proto */
-
 function sig (method) {
-  const regex = method.toString().match(/^((?:async)?\s*\w+\s*\(.*?\))/)
+  const str = method.toString().replace(/\s+/g, ' ')
+  const regex = str.match(/^((?:async)?\s*\w+\s*\(.*?\))/)
   return regex[1]
 }
-
+/* eslint-disable no-proto */
 export default function validate (baseClass, inst) {
   if (!baseClass.prototype) {
     throw new Error(`${baseClass}: not a class (no "prototype")`)

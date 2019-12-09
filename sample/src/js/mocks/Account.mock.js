@@ -1,5 +1,5 @@
 // our wallet Account: (iframe: account.safechannel.com)
-import AccountApi from '../../src/js/api/Account.api'
+import AccountApi from '../api/Account.api'
 
 export default class AccountMock extends AccountApi {
   constructor (options) {
@@ -12,14 +12,7 @@ export default class AccountMock extends AccountApi {
     return this.storage.email
   }
 
-  async createOwner () {
-    if (this.storage.ownerAddress) {
-      throw new Error('owner already created')
-    }
-    if (!this.storage.email) {
-      throw new Error('not logged in')
-    }
-
+  _createOwner () {
     this.storage.ownerAddress = 'addr'
     this.storage.privateKey = 'privKey'
   }
@@ -33,6 +26,7 @@ export default class AccountMock extends AccountApi {
       console.log('open google auth popup. prompt user for google account.\n')
     }
     this.storage.email = 'user@email.com'
+    if (!this.storage.ownerAddress) { this._createOwner() }
 
     return {
       jwt: { email: this.storage.email, nonce: this.storage.ownerAddress || 'nonce' },

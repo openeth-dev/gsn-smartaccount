@@ -1,5 +1,5 @@
 import TruffleContract from '@truffle/contract'
-
+/* global error */
 import VaultFactoryABI from 'safechannels-contracts/src/js/generated/VaultFactory'
 import FactoryContractInteractor from 'safechannels-contracts/src/js/FactoryContractInteractor'
 
@@ -21,6 +21,14 @@ export default class SimpleManager extends SimpleManagerApi {
 
   async googleLogin () {
     return this.accountApi.googleLogin()
+  }
+
+  async googleAuthenticate () {
+    return this.accountApi.googleAuthenticate()
+  }
+
+  async signOut () {
+    this.accountApi.signout()
   }
 
   getOwner () {
@@ -52,6 +60,7 @@ export default class SimpleManager extends SimpleManagerApi {
   }
 
   async recoverWallet ({ owner, email }) {
+    error('trigger recover flow')
   }
 
   /**

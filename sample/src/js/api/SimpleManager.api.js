@@ -26,6 +26,14 @@ export default class SimpleManagerApi extends EventEmitter {
     error('return this.accountApi.googleLogin()')
   }
 
+  async signOut () {
+    error('sign out of google account, forget local private/public keys')
+  }
+
+  async googleAuthenticate () {
+    error('return this.accountApi.googleAuthenticate()')
+  }
+
   async getWalletAddress () {
     error('return the wallet address (valid only after is was created)')
   }
@@ -35,11 +43,13 @@ export default class SimpleManagerApi extends EventEmitter {
   }
 
   async loadWallet () {
-    error('return a SampleWallet object for the current google account (after it was created)')
+    error(
+      'return a SampleWallet object for the current google account (after it was created)')
   }
 
   async validatePhone ({ jwt, phone }) {
-    error('contact backend to send SMS with verification code to client). mock emit event "mocksms". real server sends SMS')
+    error(
+      'contact backend to send SMS with verification code to client). mock emit event "mocksms". real server sends SMS')
   }
 
   async createWallet ({ jwt, phone, smsVerificationCode }) {
