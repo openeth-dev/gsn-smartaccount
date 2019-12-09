@@ -2,7 +2,7 @@
 
 import AccountMock from '../src/js/mocks/Account.mock'
 
-import chai, { assert, expect } from 'chai'
+import chai, { assert } from 'chai'
 import chaiAsPromised from 'chai-as-promised'
 
 chai.use(chaiAsPromised)
@@ -25,5 +25,4 @@ describe('test account mock', () => {
     await acct.googleLogin()
     assert.equal(acct.getOwner(), 'addr')
   })
-
 })
