@@ -110,12 +110,7 @@ export class Backend extends BEapi {
     if (expectedSmsCode !== undefined) {
       expectedSmsCode = parseInt(expectedSmsCode)
       const minutes = expectedSmsCode % 10
-      const replacement = minutes.toString()
-      if (minuteTimeStamp % 10 < minutes) {
-        minuteTimeStamp -= 10
-      }
-      minuteTimeStamp = minuteTimeStamp.toString()
-      minuteTimeStamp = replaceAt(minuteTimeStamp, minuteTimeStamp.length - replacement.length, replacement)
+      minuteTimeStamp = replaceDigits(minuteTimeStamp, minutes, 10)
     }
     return minuteTimeStamp
   }
@@ -139,9 +134,6 @@ export class Backend extends BEapi {
   }
 }
 
-function replaceAt (str, index, replacement) {
-  if (typeof replacement !== 'string') {
-    throw new Error('invalid replacement')
-  }
-  return str.substr(0, index) + replacement + str.substr(index + replacement.length)
+function replaceDigits (num, digit, mul = 10) {
+  return (num - num % mul + digit - (num % mul >= digit ? 0 : mul))
 }
