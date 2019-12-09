@@ -14,7 +14,7 @@ export default class SimpleWalletApi {
     error('set initial configuration in the contract')
   }
 
-  transfer ({ destAddr, amount, token }) {
+  transfer ({ destination, amount, token }) {
     error('initiate transfer operation. adds a pending item, depending on transfer policy')
   }
 
@@ -80,7 +80,7 @@ export default class SimpleWalletApi {
     error('return static list of {token,balance,decimals} - loaded with refresh()')
   }
 
-  listPending () {
+  async listPending () {
     error('return pending operations from memory')
   }
 
