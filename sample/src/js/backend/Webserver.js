@@ -53,7 +53,7 @@ export default class Webserver {
         }
         break
       default:
-        status = jsonrpc.error(req.body.id, new jsonrpc.JsonRpcError('Unknown method', -130))
+        status = jsonrpc.error(req.body.id || -1, new jsonrpc.JsonRpcError('Unknown method', -130))
     }
     res.send(status)
   }
