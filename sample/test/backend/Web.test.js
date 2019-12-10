@@ -7,13 +7,20 @@ import Webserver from '../../src/js/backend/Webserver'
 describe('http layer tests', async function () {
   let client
   let server
-  const mockBE = {}
+  let mockBE
   const port = 1234
   const myJWT = 'eyJhbGciOiJSUzI1NiIsImtpZCI6IjViNWRkOWJlNDBiNWUxY2YxMjFlMzU3M2M4ZTQ5ZjEyNTI3MTgzZDMiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJhY2NvdW50cy5nb29nbGUuY29tIiwiYXpwIjoiMjAyNzQ2OTg2ODgwLXUxN3JiZ285NWg3amE0ZmdoaWtpZXR1cGprbmQxYmxuLmFwcHMuZ29vZ2xldXNlcmNvbnRlbnQuY29tIiwiYXVkIjoiMjAyNzQ2OTg2ODgwLXUxN3JiZ285NWg3amE0ZmdoaWtpZXR1cGprbmQxYmxuLmFwcHMuZ29vZ2xldXNlcmNvbnRlbnQuY29tIiwic3ViIjoiMTE1NDEzOTQ3Njg0Mjk5Njg1NDQ5IiwiaGQiOiJ0YWJvb2tleS5jb20iLCJlbWFpbCI6InNoYWhhZkB0YWJvb2tleS5jb20iLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwibm9uY2UiOiJoZWxsby13b3JsZCIsImlhdCI6MTU3NTU1OTk4MCwiZXhwIjoxNTc1NTYzNTgwLCJqdGkiOiJjNTU4MjllODUxMTZmZTZhZTI3NmZjZWQzYmJkMjUzZmQwZGFiNjRjIn0.gFVHCwndqf8BYgX2p6BJB1B6TeJQqI14khisxHr_43OVHyny52sctUp38iqeJJJ0gz4I-K4KCfxAR4e5Bm0ZFIDhbEEBKq8XAF4NI6W3pOyhxH8AQljaXtZ4hWBsuZApVsLsq9e7OY2NC5MbawtehbWSKAYd_zJjf76tkmFRlgI_BQb2Sox257lp0U7ib_gHLmHxSHcCvwsro2CPyl4ZFzO4EqNufU7n6VNh7Ey6V0EYTsTeIdqwzH6mFuGLwH8S8PQV8JJD4ZyWuUZBcNNRYAz_SjElSzZ9HCwtuYGvlIx9ognE1ga1w-O7EdRwfg58J6Cn35baBHr6z9O02luCJg'
   const myPhoneNumber = '+972541234567'
   const mySmsCode = 1234561
   const serverURL = `http://localhost:${port}`
 
+  before(async function () {
+    mockBE = {}
+    mockBE.validatePhone = function validatePhone() {}
+    mockBE.createAccount = function createAccount() {}
+    mockBE.addDeviceNow = function addDeviceNow() {}
+    mockBE.handleNotifications = function handleNotifications() {}
+  })
   it('should construct webclient, webserver and start server', async function () {
     try {
       server = new Webserver({ port, be: mockBE })
@@ -28,7 +35,7 @@ describe('http layer tests', async function () {
   describe('validatePhone', async function () {
     it('should send valid http request and receive valid response', async function () {
       try {
-        mockBE.validatePhone = function ({ jwt, phoneNumber }) {
+        mockBE.validatePhone = function validatePhone({ jwt, phoneNumber }) {
           assert.equal(jwt, myJWT)
           assert.equal(phoneNumber, myPhoneNumber)
         }
@@ -43,7 +50,7 @@ describe('http layer tests', async function () {
     it('should send invalid http request and receive error response', async function () {
       try {
         const errorMessage = 'hubba bubba'
-        mockBE.validatePhone = function ({ jwt, phoneNumber }) {
+        mockBE.validatePhone = function validatePhone({ jwt, phoneNumber }) {
           throw new Error(errorMessage)
         }
         const res = await client.validatePhone({ jwt: undefined, phoneNumber: myPhoneNumber })
@@ -60,7 +67,7 @@ describe('http layer tests', async function () {
     it('should send valid http request and receive valid response', async function () {
       try {
         const approvalData = 'I APPROVE'
-        mockBE.createAccount = function ({ jwt, smsCode, phoneNumber }) {
+        mockBE.createAccount = function createAccount({ jwt, smsCode, phoneNumber }) {
           assert.equal(jwt, myJWT)
           assert.equal(smsCode, mySmsCode)
           assert.equal(phoneNumber, myPhoneNumber)
@@ -78,7 +85,7 @@ describe('http layer tests', async function () {
     it('should send invalid http request and receive error response', async function () {
       try {
         const errorMessage = 'go fish'
-        mockBE.createAccount = function ({ jwt, smsCode, phoneNumber }) {
+        mockBE.createAccount = function createAccount({ jwt, smsCode, phoneNumber }) {
           throw new Error(errorMessage)
         }
         const res = await client.createAccount({ jwt: undefined, smsCode: mySmsCode, phoneNumber: myPhoneNumber })

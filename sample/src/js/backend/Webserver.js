@@ -11,9 +11,6 @@ export default class Webserver {
     this.app.use(bodyParser.json())
     console.log('setting handlers')
     this.app.post('/', this.rootHandler.bind(this))
-    this.app.post('/validatePhone', this.validatePhoneHandler.bind(this))
-    this.app.post('/createAccount', this.createAccountHandler.bind(this))
-    this.app.post('/addDeviceNow', this.addDeviceNowHandler.bind(this))
   }
 
   start () {
@@ -28,36 +25,35 @@ export default class Webserver {
     return this.serverInstance.close()
   }
 
-  rootHandler (req, res) {
-    const success = jsonrpc.success(req.body.id, 'OK')
-    res.send(success)
-  }
-
-  async validatePhoneHandler (req, res) {
-    // console.log('\n\nvalidatePhoneHandler req data:',req.body)
+  async rootHandler (req, res) {
     let status
-    try {
-      await this.be.validatePhone({ jwt: req.body.params.jwt, phoneNumber: req.body.params.phoneNumber })
-      status = jsonrpc.success(req.body.id, 'OK')
-    } catch (e) {
-      status = jsonrpc.error(req.body.id, new jsonrpc.JsonRpcError(e.toString(), -123))
+    switch (req.body.method) {
+      case this.be.validatePhone.name:
+        try {
+          await this.be.validatePhone({ jwt: req.body.params.jwt, phoneNumber: req.body.params.phoneNumber })
+          status = jsonrpc.success(req.body.id, 'OK')
+        } catch (e) {
+          status = jsonrpc.error(req.body.id, new jsonrpc.JsonRpcError(e.toString(), -123))
+        }
+        break
+      case this.be.createAccount.name:
+        try {
+          const approvalData = await this.be.createAccount(
+            { jwt: req.body.params.jwt, smsCode: req.body.params.smsCode, phoneNumber: req.body.params.phoneNumber })
+          status = jsonrpc.success(req.body.id, approvalData)
+        } catch (e) {
+          status = jsonrpc.error(req.body.id, new jsonrpc.JsonRpcError(e.toString(), -124))
+        }
+        break
+      case this.be.addDeviceNow.name:
+        try {
+          // TODO
+        } catch (e) {
+          status = jsonrpc.error(req.body.id, new jsonrpc.JsonRpcError(e.toString(), -125))
+        }
+      default:
+        status = jsonrpc.error(req.body.id, new jsonrpc.JsonRpcError('Unknown method', -130))
     }
     res.send(status)
-  }
-
-  async createAccountHandler (req, res) {
-    let status
-    try {
-      const approvalData = await this.be.createAccount(
-        { jwt: req.body.params.jwt, smsCode: req.body.params.smsCode, phoneNumber: req.body.params.phoneNumber })
-      status = jsonrpc.success(req.body.id, approvalData)
-    } catch (e) {
-      status = jsonrpc.error(req.body.id, new jsonrpc.JsonRpcError(e.toString(), -124))
-    }
-    res.send(status)
-  }
-
-  addDeviceNowHandler (req, res) {
-    throw new Error('validate jwt, return "click to add" SMS')
   }
 }

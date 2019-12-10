@@ -30,17 +30,17 @@ export class ClientBackend extends BEapi {
 
   async validatePhone ({ jwt, phoneNumber }) {
     const request = jsonrpc.request(Date.now(), this.validatePhone.name, { jwt, phoneNumber })
-    return this.webclient.sendPromise(this.serverURL + '/' + this.validatePhone.name, request)
+    return this.webclient.sendPromise(this.serverURL, request)
   }
 
   async createAccount ({ jwt, smsCode, phoneNumber }) {
     const request = jsonrpc.request(Date.now(), this.createAccount.name, { jwt, smsCode, phoneNumber })
-    return this.webclient.sendPromise(this.serverURL + '/' + this.createAccount.name, request)
+    return this.webclient.sendPromise(this.serverURL, request)
   }
 
   async addDeviceNow ({ jwt, newaddr }) {
     const request = jsonrpc.request(Date.now(), this.addDeviceNow.name, { jwt, newaddr })
-    return this.webclient.sendPromise(this.serverURL + '/' + this.addDeviceNow.name, request)
+    return this.webclient.sendPromise(this.serverURL, request)
   }
 
   handleNotifications () {
