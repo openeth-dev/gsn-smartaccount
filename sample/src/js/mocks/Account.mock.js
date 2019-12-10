@@ -8,7 +8,7 @@ export default class AccountMock extends AccountApi {
     this.storage = this.options.localStorage || {}
   }
 
-  getEmail () {
+  async getEmail () {
     return this.storage.email
   }
 
@@ -17,7 +17,7 @@ export default class AccountMock extends AccountApi {
     this.storage.privateKey = 'privKey'
   }
 
-  getOwner () {
+  async getOwner () {
     return this.storage.ownerAddress
   }
 

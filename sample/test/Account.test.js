@@ -15,31 +15,31 @@ describe('Account', () => {
     acct = new Account({})
   })
 
-  it('getEmail', () => {
-    assert.equal(acct.getEmail(), null)
+  it('getEmail', async () => {
+    assert.equal(await acct.getEmail(), null)
     acct.googleLogin()
-    assert.equal(acct.getEmail(), 'user@email.com')
+    assert.equal(await acct.getEmail(), 'user@email.com')
   })
 
   it('getOwner after login should return address', async () => {
     await acct.googleLogin()
-    assert.match(acct.getOwner(), /^0x\w+$/)
+    assert.match(await acct.getOwner(), /^0x\w+$/)
   })
 
-  it('account from storage should have same address/privKey', () => {
+  it('account from storage should have same address/privKey', async () => {
     const newacct = new Account({ storage: acct.storage })
-    assert.equal(newacct.getOwner(), acct.getOwner())
+    assert.equal(await newacct.getOwner(), await acct.getOwner())
     // of course, no API to get privkey...
     assert.equal(newacct.storage.privKey, acct.storage.privKey)
   })
   it('account from storage should have same address/privKey after signing',
     async () => {
       const newacct = new Account({ storage: acct.storage })
-      assert.equal(newacct.getEmail(), null)
+      assert.equal(await newacct.getEmail(), null)
       await newacct.googleLogin()
-      assert.match(newacct.getEmail(), /@/)
+      assert.match(await newacct.getEmail(), /@/)
 
-      assert.equal(newacct.getOwner(), acct.getOwner())
+      assert.equal(await newacct.getOwner(), await acct.getOwner())
       // of course, no API to get privkey...
       assert.equal(newacct.storage.privKey, acct.storage.privKey)
     })
@@ -47,7 +47,7 @@ describe('Account', () => {
   it('signout should clear storage', async () => {
     await acct.googleLogin()
     const s = acct.storage
-    assert.equal(s.ownerAddress, acct.getOwner())
+    assert.equal(s.ownerAddress, await acct.getOwner())
     assert.match(s.privKey.toString('hex'), /^[0-9a-f]+$/)
     acct.signOut()
     assert.equal(s.ownerAddress, null)
@@ -62,17 +62,19 @@ describe('Account', () => {
       {
         email: 'dror@tabookey.com',
         email_verified: true,
-        nonce: 'hello-world'
-      }
+        nonce: 'hello-world',
+      },
     )
   })
 
   // compare to relayClient's getTransactionSignature
   it('sign message', async () => {
-    const { getTransactionSignatureWithKey } = require('tabookey-gasless/src/js/relayclient/utils')
+    const { getTransactionSignatureWithKey } = require(
+      'tabookey-gasless/src/js/relayclient/utils')
     const datahash = require('ethereumjs-util').keccak('hello')
     acct.googleLogin()
-    const sig = getTransactionSignatureWithKey(Buffer.from(acct.storage.privKey, 'hex'), '0x' + datahash.toString('hex'))
+    const sig = getTransactionSignatureWithKey(
+      Buffer.from(acct.storage.privKey, 'hex'), '0x' + datahash.toString('hex'))
 
     assert.equal(await acct.signMessage({ messageHash: datahash }), sig)
     assert.equal(await acct.signMessage({ message: Buffer.from('hello') }), sig)

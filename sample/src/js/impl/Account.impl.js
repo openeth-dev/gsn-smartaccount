@@ -4,6 +4,22 @@ import AccountApi from '../api/Account.api'
 import ethWallet from 'ethereumjs-wallet'
 import * as ethUtils from 'ethereumjs-util'
 
+// import storageProps from './storageProps'
+
+export function storageProps (storage) {
+  return new Proxy(storage, {
+    get (target, p) { return storage.getItem(p) },
+    set (target, p, value) {
+      if (value === undefined) {
+        storage.removeItem(p)
+      } else {
+        storage.setItem(p, value)
+      }
+      return true
+    },
+  })
+}
+
 export default class Account extends AccountApi {
   // storage - property access.
   // localStorage - getItem/setItem (use only if no storage..)
@@ -13,16 +29,13 @@ export default class Account extends AccountApi {
       this.storage = storage
     } else if (localStorage) {
       // key/value API on top of Storage
-      this.storage = new Proxy(localStorage, {
-        get (target, p) { return target[p] },
-        set (target, p, value) { target[p] = value }
-      })
+      this.storage = storageProps(localStorage)
     } else {
       this.storage = {}
     }
   }
 
-  getEmail () {
+  async getEmail () {
     return this.storage.email
   }
 
@@ -42,7 +55,7 @@ export default class Account extends AccountApi {
     this.storage.privKey = privKey
   }
 
-  getOwner () {
+  async getOwner () {
     return this.storage.ownerAddress
   }
 
@@ -55,15 +68,17 @@ export default class Account extends AccountApi {
       console.log('open google auth popup. prompt user for google account.\n')
     }
     this.storage.email = 'user@email.com'
-    if (!this.storage.ownerAddr) { this._createOwner() }
+    if (!this.storage.ownerAddress) {
+      this._createOwner()
+    }
 
     return {
       jwt: this._generateMockJwt({
         email: this.storage.email,
-        nonce: this.storage.ownerAddress || 'nonce'
+        nonce: this.storage.ownerAddress || 'nonce',
       }),
       email: this.storage.email,
-      address: this.storage.ownerAddress
+      address: this.storage.ownerAddress,
     }
   }
 
@@ -71,10 +86,10 @@ export default class Account extends AccountApi {
     return {
       jwt: {
         email: this.storage.email,
-        nonce: this.storage.ownerAddress || 'nonce'
+        nonce: this.storage.ownerAddress || 'nonce',
       },
       email: this.storage.email,
-      address: this.storage.ownerAddress
+      address: this.storage.ownerAddress,
     }
   }
 
@@ -83,12 +98,12 @@ export default class Account extends AccountApi {
     const part1 = Buffer.from(JSON.stringify({
       alg: 'RS256',
       kid: '5b5dd9be40b5e1cf121e3573c8e49f12527183d3',
-      typ: 'JWT'
-    })).toString()
+      typ: 'JWT',
+    })).toString('base64')
     const aud = ''
     const iss = 'accounts.google.com'
     const part2 = Buffer.from(JSON.stringify(
-      { aud, iss, email, email_verified: true, nonce, iat, exp })).toString()
+      { aud, iss, email, email_verified: true, nonce, iat, exp })).toString('base64')
     const part3 = 'SIG'
     return [part1, part2, part3].join('.')
   }
@@ -115,7 +130,7 @@ export default class Account extends AccountApi {
     const sig = ethUtils.ecsign(hash, this.storage.privKey)
 
     return '0x' +
-      Buffer.concat([sig.r, sig.s, Buffer.from(String.fromCharCode(sig.v))])
-        .toString('hex')
+      Buffer.concat([sig.r, sig.s, Buffer.from(String.fromCharCode(sig.v))]).
+        toString('hex')
   }
 }

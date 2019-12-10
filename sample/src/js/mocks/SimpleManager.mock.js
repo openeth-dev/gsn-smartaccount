@@ -51,7 +51,7 @@ export default class SimpleManagerMock extends SimpleManagerApi {
   }
 
   async validatePhone ({ jwt, phone }) {
-    if (!jwt || !jwt.email) {
+    if (!jwt ) {
       throw new Error('not logged in')
     }
     if (await this.hasWallet()) {

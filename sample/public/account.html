@@ -6,44 +6,8 @@ account-specific code
 -->
 <!--<script src="https://apis.google.com/js/platform.js" async defer></script>-->
 
-accounts<br/>
-iframe...
-
+<script src="pack/account.pack.js" ></script>
+<span style="font-size: 10px" id="valueDiv"></span>
 <script>
-
-  function ha2com,ndleMessage (msg) {
-    alert(msg.data.id + '\n' + JSON.stringify(msg.data))
-    msg.source.postMessage(msg.source, "reply",'*')
-  }
-
-  function onMessage (msg) {
-    if (msg.data.id) {
-      handleMessage(msg)
-    }
-  }
-
-  if (window.addEventListener) {
-    // For standards-compliant web browsers
-    window.addEventListener('message', onMessage, false)
-  } else {
-    window.attachEvent('onmessage', onMessage)
-  }
-
-  function oneTimeAuthorize () {
-    console.log('onetime')
-    gapi.auth2.authorize({
-      client_id: '202746986880-u17rbgo95h7ja4fghikietupjknd1bln.apps.googleusercontent.com',
-      scope: 'email openid',
-      realm: 'what realm',
-      fetch_basic_profile: false,
-      response_type: 'id_token',
-      nonce: 'hello-world'
-    }, (resp) => {
-      console.log('AuthorizeResponse', resp)
-      console.log('id_token:', resp.id_token)
-      console.log('access:', resp.access_token)
-      setOut(resp.id_token)
-    })
-  }
-
+  initMessageHandler({window})
 </script>

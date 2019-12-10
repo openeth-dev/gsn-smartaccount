@@ -8,11 +8,11 @@ export default class AccountApi {
     validate(AccountApi, this)
   }
 
-  getEmail () {
+  async getEmail () {
     error('iframe: return current google logged in email (google account), or null')
   }
 
-  getOwner () {
+  async getOwner () {
     error('iframe: return owner\'s address (a cookie in an iframe)')
   }
 
