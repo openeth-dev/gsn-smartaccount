@@ -50,8 +50,4 @@ if (process.argv[3] === '--dev') {
 }
 
 const server = new Webserver({ port, backend })
-try {
-  server.start()
-} catch (e) {
-  console.log('FUCK THIS SHIT')
-}
+server.start()
