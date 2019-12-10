@@ -9,7 +9,7 @@ import AccountProxy from '../js/impl/Account.proxy'
 
 var mgr, sms
 const Button = ({ title, action }) => <input type="submit" onClick={action}
-                                             value={title}/>
+  value={title}/>
 
 function GoogleLogin ({ refresh }) {
   async function login () {
@@ -30,7 +30,7 @@ function CreateWallet ({ refresh, jwt, email }) {
     if (!phone) {
       return
     }
-    console.log("validate:", jwt, phone)
+    console.log('validate:', jwt, phone)
     mgr.validatePhone({ jwt, phone })
   }
   const createWallet = async () => {
@@ -50,7 +50,7 @@ function CreateWallet ({ refresh, jwt, email }) {
     Hello <b>{email}</b>, you dont have a wallet yet.<br/>
     Click <Button title="here to verify phone" action={startCreate}/><br/>
     Click here to enter SMS verification code <Button title="verify"
-                                                      action={createWallet}/>
+      action={createWallet}/>
   </div>
 }
 
@@ -106,7 +106,7 @@ class App extends React.Component {
       }, 1000)
     })
 
-    this.state={}
+    this.state = {}
     this.readMgrState().then(x => { this.state = x })
   }
 
@@ -121,7 +121,7 @@ class App extends React.Component {
       ownerAddr: await mgr.getOwner(),
       walletAddr: await mgr.getWalletAddress(),
       email: await mgr.getEmail(),
-      walletInfo: undefined,
+      walletInfo: undefined
     }
     // TODO: this is hack: we want to check if it already loaded, not load it.
     if (mgr.wallet) {
@@ -169,24 +169,25 @@ class App extends React.Component {
     this.reloadState()
   }
 
-  toggleDebug() {
-    this.setState( { debug: !this.state.debug })
+  toggleDebug () {
+    this.setState({ debug: !this.state.debug })
   }
+
   render () {
     return (
       <div style={{ margin: '10px' }}>
         <h1>SampleWallet app</h1>
         <div style={{ fontSize: '10px' }}>
-          <input type="checkbox" value={this.state.debug} onClick={()=>this.toggleDebug()} />
+          <input type="checkbox" value={this.state.debug} onClick={() => this.toggleDebug()} />
           Debug state
           {
-            this.state.debug && <xmp>{JSON.stringify(this.state,null,4)}</xmp>
+            this.state.debug && <xmp>{JSON.stringify(this.state, null, 4)}</xmp>
           }
         </div>
         {
           !!mgr.wallet ||
           <div><Button title="debug: activate wallet"
-                       action={this.debugActiveWallet.bind(this)}/><p/></div>
+            action={this.debugActiveWallet.bind(this)}/><p/></div>
         }
         <Button title="signout" action={this.signout.bind(this)}/><p/>
         <WalletComponent

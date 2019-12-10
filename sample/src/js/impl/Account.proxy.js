@@ -2,7 +2,7 @@
 
 import AccountApi from '../api/Account.api'
 
-let verbose = false
+const verbose = false
 
 export default class AccountProxy extends AccountApi {
   // storage - property access.
@@ -16,8 +16,7 @@ export default class AccountProxy extends AccountApi {
   }
 
   _onMessage ({ source, data }) {
-    if (('' + data.source).match(/react/))
-      return
+    if (('' + data.source).match(/react/)) { return }
     if (data === 'account-iframe-initialized') {
       this.initialized = true
       console.log('iframe initialized')
@@ -26,10 +25,9 @@ export default class AccountProxy extends AccountApi {
     if (!data || !data.id) {
       return
     }
-    if (verbose)
-      console.log('reply src=', source.location.href)
+    if (verbose) { console.log('reply src=', source.location.href) }
 
-    let pendingResponse = this.pending[data.id]
+    const pendingResponse = this.pending[data.id]
     if (!pendingResponse) {
       console.log('ignored unknown message: ', data)
       return
@@ -44,21 +42,19 @@ export default class AccountProxy extends AccountApi {
       if (verbose) {
         console.log('iframe not initialized. ping')
       }
-      //iframe not initialized yet. ping it, and wait...
+      // iframe not initialized yet. ping it, and wait...
       this.iframe.postMessage('account-iframe-ping', '*')
-      //TODO: in case if race-condition with iframe, we always wait 500ms.
+      // TODO: in case if race-condition with iframe, we always wait 500ms.
       // might be better to "register" for the ping
       setTimeout(() => this._call(method, args), 500)
       return
     }
     return new Promise((resolve, reject) => {
       const id = this.idseq++
-      const timeoutId = setTimeout(() => reject('timed-out: ' + method), 5000)
-      if (verbose)
-        console.log('calling: ', id, method, args)
+      const timeoutId = setTimeout(() => reject(new Error('timed-out: ' + method)), 5000)
+      if (verbose) { console.log('calling: ', id, method, args) }
       self.pending[id] = ({ response, error }) => {
-        if (verbose)
-          console.log('response: ', id, method, error || response)
+        if (verbose) { console.log('response: ', id, method, error || response) }
         clearTimeout(timeoutId)
         if (error) {
           reject(error)

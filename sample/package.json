@@ -21,13 +21,10 @@
   "license": "MIT",
   "dependencies": {
     "@truffle/contract": "latest",
-<<<<<<< HEAD
     "axios": "^0.19.0",
     "body-parser": "^1.19.0",
     "ethereumjs-abi": "^0.6.8",
-=======
     "eslint-plugin-react": "^7.17.0",
->>>>>>> account in iframe
     "ethereumjs-util": "^6.2.0",
     "ethereumjs-wallet": "^0.6.3",
     "express": "^4.17.1",
@@ -40,14 +37,9 @@
     "react-scripts": "3.2.0",
     "safechannels-contracts": "file:../solidity/",
     "tabookey-gasless": "^0.4.4",
-<<<<<<< HEAD
     "web3": "1.2.4",
-    "web3-utils": "1.2.1"
-=======
-    "web3": "1.0.0-beta.37",
     "web3-utils": "1.2.1",
     "webpack": "4.41.0"
->>>>>>> account in iframe
   },
   "devDependencies": {
     "babel-eslint": "^10.0.3",

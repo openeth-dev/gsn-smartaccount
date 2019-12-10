@@ -1,7 +1,7 @@
 /* global error */
 
 import SimpleManagerApi from '../api/SimpleManager.api.js'
-import SampleWalletMock from './SampleWallet.mock.js'
+import SimpleWalletMock from './SimpleWallet.mock.js'
 import AccountMock from './Account.mock'
 import SMSmock from './SMS.mock'
 
@@ -51,7 +51,7 @@ export default class SimpleManagerMock extends SimpleManagerApi {
   }
 
   async validatePhone ({ jwt, phone }) {
-    if (!jwt ) {
+    if (!jwt) {
       throw new Error('not logged in')
     }
     if (await this.hasWallet()) {

@@ -62,8 +62,8 @@ describe('Account', () => {
       {
         email: 'dror@tabookey.com',
         email_verified: true,
-        nonce: 'hello-world',
-      },
+        nonce: 'hello-world'
+      }
     )
   })
 
