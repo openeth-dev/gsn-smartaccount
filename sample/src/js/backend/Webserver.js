@@ -1,6 +1,6 @@
-const express = require('express')
-const jsonrpc = require('jsonrpc-lite')
-const bodyParser = require('body-parser')
+import express from 'express'
+import jsonrpc from 'jsonrpc-lite'
+import bodyParser from 'body-parser'
 
 export default class Webserver {
   constructor ({ port, backend }) {

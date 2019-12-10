@@ -32,7 +32,7 @@ export default class SimpleWalletMock extends SimpleWalletApi {
   // whitelist operations
   // TODO: maybe move them to inner "policy-specific" object ?
 
-  transferWhiteList ({ destAddr, amount, token }) {
+  transferWhiteList ({ destination, amount, token }) {
     error('perform a transfer to a whitelisted address')
   }
 

@@ -82,11 +82,12 @@ export default class SimpleManager extends SimpleManagerApi {
     if (this.vaultFactory === undefined) {
       await this._initializeFactory(this.factoryConfig)
     }
-    const response = await this.backend.createAccount({ jwt, phone, smsVerificationCode })
+    const response = await this.backend.createAccount({ jwt: jwt, phoneNumber: phone, smsCode: smsVerificationCode })
 
     const sender = this.getOwner()
     // TODO: next commit: make 'FactoryContractInteractor.deployNewGatekeeper' do this job
-    const receipt = await this.vaultFactory.newVault(response.vaultId, {
+    const vaultId = '0x' + Buffer.from(response.result.vaultId).toString('hex')
+    const receipt = await this.vaultFactory.newVault(vaultId, {
       from: sender,
       gas: 1e8,
       approvalData: response.approvalData

@@ -33,7 +33,7 @@ export default class SimpleWalletApi {
   // whitelist operations
   // TODO: maybe move them to inner "policy-specific" object ?
 
-  transferWhiteList ({ destAddr, amount, token }) {
+  transferWhiteList ({ destination, amount, token }) {
     error('perform a transfer to a whitelisted address')
   }
 

@@ -34,7 +34,7 @@ export default class SimpleWallet extends SimpleWalletApi {
     )
   }
 
-  transfer ({ destAddr, amount, token }) {
+  transfer ({ destination, amount, token }) {
   }
 
   removeOperator (addr) {
@@ -46,7 +46,7 @@ export default class SimpleWallet extends SimpleWalletApi {
   refresh () {
   }
 
-  transferWhiteList ({ destAddr, amount, token }) {
+  transferWhiteList ({ destination, amount, token }) {
   }
 
   addWhitelist (addrs) {
@@ -118,7 +118,7 @@ export default class SimpleWallet extends SimpleWalletApi {
   listTokens () {
   }
 
-  listPending () {
+  async listPending () {
   }
 
   listBypassPolicies () {

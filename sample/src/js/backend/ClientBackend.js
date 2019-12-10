@@ -1,6 +1,6 @@
-import BEapi from '../api/BE.api'
+import axios from 'axios'
 
-const axios = require('axios')
+import BEapi from '../api/BE.api'
 
 export class Webclient {
   constructor (options) {
@@ -21,7 +21,7 @@ export class Webclient {
 
 const jsonrpc = require('jsonrpc-lite')
 
-export class ClientBackend extends BEapi {
+export default class ClientBackend extends BEapi {
   constructor ({ serverURL }) {
     super()
     this.webclient = new Webclient()

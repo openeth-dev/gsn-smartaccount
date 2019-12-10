@@ -1,7 +1,7 @@
 /* global before describe after it */
 
 import { assert /* , expect */ } from 'chai'
-import { /* Webclient, */ ClientBackend } from '../../src/js/backend/Webclient'
+import ClientBackend from '../../src/js/backend/ClientBackend'
 import Webserver from '../../src/js/backend/Webserver'
 
 describe('http layer tests', async function () {

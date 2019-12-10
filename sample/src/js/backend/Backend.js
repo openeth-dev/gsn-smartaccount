@@ -41,7 +41,12 @@ export class Backend extends BEapi {
 
     const email = ticket.getPayload().email
     if (this._getSmsCode({ phoneNumber: formattedPhone, email, expectedSmsCode: smsCode }) === smsCode) {
-      this.accounts[email] = new Account({ email: email, phone: formattedPhone, verificationCode: smsCode, verified: true })
+      this.accounts[email] = new Account({
+        email: email,
+        phone: formattedPhone,
+        verificationCode: smsCode,
+        verified: true
+      })
     } else {
       throw new Error(`invalid sms code: ${smsCode}`)
     }
@@ -51,7 +56,7 @@ export class Backend extends BEapi {
     const hash = abi.soliditySHA3(['bytes32', 'bytes4'], [vaultId, timestamp])
     const sig = this._ecSignWithPrefix({ hash })
     const approvalData = abi.rawEncode(['bytes4', 'bytes'], [timestamp, sig])
-    return approvalData
+    return { approvalData, vaultId }
   }
 
   async addDeviceNow ({ jwt, newaddr }) {
