@@ -1,12 +1,16 @@
 /* global error */
 
-import SampleWalletApi from '../api/SampleWallet.api'
+import SimpleWalletApi from '../api/SimpleWallet.api'
 
-export default class SampleWalletMock extends SampleWalletApi {
+export default class SimpleWalletMock extends SimpleWalletApi {
   constructor ({ email, address }) {
     super()
     this.email = email
     this.address = address
+  }
+
+  async initialConfiguration (configuration) {
+    error('set initial configuration in the contract')
   }
 
   transfer ({ destAddr, amount, token }) {
@@ -45,7 +49,7 @@ export default class SampleWalletMock extends SampleWalletApi {
     return ['add1', 'add2']
   }
 
-  getWalletInfo () {
+  async getWalletInfo () {
     let addr
     return {
       address: this.address,

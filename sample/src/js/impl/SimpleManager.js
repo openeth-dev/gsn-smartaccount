@@ -76,25 +76,30 @@ export default class SimpleManager extends SimpleManagerApi {
   }
 
   async createWallet ({ jwt, phone, smsVerificationCode }) {
+    if (!jwt || !phone || !smsVerificationCode) {
+      throw Error('All parameters are required')
+    }
     if (this.vaultFactory === undefined) {
       await this._initializeFactory(this.factoryConfig)
     }
-    if (!jwt) {
-      jwt = this.accountApi.googleAuthenticate().jwt
-    }
-    const response = await this.backend.createAccount({ jwt, smsVerificationCode })
+    const response = await this.backend.createAccount({ jwt, phone, smsVerificationCode })
 
     const sender = this.getOwner()
     // TODO: next commit: make 'FactoryContractInteractor.deployNewGatekeeper' do this job
-    const receipt = await this.vaultFactory.newVault(response.vaultId, { from: sender, gas: 1e8 })
+    const receipt = await this.vaultFactory.newVault(response.vaultId, {
+      from: sender,
+      gas: 1e8,
+      approvalData: response.approvalData
+    })
     const vault = await FactoryContractInteractor.getCreatedVault(
       {
         factoryAddress: this.factoryConfig.factoryAddress,
         sender: sender,
+        // TODO: just pass the event from the receipt!
         blockNumber: receipt.blockNumber,
         provider: this.factoryConfig.provider
       })
-    return new SimpleWallet(vault)
+    return new SimpleWallet({ contract: vault, participant: {}, knownParticipants: [] })
   }
 
   _validateConfig (factoryConfig) {

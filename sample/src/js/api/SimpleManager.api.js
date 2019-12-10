@@ -44,7 +44,7 @@ export default class SimpleManagerApi extends EventEmitter {
 
   async loadWallet () {
     error(
-      'return a SampleWallet object for the current google account (after it was created)')
+      'return a SimpleWallet object for the current google account (after it was created)')
   }
 
   async validatePhone ({ jwt, phone }) {

@@ -87,6 +87,10 @@ describe('SimpleManager', async function () {
     let forward
     let web3provider
 
+    const jwt = 'JWT'
+    const phone = 'phone'
+    const smsVerificationCode = '1234'
+
     before(async function () {
       web3provider = new Web3.providers.HttpProvider(ethNodeUrl)
       mockhub = await FactoryContractInteractor.deployMockHub(from, ethNodeUrl)
@@ -106,7 +110,6 @@ describe('SimpleManager', async function () {
     })
 
     describe('main flows', async function () {
-      const approvalData = '0x1234'
       let factoryConfig
       let sm
 
@@ -124,24 +127,20 @@ describe('SimpleManager', async function () {
           }
         }
         const sponsorProvider = await SponsorProvider.init(web3provider, relayOptions)
-        factoryConfig =
-          {
-            provider: sponsorProvider,
-            factoryAddress: factory.address
-          }
+        factoryConfig = {
+          provider: sponsorProvider,
+          factoryAddress: factory.address
+        }
         const accountApi = {
           getOwner: function () {
             return '0x90f8bf6a479f320ead074411a4b0e7944ea8c9c1'
-          },
-          googleAuthenticate: function () {
-            return { jwt: 'TODO' }
           }
         }
         const backend = {
           createAccount: function () {
             return {
               vaultId: '0x203040',
-              approvalData: 'a3a6839853586edc9133e9c71d4ccfac678b4fc3f5475fd3014845ad5287870f'
+              approvalData: '0xa3a6839853586edc9133e9c71d4ccfac678b4fc3f5475fd3014845ad5287870f'
             }
           }
         }
@@ -149,7 +148,7 @@ describe('SimpleManager', async function () {
       })
 
       it('should deploy a new vault using SponsorProvider', async function () {
-        const wallet = await sm.createWallet({ approvalData })
+        const wallet = await sm.createWallet({ jwt, phone, smsVerificationCode })
         const operator = sm.getOwner().toLowerCase()
         const creator = (await wallet.contract.creator()).toLowerCase()
         assert.strictEqual(creator, operator)

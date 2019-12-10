@@ -5,9 +5,13 @@
 
 import validate from '../utils/XfaceValidate'
 // eslint-disable-next-line no-unused-vars
-export default class SampleWalletApi {
+export default class SimpleWalletApi {
   constructor () {
-    validate(SampleWalletApi, this)
+    validate(SimpleWalletApi, this)
+  }
+
+  async initialConfiguration (configuration) {
+    error('set initial configuration in the contract')
   }
 
   transfer ({ destAddr, amount, token }) {
@@ -46,7 +50,7 @@ export default class SampleWalletApi {
     return ['add1', 'add2']
   }
 
-  getWalletInfo () {
+  async getWalletInfo () {
     let addr
     return {
       options: {

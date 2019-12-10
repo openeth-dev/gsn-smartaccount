@@ -15,7 +15,7 @@ export default class BEapi {
   }
 
   createAccount ({ jwt, phone, smsVerificationCode }) {
-    error('validate fresh jwt, validate phone (from smsUrl). return approvalData')
+    error('validate fresh jwt, validate phone (from smsUrl). return { approvalData, vaultId }')
   }
 
   addDeviceNow ({ jwt, newaddr }) {

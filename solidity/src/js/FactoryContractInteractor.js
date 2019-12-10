@@ -1,6 +1,7 @@
 const TruffleContract = require("truffle-contract");
 const fs = require('fs');
 const Web3 = require('web3');
+const zeroAddress = require('ethereumjs-util').zeroAddress
 
 const Utils = require('./Utils');
 
@@ -114,17 +115,33 @@ class FactoryContractInteractor {
         return instance
     }
 
+    static async deployVaultDirectly(from, relayHub, ethNodeUrl) {
+        let utilitiesContract = await this.deployUtilitiesLibrary(from, ethNodeUrl)
+        let {instance} = await this.deployContract(
+          "generated/Gatekeeper",
+          "Gatekeeper",
+          [utilitiesContract], [zeroAddress(), from], from, ethNodeUrl
+        )
+        return instance
+    }
+
     /**
      * Migrated this from test code to allow the Factory Interactor to deploy the Factory Contract.
      * This is mainly useful for tests, but anyways, JS-Foundation is the easiest place to put this code.
      * @returns {Promise<String>} - the address of the newly deployed Factory
      */
     static async deployNewVaultFactory(from, ethNodeUrl, forwarder) {
-        let utilitiesLibraryPlaceholder = "\\$" + Web3.utils.keccak256("Utilities.sol:Utilities").substr(2, 34) + "\\$";
-        let {instance, contract: utilitiesContract} = await this.deployContract(
-          "generated/Utilities", utilitiesLibraryPlaceholder, [],[], from, ethNodeUrl)
+        let utilitiesContract = await this.deployUtilitiesLibrary(from, ethNodeUrl)
         let { instance: vaultFactory } = await this.deployContract("generated/VaultFactory", "VaultFactory", [utilitiesContract], [forwarder], from, ethNodeUrl)
         return vaultFactory;
+    }
+
+    //TODO: there is no reason anymore to depend on a library as instance. All methods must be 'inline'
+    static async deployUtilitiesLibrary (from, ethNodeUrl) {
+        let utilitiesLibraryPlaceholder = '\\$' + Web3.utils.keccak256('Utilities.sol:Utilities').substr(2, 34) + '\\$'
+        let { instance, contract: utilitiesContract } = await this.deployContract(
+          'generated/Utilities', utilitiesLibraryPlaceholder, [], [], from, ethNodeUrl)
+        return utilitiesContract
     }
 
     static linkEventsTopics(from, to){

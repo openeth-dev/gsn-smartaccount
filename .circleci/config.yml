@@ -27,10 +27,6 @@ jobs:
             - deps-
 
       - run:
-          name: extract_abi
-          command: node solidity/extract_abi.js
-
-      - run:
           name: yarn-install
           command: ( cd solidity && yarn install ) && (cd sample && yarn install )
 
@@ -40,6 +36,14 @@ jobs:
             - ./sample/node_modules
           # TODO: cache by all package.json files in the repo!!!
           key: deps-{{ checksum "solidity/package.json" }} {{ checksum "sample/package.json" }}
+
+      - run:
+          name: extract_abi
+          command: node solidity/extract_abi.js
+
+      - run:
+          name: yarn install solidity into sample
+          command: (cd sample && yarn add ../solidity)
       # run tests!
       - run:
           name: sample-test
