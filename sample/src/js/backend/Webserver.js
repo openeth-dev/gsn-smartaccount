@@ -3,9 +3,9 @@ const jsonrpc = require('jsonrpc-lite')
 const bodyParser = require('body-parser')
 
 export default class Webserver {
-  constructor ({ port, be }) {
+  constructor ({ port, backend }) {
     this.port = port
-    this.be = be
+    this.backend = backend
     this.app = express()
     this.app.use(bodyParser.urlencoded({ extended: false }))
     this.app.use(bodyParser.json())
@@ -28,24 +28,24 @@ export default class Webserver {
   async rootHandler (req, res) {
     let status
     switch (req.body.method) {
-      case this.be.validatePhone.name:
+      case this.backend.validatePhone.name:
         try {
-          await this.be.validatePhone({ jwt: req.body.params.jwt, phoneNumber: req.body.params.phoneNumber })
+          await this.backend.validatePhone({ jwt: req.body.params.jwt, phoneNumber: req.body.params.phoneNumber })
           status = jsonrpc.success(req.body.id, 'OK')
         } catch (e) {
           status = jsonrpc.error(req.body.id, new jsonrpc.JsonRpcError(e.toString(), -123))
         }
         break
-      case this.be.createAccount.name:
+      case this.backend.createAccount.name:
         try {
-          const approvalData = await this.be.createAccount(
+          const approvalData = await this.backend.createAccount(
             { jwt: req.body.params.jwt, smsCode: req.body.params.smsCode, phoneNumber: req.body.params.phoneNumber })
           status = jsonrpc.success(req.body.id, approvalData)
         } catch (e) {
           status = jsonrpc.error(req.body.id, new jsonrpc.JsonRpcError(e.toString(), -124))
         }
         break
-      case this.be.addDeviceNow.name:
+      case this.backend.addDeviceNow.name:
         try {
           // TODO
         } catch (e) {

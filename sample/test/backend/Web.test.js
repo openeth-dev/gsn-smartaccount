@@ -23,7 +23,7 @@ describe('http layer tests', async function () {
   })
   it('should construct webclient, webserver and start server', async function () {
     try {
-      server = new Webserver({ port, be: mockBE })
+      server = new Webserver({ port, backend: mockBE })
       client = new ClientBackend({ serverURL })
       server.start()
     } catch (e) {
