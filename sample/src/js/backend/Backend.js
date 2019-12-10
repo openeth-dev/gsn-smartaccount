@@ -81,11 +81,11 @@ export class Backend extends BEapi {
   }
 
   _formatPhoneNumber (phoneNumber) {
-    const p = phone(phoneNumber) // phone("+972 541234567") == [ '+972541234567', 'ISR' ]
-    if (p.length === 0) {
+    const formattedPhone = phone(phoneNumber) // phone("+972 541234567") == [ '+972541234567', 'ISR' ]
+    if (formattedPhone.length === 0) {
       throw new Error(`Invalid phone number: ${phoneNumber}`)
     }
-    return p
+    return formattedPhone
   }
 
   _validateJWTFormat (jwt) {

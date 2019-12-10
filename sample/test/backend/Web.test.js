@@ -1,4 +1,4 @@
-/* global describe after it */
+/* global before describe after it */
 
 import { assert /* , expect */ } from 'chai'
 import { /* Webclient, */ ClientBackend } from '../../src/js/backend/Webclient'
@@ -16,10 +16,10 @@ describe('http layer tests', async function () {
 
   before(async function () {
     mockBE = {}
-    mockBE.validatePhone = function validatePhone() {}
-    mockBE.createAccount = function createAccount() {}
-    mockBE.addDeviceNow = function addDeviceNow() {}
-    mockBE.handleNotifications = function handleNotifications() {}
+    mockBE.validatePhone = function validatePhone () {}
+    mockBE.createAccount = function createAccount () {}
+    mockBE.addDeviceNow = function addDeviceNow () {}
+    mockBE.handleNotifications = function handleNotifications () {}
   })
   it('should construct webclient, webserver and start server', async function () {
     try {
@@ -35,7 +35,7 @@ describe('http layer tests', async function () {
   describe('validatePhone', async function () {
     it('should send valid http request and receive valid response', async function () {
       try {
-        mockBE.validatePhone = function validatePhone({ jwt, phoneNumber }) {
+        mockBE.validatePhone = function validatePhone ({ jwt, phoneNumber }) {
           assert.equal(jwt, myJWT)
           assert.equal(phoneNumber, myPhoneNumber)
         }
@@ -50,7 +50,7 @@ describe('http layer tests', async function () {
     it('should send invalid http request and receive error response', async function () {
       try {
         const errorMessage = 'hubba bubba'
-        mockBE.validatePhone = function validatePhone({ jwt, phoneNumber }) {
+        mockBE.validatePhone = function validatePhone ({ jwt, phoneNumber }) {
           throw new Error(errorMessage)
         }
         const res = await client.validatePhone({ jwt: undefined, phoneNumber: myPhoneNumber })
@@ -67,7 +67,7 @@ describe('http layer tests', async function () {
     it('should send valid http request and receive valid response', async function () {
       try {
         const approvalData = 'I APPROVE'
-        mockBE.createAccount = function createAccount({ jwt, smsCode, phoneNumber }) {
+        mockBE.createAccount = function createAccount ({ jwt, smsCode, phoneNumber }) {
           assert.equal(jwt, myJWT)
           assert.equal(smsCode, mySmsCode)
           assert.equal(phoneNumber, myPhoneNumber)
@@ -85,7 +85,7 @@ describe('http layer tests', async function () {
     it('should send invalid http request and receive error response', async function () {
       try {
         const errorMessage = 'go fish'
-        mockBE.createAccount = function createAccount({ jwt, smsCode, phoneNumber }) {
+        mockBE.createAccount = function createAccount ({ jwt, smsCode, phoneNumber }) {
           throw new Error(errorMessage)
         }
         const res = await client.createAccount({ jwt: undefined, smsCode: mySmsCode, phoneNumber: myPhoneNumber })

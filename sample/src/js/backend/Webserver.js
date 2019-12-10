@@ -51,6 +51,7 @@ export default class Webserver {
         } catch (e) {
           status = jsonrpc.error(req.body.id, new jsonrpc.JsonRpcError(e.toString(), -125))
         }
+        break
       default:
         status = jsonrpc.error(req.body.id, new jsonrpc.JsonRpcError('Unknown method', -130))
     }
