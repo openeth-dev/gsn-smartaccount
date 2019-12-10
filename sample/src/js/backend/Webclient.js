@@ -9,17 +9,10 @@ export class Webclient {
     }, options))
   }
 
-  // send (url, jsonRequestData, callback) {
-  //   this.sendPromise(url, jsonRequestData || {})
-  //     .then(data => callback(null, data))
-  //     .catch(err => callback(err, null))
-  // }
-
   sendPromise (url, jsonRequestData) {
     // console.log('sending request:', url, JSON.stringify(jsonRequestData))
     return this.provider.post(url, jsonRequestData)
       .then(function (response) {
-        // Promise.resolve()
         return response.data
       })
       .catch(err => Promise.reject(err.response ? err.response.data : { error: err.message }))

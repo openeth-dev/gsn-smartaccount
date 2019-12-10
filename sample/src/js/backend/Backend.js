@@ -26,22 +26,22 @@ export class Backend extends BEapi {
   }
 
   async validatePhone ({ jwt, phoneNumber }) {
-    const p = this._formatPhoneNumber(phoneNumber)
+    const formattedPhone = this._formatPhoneNumber(phoneNumber)
     this._validateJWTFormat(jwt)
     const ticket = await this._verifyJWT(jwt)
 
     const email = ticket.getPayload().email
-    await this._sendSMS({ phoneNumber: p, email })
+    await this._sendSMS({ phoneNumber: formattedPhone, email })
   }
 
   async createAccount ({ jwt, smsCode, phoneNumber }) {
-    const p = this._formatPhoneNumber(phoneNumber)
+    const formattedPhone = this._formatPhoneNumber(phoneNumber)
     this._validateJWTFormat(jwt)
     const ticket = await this._verifyJWT(jwt)
 
     const email = ticket.getPayload().email
-    if (this._getSmsCode({ phoneNumber: p, email, expectedSmsCode: smsCode }) === smsCode) {
-      this.accounts[email] = new Account({ email: email, phone: p, verificationCode: smsCode, verified: true })
+    if (this._getSmsCode({ phoneNumber: formattedPhone, email, expectedSmsCode: smsCode }) === smsCode) {
+      this.accounts[email] = new Account({ email: email, phone: formattedPhone, verificationCode: smsCode, verified: true })
     } else {
       throw new Error(`invalid sms code: ${smsCode}`)
     }
