@@ -51,6 +51,9 @@ contract VaultFactory is GsnRecipient, Ownable {
     }
     function _acceptCall( address from, bytes memory encodedFunction) view internal returns (uint256 res, bytes memory data){}
 
+    /**
+    * @param vaultId - generated through keccak256(<userEmail>) by backend service
+    */
     function newVault(bytes32 vaultId) public {
         require(msg.sender == getHubAddr() || msg.sender == this.getGsnForwarder(), "Must be called through GSN");
         require(knownVaults[vaultId] == address(0), "Vault already created for this id");
