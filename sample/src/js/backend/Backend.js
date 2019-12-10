@@ -46,7 +46,7 @@ export class Backend extends BEapi {
       throw new Error(`invalid sms code: ${smsCode}`)
     }
 
-    const vaultId = abi.soliditySHA3(['string'], [email])
+    const vaultId = this._getVaultId(email)
     const timestamp = Buffer.from(Math.floor(Date.now() / 1000).toString(16), 'hex')
     const hash = abi.soliditySHA3(['bytes32', 'bytes4'], [vaultId, timestamp])
     const sig = this._ecSignWithPrefix({ hash })
@@ -60,6 +60,16 @@ export class Backend extends BEapi {
 
   handleNotifications () {
     throw new Error('monitor pending changes. can subscribe for events, but need also to handle due events.')
+  }
+
+  /**
+   *
+   * @param email - user email address type string
+   * @returns {Buffer} - keccak256(email) as vault id, to be verified by VaultFactory on-chain during vault creation.
+   * @private
+   */
+  _getVaultId (email) {
+    return abi.soliditySHA3(['string'], [email])
   }
 
   async _verifyJWT (jwt) {
