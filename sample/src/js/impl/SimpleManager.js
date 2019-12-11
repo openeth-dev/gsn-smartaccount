@@ -86,11 +86,12 @@ export default class SimpleManager extends SimpleManagerApi {
 
     const sender = this.getOwner()
     // TODO: next commit: make 'FactoryContractInteractor.deployNewGatekeeper' do this job
-    const vaultId = '0x' + Buffer.from(response.result.vaultId).toString('hex')
+    const vaultId = response.vaultId
+    const approvalData = response.approvalData
     const receipt = await this.vaultFactory.newVault(vaultId, {
       from: sender,
       gas: 1e8,
-      approvalData: response.approvalData
+      approvalData: approvalData
     })
     const vault = await FactoryContractInteractor.getCreatedVault(
       {

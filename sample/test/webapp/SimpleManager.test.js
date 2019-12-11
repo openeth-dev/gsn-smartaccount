@@ -23,16 +23,8 @@ const verbose = false
 const mockBackend = {
   createAccount: function () {
     return {
-      result: {
-        approvalData: {
-          type: 'Buffer',
-          data: [10, 20, 30]
-        },
-        vaultId: {
-          type: 'Buffer',
-          data: [40, 50, 60]
-        }
-      }
+      approvalData: '0x' + 'f'.repeat(64),
+      vaultId: '0x' + '1'.repeat(64)
     }
   }
 }
@@ -44,7 +36,8 @@ let backendTestInstance
 before(async function () {
 // TODO: get accounts
 
-  backendTestInstance = new Backend({ audience: '202746986880-u17rbgo95h7ja4fghikietupjknd1bln.apps.googleusercontent.com' })
+  backendTestInstance = new Backend(
+    { audience: '202746986880-u17rbgo95h7ja4fghikietupjknd1bln.apps.googleusercontent.com' })
   backendTestInstance.secretSMSCodeSeed = Buffer.from('f'.repeat(64), 'hex')
 
   await new Promise((resolve, reject) => {
@@ -162,7 +155,8 @@ backends.forEach(function ({ backend, name }) {
         const vfHub = await factory.contract.methods.getHubAddr().call()
         const vfFwd = await factory.contract.methods.getGsnForwarder().call()
         console.log(`spHub = ${spHub} fwHub=${fwHub} vfHub=${vfHub} vfFwd=${vfFwd}`)
-        console.log(`mockhub = ${mockhub.address} factory=${factory.address} sponsor=${sponsor.address} forward=${forward.address}`)
+        console.log(
+          `mockhub = ${mockhub.address} factory=${factory.address} sponsor=${sponsor.address} forward=${forward.address}`)
       })
 
       describe('main flows', async function () {

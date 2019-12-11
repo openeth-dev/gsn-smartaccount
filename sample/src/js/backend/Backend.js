@@ -53,7 +53,7 @@ export class Backend extends BEapi {
 
     const vaultId = this._getVaultId(email)
     const approvalData = this._generateApproval({ vaultId })
-    return { approvalData, vaultId }
+    return { approvalData: '0x' + approvalData.toString('hex'), vaultId: '0x' + vaultId.toString('hex') }
   }
 
   async addDeviceNow ({ jwt, newaddr }) {

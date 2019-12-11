@@ -41,7 +41,7 @@ describe('http layer tests', async function () {
           assert.equal(phoneNumber, myPhoneNumber)
         }
         const res = await client.validatePhone({ jwt: myJWT, phoneNumber: myPhoneNumber })
-        assert.equal(res.result, 'OK')
+        assert.equal(res, 'OK')
       } catch (e) {
         console.log(e)
         assert.fail()
@@ -49,45 +49,37 @@ describe('http layer tests', async function () {
     })
 
     it('should send invalid http request and receive error response', async function () {
+      const errorMessage = 'hubba bubba'
       try {
-        const errorMessage = 'hubba bubba'
         mockBE.validatePhone = function validatePhone ({ jwt, phoneNumber }) {
           throw new Error(errorMessage)
         }
-        const res = await client.validatePhone({ jwt: undefined, phoneNumber: myPhoneNumber })
-        assert.equal(res.error.code, -123)
-        assert.equal(res.error.message, `Error: ${errorMessage}`)
+        await client.validatePhone({ jwt: undefined, phoneNumber: myPhoneNumber })
       } catch (e) {
-        console.log(e)
-        assert.fail()
+        assert.equal(e.toString(), `Error: ${errorMessage}. code: -123`)
       }
     })
   })
 
   describe('createAccount', async function () {
     it('should send valid http request and receive valid response', async function () {
-      try {
-        const approvalData = 'I APPROVE'
-        const vaultId = abi.soliditySHA3(['string'], ['fake@email.com'])
-        mockBE.createAccount = function createAccount ({ jwt, smsCode, phoneNumber }) {
-          assert.equal(jwt, myJWT)
-          assert.equal(smsCode, mySmsCode)
-          assert.equal(phoneNumber, myPhoneNumber)
+      const approvalData = 'I APPROVE'
+      const vaultId = abi.soliditySHA3(['string'], ['fake@email.com'])
+      mockBE.createAccount = function createAccount ({ jwt, smsCode, phoneNumber }) {
+        assert.equal(jwt, myJWT)
+        assert.equal(smsCode, mySmsCode)
+        assert.equal(phoneNumber, myPhoneNumber)
 
-          return { approvalData, vaultId }
-        }
-        const res = await client.createAccount({ jwt: myJWT, smsCode: mySmsCode, phoneNumber: myPhoneNumber })
-        assert.equal(res.result.approvalData, approvalData)
-        assert.equal(Buffer.from(res.result.vaultId).toString('hex'), vaultId.toString('hex'))
-      } catch (e) {
-        console.log(e)
-        assert.fail()
+        return { approvalData, vaultId }
       }
+      const res = await client.createAccount({ jwt: myJWT, smsCode: mySmsCode, phoneNumber: myPhoneNumber })
+      assert.equal(res.approvalData, approvalData)
+      assert.equal(Buffer.from(res.vaultId).toString('hex'), vaultId.toString('hex'))
     })
 
     it('should send invalid http request and receive error response', async function () {
+      const errorMessage = 'go fish'
       try {
-        const errorMessage = 'go fish'
         mockBE.createAccount = function createAccount ({ jwt, smsCode, phoneNumber }) {
           throw new Error(errorMessage)
         }
@@ -95,8 +87,7 @@ describe('http layer tests', async function () {
         assert.equal(res.error.code, -124)
         assert.equal(res.error.message, `Error: ${errorMessage}`)
       } catch (e) {
-        console.log(e)
-        assert.fail()
+        assert.equal(e.toString(), `Error: ${errorMessage}. code: -124`)
       }
     })
   })
