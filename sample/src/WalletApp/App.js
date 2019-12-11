@@ -111,12 +111,6 @@ class App extends React.Component {
   }
 
   async readMgrState () {
-    // if (!global.launchedOnce) {
-    //   global.launchedOnce = false
-    //   await new Promise(resolve => {
-    //     setTimeout(resolve, 200)
-    //   })
-    // }
     const mgrState = {
       ownerAddr: await mgr.getOwner(),
       walletAddr: await mgr.getWalletAddress(),

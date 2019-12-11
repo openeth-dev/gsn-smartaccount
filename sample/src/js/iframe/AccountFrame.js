@@ -7,6 +7,44 @@ let account
 const verbose = false
 
 // const enabledSites = {}
+function initMessageHandler ({ window }) {
+  console.log('initMessageHandler')
+  if (!window) {
+    throw new Error('missing {window}')
+  }
+  if (!window.localStorage) {
+    throw new Error('missing {window.localStorage}')
+  }
+
+  account = new Account(window.localStorage)
+
+  const onMessage = function onMessage ({ source, data }) {
+    const { method, id, params } = data
+    if (data === 'account-iframe-ping') {
+      if (verbose) { console.log('got ping. resend "initialized" ') }
+
+      // repeat "initialized"
+      window.parent.postMessage('account-iframe-initialized', '*')
+      return
+    }
+    if (typeof data.method !== 'string') {
+      return
+    }
+    handleMessage({ source, method, id, params })
+  }
+
+  if (window.addEventListener) {
+    // For standards-compliant web browsers
+    window.addEventListener('message', onMessage, false)
+  } else {
+    window.attachEvent('onmessage', onMessage)
+  }
+
+  setImmediate(() => {
+    console.log('AccountFrame initialized')
+    // window.parent.postMessage('account-iframe-initialized', '*')
+  })
+}
 
 async function handleMessage ({ source, method, id, params }) {
   // only accept methods defined in the API
@@ -37,45 +75,6 @@ async function handleMessage ({ source, method, id, params }) {
   document.getElementById('valueDiv').innerText = val
 
   source.postMessage({ id, response, error }, '*')
-}
-
-function initMessageHandler ({ window }) {
-  console.log('initMessageHandler')
-  if (!window) {
-    throw new Error('missing {window}')
-  }
-  if (!window.localStorage) {
-    throw new Error('missing {window.localStorage}')
-  }
-
-  account = new Account({ localStorage: window.localStorage })
-
-  const onMessage = function onMessage ({ source, data }) {
-    const { method, id, params } = data
-    if (data === 'account-iframe-ping') {
-      if (verbose) { console.log('got ping. resend "initialized" ') }
-
-      // repeat "initialized"
-      window.parent.postMessage('account-iframe-initialized', '*')
-      return
-    }
-    if (typeof data.method !== 'string') {
-      return
-    }
-    handleMessage({ source, method, id, params })
-  }
-
-  if (window.addEventListener) {
-    // For standards-compliant web browsers
-    window.addEventListener('message', onMessage, false)
-  } else {
-    window.attachEvent('onmessage', onMessage)
-  }
-
-  setImmediate(() => {
-    console.log('AccountFrame initialized')
-    // window.parent.postMessage('account-iframe-initialized', '*')
-  })
 }
 
 global.initMessageHandler = initMessageHandler

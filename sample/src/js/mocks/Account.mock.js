@@ -53,8 +53,12 @@ export default class AccountMock extends AccountApi {
     this.storage.email = this.storage.ownerAddress = this.storage.privateKey = undefined
   }
 
-  async signMessage ({ message, messageHash }) {
-    return 'sign-' + (messageHash || 'hash(' + message + ')')
+  async signMessage (message) {
+    return 'sign-hash(' + message + ')'
+  }
+
+  async signMessageHash (messageHash) {
+    return 'sign-' + messageHash
   }
 
   async signTransaction ({ tx }) {

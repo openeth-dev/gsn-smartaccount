@@ -11,7 +11,7 @@
     "lint:js": "eslint -f unix --ignore-path .gitignore .",
     "lint:js:fix": "eslint --ignore-path .gitignore . --fix",
     "react-start": "yarn build-account-frame-js && react-scripts start",
-    "react-build": "yarn build-account-frame-js && react-scripts build",
+    "react-build": "PROD=1 yarn build-account-frame-js && react-scripts build",
     "react-test": "react-scripts test",
     "react-eject": "react-scripts eject",
     "build-account-frame-js": "webpack-cli --config ./account.webpack.js "

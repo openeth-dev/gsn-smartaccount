@@ -2,6 +2,7 @@
 // our wallet Account: (iframe: account.safechannel.com)
 // eslint-disable-next-line no-unused-vars
 import validate from '../utils/XfaceValidate'
+
 export default class AccountApi {
   constructor () {
     // validate child contract implemented all core functions
@@ -28,8 +29,12 @@ export default class AccountApi {
     error('sign transaction. might popup UI for user')
   }
 
-  async signMessage ({ message, messageHash }) {
-    error('sign hash(message) or given messageHash with "Ethereum Signed Message" prefix. return sig. might pop UI for user')
+  async signMessage (message) {
+    error('sign hash(message) (either string or Buffer) with "Ethereum Signed Message" prefix. return sig. might pop UI for user')
+  }
+
+  async signMessageHash (messageHash) {
+    error('sign the given messageHash (Buffer) with "Ethereum Signed Message" prefix. return sig. might pop UI for user')
   }
 
   async signOut () {

@@ -1,18 +1,18 @@
-// our wallet Account: (iframe: account.safechannel.com)
 import AccountApi from '../api/Account.api'
 
 import ethWallet from 'ethereumjs-wallet'
 import * as ethUtils from 'ethereumjs-util'
 
-// import storageProps from './storageProps'
-
 export function storageProps (storage) {
   return new Proxy(storage, {
     get (target, p) { return storage.getItem(p) },
     set (target, p, value) {
-      if (value === undefined) {
+      if (value === undefined || value === null) {
         storage.removeItem(p)
       } else {
+        if (typeof value !== 'string') {
+          throw new Error('Invalid storage value: ' + value)
+        }
         storage.setItem(p, value)
       }
       return true
@@ -21,18 +21,13 @@ export function storageProps (storage) {
 }
 
 export default class Account extends AccountApi {
-  // storage - property access.
-  // localStorage - getItem/setItem (use only if no storage..)
-  constructor ({ storage, localStorage }) {
+  // storage - Storage class (setItem,getItem,removeItem - all strings)
+  constructor (storage) {
     super()
-    if (storage) {
-      this.storage = storage
-    } else if (localStorage) {
-      // key/value API on top of Storage
-      this.storage = storageProps(localStorage)
-    } else {
-      this.storage = {}
+    if (!storage) {
+      throw new Error('missing Storage param')
     }
+    this.storage = storageProps(storage)
   }
 
   async getEmail () {
@@ -48,7 +43,7 @@ export default class Account extends AccountApi {
     }
 
     const wallet = ethWallet.generate()
-    const privKey = wallet.privKey
+    const privKey = wallet.privKey.toString('hex')
     const address = '0x' + wallet.getAddress().toString('hex')
 
     this.storage.ownerAddress = address
@@ -121,16 +116,15 @@ export default class Account extends AccountApi {
     throw new Error('should sign a transaction to be sent')
   }
 
-  async signMessage ({ message, messageHash }) {
-    if (!!message === !!messageHash) {
-      throw new Error('must specify exactly one of "message" or "messageHash"')
-    }
-    const hashed = messageHash || ethUtils.keccak(message)
-    const hash = ethUtils.hashPersonalMessage(hashed)
-    const sig = ethUtils.ecsign(hash, this.storage.privKey)
+  async signMessage (message) {
+    return this.signMessageHash(ethUtils.keccak(message))
+  }
+
+  async signMessageHash (messageHash) {
+    const hash = ethUtils.hashPersonalMessage(messageHash)
+    const sig = ethUtils.ecsign(hash, Buffer.from(this.storage.privKey, 'hex'))
 
     return '0x' +
-      Buffer.concat([sig.r, sig.s, Buffer.from(String.fromCharCode(sig.v))])
-        .toString('hex')
+      Buffer.concat([sig.r, sig.s, Buffer.from(String.fromCharCode(sig.v))]).toString('hex')
   }
 }
