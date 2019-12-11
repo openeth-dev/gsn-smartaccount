@@ -87,10 +87,14 @@ export default class AccountProxy extends AccountApi {
   }
 
   async signTransaction ({ tx }) {
-    return this._call('signTransaction', { tx })
+    return this._call('signTransaction', arguments)
   }
 
-  async signMessage ({ message, messageHash }) {
-    return this._call('signMessage', { message, messageHash })
+  async signMessage (message) {
+    return this._call('signMessage', arguments)
+  }
+
+  async signMessageHash (messageHash) {
+    return this._call('signMessageHash', arguments)
   }
 }

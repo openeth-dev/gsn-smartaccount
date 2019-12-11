@@ -80,7 +80,7 @@ describe('Account', () => {
   // compare to relayClient's getTransactionSignature
   it('#signMessage(), signMessageHash', async () => {
     const datahash = keccak('hello')
-    acct.googleLogin()
+    await acct.googleLogin()
     const sig = getTransactionSignatureWithKey(
       Buffer.from(acct.storage.privKey, 'hex'), '0x' + datahash.toString('hex'))
 

@@ -41,9 +41,9 @@ function CreateWallet ({ refresh, jwt, email }) {
 
     try {
       await mgr.createWallet({ jwt, phone, smsVerificationCode })
-      refresh()
+      refresh({err:undefined})
     } catch (e) {
-      refresh(e)
+      refresh({err:e.message})
     }
   }
   return <div>
