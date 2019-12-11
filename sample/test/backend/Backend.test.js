@@ -1,13 +1,13 @@
 /* global describe before afterEach it */
 
 import { Account, Backend } from '../../src/js/backend/Backend'
-import { assert /* , expect */ } from 'chai'
+import { assert } from 'chai'
 import SMSmock from '../../src/js/mocks/SMS.mock'
 import { LoginTicket } from 'google-auth-library/build/src/auth/loginticket'
 
 const ethUtils = require('ethereumjs-util')
+const abi = require('ethereumjs-abi')
 const phone = require('phone')
-const fs = require('fs')
 
 function hookBackend (backend, verifyFn) {
   backend.gclient._orig_verifyIdToken = backend.gclient.verifyIdToken
@@ -17,9 +17,8 @@ function hookBackend (backend, verifyFn) {
     } catch (e) {
       console.log('hooking google auth verifyIdToken() function')
       if (e.toString().includes('Error: Token used too late')) {
-        const rawTicket = JSON.parse(fs.readFileSync('./test/backend/ticket.json', 'utf8'))
-        const loginTicket = new LoginTicket(rawTicket.envelope, rawTicket.payload)
-        return loginTicket
+        const rawTicket = require('./ticket')
+        return new LoginTicket(rawTicket.envelope, rawTicket.payload)
       }
     }
   }
@@ -39,9 +38,10 @@ describe('Backend', async function () {
   }
   // let webapp
   let smsProvider
-  const jwt = 'eyJhbGciOiJSUzI1NiIsImtpZCI6IjViNWRkOWJlNDBiNWUxY2YxMjFlMzU3M2M4ZTQ5ZjEyNTI3MTgzZDMiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJhY2NvdW50cy5nb29nbGUuY29tIiwiYXpwIjoiMjAyNzQ2OTg2ODgwLXUxN3JiZ285NWg3amE0ZmdoaWtpZXR1cGprbmQxYmxuLmFwcHMuZ29vZ2xldXNlcmNvbnRlbnQuY29tIiwiYXVkIjoiMjAyNzQ2OTg2ODgwLXUxN3JiZ285NWg3amE0ZmdoaWtpZXR1cGprbmQxYmxuLmFwcHMuZ29vZ2xldXNlcmNvbnRlbnQuY29tIiwic3ViIjoiMTE1NDEzOTQ3Njg0Mjk5Njg1NDQ5IiwiaGQiOiJ0YWJvb2tleS5jb20iLCJlbWFpbCI6InNoYWhhZkB0YWJvb2tleS5jb20iLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwibm9uY2UiOiJoZWxsby13b3JsZCIsImlhdCI6MTU3NTU1OTk4MCwiZXhwIjoxNTc1NTYzNTgwLCJqdGkiOiJjNTU4MjllODUxMTZmZTZhZTI3NmZjZWQzYmJkMjUzZmQwZGFiNjRjIn0.gFVHCwndqf8BYgX2p6BJB1B6TeJQqI14khisxHr_43OVHyny52sctUp38iqeJJJ0gz4I-K4KCfxAR4e5Bm0ZFIDhbEEBKq8XAF4NI6W3pOyhxH8AQljaXtZ4hWBsuZApVsLsq9e7OY2NC5MbawtehbWSKAYd_zJjf76tkmFRlgI_BQb2Sox257lp0U7ib_gHLmHxSHcCvwsro2CPyl4ZFzO4EqNufU7n6VNh7Ey6V0EYTsTeIdqwzH6mFuGLwH8S8PQV8JJD4ZyWuUZBcNNRYAz_SjElSzZ9HCwtuYGvlIx9ognE1ga1w-O7EdRwfg58J6Cn35baBHr6z9O02luCJg'
+  const jwt = require('./testJwt').jwt
   let smsCode
   const phoneNumber = '+972541234567'
+  const email = 'shahaf@tabookey.com'
   let verifyFn
 
   before(async function () {
@@ -66,7 +66,7 @@ describe('Backend', async function () {
       formattedNumber = backend._formatPhoneNumber(phoneNumber)
       ts = backend._getMinuteTimestamp({})
       firstCode = backend._calcSmsCode(
-        { phoneNumber: formattedNumber, email: 'shahaf@tabookey.com', minuteTimeStamp: ts })
+        { phoneNumber: formattedNumber, email: email, minuteTimeStamp: ts })
     })
     afterEach(async function () {
       Date.now = Date.nowOrig
@@ -80,7 +80,7 @@ describe('Backend', async function () {
       // calculate desired timestamp from a given sms code
       ts = backend._getMinuteTimestamp({ expectedSmsCode: firstCode })
       const secondCode = backend._calcSmsCode(
-        { phoneNumber: formattedNumber, email: 'shahaf@tabookey.com', minuteTimeStamp: ts })
+        { phoneNumber: formattedNumber, email: email, minuteTimeStamp: ts })
       assert.equal(firstCode, secondCode)
     })
 
@@ -92,7 +92,7 @@ describe('Backend', async function () {
       // calculate desired timestamp from a given sms code
       ts = backend._getMinuteTimestamp({ expectedSmsCode: firstCode })
       const secondCode = backend._calcSmsCode(
-        { phoneNumber: formattedNumber, email: 'shahaf@tabookey.com', minuteTimeStamp: ts })
+        { phoneNumber: formattedNumber, email: email, minuteTimeStamp: ts })
       assert.isTrue(parseInt(secondCode).toString() === secondCode.toString())
       assert.notEqual(firstCode, secondCode)
     })
@@ -139,7 +139,7 @@ describe('Backend', async function () {
       // let jwt = 'eyJhbGciOiJSUzI1NiIsImtpZCI6IjViNWRkOWJlNDBiNWUxY2YxMjFlMzU3M2M4ZTQ5ZjEyNTI3MTgzZDMiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJhY2NvdW50cy5nb29nbGUuY29tIiwiYXpwIjoiMjAyNzQ2OTg2ODgwLXUxN3JiZ285NWg3amE0ZmdoaWtpZXR1cGprbmQxYmxuLmFwcHMuZ29vZ2xldXNlcmNvbnRlbnQuY29tIiwiYXVkIjoiMjAyNzQ2OTg2ODgwLXUxN3JiZ285NWg3amE0ZmdoaWtpZXR1cGprbmQxYmxuLmFwcHMuZ29vZ2xldXNlcmNvbnRlbnQuY29tIiwic3ViIjoiMTE1NDEzOTQ3Njg0Mjk5Njg1NDQ5IiwiaGQiOiJ0YWJvb2tleS5jb20iLCJlbWFpbCI6InNoYWhhZkB0YWJvb2tleS5jb20iLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwibm9uY2UiOiJoZWxsby13b3JsZCIsImlhdCI6MTU3NTM5Njg2NiwiZXhwIjoxNTc1NDAwNDY2LCJqdGkiOiJiMDk2YzYwY2EzZjlmNGRjN2Y5MzEwM2U4ZGRkOGU1YzAyOWVlOTgwIn0.nXcDojzPnXp300gXYhGQ_uPEU2MGRszNHTbka__FZbnHg0PdmZpEd-4JAOh_rRq0UsmOzelLPd49XlBiCS62US0JqZUxqVJd1UvvvetwMJ9X3Nds_CkkTVF3Dx0hjzLrbDlvf3YOOuUPkoI1OTbtsN2iJtJLBNEQIz_l7rrZVv287-6JvgperPkLu9Dbqpneas7kzB7EDWj8lAI2a4Ru06YkZKb017RDtQNRaLHcMb9hHqqFYXaIaafFOXhS0ESHQa4GhDNMxEYTxW47-MXYjPKnxK_g4APWua2aFAwjfpmZmmXyCnv8wNvPyHrYJxIqvL2z2-IYj36cQtpFgp8Asg'
       await backend.validatePhone({ jwt, phoneNumber })
       smsCode = backend._getSmsCode(
-        { phoneNumber: backend._formatPhoneNumber(phoneNumber), email: 'shahaf@tabookey.com' })
+        { phoneNumber: backend._formatPhoneNumber(phoneNumber), email: email })
       assert.notEqual(smsCode, undefined)
     })
   })
@@ -157,17 +157,29 @@ describe('Backend', async function () {
 
     it('should createAccount by verifying sms code', async function () {
       console.log('smsCode', smsCode)
-      const approvalData = (await backend.createAccount({ jwt, smsCode, phoneNumber })).toString('hex')
-      // console.log('approval data', approvalData)
-      assert.isTrue(ethUtils.isHexString('0x' + approvalData))
+      const accountCreatedResponse = await backend.createAccount({ jwt, smsCode, phoneNumber })
+      const expectedVaultId = abi.soliditySHA3(['string'], [email])
+      assert.equal(accountCreatedResponse.vaultId, '0x' + expectedVaultId.toString('hex'))
+
+      const approvalData = accountCreatedResponse.approvalData
+      assert.isTrue(ethUtils.isHexString(approvalData))
+      const decoded = abi.rawDecode(['bytes4', 'bytes'], Buffer.from(accountCreatedResponse.approvalData.slice(2), 'hex'))
+      const timestamp = decoded[0]
+      let sig = decoded[1]
+      sig = ethUtils.fromRpcSig(sig)
+      let hash = abi.soliditySHA3(['bytes32', 'bytes4'],
+        [Buffer.from(accountCreatedResponse.vaultId.slice(2), 'hex'), timestamp])
+      hash = abi.soliditySHA3(['string', 'bytes32'], ['\x19Ethereum Signed Message:\n32', hash])
+      const backendExpectedAddress = ethUtils.publicToAddress(ethUtils.ecrecover(hash, sig.v, sig.r, sig.s))
+      assert.equal('0x' + backendExpectedAddress.toString('hex'), backend.ecdsaKeyPair.address)
       const account = new Account(
         {
-          email: 'shahaf@tabookey.com',
+          email: email,
           phone: phone(phoneNumber),
           verificationCode: smsCode.toString(),
           verified: true
         })
-      const actualAccount = backend.accounts['shahaf@tabookey.com']
+      const actualAccount = backend.accounts[email]
       assert.deepEqual(actualAccount, account)
     })
   })

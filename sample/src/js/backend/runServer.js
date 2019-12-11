@@ -31,6 +31,7 @@ function hookBackend (backend) {
       }
     }
   }
+  backend.secretSMSCodeSeed = Buffer.from('f'.repeat(64), 'hex')
   backend.gclient.verifyIdToken = verifyFn
 }
 

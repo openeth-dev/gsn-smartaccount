@@ -1,6 +1,6 @@
-const express = require('express')
-const jsonrpc = require('jsonrpc-lite')
-const bodyParser = require('body-parser')
+import express from 'express'
+import jsonrpc from 'jsonrpc-lite'
+import bodyParser from 'body-parser'
 
 export default class Webserver {
   constructor ({ port, backend }) {
@@ -33,7 +33,7 @@ export default class Webserver {
           await this.backend.validatePhone({ jwt: req.body.params.jwt, phoneNumber: req.body.params.phoneNumber })
           status = jsonrpc.success(req.body.id, 'OK')
         } catch (e) {
-          status = jsonrpc.error(req.body.id, new jsonrpc.JsonRpcError(e.toString(), -123))
+          status = jsonrpc.error(req.body.id, new jsonrpc.JsonRpcError(e.message, -123))
         }
         break
       case this.backend.createAccount.name:
@@ -42,14 +42,14 @@ export default class Webserver {
             { jwt: req.body.params.jwt, smsCode: req.body.params.smsCode, phoneNumber: req.body.params.phoneNumber })
           status = jsonrpc.success(req.body.id, approvalData)
         } catch (e) {
-          status = jsonrpc.error(req.body.id, new jsonrpc.JsonRpcError(e.toString(), -124))
+          status = jsonrpc.error(req.body.id, new jsonrpc.JsonRpcError(e.message, -124))
         }
         break
       case this.backend.addDeviceNow.name:
         try {
           // TODO
         } catch (e) {
-          status = jsonrpc.error(req.body.id, new jsonrpc.JsonRpcError(e.toString(), -125))
+          status = jsonrpc.error(req.body.id, new jsonrpc.JsonRpcError(e.message, -125))
         }
         break
       default:

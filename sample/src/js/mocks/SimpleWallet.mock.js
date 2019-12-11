@@ -13,7 +13,7 @@ export default class SimpleWalletMock extends SimpleWalletApi {
     error('set initial configuration in the contract')
   }
 
-  transfer ({ destAddr, amount, token }) {
+  transfer ({ destination, amount, token }) {
     error('initiate transfer operation. adds a pending item, depending on transfer policy')
   }
 
@@ -32,7 +32,7 @@ export default class SimpleWalletMock extends SimpleWalletApi {
   // whitelist operations
   // TODO: maybe move them to inner "policy-specific" object ?
 
-  transferWhiteList ({ destAddr, amount, token }) {
+  transferWhiteList ({ destination, amount, token }) {
     error('perform a transfer to a whitelisted address')
   }
 
@@ -84,7 +84,7 @@ export default class SimpleWalletMock extends SimpleWalletApi {
     ]
   }
 
-  listPending () {
+  async listPending () {
     return {
       operations: [
         { type: 'transfer', value: 100, token: 'ETH' },
