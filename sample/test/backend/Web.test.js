@@ -3,6 +3,7 @@
 import { assert /* , expect */ } from 'chai'
 import ClientBackend from '../../src/js/backend/ClientBackend'
 import Webserver from '../../src/js/backend/Webserver'
+import abi from 'ethereumjs-abi'
 
 describe('http layer tests', async function () {
   let client
@@ -67,15 +68,17 @@ describe('http layer tests', async function () {
     it('should send valid http request and receive valid response', async function () {
       try {
         const approvalData = 'I APPROVE'
+        const vaultId = abi.soliditySHA3(['string'], ['fake@email.com'])
         mockBE.createAccount = function createAccount ({ jwt, smsCode, phoneNumber }) {
           assert.equal(jwt, myJWT)
           assert.equal(smsCode, mySmsCode)
           assert.equal(phoneNumber, myPhoneNumber)
 
-          return approvalData
+          return { approvalData, vaultId }
         }
         const res = await client.createAccount({ jwt: myJWT, smsCode: mySmsCode, phoneNumber: myPhoneNumber })
-        assert.equal(res.result, approvalData)
+        assert.equal(res.result.approvalData, approvalData)
+        assert.equal(Buffer.from(res.result.vaultId).toString('hex'), vaultId.toString('hex'))
       } catch (e) {
         console.log(e)
         assert.fail()

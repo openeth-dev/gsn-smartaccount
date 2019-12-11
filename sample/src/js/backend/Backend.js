@@ -52,10 +52,7 @@ export class Backend extends BEapi {
     }
 
     const vaultId = this._getVaultId(email)
-    const timestamp = Buffer.from(Math.floor(Date.now() / 1000).toString(16), 'hex')
-    const hash = abi.soliditySHA3(['bytes32', 'bytes4'], [vaultId, timestamp])
-    const sig = this._ecSignWithPrefix({ hash })
-    const approvalData = abi.rawEncode(['bytes4', 'bytes'], [timestamp, sig])
+    const approvalData = this._generateApproval({ vaultId })
     return { approvalData, vaultId }
   }
 
@@ -75,6 +72,13 @@ export class Backend extends BEapi {
    */
   _getVaultId (email) {
     return abi.soliditySHA3(['string'], [email])
+  }
+
+  _generateApproval ({ vaultId }) {
+    const timestamp = Buffer.from(Math.floor(Date.now() / 1000).toString(16), 'hex')
+    const hash = abi.soliditySHA3(['bytes32', 'bytes4'], [vaultId, timestamp])
+    const sig = this._ecSignWithPrefix({ hash })
+    return abi.rawEncode(['bytes4', 'bytes'], [timestamp, sig])
   }
 
   async _verifyJWT (jwt) {
