@@ -3,7 +3,6 @@ import { buf2hex } from '../utils/utils'
 
 const phone = require('phone')
 const gauth = require('google-auth-library')
-const crypto = require('crypto')
 const abi = require('ethereumjs-abi')
 
 export class Account {
@@ -13,17 +12,16 @@ export class Account {
 }
 
 export class Backend extends BEapi {
-  constructor ({ smsProvider, audience, keyManager, factoryAddress, sponsorAddress }) {
+  constructor ({ smsManager, audience, keyManager, factoryAddress, sponsorAddress }) {
     super()
     Object.assign(this, {
+      smsManager,
       accounts: {},
-      smsProvider,
       audience,
       gclient: new gauth.OAuth2Client(audience),
       keyManager,
       factoryAddress,
-      sponsorAddress,
-      secretSMSCodeSeed: crypto.randomBytes(32)
+      sponsorAddress
     })
   }
 
@@ -42,7 +40,7 @@ export class Backend extends BEapi {
     const ticket = await this._verifyJWT(jwt)
 
     const email = ticket.getPayload().email
-    await this._sendSMS({ phoneNumber: formattedPhone, email })
+    await this.smsManager.sendSMS({ phoneNumber: formattedPhone, email })
   }
 
   async createAccount ({ jwt, smsCode, phoneNumber }) {
@@ -51,7 +49,7 @@ export class Backend extends BEapi {
     const ticket = await this._verifyJWT(jwt)
 
     const email = ticket.getPayload().email
-    if (this._getSmsCode({ phoneNumber: formattedPhone, email, expectedSmsCode: smsCode }) === smsCode) {
+    if (this.smsManager.getSmsCode({ phoneNumber: formattedPhone, email, expectedSmsCode: smsCode }) === smsCode) {
       this.accounts[email] = new Account({
         email: email,
         phone: formattedPhone,
@@ -121,7 +119,7 @@ export class Backend extends BEapi {
     try {
       parsed = JSON.parse(Buffer.from(jwt.split('.')[1], 'base64'))
     } catch (e) {
-      throw new Error(`invalid jwt: ${jwt}`)
+      throw new Error(`invalid jwt format: ${jwt}`)
     }
     if (!parsed.aud || parsed.aud !== parsed.azp || this.audience !== parsed.aud) {
       throw new Error('invalid jwt: Invalid azp/aud')
@@ -131,37 +129,4 @@ export class Backend extends BEapi {
     }
     return parsed
   }
-
-  async _sendSMS ({ phoneNumber, email }) {
-    const code = this._getSmsCode({ phoneNumber, email })
-    await this.smsProvider.sendSms({ phone: phoneNumber[0], message: `verification code ${code}` })
-    return code
-  }
-
-  _getSmsCode ({ phoneNumber, email, expectedSmsCode }) {
-    const minuteTimeStamp = this._getMinuteTimestamp({ expectedSmsCode })
-    return this._calcSmsCode({ phoneNumber, email, minuteTimeStamp })
-  }
-
-  _getMinuteTimestamp ({ expectedSmsCode }) {
-    let minuteTimeStamp = Math.floor(Date.now() / 1000 / 60)
-    if (expectedSmsCode !== undefined) {
-      expectedSmsCode = parseInt(expectedSmsCode)
-      const minutes = expectedSmsCode % 10
-      minuteTimeStamp = replaceDigits(minuteTimeStamp, minutes, 10)
-    }
-    return minuteTimeStamp
-  }
-
-  _calcSmsCode ({ phoneNumber, email, minuteTimeStamp }) {
-    const dataToHash = 'PAD' + this.secretSMSCodeSeed.toString('hex') + phoneNumber[0] + email + minuteTimeStamp + 'PAD'
-    let code = parseInt(abi.soliditySHA3(['string'], [dataToHash]).toString('hex').slice(0, 6), 16) % 1e7
-    code = code.toString() + (minuteTimeStamp % 10).toString()
-
-    return code
-  }
-}
-
-function replaceDigits (num, digit, mul = 10) {
-  return (num - num % mul + digit - (num % mul >= digit ? 0 : mul))
 }

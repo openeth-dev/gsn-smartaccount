@@ -5,6 +5,8 @@ import { assert } from 'chai'
 import SMSmock from '../../src/js/mocks/SMS.mock'
 import { hookBackend } from './testutils'
 import { KeyManager } from '../../src/js/backend/KeyManager'
+import { SmsManager } from '../../src/js/backend/SmsManager'
+import crypto from 'crypto'
 
 const ethUtils = require('ethereumjs-util')
 const abi = require('ethereumjs-abi')
@@ -17,6 +19,7 @@ describe('Backend', async function () {
     address: '0x68cc521201a7f8617c5ce373b0f0993ee665ef63'
   }
   let smsProvider
+  let smsManager
   let keyManager
   const jwt = require('./testJwt').jwt
   let smsCode
@@ -26,11 +29,12 @@ describe('Backend', async function () {
 
   before(async function () {
     smsProvider = new SMSmock()
+    smsManager = new SmsManager({ smsProvider, secretSMSCodeSeed: crypto.randomBytes(32) })
     keyManager = new KeyManager({ ecdsaKeyPair: keypair })
 
     backend = new Backend(
       {
-        smsProvider,
+        smsManager,
         audience,
         keyManager
       })
@@ -44,8 +48,8 @@ describe('Backend', async function () {
     let formattedNumber
     before(async function () {
       formattedNumber = backend._formatPhoneNumber(phoneNumber)
-      ts = backend._getMinuteTimestamp({})
-      firstCode = backend._calcSmsCode(
+      ts = backend.smsManager.getMinuteTimestamp({})
+      firstCode = backend.smsManager.calcSmsCode(
         { phoneNumber: formattedNumber, email: email, minuteTimeStamp: ts })
     })
     afterEach(async function () {
@@ -58,8 +62,8 @@ describe('Backend', async function () {
         return Date.nowOrig() + 5e5 // ~9 minutes in the future
       }
       // calculate desired timestamp from a given sms code
-      ts = backend._getMinuteTimestamp({ expectedSmsCode: firstCode })
-      const secondCode = backend._calcSmsCode(
+      ts = backend.smsManager.getMinuteTimestamp({ expectedSmsCode: firstCode })
+      const secondCode = backend.smsManager.calcSmsCode(
         { phoneNumber: formattedNumber, email: email, minuteTimeStamp: ts })
       assert.equal(firstCode, secondCode)
     })
@@ -70,8 +74,8 @@ describe('Backend', async function () {
         return Date.nowOrig() + 6e5 // = 10 minutes in the future
       }
       // calculate desired timestamp from a given sms code
-      ts = backend._getMinuteTimestamp({ expectedSmsCode: firstCode })
-      const secondCode = backend._calcSmsCode(
+      ts = backend.smsManager.getMinuteTimestamp({ expectedSmsCode: firstCode })
+      const secondCode = backend.smsManager.calcSmsCode(
         { phoneNumber: formattedNumber, email: email, minuteTimeStamp: ts })
       assert.isTrue(parseInt(secondCode).toString() === secondCode.toString())
       assert.notEqual(firstCode, secondCode)
@@ -96,14 +100,14 @@ describe('Backend', async function () {
         await backend.validatePhone({ jwt: invalidjwt, phoneNumber })
         assert.fail()
       } catch (e) {
-        assert.equal(e.toString(), `Error: invalid jwt: ${invalidjwt}`)
+        assert.equal(e.toString(), `Error: invalid jwt format: ${invalidjwt}`)
       }
     })
 
     it('should validate phone number', async function () {
       // let jwt = 'eyJhbGciOiJSUzI1NiIsImtpZCI6IjViNWRkOWJlNDBiNWUxY2YxMjFlMzU3M2M4ZTQ5ZjEyNTI3MTgzZDMiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJhY2NvdW50cy5nb29nbGUuY29tIiwiYXpwIjoiMjAyNzQ2OTg2ODgwLXUxN3JiZ285NWg3amE0ZmdoaWtpZXR1cGprbmQxYmxuLmFwcHMuZ29vZ2xldXNlcmNvbnRlbnQuY29tIiwiYXVkIjoiMjAyNzQ2OTg2ODgwLXUxN3JiZ285NWg3amE0ZmdoaWtpZXR1cGprbmQxYmxuLmFwcHMuZ29vZ2xldXNlcmNvbnRlbnQuY29tIiwic3ViIjoiMTE1NDEzOTQ3Njg0Mjk5Njg1NDQ5IiwiaGQiOiJ0YWJvb2tleS5jb20iLCJlbWFpbCI6InNoYWhhZkB0YWJvb2tleS5jb20iLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwibm9uY2UiOiJoZWxsby13b3JsZCIsImlhdCI6MTU3NTM5Njg2NiwiZXhwIjoxNTc1NDAwNDY2LCJqdGkiOiJiMDk2YzYwY2EzZjlmNGRjN2Y5MzEwM2U4ZGRkOGU1YzAyOWVlOTgwIn0.nXcDojzPnXp300gXYhGQ_uPEU2MGRszNHTbka__FZbnHg0PdmZpEd-4JAOh_rRq0UsmOzelLPd49XlBiCS62US0JqZUxqVJd1UvvvetwMJ9X3Nds_CkkTVF3Dx0hjzLrbDlvf3YOOuUPkoI1OTbtsN2iJtJLBNEQIz_l7rrZVv287-6JvgperPkLu9Dbqpneas7kzB7EDWj8lAI2a4Ru06YkZKb017RDtQNRaLHcMb9hHqqFYXaIaafFOXhS0ESHQa4GhDNMxEYTxW47-MXYjPKnxK_g4APWua2aFAwjfpmZmmXyCnv8wNvPyHrYJxIqvL2z2-IYj36cQtpFgp8Asg'
       await backend.validatePhone({ jwt, phoneNumber })
-      smsCode = backend._getSmsCode(
+      smsCode = backend.smsManager.getSmsCode(
         { phoneNumber: backend._formatPhoneNumber(phoneNumber), email: email })
       assert.notEqual(smsCode, undefined)
     })

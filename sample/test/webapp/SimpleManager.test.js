@@ -15,9 +15,11 @@ import RelayServerMock from '../mocks/RelayServer.mock'
 import SimpleManager from '../../src/js/impl/SimpleManager'
 import ClientBackend from '../../src/js/backend/ClientBackend'
 import { Backend } from '../../src/js/backend/Backend'
+import SMSmock from '../../src/js/mocks/SMS.mock'
+import { SmsManager } from '../../src/js/backend/SmsManager'
+import { hookRpcProvider } from '../../src/js/utils/hookRpcProvider'
 import { MockStorage } from '../mocks/MockStorage'
 import Account from '../../src/js/impl/Account'
-import { hookRpcProvider } from '../../src/js/utils/hookRpcProvider'
 
 describe('#SimpleManager.test', () => {
   chai.use(chaiAsPromised)
@@ -40,12 +42,15 @@ describe('#SimpleManager.test', () => {
   const realBackend = new ClientBackend({ serverURL: 'http://localhost:8888/' })
   let ls
   let backendTestInstance
+  let smsProvider
+  let smsManager
 
   before(async function () {
     // TODO: get accounts
-
+    smsProvider = new SMSmock()
+    smsManager = new SmsManager({ smsProvider, secretSMSCodeSeed: Buffer.from('f'.repeat(64), 'hex') })
     backendTestInstance = new Backend(
-      { audience: '202746986880-u17rbgo95h7ja4fghikietupjknd1bln.apps.googleusercontent.com' })
+      { audience: '202746986880-u17rbgo95h7ja4fghikietupjknd1bln.apps.googleusercontent.com', smsManager: smsManager })
     backendTestInstance.secretSMSCodeSeed = Buffer.from('f'.repeat(64), 'hex')
 
     await new Promise((resolve, reject) => {
@@ -240,8 +245,8 @@ describe('#SimpleManager.test', () => {
           })
 
           it('should deploy a new SmartAccount using SponsorProvider', async function () {
-            const minuteTimestamp = backendTestInstance._getMinuteTimestamp({})
-            const smsVerificationCode = backendTestInstance._calcSmsCode({
+            const minuteTimestamp = backendTestInstance.smsManager.getMinuteTimestamp({})
+            const smsVerificationCode = backendTestInstance.smsManager.calcSmsCode({
               phoneNumber: backendTestInstance._formatPhoneNumber(phoneNumber),
               email: 'shahaf@tabookey.com',
               minuteTimeStamp: minuteTimestamp
