@@ -51,9 +51,9 @@ export class Backend extends BEapi {
       throw new Error(`invalid sms code: ${smsCode}`)
     }
 
-    const vaultId = this._getVaultId(email)
-    const approvalData = this._generateApproval({ vaultId })
-    return { approvalData: '0x' + approvalData.toString('hex'), vaultId: '0x' + vaultId.toString('hex') }
+    const smartAccountId = this._getSmartAccountId(email)
+    const approvalData = this._generateApproval({ smartAccountId: smartAccountId })
+    return { approvalData: '0x' + approvalData.toString('hex'), smartAccountId: '0x' + smartAccountId.toString('hex') }
   }
 
   async addDeviceNow ({ jwt, newaddr }) {
@@ -67,16 +67,16 @@ export class Backend extends BEapi {
   /**
    *
    * @param email - user email address type string
-   * @returns {Buffer} - keccak256(email) as vault id, to be verified by VaultFactory on-chain during vault creation.
+   * @returns {Buffer} - keccak256(email) as SmartAccount id, to be verified by SmartAccountFactory on-chain during SmartAccount creation.
    * @private
    */
-  _getVaultId (email) {
+  _getSmartAccountId (email) {
     return abi.soliditySHA3(['string'], [email])
   }
 
-  _generateApproval ({ vaultId }) {
+  _generateApproval ({ smartAccountId }) {
     const timestamp = Buffer.from(Math.floor(Date.now() / 1000).toString(16), 'hex')
-    const hash = abi.soliditySHA3(['bytes32', 'bytes4'], [vaultId, timestamp])
+    const hash = abi.soliditySHA3(['bytes32', 'bytes4'], [smartAccountId, timestamp])
     const sig = this._ecSignWithPrefix({ hash })
     return abi.rawEncode(['bytes4', 'bytes'], [timestamp, sig])
   }

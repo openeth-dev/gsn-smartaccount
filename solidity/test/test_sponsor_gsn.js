@@ -2,7 +2,7 @@ const Chai = require('chai');
 const Web3 = require('web3');
 
 const RelayHub = artifacts.require("./RelayHub.sol");
-const Gatekeeper = artifacts.require("./Gatekeeper.sol");
+const Gatekeeper = artifacts.require("./SmartAccount.sol");
 const MockGsnForwarder = artifacts.require('./MockGsnForwarder');
 const ChangeType = require('./etc/ChangeType');
 
@@ -81,7 +81,7 @@ contract('GSN and Sponsor integration', async function (accounts) {
         let result = await gatekeeper.acceptRelayedCall(relayServer.address, nonParticipant.address, calldata, 0, 0, 0, 0, [], 0);
 
         assert.equal("11", result[0].toString());
-        assert.equal("Not vault participant", web3.utils.toAscii(result[1]));
+        assert.equal("Not a participant", web3.utils.toAscii(result[1]));
     });
 
 

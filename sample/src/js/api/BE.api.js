@@ -11,11 +11,11 @@ export default class BEapi {
   }
 
   async validatePhone ({ jwt, phoneNumber }) {
-    error('validate jwt, return SMS url to pass to createVault')
+    error('validate jwt, return SMS url to pass to createSmartAccount')
   }
 
   async createAccount ({ jwt, smsCode, phoneNumber }) {
-    error('validate fresh jwt, validate phone (from smsUrl). return { approvalData, vaultId }')
+    error('validate fresh jwt, validate phone (from smsUrl). return { approvalData, smartAccountId }')
   }
 
   async addDeviceNow ({ jwt, newaddr }) {

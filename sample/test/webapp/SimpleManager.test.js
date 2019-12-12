@@ -24,7 +24,7 @@ const mockBackend = {
   createAccount: function () {
     return {
       approvalData: '0x' + 'f'.repeat(64),
-      vaultId: '0x' + '1'.repeat(64)
+      smartAccountId: '0x' + '1'.repeat(64)
     }
   }
 }
@@ -146,7 +146,7 @@ backends.forEach(function ({ backend, name }) {
         sponsor = await FactoryContractInteractor.deploySponsor(from, mockhub.address, ethNodeUrl)
         const forwarderAddress = await sponsor.contract.methods.getGsnForwarder().call()
         forward = await FactoryContractInteractor.getGsnForwarder({ address: forwarderAddress, provider: web3provider })
-        factory = await FactoryContractInteractor.deployNewVaultFactory(from, ethNodeUrl, forward.address)
+        factory = await FactoryContractInteractor.deployNewSmartAccountFactory(from, ethNodeUrl, forward.address)
         if (!verbose) {
           return
         }
@@ -194,7 +194,7 @@ backends.forEach(function ({ backend, name }) {
           })
         })
 
-        it('should deploy a new vault using SponsorProvider', async function () {
+        it('should deploy a new SmartAccount using SponsorProvider', async function () {
           const minuteTimestamp = backendTestInstance._getMinuteTimestamp({})
           const smsVerificationCode = backendTestInstance._calcSmsCode({
             phoneNumber: backendTestInstance._formatPhoneNumber(phone),
@@ -211,7 +211,7 @@ backends.forEach(function ({ backend, name }) {
       describe('secondary flows', async function () {
         it('should throw if there is no operator set')
 
-        it('should throw if this user already has a vault deployed')
+        it('should throw if this user already has a SmartAccount deployed')
       })
     })
 

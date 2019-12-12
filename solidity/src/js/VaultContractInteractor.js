@@ -1,11 +1,11 @@
 const Web3 = require('web3');
 const TruffleContract = require("truffle-contract");
 
-const GatekeeperABI = require('./generated/Gatekeeper');
+const SmartAccountABI = require('./generated/SmartAccount');
 
 const ParticipantAddedEvent = require('./events/ParticipantAddedEvent');
 const ParticipantRemovedEvent = require('./events/ParticipantRemovedEvent');
-const GatekeeperInitializedEvent = require('./events/GatekeeperInitializedEvent');
+// const GatekeeperInitializedEvent = require('./events/GatekeeperInitializedEvent');
 const OwnerChangedEvent = require('./events/OwnerChangedEvent');
 const DelayedOperationEvent = require('./events/DelayedOperationEvent');
 const DelayedOperationCancelledEvent = require('./events/DelayedOperationCancelledEvent');
@@ -22,10 +22,10 @@ const safeChannelUtils = require("./SafeChannelUtils");
 
 let GatekeeperContract = TruffleContract({
     contractName: "Gatekeeper",
-    abi: GatekeeperABI
+    abi: SmartAccountABI
 });
 
-const gatekeeperInitializedEvent = "GatekeeperInitialized";
+// const gatekeeperInitializedEvent = "GatekeeperInitialized";
 const participantAddedEvent = "ParticipantAdded";
 const participantRemovedEvent = "ParticipantRemoved";
 const ownerChangedEvent = "OwnerChanged";
@@ -296,7 +296,7 @@ class VaultContractInteractor {
     }
 
 
-    // ******* read from blockchain - vault
+    // ******* read from blockchain - smartAccount
 
     async getPastTransfers() {
 

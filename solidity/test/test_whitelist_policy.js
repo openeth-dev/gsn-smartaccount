@@ -70,7 +70,7 @@ contract('WhitelistBypassPolicy', async function (accounts) {
     it("should not allow unknown addresses to add whitelisted destinations", async function () {
         await expect(
             policy.addWhitelistedTarget(anyAddress1, false, {from: accounts[1]})
-        ).to.be.revertedWith("only gatekeeper can change the whitelist");
+        ).to.be.revertedWith("only smartAccount can change the whitelist");
     });
 
     it("should not allow calls with short message data", async function () {

@@ -11,7 +11,7 @@ import "./Utilities.sol";
 import "./BypassModules/BypassPolicy.sol";
 
 
-contract Gatekeeper is PermissionsLevel, GsnRecipient {
+contract SmartAccount is PermissionsLevel, GsnRecipient {
 
     using LibBytes for bytes;
 
@@ -41,7 +41,7 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
     event ParticipantRemoved(bytes32 indexed participant);
     event OwnerChanged(address indexed newOwner);
     // TODO: not log participants
-    event GatekeeperInitialized(bytes32[] participants, uint256[] delays, uint256[] requiredApprovalsPerLevel);
+    event SmartAccountInitialized(bytes32[] participants, uint256[] delays, uint256[] requiredApprovalsPerLevel);
     event LevelFrozen(uint256 frozenLevel, uint256 frozenUntil, address sender);
     event UnfreezeCompleted();
     event BypassByTargetAdded(address target, BypassPolicy  indexed bypass);
@@ -164,7 +164,7 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         allowAddOperatorNow = _allowAddOperatorNow;
         requiredApprovalsPerLevel = _requiredApprovalsPerLevel;
 
-        emit GatekeeperInitialized(initialParticipants, delays, requiredApprovalsPerLevel);
+        emit SmartAccountInitialized(initialParticipants, delays, requiredApprovalsPerLevel);
         for (uint8 i = 0; i < bypassTargets.length; i++) {
             bypassPoliciesByTarget[bypassTargets[i]] = BypassPolicy(bypassModules[i]);
         }
@@ -644,7 +644,7 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
             return (0, "");
         }
         else {
-            return (11, "Not vault participant");
+            return (11, "Not a participant");
         }
     }
 }

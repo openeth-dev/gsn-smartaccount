@@ -21,8 +21,8 @@ contract WhitelistFactory is GsnRecipient {
 
     event WhitelistModuleCreated(address sender, WhitelistBypassPolicy module);
 
-    function newWhitelist(address vault, address[] memory whitelist) public returns (WhitelistBypassPolicy){
-        WhitelistBypassPolicy module = new WhitelistBypassPolicy(vault, whitelist);
+    function newWhitelist(address smartAccount, address[] memory whitelist) public returns (WhitelistBypassPolicy){
+        WhitelistBypassPolicy module = new WhitelistBypassPolicy(smartAccount, whitelist);
         emit WhitelistModuleCreated(getSender(), module);
         return module;
     }
