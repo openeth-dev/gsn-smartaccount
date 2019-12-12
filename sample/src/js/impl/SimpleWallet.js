@@ -126,6 +126,7 @@ export default class SimpleWallet extends SimpleWalletApi {
     if (!this.deployedBlock) {
       this.deployedBlock = (await this.contract.deployedBlock()).toNumber()
     }
+    return this.deployedBlock
   }
 
   async listPending () {
