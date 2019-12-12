@@ -15,6 +15,8 @@ import RelayServerMock from '../mocks/RelayServer.mock'
 import SimpleManager from '../../src/js/impl/SimpleManager'
 import ClientBackend from '../../src/js/backend/ClientBackend'
 import { Backend } from '../../src/js/backend/Backend'
+import { MockStorage } from '../mocks/MockStorage'
+import Account from '../../src/js/impl/Account.impl'
 
 chai.use(chaiAsPromised)
 chai.should()
@@ -159,11 +161,17 @@ backends.forEach(function ({ backend, name }) {
           `mockhub = ${mockhub.address} factory=${factory.address} sponsor=${sponsor.address} forward=${forward.address}`)
       })
 
-      describe('main flows', async function () {
+      describe.only('main flows', async function () {
         let factoryConfig
         let sm
 
         before(async function () {
+          const storage = new MockStorage()
+          // storage.data.ownerAddress = '0x90f8bf6a479f320ead074411a4b0e7944ea8c9c1';
+          // storage.data.privKey = '0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d';
+          const accountApi = new Account(storage)
+          accountApi.googleLogin()
+
           const relayOptions = {
             httpSend: new RelayServerMock({
               mockHubContract: mockhub,
@@ -172,19 +180,14 @@ backends.forEach(function ({ backend, name }) {
             }),
             sponsor: sponsor.address,
             proxyOwner: {
-              address: '0x90f8bf6a479f320ead074411a4b0e7944ea8c9c1',
-              privateKey: '0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d'
+              address: await accountApi.getOwner(),
+              privateKey: accountApi.storage.privKey
             }
           }
           const sponsorProvider = await SponsorProvider.init(web3provider, relayOptions)
           factoryConfig = {
             provider: sponsorProvider,
             factoryAddress: factory.address
-          }
-          const accountApi = {
-            getOwner: function () {
-              return '0x90f8bf6a479f320ead074411a4b0e7944ea8c9c1'
-            }
           }
           sm = new SimpleManager({
             email: email,
