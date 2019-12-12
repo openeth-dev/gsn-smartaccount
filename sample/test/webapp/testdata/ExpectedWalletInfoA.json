@@ -1,0 +1,32 @@
+{
+  "options": {
+    "allowAddOperatorNow": false,
+    "allowAcceleratedCalls": false
+  },
+  "operators": [
+    "0x3333333333333333333333333333333333333333"
+  ],
+  "guardians": [
+    {
+      "address": "0x2222222222222222222222222222222222222222",
+      "level": 1,
+      "type": "watchdog"
+    },
+    {
+      "address": "0x2222222222222222222222222222222222222222",
+      "level": 1,
+      "type": "admin"
+    }
+  ],
+  "unknownGuardians": 0,
+  "levels": [
+    {
+      "delay": "86400",
+      "requiredApprovals": 0
+    },
+    {
+      "delay": "172800",
+      "requiredApprovals": 1
+    }
+  ]
+}

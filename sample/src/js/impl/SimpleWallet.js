@@ -30,7 +30,10 @@ export default class SimpleWallet extends SimpleWalletApi {
       configuration.bypassTargets,
       configuration.bypassMethods,
       configuration.bypassModules,
-      { from: this.participant.address }
+      {
+        from: this.participant.address,
+        gasPrice: 10
+      }
     )
   }
 
@@ -61,10 +64,11 @@ export default class SimpleWallet extends SimpleWalletApi {
 
   // TODO: currently only initialConfig is checked. Must iterate over all config events to figure out the actual info.
   // TODO: split into two: scan events and interpret events.
+  // TODO: add some caching mechanism then to avoid re-scanning entire history on every call
   async getWalletInfo () {
     const allowAcceleratedCalls = await this.contract.allowAcceleratedCalls()
     const allowAddOperatorNow = await this.contract.allowAddOperatorNow()
-    const deployedBlock = (await this.contract.deployedBlock()).toNumber()
+    const deployedBlock = await this._getDeployedBlock()
     const initEvent = (await this.contract.getPastEvents('GatekeeperInitialized', { fromBlock: deployedBlock }))[0]
     const args = initEvent.args
     const foundParticipants = this.knownParticipants.filter((it) => {
@@ -118,7 +122,31 @@ export default class SimpleWallet extends SimpleWalletApi {
   listTokens () {
   }
 
+  async _getDeployedBlock () {
+    if (!this.deployedBlock) {
+      this.deployedBlock = (await this.contract.deployedBlock()).toNumber()
+    }
+  }
+
   async listPending () {
+    const blocks = { fromBlock: (await this._getDeployedBlock()), toBlock: 'latest' }
+    const { scheduledEvents, completedEvents, cancelledEvents } = await this._getPastOperationsEvents(blocks)
+    const completedEventsHashes = completedEvents.map(it => it.args.bypassHash)
+    const cancelledEventsHashes = cancelledEvents.map(it => it.args.bypassHash)
+    return scheduledEvents
+      .filter(it => {
+        return !completedEventsHashes.includes(it.args.bypassHash) &&
+          !cancelledEventsHashes.includes(it.args.bypassHash)
+      })
+  }
+
+  async _getPastOperationsEvents ({ fromBlock, toBlock }) {
+    const scheduledEvents = await this.contract.getPastEvents('BypassCallPending', { fromBlock, toBlock })
+    const completedEvents = await this.contract.getPastEvents('BypassCallCancelled', { fromBlock, toBlock })
+    const cancelledEvents = await this.contract.getPastEvents('BypassCallApplied', { fromBlock, toBlock })
+    return {
+      scheduledEvents, completedEvents, cancelledEvents
+    }
   }
 
   listBypassPolicies () {
@@ -135,8 +163,8 @@ export default class SimpleWallet extends SimpleWalletApi {
       _allowAddOperatorNow: true,
       requiredApprovalsPerLevel: [0, 1],
       bypassTargets: [],
-      bypassMethods: [],
-      bypassModules: [whitelistModuleAddress]
+      bypassMethods: ['0xa9059cbb', '0x095ea7b3'],
+      bypassModules: [whitelistModuleAddress, whitelistModuleAddress]
     }
   }
 }
