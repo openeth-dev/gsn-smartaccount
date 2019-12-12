@@ -7,14 +7,9 @@ import SMSmock from '../../src/js/mocks/SMS.mock'
 import { Watchdog } from '../../src/js/backend/Guardian'
 import { sleep } from './testutils'
 
-const ethUtils = require('ethereumjs-util')
-const abi = require('ethereumjs-abi')
-const phone = require('phone')
-
-describe('As Guardian', async function () {
+describe.skip('As Guardian', async function () {
   let watchdog
   let smsProvider
-  let admin
   let backend // TODO replace with accountManager, keyManager
   let contract
   const ethNodeUrl = 'http://localhost:8545'
@@ -39,10 +34,8 @@ describe('As Guardian', async function () {
     after(async function () {
       await watchdog.stop()
     })
-
   })
 
   describe('As Admin', async function () {
-
   })
 })

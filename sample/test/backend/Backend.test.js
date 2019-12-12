@@ -4,6 +4,7 @@ import { Account, Backend } from '../../src/js/backend/Backend'
 import { assert } from 'chai'
 import SMSmock from '../../src/js/mocks/SMS.mock'
 import { hookBackend } from './testutils'
+import { KeyManager } from '../../src/js/backend/KeyManager'
 
 const ethUtils = require('ethereumjs-util')
 const abi = require('ethereumjs-abi')
@@ -15,23 +16,24 @@ describe('Backend', async function () {
     privateKey: Buffer.from('20e12d5dc484a03c969d48446d897a006ebef40a806dab16d58db79ba64aa01f', 'hex'),
     address: '0x68cc521201a7f8617c5ce373b0f0993ee665ef63'
   }
-  // let webapp
   let smsProvider
+  let keyManager
   const jwt = require('./testJwt').jwt
   let smsCode
   const phoneNumber = '+972541234567'
   const email = 'shahaf@tabookey.com'
+  const audience = '202746986880-u17rbgo95h7ja4fghikietupjknd1bln.apps.googleusercontent.com'
   let verifyFn
 
   before(async function () {
-    // webapp = new SimpleManagerMock()
     smsProvider = new SMSmock()
+    keyManager = new KeyManager({ ecdsaKeyPair: keypair })
 
     backend = new Backend(
       {
         smsProvider,
-        audience: '202746986880-u17rbgo95h7ja4fghikietupjknd1bln.apps.googleusercontent.com',
-        ecdsaKeyPair: keypair
+        audience,
+        keyManager
       })
 
     // hooking google-api so we don't actually send jwt tot their server
@@ -136,7 +138,7 @@ describe('Backend', async function () {
         [Buffer.from(accountCreatedResponse.smartAccountId.slice(2), 'hex'), timestamp])
       hash = abi.soliditySHA3(['string', 'bytes32'], ['\x19Ethereum Signed Message:\n32', hash])
       const backendExpectedAddress = ethUtils.publicToAddress(ethUtils.ecrecover(hash, sig.v, sig.r, sig.s))
-      assert.equal('0x' + backendExpectedAddress.toString('hex'), backend.ecdsaKeyPair.address)
+      assert.equal('0x' + backendExpectedAddress.toString('hex'), backend.keyManager.Address())
       const account = new Account(
         {
           email: email,

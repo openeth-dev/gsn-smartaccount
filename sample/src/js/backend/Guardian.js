@@ -1,6 +1,3 @@
-import Web3 from 'web3'
-import phone from 'phone'
-
 export class Watchdog {
   constructor ({ smsProvider, backend, contract, web3provider }) {
     Object.assign(this, {

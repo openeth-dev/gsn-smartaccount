@@ -5,7 +5,6 @@ const phone = require('phone')
 const gauth = require('google-auth-library')
 const crypto = require('crypto')
 const abi = require('ethereumjs-abi')
-const ethUtils = require('ethereumjs-util')
 
 export class Account {
   constructor ({ email, phone, verificationCode, verified }) {
@@ -14,14 +13,14 @@ export class Account {
 }
 
 export class Backend extends BEapi {
-  constructor ({ smsProvider, audience, ecdsaKeyPair, factoryAddress, sponsorAddress }) {
+  constructor ({ smsProvider, audience, keyManager, factoryAddress, sponsorAddress }) {
     super()
     Object.assign(this, {
       accounts: {},
       smsProvider,
       audience,
       gclient: new gauth.OAuth2Client(audience),
-      ecdsaKeyPair,
+      keyManager,
       factoryAddress,
       sponsorAddress,
       secretSMSCodeSeed: crypto.randomBytes(32)
@@ -30,8 +29,8 @@ export class Backend extends BEapi {
 
   async getAddresses () {
     return {
-      watchdog: this.ecdsaKeyPair.address,
-      admin: this.ecdsaKeyPair.address,
+      watchdog: this.keyManager.Address(),
+      admin: this.keyManager.Address(),
       factory: this.factoryAddress,
       sponsor: this.sponsorAddress
     }
@@ -97,7 +96,7 @@ export class Backend extends BEapi {
   _generateApproval ({ smartAccountId }) {
     const timestamp = Buffer.from(Math.floor(Date.now() / 1000).toString(16), 'hex')
     const hash = abi.soliditySHA3(['bytes32', 'bytes4'], [smartAccountId, timestamp])
-    const sig = this._ecSignWithPrefix({ hash })
+    const sig = this.keyManager.ecSignWithPrefix({ hash })
     return abi.rawEncode(['bytes4', 'bytes'], [timestamp, sig])
   }
 
@@ -160,16 +159,6 @@ export class Backend extends BEapi {
     code = code.toString() + (minuteTimeStamp % 10).toString()
 
     return code
-  }
-
-  _ecSignWithPrefix ({ hash }) {
-    const prefixedHash = abi.soliditySHA3(['string', 'bytes32'], ['\x19Ethereum Signed Message:\n32', hash])
-    return this._ecSignNoPrefix({ hash: prefixedHash })
-  }
-
-  _ecSignNoPrefix ({ hash }) {
-    const sig = ethUtils.ecsign(hash, this.ecdsaKeyPair.privateKey)
-    return Buffer.concat([sig.r, sig.s, Buffer.from(sig.v.toString(16), 'hex')])
   }
 }
 
