@@ -15,8 +15,8 @@ export default class SimpleManager extends SimpleManagerApi {
     this.factoryConfig = this._validateConfig(factoryConfig)
   }
 
-  getEmail () {
-    return this.accountApi.getEmail()
+  async getEmail () {
+    return await this.accountApi.getEmail()
   }
 
   async googleLogin () {
@@ -31,8 +31,8 @@ export default class SimpleManager extends SimpleManagerApi {
     this.accountApi.signout()
   }
 
-  getOwner () {
-    return this.accountApi.getOwner()
+  async getOwner () {
+    return await this.accountApi.getOwner()
   }
 
   async validatePhone ({ jwt, phone }) {
@@ -84,7 +84,7 @@ export default class SimpleManager extends SimpleManagerApi {
     }
     const response = await this.backend.createAccount({ jwt: jwt, phoneNumber: phone, smsCode: smsVerificationCode })
 
-    const sender = this.getOwner()
+    const sender = await this.getOwner()
     // TODO: next commit: make 'FactoryContractInteractor.deployNewSmartAccount' do this job
     const smartAccountIdId = response.smartAccountId
     const approvalData = response.approvalData

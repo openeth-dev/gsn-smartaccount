@@ -14,11 +14,11 @@ export default class SimpleManagerApi extends EventEmitter {
 
   // wrapper calls for the background IFRAME:
 
-  getEmail () {
+  async getEmail () {
     error('return this.accountApi.getEmail()')
   }
 
-  getOwner () {
+  async getOwner () {
     error('return this.accountApi.getOwner()')
   }
 

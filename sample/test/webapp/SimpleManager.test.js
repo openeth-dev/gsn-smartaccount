@@ -202,7 +202,7 @@ backends.forEach(function ({ backend, name }) {
             minuteTimeStamp: minuteTimestamp
           })
           const wallet = await sm.createWallet({ jwt, phone, smsVerificationCode })
-          const operator = sm.getOwner().toLowerCase()
+          const operator = (await sm.getOwner()).toLowerCase()
           const creator = (await wallet.contract.creator()).toLowerCase()
           assert.strictEqual(creator, operator)
         })

@@ -14,12 +14,12 @@ export default class SimpleManagerMock extends SimpleManagerApi {
     this.smsApi = props.smsApi || new SMSmock()
   }
 
-  getEmail () {
-    return this.accountApi.getEmail()
+  async getEmail () {
+    return await this.accountApi.getEmail()
   }
 
-  getOwner () {
-    return this.accountApi.getOwner()
+  async getOwner () {
+    return await this.accountApi.getOwner()
   }
 
   async googleLogin () {
