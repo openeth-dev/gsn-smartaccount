@@ -627,10 +627,10 @@ contract SmartAccount is PermissionsLevel, GsnRecipient {
 
     /****** Moved over from the Vault contract *******/
 
-    event FundsReceived(address sender, uint256 value);
+    event FundsReceived(uint256 value);
 
     function() payable external {
-        emit FundsReceived(getSender(), msg.value);
+        emit FundsReceived(msg.value);
     }
 
     //TODO

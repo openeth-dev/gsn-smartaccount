@@ -18,3 +18,7 @@ export function unhookBackend (backend) {
   backend.gclient.verifyIdToken = backend.gclient._orig_verifyIdToken
   delete backend.gclient._orig_verifyIdToken
 }
+
+export function sleep (ms) {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
