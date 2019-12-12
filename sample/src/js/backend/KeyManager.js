@@ -1,9 +1,19 @@
+import Wallet from 'ethereumjs-wallet'
+
 const abi = require('ethereumjs-abi')
 const ethUtils = require('ethereumjs-util')
 
 export class KeyManager {
   constructor ({ ecdsaKeyPair }) {
     this.ecdsaKeyPair = ecdsaKeyPair
+  }
+
+  static newEphemeralKeypair () {
+    const a = Wallet.generate()
+    return {
+      privateKey: a.privKey,
+      address: '0x' + a.getAddress().toString('hex')
+    }
   }
 
   ecSignWithPrefix ({ hash }) {

@@ -1,8 +1,8 @@
 import { LoginTicket } from 'google-auth-library/build/src/auth/loginticket'
 
-export function hookBackend (backend, verifyFn) {
+export function hookBackend (backend) {
   backend.gclient._orig_verifyIdToken = backend.gclient.verifyIdToken
-  verifyFn = async function ({ idToken, audience }) {
+  const verifyFn = async function ({ idToken, audience }) {
     try {
       return await backend.gclient._orig_verifyIdToken({ idToken, audience })
     } catch (e) {

@@ -5,40 +5,15 @@
 
 import Webserver from './Webserver'
 import { Backend } from './Backend'
-import Wallet from 'ethereumjs-wallet'
 import SMSmock from '../mocks/SMS.mock'
-import { LoginTicket } from 'google-auth-library/build/src/auth/loginticket'
-import ticket from '../../../test/backend/ticket.json'
 import { KeyManager } from './KeyManager'
-
-function newEphemeralKeypair () {
-  const a = Wallet.generate()
-  return {
-    privateKey: a.privKey,
-    address: '0x' + a.getAddress().toString('hex')
-  }
-}
-
-function hookBackend (backend) {
-  backend.gclient._orig_verifyIdToken = backend.gclient.verifyIdToken
-  const verifyFn = async function ({ idToken, audience }) {
-    try {
-      return await backend.gclient._orig_verifyIdToken({ idToken, audience })
-    } catch (e) {
-      console.log('hooking google auth verifyIdToken() function')
-      const loginTicket = new LoginTicket(ticket.envelope, ticket.payload)
-      return loginTicket
-    }
-  }
-  backend.secretSMSCodeSeed = Buffer.from('f'.repeat(64), 'hex')
-  backend.gclient.verifyIdToken = verifyFn
-}
+import { hookBackend } from '../../../test/backend/testutils'
 
 const port = process.argv[2]
 const factoryAddress = process.argv[3]
 const sponsorAddress = process.argv[4]
 const smsProvider = new SMSmock()
-const keypair = newEphemeralKeypair()
+const keypair = KeyManager.newEphemeralKeypair()
 const keyManager = new KeyManager({ ecdsaKeyPair: keypair })
 const backend = new Backend(
   {
@@ -52,6 +27,7 @@ const backend = new Backend(
 if (process.argv[5] === '--dev') {
   console.log('Running server in dev mode')
   hookBackend(backend)
+  backend.secretSMSCodeSeed = Buffer.from('f'.repeat(64), 'hex')
 }
 
 console.log('server address=' + backend.keyManager.Address())

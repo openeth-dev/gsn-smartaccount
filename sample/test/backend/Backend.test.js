@@ -23,7 +23,6 @@ describe('Backend', async function () {
   const phoneNumber = '+972541234567'
   const email = 'shahaf@tabookey.com'
   const audience = '202746986880-u17rbgo95h7ja4fghikietupjknd1bln.apps.googleusercontent.com'
-  let verifyFn
 
   before(async function () {
     smsProvider = new SMSmock()
@@ -37,7 +36,7 @@ describe('Backend', async function () {
       })
 
     // hooking google-api so we don't actually send jwt tot their server
-    hookBackend(backend, verifyFn)
+    hookBackend(backend)
   })
   describe('sms code generation', async function () {
     let ts
