@@ -1,5 +1,6 @@
 import Permissions from 'safechannels-contracts/src/js/Permissions'
 import SafeChannelUtils from 'safechannels-contracts/src/js/SafeChannelUtils'
+import FactoryContractInteractor from 'safechannels-contracts/src/js/FactoryContractInteractor'
 
 import SimpleWalletApi from '../api/SimpleWallet.api'
 import DelayedTransfer from '../etc/DelayedTransfer'
@@ -41,7 +42,24 @@ export default class SimpleWallet extends SimpleWalletApi {
     )
   }
 
-  transfer ({ destination, amount, token }) {
+  async transfer ({ destination, amount, token }) {
+    let destinationAddress
+    let ethAmount
+    let encodedTransaction
+    if (token === 'ETH') {
+      destinationAddress = destination
+      ethAmount = amount
+      encodedTransaction = []
+    } else {
+      destinationAddress = this._getTokenAddress(token)
+      ethAmount = 0
+      encodedTransaction = FactoryContractInteractor.encodeErc20Call({ destination, amount, operation: 'transfer' })
+    }
+    await this.contract.scheduleBypassCall(
+      this.participant.permLevel, destinationAddress, ethAmount, encodedTransaction, this.stateId,
+      {
+        from: this.participant.address
+      })
   }
 
   removeOperator (addr) {
@@ -70,6 +88,7 @@ export default class SimpleWallet extends SimpleWalletApi {
   // TODO: split into two: scan events and interpret events.
   // TODO: add some caching mechanism then to avoid re-scanning entire history on every call
   async getWalletInfo () {
+    this.stateId = await this.contract.stateNonce()
     const allowAcceleratedCalls = await this.contract.allowAcceleratedCalls()
     const allowAddOperatorNow = await this.contract.allowAddOperatorNow()
     const deployedBlock = await this._getDeployedBlock()
@@ -155,9 +174,9 @@ export default class SimpleWallet extends SimpleWalletApi {
           const isEtherValuePassed = it.value !== 0
           const isDataPassed = it.args.data !== undefined && it.args.data.length > 0
           const isErc20Method = isDataPassed && erc20Methods.includes(it.args.data.substr(0, 10))
-        // TODO: get all data from events, save roundtrips here
-        let pendingChange = await this.contract.getPendingChange(it.args.bypassHash)
-        const common = {
+          // TODO: get all data from events, save roundtrips here
+          let pendingChange = await this.contract.getPendingChange(it.args.bypassHash)
+          const common = {
             txHash: it.transactionHash,
             delayedOpId: it.args.bypassHash,
             dueTime: pendingChange.dueTime.toNumber(),
@@ -168,7 +187,7 @@ export default class SimpleWallet extends SimpleWalletApi {
               ...common,
               operation: 'transfer',
               tokenSymbol: 'ETH',
-              value: it.args.value,
+              value: it.args.value.toString(),
               destination: it.args.target
             })
           } else if (isErc20Method) {
@@ -224,5 +243,9 @@ export default class SimpleWallet extends SimpleWalletApi {
 
   _parseErc20Transaction ({ target, data }) {
     return { tokenSymbol, operation, value, destination }
+  }
+
+  _getTokenAddress (token) {
+    return undefined
   }
 }

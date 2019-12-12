@@ -12,6 +12,12 @@ before(async function () {
 // TODO: get accounts
 })
 
+function makeConfig (base, smartAccount) {
+  let walletConfig = Object.assign({}, base)
+  walletConfig.contract = smartAccount
+  return walletConfig
+}
+
 describe('SimpleWallet', async function () {
   const whitelistPolicy = '0x1111111111111111111111111111111111111111'
   const backend = '0x2222222222222222222222222222222222222222'
@@ -24,6 +30,16 @@ describe('SimpleWallet', async function () {
   const sampleTransactionHistory = require('./testdata/SampleTransactionHistory')
   const sampleTransactionsPendingList = require('./testdata/SampleTransactionsPendingList')
 
+  const walletSharedConfig = {
+    participant:
+      new Participant(from, Permissions.OwnerPermissions, 1),
+    knownParticipants: [
+      new Participant(operator, Permissions.OwnerPermissions, 1),
+      new Participant(backend, Permissions.WatchdogPermissions, 1),
+      new Participant(backend, Permissions.AdminPermissions, 1)
+    ]
+  }
+
   let config
   let wallet
   let smartAccount
@@ -32,17 +48,7 @@ describe('SimpleWallet', async function () {
   before(async function () {
     smartAccount = await FactoryContractInteractor.deploySmartAccountDirectly(from, ethNodeUrl)
     expectedWalletInfoA.address = smartAccount.address
-    walletConfig = {
-      contract: smartAccount,
-      participant:
-        new Participant(from, Permissions.OwnerPermissions, 1),
-      knownParticipants: [
-        new Participant(operator, Permissions.OwnerPermissions, 1),
-        new Participant(backend, Permissions.WatchdogPermissions, 1),
-        new Participant(backend, Permissions.AdminPermissions, 1)
-      ]
-    }
-    wallet = new SimpleWallet(walletConfig)
+    wallet = new SimpleWallet(makeConfig(walletSharedConfig, smartAccount))
     config = SimpleWallet.getDefaultSampleInitialConfiguration({
       backendAddress: backend,
       operatorAddress: operator,
@@ -69,7 +75,7 @@ describe('SimpleWallet', async function () {
   describe('#listPendingTransactions()', async function () {
     let stubbedWallet
     before(async function () {
-      stubbedWallet = new SimpleWallet(walletConfig)
+      stubbedWallet = new SimpleWallet(makeConfig(walletSharedConfig, smartAccount))
       stubbedWallet._getPastOperationsEvents = async function () {
         return {
           scheduledEvents: sampleTransactionHistory.filter(it => it.event === 'BypassCallPending'),
@@ -93,16 +99,31 @@ describe('SimpleWallet', async function () {
     })
   })
 
-  describe.skip('#transfer()', async function () {
+  describe('#transfer()', async function () {
+    let wallet
+    before(async function () {
+      const smartAccount = await FactoryContractInteractor.deploySmartAccountDirectly(from, ethNodeUrl)
+      wallet = new SimpleWallet(makeConfig(walletSharedConfig, smartAccount))
+      const myConfig = SimpleWallet.getDefaultSampleInitialConfiguration({
+        backendAddress: backend,
+        operatorAddress: from,
+        whitelistModuleAddress: whitelistPolicy
+      })
+      await wallet.initialConfiguration(myConfig)
+
+    })
+
     it('should initiate delayed ETH transfer', async function () {
+      // refresh info to set the stateId. This is used to prevent UI-blockchain race condition (ask Dror)
+      await wallet.getWalletInfo()
       const destination = backend
       const amount = 1e5
-      await wallet.transfer({ destination, amount })
+      await wallet.transfer({ destination, amount, token: 'ETH' })
       const pending = await wallet.listPendingTransactions()
       assert.strictEqual(pending.length, 1)
-      assert.strictEqual(pending.destination, destination)
-      assert.strictEqual(pending.amount, amount)
-      assert.strictEqual(pending.token, 'ETH')
+      assert.strictEqual(pending[0].destination, destination)
+      assert.strictEqual(pending[0].value, amount.toString())
+      assert.strictEqual(pending[0].tokenSymbol, 'ETH')
     })
 
     it('should initiate delayed ERC transfer')

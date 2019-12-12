@@ -17,7 +17,7 @@ export default class SimpleWalletMock extends SimpleWalletApi {
     error('set initial configuration in the contract')
   }
 
-  transfer ({ destination, amount, token }) {
+  async transfer ({ destination, amount, token }) {
     error('initiate transfer operation. adds a pending item, depending on transfer policy')
   }
 
