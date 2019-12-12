@@ -13,7 +13,7 @@ before(async function () {
 })
 
 function makeConfig (base, smartAccount) {
-  let walletConfig = Object.assign({}, base)
+  const walletConfig = Object.assign({}, base)
   walletConfig.contract = smartAccount
   return walletConfig
 }
@@ -43,7 +43,6 @@ describe('SimpleWallet', async function () {
   let config
   let wallet
   let smartAccount
-  let walletConfig
 
   before(async function () {
     smartAccount = await FactoryContractInteractor.deploySmartAccountDirectly(from, ethNodeUrl)
@@ -95,6 +94,7 @@ describe('SimpleWallet', async function () {
     //  b) do not use static event list for tests as dueTime is always 0
     it('should return a correct list of pending operations', async function () {
       const pending = await stubbedWallet.listPendingTransactions()
+      // eslint-disable-next-line node/no-deprecated-api
       assert.deepEqual(pending, sampleTransactionsPendingList)
     })
   })
@@ -110,7 +110,6 @@ describe('SimpleWallet', async function () {
         whitelistModuleAddress: whitelistPolicy
       })
       await wallet.initialConfiguration(myConfig)
-
     })
 
     it('should initiate delayed ETH transfer', async function () {

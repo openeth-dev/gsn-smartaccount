@@ -170,7 +170,7 @@ export default class SimpleWalletMock extends SimpleWalletApi {
               type: 'remove_participant',
               args: ['0xe30802e8d9e93134d02fa30e36f238ec027216197f91483935e89a47d4b7b8d3']
             }
-          ),
+          )
         ]
       })
     ]

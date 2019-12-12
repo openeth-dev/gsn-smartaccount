@@ -171,43 +171,43 @@ export default class SimpleWallet extends SimpleWalletApi {
         return !activeBypassPolicies.includes(it.args.target)
       })
       .map(async (it) => {
-          const isEtherValuePassed = it.value !== 0
-          const isDataPassed = it.args.data !== undefined && it.args.data.length > 0
-          const isErc20Method = isDataPassed && erc20Methods.includes(it.args.data.substr(0, 10))
-          // TODO: get all data from events, save roundtrips here
-          let pendingChange = await this.contract.getPendingChange(it.args.bypassHash)
-          const common = {
-            txHash: it.transactionHash,
-            delayedOpId: it.args.bypassHash,
-            dueTime: pendingChange.dueTime.toNumber(),
-            state: 'mined'
-          }
-          if (isEtherValuePassed && !isDataPassed) {
-            return new DelayedTransfer({
-              ...common,
-              operation: 'transfer',
-              tokenSymbol: 'ETH',
-              value: it.args.value.toString(),
-              destination: it.args.target
-            })
-          } else if (isErc20Method) {
-            const parsedErc20 = this._parseErc20Transaction({
-              target: it.args.target,
-              data: it.args.msgdata
-            })
-            return new DelayedTransfer({
-              ...common,
-              ...parsedErc20
-            })
-          } else {
-            return new DelayedContractCall({
-              ...common,
-              value: it.args.value,
-              destination: it.args.target,
-              data: it.args.data
-            })
-          }
+        const isEtherValuePassed = it.value !== 0
+        const isDataPassed = it.args.data !== undefined && it.args.data.length > 0
+        const isErc20Method = isDataPassed && erc20Methods.includes(it.args.data.substr(0, 10))
+        // TODO: get all data from events, save roundtrips here
+        const pendingChange = await this.contract.getPendingChange(it.args.bypassHash)
+        const common = {
+          txHash: it.transactionHash,
+          delayedOpId: it.args.bypassHash,
+          dueTime: pendingChange.dueTime.toNumber(),
+          state: 'mined'
         }
+        if (isEtherValuePassed && !isDataPassed) {
+          return new DelayedTransfer({
+            ...common,
+            operation: 'transfer',
+            tokenSymbol: 'ETH',
+            value: it.args.value.toString(),
+            destination: it.args.target
+          })
+        } else if (isErc20Method) {
+          const parsedErc20 = this._parseErc20Transaction({
+            target: it.args.target,
+            data: it.args.msgdata
+          })
+          return new DelayedTransfer({
+            ...common,
+            ...parsedErc20
+          })
+        } else {
+          return new DelayedContractCall({
+            ...common,
+            value: it.args.value,
+            destination: it.args.target,
+            data: it.args.data
+          })
+        }
+      }
       )
     return Promise.all(promisesOfOperations)
   }
@@ -241,9 +241,11 @@ export default class SimpleWallet extends SimpleWalletApi {
     }
   }
 
-  _parseErc20Transaction ({ target, data }) {
-    return { tokenSymbol, operation, value, destination }
+  _parseErc20Transaction () {
   }
+  // _parseErc20Transaction ({ target, data }) {
+  //   return { tokenSymbol, operation, value, destination }
+  // }
 
   _getTokenAddress (token) {
     return undefined
