@@ -5,9 +5,9 @@ import React from 'react'
 import './App.css'
 
 import SimpleManagerMock from '../js/mocks/SimpleManager.mock'
+import AccountProxy from '../js/impl/Account.proxy'
 
 var mgr, sms
-
 const Button = ({ title, action }) => <input type="submit" onClick={action}
   value={title}/>
 
@@ -19,7 +19,7 @@ function GoogleLogin ({ refresh }) {
 
   return <div>
     Youre not logged in
-    <input type="submit" value="click to login" onClick={login}/>
+    <Button title="click to login" action={login}/>
   </div>
 }
 
@@ -30,6 +30,7 @@ function CreateWallet ({ refresh, jwt, email }) {
     if (!phone) {
       return
     }
+    console.log('validate:', jwt, phone)
     mgr.validatePhone({ jwt, phone })
   }
   const createWallet = async () => {
@@ -40,9 +41,9 @@ function CreateWallet ({ refresh, jwt, email }) {
 
     try {
       await mgr.createWallet({ jwt, phone, smsVerificationCode })
-      refresh()
+      refresh({ err: undefined })
     } catch (e) {
-      refresh(e)
+      refresh({ err: e.message })
     }
   }
   return <div>
@@ -97,7 +98,7 @@ function WalletComponent (options) {
 class App extends React.Component {
   constructor (props) {
     super(props)
-    mgr = new SimpleManagerMock()
+    mgr = new SimpleManagerMock({ accountApi: new AccountProxy() })
     sms = mgr.smsApi
     sms.on('mocksms', (data) => {
       setTimeout(() => {
@@ -105,16 +106,16 @@ class App extends React.Component {
       }, 1000)
     })
 
+    this.state = {}
     this.readMgrState().then(x => { this.state = x })
   }
 
   async readMgrState () {
     const mgrState = {
-      ownerAddr: mgr.getOwner(),
+      ownerAddr: await mgr.getOwner(),
       walletAddr: await mgr.getWalletAddress(),
-      email: mgr.getEmail(),
-      walletInfo: undefined,
-      deployed: mgr.deployedWalletAddress
+      email: await mgr.getEmail(),
+      walletInfo: undefined
     }
     // TODO: this is hack: we want to check if it already loaded, not load it.
     if (mgr.wallet) {
@@ -162,12 +163,20 @@ class App extends React.Component {
     this.reloadState()
   }
 
+  toggleDebug () {
+    this.setState({ debug: !this.state.debug })
+  }
+
   render () {
     return (
       <div style={{ margin: '10px' }}>
         <h1>SampleWallet app</h1>
         <div style={{ fontSize: '10px' }}>
-          Debug state= {JSON.stringify(this.state)}<p/>
+          <input type="checkbox" value={this.state.debug} onClick={() => this.toggleDebug()}/>
+          Debug state
+          {
+            this.state.debug && <xmp>{JSON.stringify(this.state, null, 4)}</xmp>
+          }
         </div>
         {
           !!mgr.wallet ||
@@ -182,6 +191,7 @@ class App extends React.Component {
             <h2>Error: {this.state.err} </h2>
           </div>
         }
+
       </div>
     )
   }

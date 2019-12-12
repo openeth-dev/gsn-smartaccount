@@ -17,8 +17,8 @@ describe('Test Flows', () => {
 
     it('new browser attempt login', async () => {
       assert.equal(await mgr.hasWallet(), false)
-      assert.equal(mgr.getOwner(), null)
-      assert.equal(mgr.getEmail(), null)
+      assert.equal(await mgr.getOwner(), null)
+      assert.equal(await mgr.getEmail(), null)
       assert.equal(await mgr.getWalletAddress(), null)
 
       // jwt is "opaque". we also get the plain values back.
@@ -27,14 +27,14 @@ describe('Test Flows', () => {
 
       expect(jwt).to.not.equal(null)
       assert.equal(email, userEmail) // only in mock...
-      assert.equal(email, mgr.getEmail())
-      assert.equal(address, mgr.getOwner())
+      assert.equal(email, await mgr.getEmail())
+      assert.equal(address, await mgr.getOwner())
     })
 
     it('after user inputs phone', async () => {
       phone = 'phoneNumber' // user input
 
-      mgr.validatePhone({ jwt, phone })
+      await mgr.validatePhone({ jwt, phone })
     })
 
     it('after user receives SMS', async () => {

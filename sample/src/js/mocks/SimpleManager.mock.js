@@ -41,6 +41,7 @@ export default class SimpleManagerMock extends SimpleManagerApi {
       console.log('getWalletAddress: no email, no addr')
       return null
     }
+
     // console.log( "getWalletAddress: has email. addr=", this.deployedWalletAddress)
     return this.deployedWalletAddress || null
   }
@@ -50,13 +51,12 @@ export default class SimpleManagerMock extends SimpleManagerApi {
   }
 
   async validatePhone ({ jwt, phone }) {
-    if (!jwt || !jwt.email) {
+    if (!jwt) {
       throw new Error('not logged in')
     }
     if (await this.hasWallet()) {
       throw new Error('wallet already exists')
     }
-
     // TODO: use mock SMS service..
     setTimeout(() => {
       const smsVerificationCode = 'v' + phone
@@ -71,14 +71,13 @@ export default class SimpleManagerMock extends SimpleManagerApi {
   }
 
   async createWallet ({ jwt, phone, smsVerificationCode }) {
-    console.log('asd')
     if (smsVerificationCode !== 'v' + phone) {
       throw new Error('wrong verification code')
     }
+
     if (await this.hasWallet()) {
       throw new Error('wallet already exists')
     }
-
     this.deployedWalletAddress = 'waddr'
     return this.loadWallet()
   }
