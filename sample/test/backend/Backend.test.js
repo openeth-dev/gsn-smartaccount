@@ -158,8 +158,8 @@ describe('Backend', async function () {
     it('should createAccount by verifying sms code', async function () {
       console.log('smsCode', smsCode)
       const accountCreatedResponse = await backend.createAccount({ jwt, smsCode, phoneNumber })
-      const expectedVaultId = abi.soliditySHA3(['string'], [email])
-      assert.equal(accountCreatedResponse.vaultId, '0x' + expectedVaultId.toString('hex'))
+      const expectedSmartAccountId = abi.soliditySHA3(['string'], [email])
+      assert.equal(accountCreatedResponse.smartAccountId, '0x' + expectedSmartAccountId.toString('hex'))
 
       const approvalData = accountCreatedResponse.approvalData
       assert.isTrue(ethUtils.isHexString(approvalData))
@@ -168,7 +168,7 @@ describe('Backend', async function () {
       let sig = decoded[1]
       sig = ethUtils.fromRpcSig(sig)
       let hash = abi.soliditySHA3(['bytes32', 'bytes4'],
-        [Buffer.from(accountCreatedResponse.vaultId.slice(2), 'hex'), timestamp])
+        [Buffer.from(accountCreatedResponse.smartAccountId.slice(2), 'hex'), timestamp])
       hash = abi.soliditySHA3(['string', 'bytes32'], ['\x19Ethereum Signed Message:\n32', hash])
       const backendExpectedAddress = ethUtils.publicToAddress(ethUtils.ecrecover(hash, sig.v, sig.r, sig.s))
       assert.equal('0x' + backendExpectedAddress.toString('hex'), backend.ecdsaKeyPair.address)

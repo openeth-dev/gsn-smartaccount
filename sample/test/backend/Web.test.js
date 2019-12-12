@@ -64,17 +64,17 @@ describe('http layer tests', async function () {
   describe('createAccount', async function () {
     it('should send valid http request and receive valid response', async function () {
       const approvalData = 'I APPROVE'
-      const vaultId = abi.soliditySHA3(['string'], ['fake@email.com'])
+      const smartAccountId = abi.soliditySHA3(['string'], ['fake@email.com'])
       mockBE.createAccount = function createAccount ({ jwt, smsCode, phoneNumber }) {
         assert.equal(jwt, myJWT)
         assert.equal(smsCode, mySmsCode)
         assert.equal(phoneNumber, myPhoneNumber)
 
-        return { approvalData, vaultId }
+        return { approvalData, smartAccountId: smartAccountId }
       }
       const res = await client.createAccount({ jwt: myJWT, smsCode: mySmsCode, phoneNumber: myPhoneNumber })
       assert.equal(res.approvalData, approvalData)
-      assert.equal(Buffer.from(res.vaultId).toString('hex'), vaultId.toString('hex'))
+      assert.equal(Buffer.from(res.smartAccountId).toString('hex'), smartAccountId.toString('hex'))
     })
 
     it('should send invalid http request and receive error response', async function () {

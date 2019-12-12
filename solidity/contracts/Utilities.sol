@@ -28,10 +28,6 @@ library Utilities {
         return keccak256(abi.encodePacked(participant, permsLevel));
     }
 
-    function vaultTransferHash(address sender, uint256 scheduledNonce, uint256 delay, address destination, uint256 value, address token) public pure returns (bytes32) {
-        return keccak256(abi.encodePacked(sender, scheduledNonce, delay, destination, value, token));
-    }
-
     function recoverConfigSigner(uint8[] memory actions, bytes32[] memory args1, bytes32[] memory args2, uint256 stateId, bytes memory signature) public pure returns (address){
         return changeHash(actions, args1, args2, stateId).toEthSignedMessageHash().recover(signature);
     }

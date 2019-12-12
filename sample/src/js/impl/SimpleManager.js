@@ -1,6 +1,6 @@
 import TruffleContract from '@truffle/contract'
 /* global error */
-import VaultFactoryABI from 'safechannels-contracts/src/js/generated/VaultFactory'
+import SmartAccountFactoryABI from 'safechannels-contracts/src/js/generated/SmartAccountFactory'
 import FactoryContractInteractor from 'safechannels-contracts/src/js/FactoryContractInteractor'
 
 import SimpleWallet from './SimpleWallet'
@@ -67,33 +67,33 @@ export default class SimpleManager extends SimpleManagerApi {
    * Actual blockchain communication will be moved to the interaction layer later
    */
   async _initializeFactory ({ factoryAddress, provider }) {
-    const VaultFactoryContract = TruffleContract({
-      contractName: 'VaultFactory',
-      abi: VaultFactoryABI
+    const SmartAccountFactoryContract = TruffleContract({
+      contractName: 'SmartAccountFactory',
+      abi: SmartAccountFactoryABI
     })
-    VaultFactoryContract.setProvider(provider)
-    this.vaultFactory = await VaultFactoryContract.at(factoryAddress)
+    SmartAccountFactoryContract.setProvider(provider)
+    this.smartAccountFactory = await SmartAccountFactoryContract.at(factoryAddress)
   }
 
   async createWallet ({ jwt, phone, smsVerificationCode }) {
     if (!jwt || !phone || !smsVerificationCode) {
       throw Error('All parameters are required')
     }
-    if (this.vaultFactory === undefined) {
+    if (this.smartAccountFactory === undefined) {
       await this._initializeFactory(this.factoryConfig)
     }
     const response = await this.backend.createAccount({ jwt: jwt, phoneNumber: phone, smsCode: smsVerificationCode })
 
     const sender = this.getOwner()
-    // TODO: next commit: make 'FactoryContractInteractor.deployNewGatekeeper' do this job
-    const vaultId = response.vaultId
+    // TODO: next commit: make 'FactoryContractInteractor.deployNewSmartAccount' do this job
+    const smartAccountIdId = response.smartAccountId
     const approvalData = response.approvalData
-    const receipt = await this.vaultFactory.newVault(vaultId, {
+    const receipt = await this.smartAccountFactory.newSmartAccount(smartAccountIdId, {
       from: sender,
       gas: 1e8,
       approvalData: approvalData
     })
-    const vault = await FactoryContractInteractor.getCreatedVault(
+    const smartAccount = await FactoryContractInteractor.getCreatedSmartAccount(
       {
         factoryAddress: this.factoryConfig.factoryAddress,
         sender: sender,
@@ -101,7 +101,7 @@ export default class SimpleManager extends SimpleManagerApi {
         blockNumber: receipt.blockNumber,
         provider: this.factoryConfig.provider
       })
-    return new SimpleWallet({ contract: vault, participant: {}, knownParticipants: [] })
+    return new SimpleWallet({ contract: smartAccount, participant: {}, knownParticipants: [] })
   }
 
   _validateConfig (factoryConfig) {

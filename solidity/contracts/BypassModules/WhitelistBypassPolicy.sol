@@ -16,10 +16,10 @@ contract WhitelistBypassPolicy is BypassPolicy {
     event WhitelistChanged(address indexed destination, bool isWhitelisted);
 
     mapping(address => bool) whitelist;
-    address gatekeeper;
+    address smartAccount;
 
-    constructor(address _gatekeeper, address[] memory _whitelist) public {
-        gatekeeper = _gatekeeper;
+    constructor(address _smartAccount, address[] memory _whitelist) public {
+        smartAccount = _smartAccount;
         for (uint i = 0; i < _whitelist.length; i++) {
             whitelist[_whitelist[i]] = true;
         }
@@ -29,7 +29,7 @@ contract WhitelistBypassPolicy is BypassPolicy {
         address destination,
         bool isWhitelisted)
     external {
-        require(msg.sender == gatekeeper, "only gatekeeper can change the whitelist");
+        require(msg.sender == smartAccount, "only smartAccount can change the whitelist");
         whitelist[destination] = isWhitelisted;
         emit WhitelistChanged(destination, isWhitelisted);
     }

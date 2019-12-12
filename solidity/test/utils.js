@@ -6,7 +6,7 @@ module.exports = {
         return pastEvents[0];
     },
 
-    fundVaultWithERC20: async function (destination, erc20, fundedAmount, from) {
+    fundSmartAccountWithERC20: async function (destination, erc20, fundedAmount, from) {
         let supply = (await erc20.totalSupply()).toNumber();
         let vaultBalanceBefore = await erc20.balanceOf(destination);
         let account0BalanceBefore = await erc20.balanceOf(from);

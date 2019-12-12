@@ -25,14 +25,14 @@ describe.skip('SimpleWallet', async function () {
 
   let config
   let wallet
-  let vault
+  let smartAccount
   let walletConfig
 
   before(async function () {
-    vault = await FactoryContractInteractor.deployVaultDirectly(from, ethNodeUrl)
-    expectedWalletInfoA.address = vault.address
+    smartAccount = await FactoryContractInteractor.deploySmartAccountDirectly(from, ethNodeUrl)
+    expectedWalletInfoA.address = smartAccount.address
     walletConfig = {
-      contract: vault,
+      contract: smartAccount,
       participant:
         new Participant(from, Permissions.OwnerPermissions, 1),
       knownParticipants: [
@@ -62,7 +62,7 @@ describe.skip('SimpleWallet', async function () {
       assert.deepStrictEqual(walletInfo, expectedWalletInfoA)
     })
 
-    it('should refuse to work on an already initialized vault')
+    it('should refuse to work on an already initialized smartAccount')
   })
 
   describe('#listPending()', async function () {

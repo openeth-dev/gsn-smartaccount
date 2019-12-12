@@ -5,20 +5,20 @@ const zeroAddress = require('ethereumjs-util').zeroAddress
 
 const Utils = require('./Utils');
 
-const VaultCreatedEvent = require('./events/VaultCreatedEvent');
+const SmartAccountCreatedEvent = require('./events/SmartAccountCreatedEvent');
 const FreeRecipientSponsorABI = require('./generated/tests/MockGsnForwarder');
-const VaultFactoryABI = require('./generated/VaultFactory');
-const GatekeeperABI = require('./generated/Gatekeeper');
+const SmartAccountFactoryABI = require('./generated/SmartAccountFactory');
+const SmartAccountABI = require('./generated/SmartAccount');
 
 
-let VaultFactoryContract = TruffleContract({
-    contractName: "VaultFactory",
-    abi: VaultFactoryABI
+let SmartAccountFactory = TruffleContract({
+    contractName: "SmartAccountFactory",
+    abi: SmartAccountFactoryABI
 });
 
-let GatekeeperContract = TruffleContract({
-    contractName: "Gatekeeper",
-    abi: GatekeeperABI
+let SmartAccountContract = TruffleContract({
+    contractName: "SmartAccount",
+    abi: SmartAccountABI
 });
 
 let FreeRecipientSponsorContract = TruffleContract({
@@ -26,40 +26,40 @@ let FreeRecipientSponsorContract = TruffleContract({
     abi: FreeRecipientSponsorABI
 });
 
-const vaultCreatedEvent = "VaultCreated";
+const smartAccountCreatedEvent = "SmartAccountCreated";
 
 
 class FactoryContractInteractor {
 
-    constructor(credentials, vaultFactoryAddress) {
+    constructor(credentials, smartAccountFactoryAddress) {
         this.credentials = credentials;
-        this.vaultFactoryAddress = vaultFactoryAddress;
+        this.smartAccountFactoryAddress = smartAccountFactoryAddress;
     }
     /**
      * Not a constructor because constructors cannot be async
      * @param credentials
-     * @param vaultFactoryAddress
+     * @param smartAccountFactoryAddress
      * @param ethNodeUrl
      * @param networkId
      */
-    static connect(credentials, vaultFactoryAddress, ethNodeUrl, networkId) {
+    static connect(credentials, smartAccountFactoryAddress, ethNodeUrl, networkId) {
 
         // Note to self: totally makes sense that this kind of code is only visible on the lowest, pure JS level
         // All the data needed to run this code should be passed as either strings or callbacks to the js-foundation
         let provider = new Web3.providers.HttpProvider(ethNodeUrl);
 
-        VaultFactoryContract.setProvider(provider);
-        return new FactoryContractInteractor(credentials, vaultFactoryAddress)
+        SmartAccountFactory.setProvider(provider);
+        return new FactoryContractInteractor(credentials, smartAccountFactoryAddress)
     }
 
     async attachToContracts(){
-        if (this.vaultFactory) {
+        if (this.smartAccountFactory) {
             return;
         }
-        if (!this.vaultFactoryAddress) {
-            throw new Error("Vault Factory addresses is not set!");
+        if (!this.smartAccountFactoryAddress) {
+            throw new Error("Smart Account Factory addresses is not set!");
         }
-        this.vaultFactory = await VaultFactoryContract.at(this.vaultFactoryAddress);
+        this.smartAccountFactory = await SmartAccountFactory.at(this.smartAccountFactoryAddress);
     }
 
     static async deployContract(path, name, link, params, from, ethNodeUrl) {
@@ -115,11 +115,11 @@ class FactoryContractInteractor {
         return instance
     }
 
-    static async deployVaultDirectly(from, relayHub, ethNodeUrl) {
+    static async deploySmartAccountDirectly(from, relayHub, ethNodeUrl) {
         let utilitiesContract = await this.deployUtilitiesLibrary(from, ethNodeUrl)
         let {instance} = await this.deployContract(
-          "generated/Gatekeeper",
-          "Gatekeeper",
+          "generated/SmartAccount",
+          "SmartAccount",
           [utilitiesContract], [zeroAddress(), from], from, ethNodeUrl
         )
         return instance
@@ -130,10 +130,10 @@ class FactoryContractInteractor {
      * This is mainly useful for tests, but anyways, JS-Foundation is the easiest place to put this code.
      * @returns {Promise<String>} - the address of the newly deployed Factory
      */
-    static async deployNewVaultFactory(from, ethNodeUrl, forwarder) {
+    static async deployNewSmartAccountFactory(from, ethNodeUrl, forwarder) {
         let utilitiesContract = await this.deployUtilitiesLibrary(from, ethNodeUrl)
-        let { instance: vaultFactory } = await this.deployContract("generated/VaultFactory", "VaultFactory", [utilitiesContract], [forwarder], from, ethNodeUrl)
-        return vaultFactory;
+        let { instance: smartAccountFactory } = await this.deployContract("generated/SmartAccountFactory", "SmartAccountFactory", [utilitiesContract], [forwarder], from, ethNodeUrl)
+        return smartAccountFactory;
     }
 
     //TODO: there is no reason anymore to depend on a library as instance. All methods must be 'inline'
@@ -155,36 +155,36 @@ class FactoryContractInteractor {
         return FreeRecipientSponsorContract.at(address)
     }
 
-    static async getCreatedVault({factoryAddress, blockNumber, sender, provider}) {
-        VaultFactoryContract.setProvider(provider);
-        GatekeeperContract.setProvider(provider);
-        let vaultFactory = await VaultFactoryContract.at(factoryAddress);
+    static async getCreatedSmartAccount({factoryAddress, blockNumber, sender, provider}) {
+        SmartAccountFactory.setProvider(provider);
+        SmartAccountContract.setProvider(provider);
+        let smartAccountFactory = await SmartAccountFactory.at(factoryAddress);
         let options = { fromBlock: blockNumber, toBlock: blockNumber }
-        let events = await Utils.getEvents(vaultFactory, vaultCreatedEvent, options, VaultCreatedEvent);
+        let events = await Utils.getEvents(smartAccountFactory, smartAccountCreatedEvent, options, SmartAccountCreatedEvent);
         events = events.filter(event => event.sender.toLowerCase() === sender)
         if (events.length !== 1) {
-            throw new Error("Invalid vault created events array size");
+            throw new Error("Invalid smart account created events array size");
         }
-        return GatekeeperContract.at(events[0].gatekeeper);
+        return SmartAccountContract.at(events[0].smartAccount);
     }
 
 
-    async deployNewGatekeeper() {
+    async deployNewSmartAccount() {
         await this.attachToContracts();
         // TODO: figure out what is wrong with 'estimate gas'.
         //  Works for Truffle test, fails in Mocha test, doesn't give a "out of gas" in console;
-        let receipt = await this.vaultFactory.newVault({from: this.credentials.getAddress(), gas: 0x6691b7});
-        return new VaultCreatedEvent(receipt.logs[0]);
+        let receipt = await this.smartAccountFactory.newSmartAccount({from: this.credentials.getAddress(), gas: 0x6691b7});
+        return new SmartAccountCreatedEvent(receipt.logs[0]);
     }
 
-    async getVaultCreatedEvent(options) {
+    async getSmartAccountCreatedEvent(options) {
         await this.attachToContracts();
-        let events = await Utils.getEvents(this.vaultFactory, vaultCreatedEvent, options, VaultCreatedEvent);
+        let events = await Utils.getEvents(this.smartAccountFactory, smartAccountCreatedEvent, options, SmartAccountCreatedEvent);
         if(events.length !== 1){
-            throw new Error("Invalid vault created events array size");
+            throw new Error("Invalid smart account created events array size");
         }
         return events[0];
     }
-}
+}``
 
 module.exports = FactoryContractInteractor;

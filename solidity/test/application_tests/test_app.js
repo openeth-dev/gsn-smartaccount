@@ -12,7 +12,6 @@ const FactoryInteractor = require("../../src/js/FactoryContractInteractor.js");
 const ParticipantAddedEvent = require("../../src/js/events/ParticipantAddedEvent");
 const ParticipantRemovedEvent = require("../../src/js/events/ParticipantRemovedEvent");
 const OwnerChangedEvent = require("../../src/js/events/OwnerChangedEvent");
-const GatekeeperInitializedEvent = require("../../src/js/events/GatekeeperInitializedEvent");
 const LevelFrozenEvent = require("../../src/js/events/LevelFrozenEvent");
 
 const TransactionReceipt = require("../../src/js/TransactionReceipt");
@@ -78,7 +77,7 @@ context.skip('VaultContractInteractor Integration Test', function () {
             contractName: "\\$7e3e5a7c0842c8a92aaa4508b6debdcba8\\$",
             abi: utilitiesABI,
             binary: utilitiesBin,
-            // address: vaultFactoryAddress
+            // address: smartAccountFactoryAddress
         });
         utilitiesContract.setProvider(provider);
         let utilitiesLibrary = await utilitiesContract.new({from: accounts[0]});
@@ -89,7 +88,7 @@ context.skip('VaultContractInteractor Integration Test', function () {
             contractName: "VaultFactory",
             abi: vaultFactoryABI,
             binary: vaultFactoryBin,
-            // address: vaultFactoryAddress
+            // address: smartAccountFactoryAddress
         });
         vaultFactoryContract.setNetwork(utilitiesContract.network_id);
         vaultFactoryContract.link(utilitiesContract);
@@ -108,21 +107,21 @@ context.skip('VaultContractInteractor Integration Test', function () {
     // write tests are quite boring as each should be just a wrapper around a Web3 operation, which
     // is tested in 'solidity' project to do what it says correctly
 
-    context("creation of new vault by a vault factory interactor", function () {
-        it("should deploy a new vault", async function () {
+    context("creation of new smartAccount by a smartAccount factory interactor", function () {
+        it("should deploy a new smartAccount", async function () {
             // Compares the return value of the 'deploy' function with the actual event in that block
-            let deploymentResult = await factoryInteractor.deployNewGatekeeper();
-            let initialConfigEvent = await factoryInteractor.getVaultCreatedEvent({fromBlock: deploymentResult.blockNumber, toBlock: deploymentResult.blockNumber});
-            assert.equal(deploymentResult.vault, initialConfigEvent.vault);
+            let deploymentResult = await factoryInteractor.deployNewSmartAccount();
+            let initialConfigEvent = await factoryInteractor.getSmartAccountCreatedEvent({fromBlock: deploymentResult.blockNumber, toBlock: deploymentResult.blockNumber});
+            assert.equal(deploymentResult.vault, initialConfigEvent.smartAccount);
             assert.equal(deploymentResult.sender, initialConfigEvent.sender);
             assert.equal(deploymentResult.gatekeeper, initialConfigEvent.gatekeeper);
         });
     });
 
-// expect(err).to.have.property('message', 'vault already deployed');
-    context("interactor with a deployed vault", function () {
+// expect(err).to.have.property('message', 'smartAccount already deployed');
+    context("interactor with a deployed smartAccount", function () {
         before(async function () {
-            let deploymentResult = await factoryInteractor.deployNewGatekeeper();
+            let deploymentResult = await factoryInteractor.deployNewSmartAccount();
             interactor = await Interactor.connect(
                 accounts[0],
                 PermissionsModel.getOwnerPermissions(),
@@ -132,7 +131,7 @@ context.skip('VaultContractInteractor Integration Test', function () {
                 deploymentResult.vault);
         });
 
-        it("the newly deployed vault should handle having no configuration", async function () {
+        it("the newly deployed smartAccount should handle having no configuration", async function () {
             let operator = await interactor.getOperator();
             assert.equal(operator, null);
             let delays = await interactor.getDelays();
@@ -149,7 +148,7 @@ context.skip('VaultContractInteractor Integration Test', function () {
             assert.deepEqual(freezeParams, {frozenLevel: 0, frozenUntil: 0});
         });
 
-        it("the newly deployed vault should accept the initial configuration", async function () {
+        it("the newly deployed smartAccount should accept the initial configuration", async function () {
             let anyAdmin = "0x" + safeChannelUtils.participantHash(account23, safeChannelUtils.packPermissionLevel(PermissionsModel.getAdminPermissions(), 1)).toString('hex');
             let participantsHashes = [
                 anyAdmin,
@@ -180,10 +179,10 @@ context.skip('VaultContractInteractor Integration Test', function () {
 
     });
 
-    context("using initialized and configured vault", function () {
+    context("using initialized and configured smartAccount", function () {
 
         before(async function () {
-            let deploymentResult = await factoryInteractor.deployNewGatekeeper();
+            let deploymentResult = await factoryInteractor.deployNewSmartAccount();
             interactor = await Interactor.connect(
                 accounts[0],
                 PermissionsModel.getOwnerPermissions(),
@@ -192,10 +191,10 @@ context.skip('VaultContractInteractor Integration Test', function () {
                 deploymentResult.gatekeeper,
                 deploymentResult.vault);
             // TODO: set desired configuration here
-            await web3.eth.sendTransaction({from: accounts[0], to: interactor.vault.address, value: fund});
+            await web3.eth.sendTransaction({from: accounts[0], to: interactor.smartAccount.address, value: fund});
         });
 
-        it.skip("can schedule to change participants in the vault and later apply it", async function () {
+        it.skip("can schedule to change participants in the smartAccount and later apply it", async function () {
             let participants = [
                 operatorA.expect(),
                 admin23.expect(),
@@ -279,7 +278,7 @@ context.skip('VaultContractInteractor Integration Test', function () {
                 admin_level2_acc2.level,
                 ethNodeUrl,
                 interactor.gatekeeper.address,
-                interactor.vault.address,
+                interactor.smartAccount.address,
                 vaultFactoryAddress
             );
             let receipt2 = await adminsInteractor.scheduleBoostedConfigChange({
