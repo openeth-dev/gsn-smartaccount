@@ -12,7 +12,7 @@ before(async function () {
 // TODO: get accounts
 })
 
-describe.skip('SimpleWallet', async function () {
+describe('SimpleWallet', async function () {
   const whitelistPolicy = '0x1111111111111111111111111111111111111111'
   const backend = '0x2222222222222222222222222222222222222222'
   const operator = '0x3333333333333333333333333333333333333333'
@@ -22,6 +22,7 @@ describe.skip('SimpleWallet', async function () {
   const expectedInitialConfig = require('./testdata/ExpectedInitialConfig')
   const expectedWalletInfoA = require('./testdata/ExpectedWalletInfoA')
   const sampleTransactionHistory = require('./testdata/SampleTransactionHistory')
+  const sampleTransactionsPendingList = require('./testdata/SampleTransactionsPendingList')
 
   let config
   let wallet
@@ -65,7 +66,7 @@ describe.skip('SimpleWallet', async function () {
     it('should refuse to work on an already initialized smartAccount')
   })
 
-  describe('#listPending()', async function () {
+  describe('#listPendingTransactions()', async function () {
     let stubbedWallet
     before(async function () {
       stubbedWallet = new SimpleWallet(walletConfig)
@@ -78,22 +79,30 @@ describe.skip('SimpleWallet', async function () {
       }
     })
 
+    // TODO: test for
+    //  a) bypass config change not appearing here
+    //  b) erc20 transactions reported correctly
+    //  c) pure eth transfers
+    //  d) payable function calls
+    // TODO 2: As the code needs to read the 'dueTime' from the contract now, do either:
+    //  a) emit it in event
+    //  b) do not use static event list for tests as dueTime is always 0
     it('should return a correct list of pending operations', async function () {
-      const pending = await stubbedWallet.listPending()
-      assert.deepStrictEqual(pending, [])
+      const pending = await stubbedWallet.listPendingTransactions()
+      assert.deepEqual(pending, sampleTransactionsPendingList)
     })
   })
 
-  describe('#transfer()', async function () {
+  describe.skip('#transfer()', async function () {
     it('should initiate delayed ETH transfer', async function () {
       const destination = backend
       const amount = 1e5
       await wallet.transfer({ destination, amount })
-      const pending = await wallet.listPending()
+      const pending = await wallet.listPendingTransactions()
       assert.strictEqual(pending.length, 1)
       assert.strictEqual(pending.destination, destination)
       assert.strictEqual(pending.amount, amount)
-      assert.strictEqual(pending.token, undefined)
+      assert.strictEqual(pending.token, 'ETH')
     })
 
     it('should initiate delayed ERC transfer')

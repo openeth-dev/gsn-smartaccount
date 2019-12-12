@@ -79,7 +79,7 @@ contract SmartAccount is PermissionsLevel, GsnRecipient {
         return delays;
     }
 
-    function getPendingChange(bytes32 hash) public view returns (uint256, bytes32[] memory approvers) {
+    function getPendingChange(bytes32 hash) public view returns (uint256 dueTime, bytes32[] memory approvers) {
         return (pendingChanges[hash].dueTime, pendingChanges[hash].approvers);
     }
 
