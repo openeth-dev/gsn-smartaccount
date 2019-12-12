@@ -69,7 +69,7 @@ export default class SimpleWallet extends SimpleWalletApi {
     const allowAcceleratedCalls = await this.contract.allowAcceleratedCalls()
     const allowAddOperatorNow = await this.contract.allowAddOperatorNow()
     const deployedBlock = await this._getDeployedBlock()
-    const initEvent = (await this.contract.getPastEvents('GatekeeperInitialized', { fromBlock: deployedBlock }))[0]
+    const initEvent = (await this.contract.getPastEvents('SmartAccountInitialized', { fromBlock: deployedBlock }))[0]
     const args = initEvent.args
     const foundParticipants = this.knownParticipants.filter((it) => {
       const hash = '0x' + SafeChannelUtils.participantHash(it.address, it.permLevel).toString('hex')
@@ -129,7 +129,11 @@ export default class SimpleWallet extends SimpleWalletApi {
     return this.deployedBlock
   }
 
-  async listPending () {
+  async listPendingConfigChanges () {
+
+  }
+
+  async listPendingTransactions () {
     const blocks = { fromBlock: (await this._getDeployedBlock()), toBlock: 'latest' }
     const { scheduledEvents, completedEvents, cancelledEvents } = await this._getPastOperationsEvents(blocks)
     const completedEventsHashes = completedEvents.map(it => it.args.bypassHash)

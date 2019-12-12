@@ -51,36 +51,18 @@ export default class SimpleWalletApi {
   }
 
   async getWalletInfo () {
-    let addr
-    return {
-      options: {
-        allowAddOperatorNow: false,
-        allowAcceleratedCalls: false
-      },
-      operators: [addr, addr],
-      guardians: [
-        { addr: 0x123, level: 1, type: 'watchdog' },
-        { addr: 0x123, level: 1, type: 'admin' }
-      ],
-      unknownGuardians: 0,
-      levels: [
-        {
-          delay: '1234',
-          requiredApprovals: 2
-        },
-        {
-          delay: '2345',
-          requiredApprovals: 0
-        }
-      ]
-    }
+    error('wallet info')
   }
 
   listTokens () {
     error('return static list of {token,balance,decimals} - loaded with refresh()')
   }
 
-  async listPending () {
+  async listPendingTransactions () {
+    error('return pending operations from memory')
+  }
+
+  async listPendingConfigChanges () {
     error('return pending operations from memory')
   }
 
