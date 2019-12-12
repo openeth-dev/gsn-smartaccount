@@ -1,0 +1,23 @@
+{
+  "_allowAcceleratedCalls": true,
+  "_allowAddOperatorNow": true,
+  "bypassMethods": [
+    "0xa9059cbb",
+    "0x095ea7b3"
+  ],
+  "bypassModules": [
+    "0x1111111111111111111111111111111111111111",
+    "0x1111111111111111111111111111111111111111"
+  ],
+  "bypassTargets": [],
+  "initialDelays": [
+    86400,
+    172800
+  ],
+  "initialParticipants": [
+    "0xf7dc2985b09233348783724655db5042f633426a02a118345a2ee96aab81f5e0",
+    "0x8f8b94ea5c9e0a787df6101de79ba882449ea2b9729e989191839ec247ecdb31",
+    "0x7cb3e4310827deaab62c9b804e7ab5da8df2dc7be5ad3f8fdb8dde9c93d32498"
+  ],
+  "requiredApprovalsPerLevel": [0, 1]
+}

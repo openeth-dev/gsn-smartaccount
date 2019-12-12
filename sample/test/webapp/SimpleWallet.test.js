@@ -12,61 +12,26 @@ before(async function () {
 // TODO: get accounts
 })
 
-describe('SimpleWallet', async function () {
-  const whitelist = '0x1111111111111111111111111111111111111111'
+describe.skip('SimpleWallet', async function () {
+  const whitelistPolicy = '0x1111111111111111111111111111111111111111'
   const backend = '0x2222222222222222222222222222222222222222'
   const operator = '0x3333333333333333333333333333333333333333'
   const ethNodeUrl = 'http://localhost:8545'
   const from = '0x90f8bf6a479f320ead074411a4b0e7944ea8c9c1'
 
-  const expectedInitialConfig = {
-    _allowAcceleratedCalls: true,
-    _allowAddOperatorNow: true,
-    bypassMethods: [],
-    bypassModules: [
-      '0x1111111111111111111111111111111111111111'
-    ],
-    bypassTargets: [],
-    initialDelays: [86400, 172800],
-    initialParticipants: [
-      '0xf7dc2985b09233348783724655db5042f633426a02a118345a2ee96aab81f5e0',
-      '0x8f8b94ea5c9e0a787df6101de79ba882449ea2b9729e989191839ec247ecdb31',
-      '0x7cb3e4310827deaab62c9b804e7ab5da8df2dc7be5ad3f8fdb8dde9c93d32498'
-    ],
-    requiredApprovalsPerLevel: [0, 1]
-  }
-
-  const expectedWalletInfoA = {
-    options: {
-      allowAddOperatorNow: false,
-      allowAcceleratedCalls: false
-    },
-    operators: [operator],
-    guardians: [
-      { address: backend, level: 1, type: 'watchdog' },
-      { address: backend, level: 1, type: 'admin' }
-    ],
-    unknownGuardians: 0,
-    levels: [
-      {
-        delay: '86400',
-        requiredApprovals: 0
-      },
-      {
-        delay: '172800',
-        requiredApprovals: 1
-      }
-    ]
-  }
+  const expectedInitialConfig = require('./testdata/ExpectedInitialConfig')
+  const expectedWalletInfoA = require('./testdata/ExpectedWalletInfoA')
+  const sampleTransactionHistory = require('./testdata/SampleTransactionHistory')
 
   let config
   let wallet
   let vault
+  let walletConfig
 
   before(async function () {
     vault = await FactoryContractInteractor.deployVaultDirectly(from, ethNodeUrl)
     expectedWalletInfoA.address = vault.address
-    wallet = new SimpleWallet({
+    walletConfig = {
       contract: vault,
       participant:
         new Participant(from, Permissions.OwnerPermissions, 1),
@@ -75,11 +40,12 @@ describe('SimpleWallet', async function () {
         new Participant(backend, Permissions.WatchdogPermissions, 1),
         new Participant(backend, Permissions.AdminPermissions, 1)
       ]
-    })
+    }
+    wallet = new SimpleWallet(walletConfig)
     config = SimpleWallet.getDefaultSampleInitialConfiguration({
       backendAddress: backend,
       operatorAddress: operator,
-      whitelistModuleAddress: whitelist
+      whitelistModuleAddress: whitelistPolicy
     })
   })
 
@@ -97,5 +63,47 @@ describe('SimpleWallet', async function () {
     })
 
     it('should refuse to work on an already initialized vault')
+  })
+
+  describe('#listPending()', async function () {
+    let stubbedWallet
+    before(async function () {
+      stubbedWallet = new SimpleWallet(walletConfig)
+      stubbedWallet._getPastOperationsEvents = async function () {
+        return {
+          scheduledEvents: sampleTransactionHistory.filter(it => it.event === 'BypassCallPending'),
+          completedEvents: sampleTransactionHistory.filter(it => it.event === 'BypassCallApplied'),
+          cancelledEvents: sampleTransactionHistory.filter(it => it.event === 'BypassCallCancelled')
+        }
+      }
+    })
+
+    it('should return a correct list of pending operations', async function () {
+      const pending = await stubbedWallet.listPending()
+      assert.deepStrictEqual(pending, [])
+    })
+  })
+
+  describe('#transfer()', async function () {
+    it('should initiate delayed ETH transfer', async function () {
+      const destination = backend
+      const amount = 1e5
+      await wallet.transfer({ destination, amount })
+      const pending = await wallet.listPending()
+      assert.strictEqual(pending.length, 1)
+      assert.strictEqual(pending.destination, destination)
+      assert.strictEqual(pending.amount, amount)
+      assert.strictEqual(pending.token, undefined)
+    })
+
+    it('should initiate delayed ERC transfer')
+
+    it('should transfer ETH immediately to a whitelisted destination')
+
+    it('should transfer ERC immediately to a whitelisted destination')
+  })
+
+  describe('#cancelPending()', async function () {
+    it('should cancel the delayed operation')
   })
 })

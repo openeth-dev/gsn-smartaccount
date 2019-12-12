@@ -1,0 +1,122 @@
+[
+  {
+    "logIndex": 0,
+    "transactionIndex": 0,
+    "transactionHash": "0xe30802e8d9e93134d02fa30e36f238ec027216197f91483935e89a47d4b7b8d3",
+    "blockHash": "0x5b4b1886bb305d3fe9e18348865ec772781e26c39c2060b3848cd1d46b5de22d",
+    "blockNumber": 1,
+    "address": "0xe97DbD7116D168190F8A6E7beB1092c103c53a12",
+    "type": "mined",
+    "id": "log_5628c208",
+    "event": "BypassCallPending",
+    "args": {
+      "0": "0x84b4972fe1e499aab8729c12217895c8b7d8c090f62fbdd367aaa82173702e7d",
+      "1": "3",
+      "2": "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1",
+      "3": "800fddf",
+      "4": "0xF16165f1046f1B3cDB37dA25E835B986E696313A",
+      "5": "0",
+      "6": "0xa9059cbb00000000000000000000000022d491bde2303f2f43325b2108d26f1eaba1e32b0000000000000000000000000000000000000000000000000000000000000064",
+      "__length__": 7,
+      "bypassHash": "0x0004972fe1e499aab8729c12217895c8b7d8c090f62fbdd367aaa82173702e7d",
+      "stateId": "3",
+      "sender": "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1",
+      "senderPermsLevel": "800fddf",
+      "target": "0xF16165f1046f1B3cDB37dA25E835B986E696313A",
+      "value": "0",
+      "msgdata": "0xa9059cbb00000000000000000000000022d491bde2303f2f43325b2108d26f1eaba1e32b0000000000000000000000000000000000000000000000000000000000000064"
+    }
+  },
+  {
+    "logIndex": 0,
+    "transactionIndex": 0,
+    "transactionHash": "0xcccf14356a6382f1f89e2bde0d5811529c16d05febd09622f8056fdc2b43b109",
+    "blockHash": "0xe0e19e8381de8bc2d60f9a9078abc7b87e2361695bab0c1bd67717cd2172168c",
+    "blockNumber": 2,
+    "address": "0xe97DbD7116D168190F8A6E7beB1092c103c53a12",
+    "type": "mined",
+    "id": "log_b7b54e0e",
+    "event": "BypassCallApplied",
+    "args": {
+      "0": "0xefbb388cb79e873f6b2b71b285e7e840fe81379b2e733a5f22af2cc3a74720e3",
+      "1": true,
+      "__length__": 2,
+      "bypassHash": "0x0004972fe1e499aab8729c12217895c8b7d8c090f62fbdd367aaa82173702e7d",
+      "status": true
+    }
+  },
+  {
+    "logIndex": 0,
+    "transactionIndex": 0,
+    "transactionHash": "0xe30802e8d9e93134d02fa30e36f238ec027216197f91483935e89a47d4b7b8d3",
+    "blockHash": "0x5b4b1886bb305d3fe9e18348865ec772781e26c39c2060b3848cd1d46b5de22d",
+    "blockNumber": 3,
+    "address": "0xe97DbD7116D168190F8A6E7beB1092c103c53a12",
+    "type": "mined",
+    "id": "log_5628c208",
+    "event": "BypassCallPending",
+    "args": {
+      "0": "0x84b4972fe1e499aab8729c12217895c8b7d8c090f62fbdd367aaa82173702e7d",
+      "1": "3",
+      "2": "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1",
+      "3": "800fddf",
+      "4": "0xF16165f1046f1B3cDB37dA25E835B986E696313A",
+      "5": "0",
+      "6": "0xa9059cbb00000000000000000000000022d491bde2303f2f43325b2108d26f1eaba1e32b0000000000000000000000000000000000000000000000000000000000000064",
+      "__length__": 7,
+      "bypassHash": "0x1114972fe1e499aab8729c12217895c8b7d8c090f62fbdd367aaa82173702e7d",
+      "stateId": "3",
+      "sender": "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1",
+      "senderPermsLevel": "800fddf",
+      "target": "0xF16165f1046f1B3cDB37dA25E835B986E696313A",
+      "value": "0",
+      "msgdata": "0xa9059cbb00000000000000000000000022d491bde2303f2f43325b2108d26f1eaba1e32b0000000000000000000000000000000000000000000000000000000000000064"
+    }
+  },
+  {
+    "logIndex": 0,
+    "transactionIndex": 0,
+    "transactionHash": "0xe30802e8d9e93134d02fa30e36f238ec027216197f91483935e89a47d4b7b8d3",
+    "blockHash": "0x5b4b1886bb305d3fe9e18348865ec772781e26c39c2060b3848cd1d46b5de22d",
+    "blockNumber": 4,
+    "address": "0xe97DbD7116D168190F8A6E7beB1092c103c53a12",
+    "type": "mined",
+    "id": "log_5628c208",
+    "event": "BypassCallPending",
+    "args": {
+      "0": "0x84b4972fe1e499aab8729c12217895c8b7d8c090f62fbdd367aaa82173702e7d",
+      "1": "3",
+      "2": "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1",
+      "3": "800fddf",
+      "4": "0xF16165f1046f1B3cDB37dA25E835B986E696313A",
+      "5": "0",
+      "6": "0xa9059cbb00000000000000000000000022d491bde2303f2f43325b2108d26f1eaba1e32b0000000000000000000000000000000000000000000000000000000000000064",
+      "__length__": 7,
+      "bypassHash": "0x2224972fe1e499aab8729c12217895c8b7d8c090f62fbdd367aaa82173702e7d",
+      "stateId": "3",
+      "sender": "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1",
+      "senderPermsLevel": "800fddf",
+      "target": "0xF16165f1046f1B3cDB37dA25E835B986E696313A",
+      "value": "0",
+      "msgdata": "0xa9059cbb00000000000000000000000022d491bde2303f2f43325b2108d26f1eaba1e32b0000000000000000000000000000000000000000000000000000000000000064"
+    }
+  },
+  {
+    "logIndex": 0,
+    "transactionIndex": 0,
+    "transactionHash": "0xa0cda4ebb2ea2f419cbce7331a4f3cceb6929b21d830f67552717c0239bf3790",
+    "blockHash": "0x4e9b48f0641251d57e3395d74252503bb9b1212ef5fd64cbfcc92dad9cf5d72c",
+    "blockNumber": 5,
+    "address": "0xe97DbD7116D168190F8A6E7beB1092c103c53a12",
+    "type": "mined",
+    "id": "log_d97fb3bd",
+    "event": "BypassCallCancelled",
+    "args": {
+      "0": "0x9955bf2336633c720442607abb89dbcd276ec6e526f90f81745bff4bd4aec833",
+      "1": "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1",
+      "__length__": 2,
+      "bypassHash": "0x1114972fe1e499aab8729c12217895c8b7d8c090f62fbdd367aaa82173702e7d",
+      "sender": "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1"
+    }
+  }
+]

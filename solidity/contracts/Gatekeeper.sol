@@ -151,6 +151,7 @@ contract Gatekeeper is PermissionsLevel, GsnRecipient {
         require(initialParticipants.length <= maxParticipants, "too many participants");
         require(initialDelays.length <= maxLevels, "too many levels");
         require(_requiredApprovalsPerLevel.length <= maxLevels, "too many levels again");
+        require(bypassTargets.length + bypassMethods.length == bypassModules.length, "wrong number of bypass modules");
 
         for (uint8 i = 0; i < initialParticipants.length; i++) {
             participants[initialParticipants[i]] = true;
