@@ -41,9 +41,9 @@ function CreateWallet ({ refresh, jwt, email }) {
 
     try {
       await mgr.createWallet({ jwt, phone, smsVerificationCode })
-      refresh({err:undefined})
+      refresh({ err: undefined })
     } catch (e) {
-      refresh({err:e.message})
+      refresh({ err: e.message })
     }
   }
   return <div>
@@ -172,7 +172,7 @@ class App extends React.Component {
       <div style={{ margin: '10px' }}>
         <h1>SampleWallet app</h1>
         <div style={{ fontSize: '10px' }}>
-          <input type="checkbox" value={this.state.debug} onClick={() => this.toggleDebug()} />
+          <input type="checkbox" value={this.state.debug} onClick={() => this.toggleDebug()}/>
           Debug state
           {
             this.state.debug && <xmp>{JSON.stringify(this.state, null, 4)}</xmp>
