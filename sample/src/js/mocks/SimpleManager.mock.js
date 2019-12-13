@@ -15,11 +15,11 @@ export default class SimpleManagerMock extends SimpleManagerApi {
   }
 
   async getEmail () {
-    return await this.accountApi.getEmail()
+    return this.accountApi.getEmail()
   }
 
   async getOwner () {
-    return await this.accountApi.getOwner()
+    return this.accountApi.getOwner()
   }
 
   async googleLogin () {

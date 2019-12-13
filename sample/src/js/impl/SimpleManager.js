@@ -16,7 +16,7 @@ export default class SimpleManager extends SimpleManagerApi {
   }
 
   async getEmail () {
-    return await this.accountApi.getEmail()
+    return this.accountApi.getEmail()
   }
 
   async googleLogin () {
@@ -32,7 +32,7 @@ export default class SimpleManager extends SimpleManagerApi {
   }
 
   async getOwner () {
-    return await this.accountApi.getOwner()
+    return this.accountApi.getOwner()
   }
 
   async validatePhone ({ jwt, phone }) {

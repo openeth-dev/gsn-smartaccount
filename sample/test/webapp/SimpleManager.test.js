@@ -161,7 +161,7 @@ backends.forEach(function ({ backend, name }) {
           `mockhub = ${mockhub.address} factory=${factory.address} sponsor=${sponsor.address} forward=${forward.address}`)
       })
 
-      describe.only('main flows', async function () {
+      describe('main flows', async function () {
         let factoryConfig
         let sm
 
@@ -180,11 +180,18 @@ backends.forEach(function ({ backend, name }) {
             }),
             sponsor: sponsor.address,
             proxyOwner: {
-              address: await accountApi.getOwner(),
-              privateKey: accountApi.storage.privKey
+              address: await accountApi.getOwner()
+              // privateKey: accountApi.storage.privKey
             }
           }
           const sponsorProvider = await SponsorProvider.init(web3provider, relayOptions)
+          sponsorProvider.relayClient.relayClient.web3.eth.sign = async function (hash, account, cb) {
+            if (account !== await accountApi.getOwner()) {
+              cb(Error('wrong signer: not valid account'))
+            }
+            const sig = await accountApi.signMessageHash(hash)
+            cb(null, sig)
+          }
           factoryConfig = {
             provider: sponsorProvider,
             factoryAddress: factory.address

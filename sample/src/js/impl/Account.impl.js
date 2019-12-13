@@ -20,6 +20,14 @@ export function storageProps (storage) {
   })
 }
 
+export function buf2hex (buf) {
+  return '0x' + buf.toString('hex')
+}
+
+export function hex2buf (str) {
+  return Buffer.from(str.replace(/^0x/, ''), 'hex')
+}
+
 export default class Account extends AccountApi {
   // storage - Storage class (setItem,getItem,removeItem - all strings)
   constructor (storage) {
@@ -43,11 +51,9 @@ export default class Account extends AccountApi {
     }
 
     const wallet = ethWallet.generate()
-    const privKey = wallet.privKey.toString('hex')
-    const address = '0x' + wallet.getAddress().toString('hex')
 
-    this.storage.ownerAddress = address
-    this.storage.privKey = privKey
+    this.storage.ownerAddress = buf2hex(wallet.getAddress())
+    this.storage.privKey = buf2hex(wallet.privKey)
   }
 
   async getOwner () {
@@ -121,10 +127,15 @@ export default class Account extends AccountApi {
   }
 
   async signMessageHash (messageHash) {
+    if (typeof messageHash === 'string') {
+      messageHash = hex2buf(messageHash)
+    }
     const hash = ethUtils.hashPersonalMessage(messageHash)
-    const sig = ethUtils.ecsign(hash, Buffer.from(this.storage.privKey, 'hex'))
+    const privateKey = hex2buf(this.storage.privKey)
+    const sig = ethUtils.ecsign(hash, privateKey)
 
-    return '0x' +
-      Buffer.concat([sig.r, sig.s, Buffer.from(String.fromCharCode(sig.v))]).toString('hex')
+    return buf2hex(
+      Buffer.concat([sig.r, sig.s, Buffer.from([sig.v])])
+    )
   }
 }
