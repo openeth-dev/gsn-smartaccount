@@ -2,6 +2,7 @@ import AccountApi from '../api/Account.api'
 
 import ethWallet from 'ethereumjs-wallet'
 import * as ethUtils from 'ethereumjs-util'
+import { buf2hex, hex2buf } from '../utils/utils'
 
 export function storageProps (storage) {
   return new Proxy(storage, {
@@ -18,14 +19,6 @@ export function storageProps (storage) {
       return true
     }
   })
-}
-
-export function buf2hex (buf) {
-  return '0x' + buf.toString('hex')
-}
-
-export function hex2buf (str) {
-  return Buffer.from(str.replace(/^0x/, ''), 'hex')
 }
 
 export default class Account extends AccountApi {

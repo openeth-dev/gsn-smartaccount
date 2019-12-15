@@ -2,10 +2,11 @@
 
 import chai, { assert } from 'chai'
 import chaiAsPromised from 'chai-as-promised'
-import Account, { buf2hex, hex2buf } from '../src/js/impl/Account.impl'
 import { MockStorage } from './mocks/MockStorage'
 import { getTransactionSignatureWithKey } from 'tabookey-gasless/src/js/relayclient/utils'
 import { keccak } from 'ethereumjs-util'
+import { buf2hex, hex2buf } from '../src/js/utils/utils'
+import Account from '../src/js/impl/Account.impl'
 
 chai.use(chaiAsPromised)
 
