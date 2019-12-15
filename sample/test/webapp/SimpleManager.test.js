@@ -16,7 +16,7 @@ import SimpleManager from '../../src/js/impl/SimpleManager'
 import ClientBackend from '../../src/js/backend/ClientBackend'
 import { Backend } from '../../src/js/backend/Backend'
 import { MockStorage } from '../mocks/MockStorage'
-import Account from '../../src/js/impl/Account.impl'
+import Account from '../../src/js/impl/Account'
 
 chai.use(chaiAsPromised)
 chai.should()

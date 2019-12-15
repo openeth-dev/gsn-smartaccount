@@ -1,6 +1,6 @@
 /* global global */
 // this is the class loaded by the account.html frame.
-import Account from '../impl/Account.impl'
+import Account from '../impl/Account'
 import AccountApi from '../api/Account.api'
 // https://developer.mozilla.org/en-US/docs/Web/API/Window/postMessage
 let account
