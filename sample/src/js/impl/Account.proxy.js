@@ -5,11 +5,17 @@ import AccountApi from '../api/Account.api'
 const verbose = false
 const ACCOUNT_FRAME_ID = 'account-frame'
 
-export default class AccountProxy extends AccountApi {
+export default class AccountProxy {
   // storage - property access.
   // localStorage - getItem/setItem (use only if no storage..)
   constructor () {
-    super()
+    const methods = Object.getOwnPropertyNames(AccountApi.prototype)
+    for (const m in methods) {
+      const method = methods[m]
+      this[method] = function () {
+        return this._call(method, Array.prototype.slice.apply(arguments))
+      }.bind(this)
+    }
     this._initFrame()
     window.addEventListener('message', this._onMessage.bind(this))
     this.idseq = Math.floor(Math.random() * 1e5)
@@ -81,35 +87,4 @@ export default class AccountProxy extends AccountApi {
     })
   }
 
-  async getEmail () {
-    return this._call('getEmail')
-  }
-
-  async getOwner () {
-    return this._call('getOwner')
-  }
-
-  async googleLogin () {
-    return this._call('googleLogin')
-  }
-
-  async googleAuthenticate () {
-    return this._call('googleAuthenticate')
-  }
-
-  async signOut () {
-    return this._call('signOut')
-  }
-
-  async signTransaction ({ tx }) {
-    return this._call('signTransaction', arguments)
-  }
-
-  async signMessage (message) {
-    return this._call('signMessage', arguments)
-  }
-
-  async signMessageHash (messageHash) {
-    return this._call('signMessageHash', arguments)
-  }
 }
