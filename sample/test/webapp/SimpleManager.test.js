@@ -17,6 +17,7 @@ import ClientBackend from '../../src/js/backend/ClientBackend'
 import { Backend } from '../../src/js/backend/Backend'
 import { MockStorage } from '../mocks/MockStorage'
 import Account from '../../src/js/impl/Account'
+import { hookRpcProvider } from '../../src/js/utils/hookRpcProvider'
 
 chai.use(chaiAsPromised)
 chai.should()
@@ -144,6 +145,7 @@ backends.forEach(function ({ backend, name }) {
 
       before(async function () {
         web3provider = new Web3.providers.HttpProvider(ethNodeUrl)
+
         mockhub = await FactoryContractInteractor.deployMockHub(from, ethNodeUrl)
         sponsor = await FactoryContractInteractor.deploySponsor(from, mockhub.address, ethNodeUrl)
         const forwarderAddress = await sponsor.contract.methods.getGsnForwarder().call()
@@ -184,14 +186,18 @@ backends.forEach(function ({ backend, name }) {
               // privateKey: accountApi.storage.privKey
             }
           }
-          const sponsorProvider = await SponsorProvider.init(web3provider, relayOptions)
-          sponsorProvider.relayClient.relayClient.web3.eth.sign = async function (hash, account, cb) {
-            if (account !== await accountApi.getOwner()) {
-              cb(Error('wrong signer: not valid account'))
+          const signerProvider = hookRpcProvider(web3provider, {
+            eth_sign: async function ([account, hash], cb) {
+              if (account !== await accountApi.getOwner()) {
+                cb(Error('wrong signer: not valid account'))
+              }
+              const sig = await accountApi.signMessageHash(hash)
+              cb(null, sig)
             }
-            const sig = await accountApi.signMessageHash(hash)
-            cb(null, sig)
-          }
+          })
+
+          const sponsorProvider = await SponsorProvider.init(signerProvider, relayOptions)
+
           factoryConfig = {
             provider: sponsorProvider,
             factoryAddress: factory.address
