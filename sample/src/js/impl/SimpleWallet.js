@@ -213,7 +213,7 @@ export default class SimpleWallet extends SimpleWalletApi {
   }
 
   async _getPastOperationsEvents ({ fromBlock, toBlock }) {
-    const scheduledEvents = await this.contract.getPastEvents('BypassCallPending', { fromBlock: 0, toBlock })
+    const scheduledEvents = await this.contract.getPastEvents('BypassCallPending', { fromBlock, toBlock })
     const completedEvents = await this.contract.getPastEvents('BypassCallCancelled', { fromBlock, toBlock })
     const cancelledEvents = await this.contract.getPastEvents('BypassCallApplied', { fromBlock, toBlock })
     return {
