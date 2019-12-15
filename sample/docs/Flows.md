@@ -61,7 +61,7 @@
 - SMS **must** also be used as 2FA authentication: guardian should approve only
     if it can verify SMS was used.
 
-![Add Device Immediate](http://www.websequencediagrams.com/cgi-bin/cdraw?s=rose&m=title+Add+Device+Immediate%0a%0aparticipant+%22NewDevice%22+as+new%0aparticipant+%22OldDevice%22+as+user%0aparticipant+webapp+as+app%0aparticipant+%22Backend%22+as+be%0aparticipant+vault%0aparticipant+google%0a%0anew-%3e%2bapp%3a+login%0aactivate+new%0aapp-%3egoogle%3a+authenticate%28email%2c+nonce%28newaddr%29%29%0agoogle--%3eapp%3a+JWT%0aapp-%3e-be%3aaddDeviceNow%28jwt%2c+title%29%0aactivate+be%0anote+over+be%3a+get+phone+for+email%5cnstore+temporarily%3a%5cn%28vault-addr%2cnewaddr%2ctimestamp%2ctitle%29%0abe-%3euser%3a+SMS%3a+click+to+add+%28url%2bservernonce%29%0adeactivate+be%0auser-%3e%2bapp%3a+click%0aapp-%3egoogle%3a+authenticate%28email%29%0agoogle--%3eapp%3a+JWT%0aapp-%3e%2bbe%3a+validateAddDevice%28jwt%2curl%29%0anote+over+be%0avalidate+url-nonce%2e%0asave+to+memory%0aend+note%0abe--%3e-app%3a+%28newaddr%2c+title%29+%0anote+over+app%3a+Propt+user%3a+Click+here+to%5cnadd+XXX+as+new+device%0aapp-%3e-vault%3a+addOperatorNow%28newaddr%29%0anote+over+vault%3a+PendingChange%0avault--%3e%2bbe%3a+monitor+changes%0anote+over+be%3a+validate+has+%28vault-addr%2cnewaddr%29%5cnin+memory+%28with+validate%29%0abe-%3e-vault%3a+approve%28%29%5cnas+Watchdog%0avault--%3enew%3a+monitor+change)
+![Add Device Immediate](http://www.websequencediagrams.com/cgi-bin/cdraw?s=rose&m=title+Add+Device+Immediate%0a%0aparticipant+%22NewDevice%22+as+new%0aparticipant+%22OldDevice%22+as+user%0aparticipant+webapp+as+app%0aparticipant+%22Backend%22+as+be%0aparticipant+vault%0aparticipant+google%0a%0anew-%3e%2bapp%3a+login%0aactivate+new%0aapp-%3egoogle%3a+authenticate%28email%2c+nonce%28newaddr%29%29%0agoogle--%3eapp%3a+JWT%0aapp-%3e-be%3aaddDeviceNow%28jwt%2c+title%29%0aactivate+be%0anote+over+be%3a+get+phone+for+email%5cnstore+temporarily%3a%5cn%28vault-addr%2cnewaddr%2ctimestamp%2ctitle%29%0abe-%3euser%3a+SMS%3a+click+to+add+%28url%2bservernonce%29%0adeactivate+be%0auser-%3e%2bapp%3a+click%0aapp-%3egoogle%3a+authenticate%28email%29%0agoogle--%3eapp%3a+JWT%0aapp-%3e%2bbe%3a+validateAddDevice%28jwt%2curl%29%0anote+over+be%0avalidate+url-nonce%2e%0asave+to+memory%0aend+note%0abe--%3e-app%3a+%28newaddr%2c+title%29+%0anote+over+app%3a+Propt+user%3a+Click+here+to%5cnadd+XXX+as+new+device%0aapp-%3e-vault%3a+addOperatorNow%28newaddr%29%0anote+over+vault%3a+PendingChange%0avault--%3e%2bbe%3a+monitor+changes%0anote+over+be%3a+validate+has+%28vault-addr%2cnewaddr%29%5cnin+memory%0abe-%3e-vault%3a+approve%28%29%5cnas+Watchdog%0avault--%3enew%3a+monitor+change)
 
 <a name="recoverDevice" ></a>
 ### Recover Device
@@ -274,7 +274,7 @@ note over app: Propt user: Click here to\nadd XXX as new device
 app->-vault: addOperatorNow(newaddr)
 note over vault: PendingChange
 vault-->+be: monitor changes
-note over be: validate has (vault-addr,newaddr)\nin memory (with validate)
+note over be: validate has (vault-addr,newaddr)\nin memory
 be->-vault: approve()\nas Watchdog
 vault-->new: monitor change
 ```
