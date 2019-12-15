@@ -69,4 +69,8 @@ export default class SimpleWalletApi {
   listBypassPolicies () {
     error('return list of pending ops from memory')
   }
+
+  async addOperatorNow () {
+    error('initialize add operator flow')
+  }
 }

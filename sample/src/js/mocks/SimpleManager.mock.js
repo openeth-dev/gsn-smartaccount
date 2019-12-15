@@ -100,4 +100,8 @@ export default class SimpleManagerMock extends SimpleManagerApi {
   async recoverWallet ({ owner, email }) {
     error('trigger recover flow')
   }
+
+  async addDeviceNow ({ jwt, description }) {
+    error()
+  }
 }

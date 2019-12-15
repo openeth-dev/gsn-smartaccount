@@ -210,4 +210,8 @@ export default class SimpleWalletMock extends SimpleWalletApi {
       }
     ]
   }
+
+  async addOperatorNow () {
+    error()
+  }
 }

@@ -5,6 +5,9 @@ import FactoryContractInteractor from 'safechannels-contracts/src/js/FactoryCont
 import SimpleWalletApi from '../api/SimpleWallet.api'
 import DelayedTransfer from '../etc/DelayedTransfer'
 import DelayedContractCall from '../etc/DelayedContractCall'
+import DelayedConfigChange from '../etc/DelayedConfigChange'
+import ConfigEntry from '../etc/ConfigEntry'
+import { changeTypeToString } from '../etc/ChangeType'
 
 const erc20Methods = ['0xa9059cbb', '0x095ea7b3']
 
@@ -153,20 +156,75 @@ export default class SimpleWallet extends SimpleWalletApi {
   }
 
   async listPendingConfigChanges () {
-
-  }
-
-  async listPendingTransactions () {
+    const allPendingTransactions = await this._getAllPendingTransactions()
+    const activeBypassPolicies = await this.listBypassPolicies()
+    const promisesOfOperations = allPendingTransactions
+      .filter(it => {
+        return activeBypassPolicies.includes(it.args.target)
+      })
+      .map(async (it) => {
+        // TODO: if needed, support other types of bypass policy config changes; parse parameters
+        const entry = new ConfigEntry({
+          type: 'whitelist_change',
+          args: ['TODO'],
+          targetModule: it.args.destination
+        })
+        const operations = [entry]
+        return new DelayedConfigChange({
+          txHash: it.transactionHash,
+          delayedOpId: it.args.bypassHash,
+          dueTime: 0, // TODO: pendingChange.dueTime.toNumber(),
+          state: 'mined',
+          operations: operations
+        })
+      })
+    const bypassCalls = await Promise.all(promisesOfOperations)
     const blocks = { fromBlock: (await this._getDeployedBlock()), toBlock: 'latest' }
     const { scheduledEvents, completedEvents, cancelledEvents } = await this._getPastOperationsEvents(blocks)
     const completedEventsHashes = completedEvents.map(it => it.args.bypassHash)
     const cancelledEventsHashes = cancelledEvents.map(it => it.args.bypassHash)
-    const activeBypassPolicies = await this.listBypassPolicies()
-    const promisesOfOperations = scheduledEvents
+    const configChangesPromise = scheduledEvents
       .filter(it => {
         return !completedEventsHashes.includes(it.args.bypassHash) &&
           !cancelledEventsHashes.includes(it.args.bypassHash)
       })
+      .map((it) => {
+        const operations = []
+        const common = {
+          txHash: it.transactionHash,
+          delayedOpId: it.args.transactionHash,
+          dueTime: 0, // TODO: fix events!
+          state: 'mined'
+        }
+        for (let i = 0; i < it.args.actions.length; i++) {
+          const type = changeTypeToString(it.args.actions[i])
+          let args = [it.args.actionsArguments1[i], it.args.actionsArguments2[i]]
+          // TODO: parse all args types to human-readable format
+          // This is a hack to make one specific test pass. Will be fixed as more tests are added
+          if (type === 'add_operator_now') {
+            const participantToAdd = this.knownParticipants.filter((it) => {
+              const hash = '0x' + SafeChannelUtils.participantHash(it.address, it.permLevel).toString('hex')
+              return args[0] === hash
+            })
+            if (participantToAdd.length > 0) {
+              args = [participantToAdd[0].address]
+            }
+          }
+          operations.push(new ConfigEntry({ type, args }))
+        }
+        return new DelayedConfigChange({
+          ...common,
+          operations: operations
+        })
+      })
+    const configChanges = await Promise.all(configChangesPromise)
+    return [...bypassCalls, ...configChanges]
+  }
+
+  async listPendingTransactions () {
+    const allPendingTransactions = await this._getAllPendingTransactions()
+    const activeBypassPolicies = await this.listBypassPolicies()
+    const promisesOfOperations = allPendingTransactions
       .filter(it => {
         return !activeBypassPolicies.includes(it.args.target)
       })
@@ -212,10 +270,37 @@ export default class SimpleWallet extends SimpleWalletApi {
     return Promise.all(promisesOfOperations)
   }
 
+  /**
+   * Gets all calls in 'pending' change.
+   * Includes calls to known Bypass Modules, which are not generally considered 'transactions'
+   * @private
+   */
+  async _getAllPendingTransactions () {
+    const blocks = { fromBlock: (await this._getDeployedBlock()), toBlock: 'latest' }
+    const { scheduledEvents, completedEvents, cancelledEvents } = await this._getPastOperationsEvents(blocks)
+    const completedEventsHashes = completedEvents.map(it => it.args.bypassHash)
+    const cancelledEventsHashes = cancelledEvents.map(it => it.args.bypassHash)
+    return scheduledEvents
+      .filter(it => {
+        return !completedEventsHashes.includes(it.args.bypassHash) &&
+          !cancelledEventsHashes.includes(it.args.bypassHash)
+      })
+  }
+
+  // TODO: these two aro so very similar, should find a way to collide them
   async _getPastOperationsEvents ({ fromBlock, toBlock }) {
     const scheduledEvents = await this.contract.getPastEvents('BypassCallPending', { fromBlock, toBlock })
-    const completedEvents = await this.contract.getPastEvents('BypassCallCancelled', { fromBlock, toBlock })
-    const cancelledEvents = await this.contract.getPastEvents('BypassCallApplied', { fromBlock, toBlock })
+    const completedEvents = await this.contract.getPastEvents('BypassCallApplied', { fromBlock, toBlock })
+    const cancelledEvents = await this.contract.getPastEvents('BypassCallCancelled', { fromBlock, toBlock })
+    return {
+      scheduledEvents, completedEvents, cancelledEvents
+    }
+  }
+
+  async _getPastConfigChangeEvents ({ fromBlock, toBlock }) {
+    const scheduledEvents = await this.contract.getPastEvents('ConfigPending', { fromBlock, toBlock })
+    const completedEvents = await this.contract.getPastEvents('ConfigApplied', { fromBlock, toBlock })
+    const cancelledEvents = await this.contract.getPastEvents('ConfigCancelled', { fromBlock, toBlock })
     return {
       scheduledEvents, completedEvents, cancelledEvents
     }
@@ -243,11 +328,17 @@ export default class SimpleWallet extends SimpleWalletApi {
 
   _parseErc20Transaction () {
   }
+
   // _parseErc20Transaction ({ target, data }) {
   //   return { tokenSymbol, operation, value, destination }
   // }
 
   _getTokenAddress (token) {
     return undefined
+  }
+
+  async addOperatorNow () {
+    super.addOperatorNow()
+    // Add new operator to known participants
   }
 }

@@ -42,6 +42,10 @@ export default class SimpleManagerApi extends EventEmitter {
     error('check if a wallet exists for this email)')
   }
 
+  async addDeviceNow ({ jwt, description }) {
+    error('ask backend to add the new device')
+  }
+
   async loadWallet () {
     error(
       'return a SimpleWallet object for the current google account (after it was created)')

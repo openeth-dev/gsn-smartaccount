@@ -36,6 +36,7 @@ contract SmartAccount is PermissionsLevel, GsnRecipient {
 
     event ConfigPending(bytes32 indexed transactionHash, address sender, uint32 senderPermsLevel, address booster, uint32 boosterPermsLevel, uint256 stateId, uint8[] actions, bytes32[] actionsArguments1, bytes32[] actionsArguments2);
     event ConfigCancelled(bytes32 indexed transactionHash, address sender);
+    event ConfigApplied(bytes32 indexed transactionHash, address sender);
     // TODO: add 'ConfigApplied' event - this is the simplest way to track what is applied and whatnot
     event ParticipantAdded(bytes32 indexed participant);
     event ParticipantRemoved(bytes32 indexed participant);

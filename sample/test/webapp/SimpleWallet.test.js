@@ -7,16 +7,11 @@ import Permissions from 'safechannels-contracts/src/js/Permissions'
 import Participant from 'safechannels-contracts/src/js/Participant'
 
 import SimpleWallet from '../../src/js/impl/SimpleWallet'
+import ConfigEntry from '../../src/js/etc/ConfigEntry'
 
 before(async function () {
 // TODO: get accounts
 })
-
-function makeConfig (base, smartAccount) {
-  const walletConfig = Object.assign({}, base)
-  walletConfig.contract = smartAccount
-  return walletConfig
-}
 
 describe('SimpleWallet', async function () {
   const whitelistPolicy = '0x1111111111111111111111111111111111111111'
@@ -28,8 +23,9 @@ describe('SimpleWallet', async function () {
   const expectedInitialConfig = require('./testdata/ExpectedInitialConfig')
   const expectedWalletInfoA = require('./testdata/ExpectedWalletInfoA')
   const sampleTransactionHistory = require('./testdata/SampleTransactionHistory')
+  const sampleConfigChangeHistoryA = require('./testdata/SampleConfigChangeHistoryA')
   const sampleTransactionsPendingList = require('./testdata/SampleTransactionsPendingList')
-
+  const sampleConfigChangesPendingList = require('./testdata/SampleConfigChangesPendingList')
   const walletSharedConfig = {
     participant:
       new Participant(from, Permissions.OwnerPermissions, 1),
@@ -40,31 +36,46 @@ describe('SimpleWallet', async function () {
     ]
   }
 
-  let config
-  let wallet
-  let smartAccount
-
-  before(async function () {
-    smartAccount = await FactoryContractInteractor.deploySmartAccountDirectly(from, ethNodeUrl)
-    expectedWalletInfoA.address = smartAccount.address
-    wallet = new SimpleWallet(makeConfig(walletSharedConfig, smartAccount))
-    config = SimpleWallet.getDefaultSampleInitialConfiguration({
-      backendAddress: backend,
-      operatorAddress: operator,
-      whitelistModuleAddress: whitelistPolicy
-    })
-  })
+  async function newTest (operator = null) {
+    const smartAccount = await FactoryContractInteractor.deploySmartAccountDirectly(from, ethNodeUrl)
+    const wallet = new SimpleWallet({ ...walletSharedConfig, contract: smartAccount })
+    if (operator !== null) {
+      const config = SimpleWallet.getDefaultSampleInitialConfiguration({
+        backendAddress: backend,
+        operatorAddress: operator,
+        whitelistModuleAddress: whitelistPolicy
+      })
+      await wallet.initialConfiguration(config)
+    }
+    return { smartAccount, wallet }
+  }
 
   describe('#_getDefaultSampleInitialConfiguration()', async function () {
     it('should return valid config given backend and whitelist addresses', async function () {
+      const config = SimpleWallet.getDefaultSampleInitialConfiguration({
+        backendAddress: backend,
+        operatorAddress: operator,
+        whitelistModuleAddress: whitelistPolicy
+      })
       assert.deepStrictEqual(config, expectedInitialConfig)
     })
   })
 
   describe('#initialConfiguration()', async function () {
+    let testContext
+    before(async function () {
+      testContext = await newTest()
+      expectedWalletInfoA.address = testContext.smartAccount.address
+    })
+
     it('should accept valid configuration and apply it on-chain', async function () {
-      await wallet.initialConfiguration(config)
-      const walletInfo = await wallet.getWalletInfo()
+      const config = SimpleWallet.getDefaultSampleInitialConfiguration({
+        backendAddress: backend,
+        operatorAddress: operator,
+        whitelistModuleAddress: whitelistPolicy
+      })
+      await testContext.wallet.initialConfiguration(config)
+      const walletInfo = await testContext.wallet.getWalletInfo()
       assert.deepStrictEqual(walletInfo, expectedWalletInfoA)
     })
 
@@ -72,10 +83,10 @@ describe('SimpleWallet', async function () {
   })
 
   describe('#listPendingTransactions()', async function () {
-    let stubbedWallet
+    let testContext
     before(async function () {
-      stubbedWallet = new SimpleWallet(makeConfig(walletSharedConfig, smartAccount))
-      stubbedWallet._getPastOperationsEvents = async function () {
+      testContext = await newTest()
+      testContext.wallet._getPastOperationsEvents = async function () {
         return {
           scheduledEvents: sampleTransactionHistory.filter(it => it.event === 'BypassCallPending'),
           completedEvents: sampleTransactionHistory.filter(it => it.event === 'BypassCallApplied'),
@@ -93,32 +104,47 @@ describe('SimpleWallet', async function () {
     //  a) emit it in event
     //  b) do not use static event list for tests as dueTime is always 0
     it('should return a correct list of pending operations', async function () {
-      const pending = await stubbedWallet.listPendingTransactions()
+      const pending = await testContext.wallet.listPendingTransactions()
       // eslint-disable-next-line node/no-deprecated-api
       assert.deepEqual(pending, sampleTransactionsPendingList)
     })
   })
 
-  describe('#transfer()', async function () {
-    let wallet
+  // TODO: same as for listPendingTransactions, cover all flows
+  describe('#listPendingConfigChanges()', async function () {
+    let testContext
     before(async function () {
-      const smartAccount = await FactoryContractInteractor.deploySmartAccountDirectly(from, ethNodeUrl)
-      wallet = new SimpleWallet(makeConfig(walletSharedConfig, smartAccount))
-      const myConfig = SimpleWallet.getDefaultSampleInitialConfiguration({
-        backendAddress: backend,
-        operatorAddress: from,
-        whitelistModuleAddress: whitelistPolicy
-      })
-      await wallet.initialConfiguration(myConfig)
+      testContext = await newTest()
+      testContext.wallet._getPastOperationsEvents = function () {
+        return {
+          scheduledEvents: sampleConfigChangeHistoryA.filter(it => it.event === 'ConfigPending'),
+          completedEvents: sampleConfigChangeHistoryA.filter(it => it.event === 'ConfigCancelled'),
+          cancelledEvents: sampleConfigChangeHistoryA.filter(it => it.event === 'ConfigApplied')
+        }
+      }
+    })
+
+    it('should return a correct list of pending config changes', async function () {
+      const pending = await testContext.wallet.listPendingConfigChanges()
+      // eslint-disable-next-line node/no-deprecated-api
+      assert.deepEqual(pending, sampleConfigChangesPendingList)
+    })
+  })
+
+  describe('#transfer()', async function () {
+    let testContext
+
+    before(async function () {
+      testContext = await newTest(from)
     })
 
     it('should initiate delayed ETH transfer', async function () {
       // refresh info to set the stateId. This is used to prevent UI-blockchain race condition (ask Dror)
-      await wallet.getWalletInfo()
+      await testContext.wallet.getWalletInfo()
       const destination = backend
       const amount = 1e5
-      await wallet.transfer({ destination, amount, token: 'ETH' })
-      const pending = await wallet.listPendingTransactions()
+      await testContext.wallet.transfer({ destination, amount, token: 'ETH' })
+      const pending = await testContext.wallet.listPendingTransactions()
       assert.strictEqual(pending.length, 1)
       assert.strictEqual(pending[0].destination, destination)
       assert.strictEqual(pending[0].value, amount.toString())
@@ -130,6 +156,27 @@ describe('SimpleWallet', async function () {
     it('should transfer ETH immediately to a whitelisted destination')
 
     it('should transfer ERC immediately to a whitelisted destination')
+  })
+
+  describe('#addOperatorNow()', async function () {
+    const newOperator = '0x3333333333333333333333333333333333333333'
+    let testContext
+
+    before(async function () {
+      testContext = await newTest(from)
+    })
+
+    it.skip('should initiate adding new operator', async function () {
+      await testContext.wallet.addOperatorNow(newOperator)
+      const pending = await testContext.wallet.listPendingTransactions()
+      assert.strictEqual(pending.length, 1)
+      assert.strictEqual(pending[0].operations.length, 1)
+      const expectedConfigChange = new ConfigEntry({
+        type: 'add_operator',
+        args: [newOperator]
+      })
+      assert.deepStrictEqual(pending[0].operations[0], expectedConfigChange)
+    })
   })
 
   describe('#cancelPending()', async function () {

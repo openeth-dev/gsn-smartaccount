@@ -108,4 +108,8 @@ export default class SimpleManager extends SimpleManagerApi {
     // TODO: check all needed fields of config
     return factoryConfig
   }
+
+  async addDeviceNow ({ jwt, description }) {
+    super.addDeviceNow({ jwt, description })
+  }
 }

@@ -130,6 +130,21 @@ backends.forEach(function ({ backend, name }) {
       })
     })
 
+    describe.skip('#addDeviceNow()', async function () {
+      it('should pass parameters to backend and handle http 200 OK code', async function () {
+        sm.backend = {
+          addDeviceNow: sinon.spy(() => { return { code: 200 } })
+        }
+        const jwt = {}
+        const description = '0000'
+        const { success, reason } = await sm.addDeviceNow({ jwt, description })
+        assert.strictEqual(success, true)
+        assert.strictEqual(reason, null)
+        expect(sm.backend.addDeviceNow.calledOnce).to.be.true
+        expect(sm.backend.addDeviceNow.firstCall.args[0]).to.eql({ jwt, description })
+      })
+    })
+
     describe('#createWallet()', async function () {
       let mockhub
       let factory
