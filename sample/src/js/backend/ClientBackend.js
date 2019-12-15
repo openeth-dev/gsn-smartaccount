@@ -11,11 +11,9 @@ export class Webclient {
 
   sendPromise (url, jsonRequestData) {
     // console.log('sending request:', url, JSON.stringify(jsonRequestData))
-    return this.provider.post(url, jsonRequestData)
-      .then(function (response) {
-        return response.data
-      })
-      .catch(err => Promise.reject(err.response ? err.response.data : { error: err.message }))
+    return this.provider.post(url, jsonRequestData).then(function (response) {
+      return response.data
+    }).catch(err => Promise.reject(err.response ? err.response.data : { error: err.message }))
   }
 }
 
@@ -38,9 +36,13 @@ export default class ClientBackend extends BEapi {
     return this._sendRequest(request)
   }
 
-  async addDeviceNow ({ jwt, newaddr }) {
-    const request = jsonrpc.request(Date.now(), this.addDeviceNow.name, { jwt, newaddr })
+  async addDeviceNow ({ jwt, title }) {
+    const request = jsonrpc.request(Date.now(), this.addDeviceNow.name, { jwt, title })
     return this._sendRequest(request)
+  }
+
+  async valdiataeAddDevice ({ jwt, addDeviceUrl }) {
+    throw new Error('validate that addDeviceUrl is the one sent by addDeviceNow. save validation in memory')
   }
 
   handleNotifications () {

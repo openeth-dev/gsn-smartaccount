@@ -18,8 +18,12 @@ export default class BEapi {
     error('validate fresh jwt, validate phone (from smsUrl). return { approvalData, smartAccountId }')
   }
 
-  async addDeviceNow ({ jwt, newaddr }) {
-    error('validate jwt, return "click to add" SMS')
+  async addDeviceNow ({ jwt, title }) {
+    error('validate jwt (contains address in nonce), return "click to add" SMS')
+  }
+
+  async valdiataeAddDevice ({ jwt, addDeviceUrl }) {
+    error('validate that addDeviceUrl is the one sent by addDeviceNow. save validation in memory')
   }
 
   handleNotifications () {
