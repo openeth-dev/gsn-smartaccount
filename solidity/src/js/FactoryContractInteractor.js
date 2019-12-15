@@ -9,6 +9,7 @@ const SmartAccountCreatedEvent = require('./events/SmartAccountCreatedEvent');
 const FreeRecipientSponsorABI = require('./generated/tests/MockGsnForwarder');
 const SmartAccountFactoryABI = require('./generated/SmartAccountFactory');
 const SmartAccountABI = require('./generated/SmartAccount');
+const ERC20ABI = require('./generated/tests/DAI');
 
 
 let SmartAccountFactory = TruffleContract({
@@ -153,6 +154,10 @@ class FactoryContractInteractor {
     static async getGsnForwarder({address, provider}) {
         FreeRecipientSponsorContract.setProvider(provider);
         return FreeRecipientSponsorContract.at(address)
+    }
+
+    static encodeErc20Call({destination, amount, operation}){
+        return new (new Web3()).eth.Contract(ERC20ABI).methods.transfer(destination, amount).encodeABI()
     }
 
     static async getCreatedSmartAccount({factoryAddress, blockNumber, sender, provider}) {

@@ -18,12 +18,18 @@ let permissions = {
     CanAddOperatorNow: 1 << 15,
 }
 
+let canCancel = permissions.CanCancelSpend | permissions.CanCancelConfigChanges | permissions.CanCancelBypassCall
+let canChangeConfig = permissions.CanUnfreeze | permissions.CanChangeParticipants | permissions.CanAddOperator | permissions.CanAddOperatorNow | permissions.CanChangeBypass | permissions.CanSetAcceleratedCalls | permissions.CanSetAddOperatorNow
+let ownerPermissions = (permissions.CanSpend | canCancel | permissions.CanFreeze | canChangeConfig | permissions.CanSignBoosts | permissions.CanExecuteBypassCall)
+let adminPermissions = permissions.CanExecuteBoosts | permissions.CanAddOperator
+let watchdogPermissions = canCancel | permissions.CanFreeze | permissions.CanApprove
+
 Object.assign(permissions, {
-    CanChangeConfig: permissions.CanUnfreeze | permissions.CanChangeParticipants | permissions.CanAddOperator | permissions.CanAddOperatorNow | permissions.CanChangeBypass | permissions.CanSetAcceleratedCalls | permissions.CanSetAddOperatorNow,
-    CanCancel: permissions.CanCancelSpend | permissions.CanCancelConfigChanges | permissions.CanCancelBypassCall,
-    OwnerPermissions: permissions.CanSpend | permissions.CanCancel | permissions.CanFreeze | permissions.CanChangeConfig | permissions.CanSignBoosts | permissions.CanExecuteBypassCall,
-    AdminPermissions: permissions.CanExecuteBoosts | permissions.CanAddOperator,
-    WatchdogPermissions: permissions.CanCancel | permissions.CanFreeze | permissions.CanApprove,
+    CanChangeConfig: canChangeConfig,
+    CanCancel: canCancel,
+    OwnerPermissions: ownerPermissions,
+    AdminPermissions: adminPermissions,
+    WatchdogPermissions: watchdogPermissions,
 });
 
 module.exports = Object.freeze(permissions);
