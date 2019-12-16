@@ -9,28 +9,3 @@ export const ChangeType = {
   ADD_OPERATOR: 7,
   ADD_OPERATOR_NOW: 8
 }
-
-export function changeTypeToString (val) {
-  switch (parseInt(val)) {
-    case ChangeType.ADD_PARTICIPANT:
-      return 'add_participant'
-    case ChangeType.REMOVE_PARTICIPANT:
-      return 'remove_participant'
-    case ChangeType.ADD_BYPASS_BY_TARGET:
-      return 'add_bypass_by_target'
-    case ChangeType.ADD_BYPASS_BY_METHOD:
-      return 'add_bypass_by_method'
-    case ChangeType.SET_ACCELERATED_CALLS:
-      return 'set_accelerated_calls'
-    case ChangeType.SET_ADD_OPERATOR_NOW:
-      return 'set_add_operator_now'
-    case ChangeType.UNFREEZE:
-      return 'unfreeze'
-    case ChangeType.ADD_OPERATOR:
-      return 'add_operator'
-    case ChangeType.ADD_OPERATOR_NOW:
-      return 'add_operator_now'
-    default:
-      throw Error(`Unknown change type: ${val}`)
-  }
-}
