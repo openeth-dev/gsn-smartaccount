@@ -50,7 +50,7 @@ export default class SimpleManagerMock extends SimpleManagerApi {
     return this.deployedWalletAddress != null
   }
 
-  async validatePhone ({ jwt, phone }) {
+  async validatePhone ({ jwt, phoneNumber }) {
     if (!jwt) {
       throw new Error('not logged in')
     }
@@ -59,10 +59,10 @@ export default class SimpleManagerMock extends SimpleManagerApi {
     }
     // TODO: use mock SMS service..
     setTimeout(() => {
-      const smsVerificationCode = 'v' + phone
+      const smsVerificationCode = 'v' + phoneNumber
       const smsUrl = 'http://server.com/?verify=' + smsVerificationCode
       this.smsApi.sendSms({
-        phone: phone,
+        phone: phoneNumber,
         message: 'To verify your email,\n' +
           'enter verification code: ' + smsVerificationCode + '\n' +
           'or click here: ' + smsUrl + '\n'
@@ -70,8 +70,8 @@ export default class SimpleManagerMock extends SimpleManagerApi {
     }, 10)
   }
 
-  async createWallet ({ jwt, phone, smsVerificationCode }) {
-    if (smsVerificationCode !== 'v' + phone) {
+  async createWallet ({ jwt, phoneNumber, smsVerificationCode }) {
+    if (smsVerificationCode !== 'v' + phoneNumber) {
       throw new Error('wrong verification code')
     }
 

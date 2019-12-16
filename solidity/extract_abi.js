@@ -27,6 +27,10 @@ function compileFile(contractFile, c) {
                 '*': {
                     '*': ['*']
                 }
+            },
+            optimizer: {
+                enabled: true,
+                runs: 1 //optimized for deployment. higher value optimize for runtime.
             }
         }
   }

@@ -35,8 +35,8 @@ export default class SimpleManager extends SimpleManagerApi {
     return this.accountApi.getOwner()
   }
 
-  async validatePhone ({ jwt, phone }) {
-    const response = await this.backend.validatePhone({ jwt, phone })
+  async validatePhone ({ jwt, phoneNumber }) {
+    const response = await this.backend.validatePhone({ jwt, phoneNumber })
     if (response.code === 200) {
       return { success: true, reason: null }
     } else {
@@ -75,14 +75,15 @@ export default class SimpleManager extends SimpleManagerApi {
     this.smartAccountFactory = await SmartAccountFactoryContract.at(factoryAddress)
   }
 
-  async createWallet ({ jwt, phone, smsVerificationCode }) {
-    if (!jwt || !phone || !smsVerificationCode) {
+  async createWallet ({ jwt, phoneNumber, smsVerificationCode }) {
+    if (!jwt || !phoneNumber || !smsVerificationCode) {
       throw Error('All parameters are required')
     }
     if (this.smartAccountFactory === undefined) {
       await this._initializeFactory(this.factoryConfig)
     }
-    const response = await this.backend.createAccount({ jwt: jwt, phoneNumber: phone, smsCode: smsVerificationCode })
+
+    const response = await this.backend.createAccount({ jwt: jwt, phoneNumber: phoneNumber, smsCode: smsVerificationCode })
 
     const sender = await this.getOwner()
     // TODO: next commit: make 'FactoryContractInteractor.deployNewSmartAccount' do this job

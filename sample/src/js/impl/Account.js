@@ -31,6 +31,10 @@ export default class Account extends AccountApi {
     this.storage = storageProps(storage)
   }
 
+  async enableApp({appTitle, appUrl}) {
+    error( "ask the user to enable the given app/url. once enabled, returns immediately")
+  }
+
   async getEmail () {
     return this.storage.email
   }
@@ -94,10 +98,11 @@ export default class Account extends AccountApi {
       kid: '5b5dd9be40b5e1cf121e3573c8e49f12527183d3',
       typ: 'JWT'
     })).toString('base64')
-    const aud = ''
+    const aud = '202746986880-u17rbgo95h7ja4fghikietupjknd1bln.apps.googleusercontent.com'
+    const azp = aud
     const iss = 'accounts.google.com'
     const part2 = Buffer.from(JSON.stringify(
-      { aud, iss, email, email_verified: true, nonce, iat, exp })).toString('base64')
+      { aud, azp, iss, email, email_verified: true, nonce, iat, exp })).toString('base64')
     const part3 = 'SIG'
     return [part1, part2, part3].join('.')
   }

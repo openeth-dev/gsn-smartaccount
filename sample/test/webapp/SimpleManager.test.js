@@ -19,6 +19,8 @@ import { MockStorage } from '../mocks/MockStorage'
 import Account from '../../src/js/impl/Account'
 import { hookRpcProvider } from '../../src/js/utils/hookRpcProvider'
 
+describe( '#SimpleManager.test', ()=>{
+
 chai.use(chaiAsPromised)
 chai.should()
 
@@ -243,4 +245,6 @@ backends.forEach(function ({ backend, name }) {
     describe('#recoverWallet()', async function () {
     })
   })
+})
+
 })
