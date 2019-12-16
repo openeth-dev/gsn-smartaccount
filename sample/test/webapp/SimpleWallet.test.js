@@ -115,7 +115,7 @@ describe('SimpleWallet', async function () {
     let testContext
     before(async function () {
       testContext = await newTest()
-      testContext.wallet._getPastOperationsEvents = function () {
+      testContext.wallet._getPastConfigChangeEvents = function () {
         return {
           scheduledEvents: sampleConfigChangeHistoryA.filter(it => it.event === 'ConfigPending'),
           completedEvents: sampleConfigChangeHistoryA.filter(it => it.event === 'ConfigCancelled'),
@@ -164,15 +164,16 @@ describe('SimpleWallet', async function () {
 
     before(async function () {
       testContext = await newTest(from)
+      await testContext.wallet.getWalletInfo()
     })
 
-    it.skip('should initiate adding new operator', async function () {
+    it('should initiate adding new operator', async function () {
       await testContext.wallet.addOperatorNow(newOperator)
-      const pending = await testContext.wallet.listPendingTransactions()
+      const pending = await testContext.wallet.listPendingConfigChanges()
       assert.strictEqual(pending.length, 1)
       assert.strictEqual(pending[0].operations.length, 1)
       const expectedConfigChange = new ConfigEntry({
-        type: 'add_operator',
+        type: 'add_operator_now',
         args: [newOperator]
       })
       assert.deepStrictEqual(pending[0].operations[0], expectedConfigChange)

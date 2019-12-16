@@ -1,7 +1,7 @@
 {
   "options": {
-    "allowAddOperatorNow": false,
-    "allowAcceleratedCalls": false
+    "allowAddOperatorNow": true,
+    "allowAcceleratedCalls": true
   },
   "operators": [
     "0x3333333333333333333333333333333333333333"

@@ -70,7 +70,7 @@ export default class SimpleWalletApi {
     error('return list of pending ops from memory')
   }
 
-  async addOperatorNow () {
+  async addOperatorNow (newOperator) {
     error('initialize add operator flow')
   }
 }
