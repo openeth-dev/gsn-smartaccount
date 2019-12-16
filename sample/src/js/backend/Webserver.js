@@ -36,7 +36,6 @@ export default class Webserver {
       if (!BEapi.prototype[req.body.method]) { throw new Error('no such method: ' + req.body.method) }
 
       const func = this.backend[req.body.method]
-      console.log('webserver: calling', req.body.method, req.body.params)
       const res = await func.apply(this.backend, [req.body.params]) || {}
 
       status = jsonrpc.success(req.body.id, res)
@@ -46,8 +45,6 @@ export default class Webserver {
       stack = stack.replace(/(rootHandler.*)[\s\S]*/, '$1')
       status = jsonrpc.error(req.body.id, new jsonrpc.JsonRpcError(stack, -125))
     }
-    console.log('webserver: response', req.body.method, JSON.stringify(status))
-
     res.send(status)
   }
 }

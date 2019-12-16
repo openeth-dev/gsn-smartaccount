@@ -8,6 +8,7 @@ import SimpleManagerApi from '../api/SimpleManager.api.js'
 
 import Participant from 'safechannels-contracts/src/js/Participant'
 import Permissions from 'safechannels-contracts/src/js/Permissions'
+import { hex2buf } from '../utils/utils'
 
 // API of the main factory object.
 export default class SimpleManager extends SimpleManagerApi {
@@ -55,7 +56,7 @@ export default class SimpleManager extends SimpleManagerApi {
     if (!email) { return null }
 
     const smartAccountId = await this.backend.getSmartAccountId({ email })
-    const addr = await this.smartAccountFactory.knownSmartAccounts(smartAccountId)
+    const addr = await this.smartAccountFactory.knownSmartAccounts(hex2buf(smartAccountId))
     if (addr.match(/^0x0*$/)) { return null }
     return addr
   }

@@ -1,25 +1,19 @@
 import BEapi from '../api/BE.api'
-import { buf2hex } from '../utils/utils'
+import { Account } from './AccountManager'
 
 const phone = require('phone')
 const gauth = require('google-auth-library')
 const abi = require('ethereumjs-abi')
 
-export class Account {
-  constructor ({ email, phone, verificationCode, verified }) {
-    Object.assign(this, { email, phone, verificationCode, verified })
-  }
-}
-
 export class Backend extends BEapi {
-  constructor ({ smsManager, audience, keyManager, factoryAddress, sponsorAddress }) {
+  constructor ({ smsManager, audience, keyManager, accountManager, factoryAddress, sponsorAddress }) {
     super()
     Object.assign(this, {
       smsManager,
-      accounts: {},
       audience,
       gclient: new gauth.OAuth2Client(audience),
       keyManager,
+      accountManager,
       factoryAddress,
       sponsorAddress
     })
@@ -49,19 +43,20 @@ export class Backend extends BEapi {
     const ticket = await this._verifyJWT(jwt)
 
     const email = ticket.getPayload().email
+    const smartAccountId = this._getSmartAccountId(email)
     if (this.smsManager.getSmsCode({ phoneNumber: formattedPhone, email, expectedSmsCode: smsCode }) === smsCode) {
-      this.accounts[email] = new Account({
+      const newAccount = new Account({
+        accountId: smartAccountId,
         email: email,
         phone: formattedPhone,
-        verificationCode: smsCode,
         verified: true
       })
+      this.accountManager.putAccount({ account: newAccount })
     } else {
       throw new Error(`invalid sms code: ${smsCode}`)
     }
 
-    const smartAccountId = this._getSmartAccountId(email)
-    const approvalData = this._generateApproval({ smartAccountId: smartAccountId })
+    const approvalData = this._generateApproval({ smartAccountId: Buffer.from(smartAccountId, 'hex') })
     return { approvalData: '0x' + approvalData.toString('hex'), smartAccountId: '0x' + smartAccountId.toString('hex') }
   }
 
@@ -80,15 +75,15 @@ export class Backend extends BEapi {
   /**
    *
    * @param email - user email address type string
-   * @returns {Buffer} - keccak256(email) as SmartAccount id, to be verified by SmartAccountFactory on-chain during SmartAccount creation.
+   * @returns {string} - keccak256(email) as SmartAccount id, to be verified by SmartAccountFactory on-chain during SmartAccount creation.
    * @private
    */
   async getSmartAccountId ({ email }) {
-    return buf2hex(this._getSmartAccountId(email))
+    return this._getSmartAccountId(email)
   }
 
   _getSmartAccountId (email) {
-    return abi.soliditySHA3(['string'], [email])
+    return abi.soliditySHA3(['string'], [email]).toString('hex')
   }
 
   _generateApproval ({ smartAccountId }) {

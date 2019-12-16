@@ -1,12 +1,13 @@
 /* global describe before afterEach it */
 
-import { Account, Backend } from '../../src/js/backend/Backend'
+import { Backend } from '../../src/js/backend/Backend'
 import { assert } from 'chai'
 import SMSmock from '../../src/js/mocks/SMS.mock'
 import { hookBackend } from './testutils'
 import { KeyManager } from '../../src/js/backend/KeyManager'
 import { SmsManager } from '../../src/js/backend/SmsManager'
 import crypto from 'crypto'
+import { Account, AccountManager } from '../../src/js/backend/AccountManager'
 
 const ethUtils = require('ethereumjs-util')
 const abi = require('ethereumjs-abi')
@@ -21,6 +22,7 @@ describe('Backend', async function () {
   let smsProvider
   let smsManager
   let keyManager
+  let accountManager
   const jwt = require('./testJwt').jwt
   let smsCode
   const phoneNumber = '+972541234567'
@@ -31,12 +33,14 @@ describe('Backend', async function () {
     smsProvider = new SMSmock()
     smsManager = new SmsManager({ smsProvider, secretSMSCodeSeed: crypto.randomBytes(32) })
     keyManager = new KeyManager({ ecdsaKeyPair: keypair })
+    accountManager = new AccountManager()
 
     backend = new Backend(
       {
         smsManager,
         audience,
-        keyManager
+        keyManager,
+        accountManager
       })
 
     // hooking google-api so we don't actually send jwt tot their server
@@ -142,14 +146,15 @@ describe('Backend', async function () {
       hash = abi.soliditySHA3(['string', 'bytes32'], ['\x19Ethereum Signed Message:\n32', hash])
       const backendExpectedAddress = ethUtils.publicToAddress(ethUtils.ecrecover(hash, sig.v, sig.r, sig.s))
       assert.equal('0x' + backendExpectedAddress.toString('hex'), backend.keyManager.Address())
+      const accountId = backend._getSmartAccountId(email)
       const account = new Account(
         {
+          accountId: accountId,
           email: email,
           phone: phone(phoneNumber),
-          verificationCode: smsCode.toString(),
           verified: true
         })
-      const actualAccount = backend.accounts[email]
+      const actualAccount = backend.accountManager.getAccountById({ accountId })
       assert.deepEqual(actualAccount, account)
     })
   })

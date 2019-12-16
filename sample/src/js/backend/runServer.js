@@ -9,6 +9,7 @@ import SMSmock from '../mocks/SMS.mock'
 import { KeyManager } from './KeyManager'
 import { hookBackend } from '../../../test/backend/testutils'
 import { SmsManager } from './SmsManager'
+import { AccountManager } from './AccountManager'
 import crypto from 'crypto'
 
 const port = process.argv[2]
@@ -18,11 +19,13 @@ const smsProvider = new SMSmock()
 const smsManager = new SmsManager({ smsProvider, secretSMSCodeSeed: crypto.randomBytes(32) })
 const keypair = KeyManager.newEphemeralKeypair()
 const keyManager = new KeyManager({ ecdsaKeyPair: keypair })
+const accountManager = new AccountManager()
 const backend = new Backend(
   {
     smsManager,
     audience: '202746986880-u17rbgo95h7ja4fghikietupjknd1bln.apps.googleusercontent.com',
     keyManager,
+    accountManager,
     factoryAddress,
     sponsorAddress
   })
