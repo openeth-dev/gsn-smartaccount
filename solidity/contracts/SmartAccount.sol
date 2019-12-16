@@ -34,8 +34,8 @@ contract SmartAccount is PermissionsLevel, GsnRecipient {
 
     //***** events
 
-    event ConfigPending(bytes32 indexed transactionHash, address sender, uint32 senderPermsLevel, address booster, uint32 boosterPermsLevel, uint256 stateId, uint8[] actions, bytes32[] actionsArguments1, bytes32[] actionsArguments2);
-    event ConfigCancelled(bytes32 indexed transactionHash, address sender);
+    event ConfigPending(bytes32 indexed delayedOpId, address sender, uint32 senderPermsLevel, address booster, uint32 boosterPermsLevel, uint256 stateId, uint8[] actions, bytes32[] actionsArguments1, bytes32[] actionsArguments2, uint dueTime);
+    event ConfigCancelled(bytes32 indexed delayedOpId, address sender);
     event ConfigApplied(bytes32 indexed transactionHash, address sender);
     // TODO: add 'ConfigApplied' event - this is the simplest way to track what is applied and whatnot
     event ParticipantAdded(bytes32 indexed participant);
@@ -49,9 +49,9 @@ contract SmartAccount is PermissionsLevel, GsnRecipient {
     event BypassByMethodAdded(bytes4 method, BypassPolicy indexed bypass);
     event BypassByTargetRemoved(address target, BypassPolicy indexed bypass);
     event BypassByMethodRemoved(bytes4 method, BypassPolicy indexed bypass);
-    event BypassCallPending(bytes32 indexed bypassHash, uint256 stateId, address sender, uint32 senderPermsLevel, address target, uint256 value, bytes msgdata);
-    event BypassCallCancelled(bytes32 indexed bypassHash, address sender);
-    event BypassCallApplied(bytes32 indexed bypassHash, bool status);
+    event BypassCallPending(bytes32 indexed delayedOpId, uint256 stateId, address sender, uint32 senderPermsLevel, address target, uint256 value, bytes msgdata, uint dueTime);
+    event BypassCallCancelled(bytes32 indexed delayedOpId, address sender);
+    event BypassCallApplied(bytes32 indexed delayedOpId, bool status);
     event BypassCallExecuted(bool status);
     event AcceleratedCAllSet(bool status);
     event AddOperatorNowSet(bool status);

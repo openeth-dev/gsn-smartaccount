@@ -1,3 +1,5 @@
+import asyncForEach from 'async-await-foreach'
+
 import Permissions from 'safechannels-contracts/src/js/Permissions'
 import SafeChannelUtils from 'safechannels-contracts/src/js/SafeChannelUtils'
 import FactoryContractInteractor from 'safechannels-contracts/src/js/FactoryContractInteractor'
@@ -10,6 +12,16 @@ import ConfigEntry from '../etc/ConfigEntry'
 import { changeTypeToString } from '../etc/ChangeType'
 
 const erc20Methods = ['0xa9059cbb', '0x095ea7b3']
+const BypassEventNames = {
+  pending: 'BypassCallPending',
+  applied: 'BypassCallApplied',
+  cancelled: 'BypassCallCancelled'
+}
+const ConfigEventNames = {
+  pending: 'ConfigPending',
+  applied: 'ConfigApplied',
+  cancelled: 'ConfigCancelled'
+}
 
 export default class SimpleWallet extends SimpleWalletApi {
   /**
@@ -156,13 +168,13 @@ export default class SimpleWallet extends SimpleWalletApi {
   }
 
   async listPendingConfigChanges () {
-    const allPendingTransactions = await this._getAllPendingTransactions()
+    const pastTransactionEvents = await this._getPastEvents({ type: 'transaction' })
     const activeBypassPolicies = await this.listBypassPolicies()
-    const promisesOfOperations = allPendingTransactions
+    const bypassCalls = pastTransactionEvents.pendingEvents
       .filter(it => {
         return activeBypassPolicies.includes(it.args.target)
       })
-      .map(async (it) => {
+      .map((it) => {
         // TODO: if needed, support other types of bypass policy config changes; parse parameters
         const entry = new ConfigEntry({
           type: 'whitelist_change',
@@ -178,16 +190,8 @@ export default class SimpleWallet extends SimpleWalletApi {
           operations: operations
         })
       })
-    const bypassCalls = await Promise.all(promisesOfOperations)
-    const blocks = { fromBlock: (await this._getDeployedBlock()), toBlock: 'latest' }
-    const { scheduledEvents, completedEvents, cancelledEvents } = await this._getPastConfigChangeEvents(blocks)
-    const completedEventsHashes = completedEvents.map(it => it.args.bypassHash)
-    const cancelledEventsHashes = cancelledEvents.map(it => it.args.bypassHash)
-    const configChangesPromise = scheduledEvents
-      .filter(it => {
-        return !completedEventsHashes.includes(it.args.bypassHash) &&
-          !cancelledEventsHashes.includes(it.args.bypassHash)
-      })
+    const pastConfigEvents = await this._getPastEvents({ type: 'config' })
+    const configChanges = pastConfigEvents.pendingEvents
       .map((it) => {
         const operations = []
         const common = {
@@ -217,93 +221,86 @@ export default class SimpleWallet extends SimpleWalletApi {
           operations: operations
         })
       })
-    const configChanges = await Promise.all(configChangesPromise)
     return [...bypassCalls, ...configChanges]
   }
 
   async listPendingTransactions () {
-    const allPendingTransactions = await this._getAllPendingTransactions()
+    const pastTransactionEvents = await this._getPastEvents({ type: 'transaction' })
+    const allPendingTransactions = pastTransactionEvents.pendingEvents
     const activeBypassPolicies = await this.listBypassPolicies()
-    const promisesOfOperations = allPendingTransactions
+    return allPendingTransactions
       .filter(it => {
         return !activeBypassPolicies.includes(it.args.target)
       })
-      .map(
-        async (it) => {
-          const isEtherValuePassed = it.value !== 0
-          const isDataPassed = it.args.data !== undefined && it.args.data.length > 0
-          const isErc20Method = isDataPassed && erc20Methods.includes(it.args.data.substr(0, 10))
-          // TODO: get all data from events, save roundtrips here
-          const pendingChange = await this.contract.getPendingChange(it.args.bypassHash)
-          const common = {
-            txHash: it.transactionHash,
-            delayedOpId: it.args.bypassHash,
-            dueTime: pendingChange.dueTime.toNumber(),
-            state: 'mined'
-          }
-          if (isEtherValuePassed && !isDataPassed) {
-            return new DelayedTransfer({
-              ...common,
-              operation: 'transfer',
-              tokenSymbol: 'ETH',
-              value: it.args.value.toString(),
-              destination: it.args.target
-            })
-          } else if (isErc20Method) {
-            const parsedErc20 = this._parseErc20Transaction({
-              target: it.args.target,
-              data: it.args.msgdata
-            })
-            return new DelayedTransfer({
-              ...common,
-              ...parsedErc20
-            })
-          } else {
-            return new DelayedContractCall({
-              ...common,
-              value: it.args.value,
-              destination: it.args.target,
-              data: it.args.data
-            })
-          }
+      .map((it) => {
+        const isEtherValuePassed = it.value !== 0
+        const isDataPassed = it.args.data !== undefined && it.args.data.length > 0
+        const isErc20Method = isDataPassed && erc20Methods.includes(it.args.data.substr(0, 10))
+        // TODO: get all data from events, save roundtrips here
+        const common = {
+          txHash: it.transactionHash,
+          delayedOpId: it.args.delayedOpId,
+          dueTime: it.args.dueTime,
+          state: 'mined'
         }
+        if (isEtherValuePassed && !isDataPassed) {
+          return new DelayedTransfer({
+            ...common,
+            operation: 'transfer',
+            tokenSymbol: 'ETH',
+            value: it.args.value.toString(),
+            destination: it.args.target
+          })
+        } else if (isErc20Method) {
+          const parsedErc20 = this._parseErc20Transaction({
+            target: it.args.target,
+            data: it.args.msgdata
+          })
+          return new DelayedTransfer({
+            ...common,
+            ...parsedErc20
+          })
+        } else {
+          return new DelayedContractCall({
+            ...common,
+            value: it.args.value,
+            destination: it.args.target,
+            data: it.args.data
+          })
+        }
+      }
       )
-    return Promise.all(promisesOfOperations)
   }
 
-  /**
-   * Gets all calls in 'pending' change.
-   * Includes calls to known Bypass Modules, which are not generally considered 'transactions'
-   * @private
-   */
-  async _getAllPendingTransactions () {
-    const blocks = { fromBlock: (await this._getDeployedBlock()), toBlock: 'latest' }
-    const { scheduledEvents, completedEvents, cancelledEvents } = await this._getPastOperationsEvents(blocks)
-    const completedEventsHashes = completedEvents.map(it => it.args.bypassHash)
-    const cancelledEventsHashes = cancelledEvents.map(it => it.args.bypassHash)
-    return scheduledEvents
-      .filter(it => {
-        return !completedEventsHashes.includes(it.args.bypassHash) &&
-          !cancelledEventsHashes.includes(it.args.bypassHash)
-      })
-  }
-
-  // TODO: these two aro so very similar, should find a way to collide them
-  async _getPastOperationsEvents ({ fromBlock, toBlock }) {
-    const scheduledEvents = await this.contract.getPastEvents('BypassCallPending', { fromBlock, toBlock })
-    const completedEvents = await this.contract.getPastEvents('BypassCallApplied', { fromBlock, toBlock })
-    const cancelledEvents = await this.contract.getPastEvents('BypassCallCancelled', { fromBlock, toBlock })
-    return {
-      scheduledEvents, completedEvents, cancelledEvents
+  async _getRawPastEvents (type, fromBlock, toBlock) {
+    let eventNames
+    if (type === 'config') {
+      eventNames = ConfigEventNames
+    } else if (type === 'transaction') {
+      eventNames = BypassEventNames
+    } else {
+      throw Error(`unknown operation type: ${type}`)
     }
+    // TODO: remove the ||, support only the most used flow
+    const _fromBlock = fromBlock || this.deployedBlock || 0
+    const _toBlock = toBlock || 'latest'
+    const scheduledEvents = await this.contract.getPastEvents(eventNames.pending, { _fromBlock, _toBlock })
+    const completedEvents = await this.contract.getPastEvents(eventNames.applied, { _fromBlock, _toBlock })
+    const cancelledEvents = await this.contract.getPastEvents(eventNames.cancelled, { _fromBlock, _toBlock })
+    return { scheduledEvents, completedEvents, cancelledEvents }
   }
 
-  async _getPastConfigChangeEvents ({ fromBlock, toBlock }) {
-    const scheduledEvents = await this.contract.getPastEvents('ConfigPending', { fromBlock, toBlock })
-    const completedEvents = await this.contract.getPastEvents('ConfigApplied', { fromBlock, toBlock })
-    const cancelledEvents = await this.contract.getPastEvents('ConfigCancelled', { fromBlock, toBlock })
+  async _getPastEvents ({ type, fromBlock, toBlock }) {
+    const { scheduledEvents, completedEvents, cancelledEvents } = await this._getRawPastEvents(type, fromBlock, toBlock)
+    const completedEventsHashes = completedEvents.map(it => it.args.delayedOpId)
+    const cancelledEventsHashes = cancelledEvents.map(it => it.args.delayedOpId)
+    const pendingEvents = scheduledEvents
+      .filter(it => {
+        return !completedEventsHashes.includes(it.args.delayedOpId) &&
+          !cancelledEventsHashes.includes(it.args.delayedOpId)
+      })
     return {
-      scheduledEvents, completedEvents, cancelledEvents
+      scheduledEvents, completedEvents, cancelledEvents, pendingEvents
     }
   }
 
@@ -343,6 +340,28 @@ export default class SimpleWallet extends SimpleWalletApi {
       {
         from: this.participant.address
       })
-    // Add new operator to known participants
+    // TODO: Add new operator to known participants
+  }
+
+  /*
+      function applyConfig(
+          uint32 senderPermsLevel,
+          uint8[] memory actions,
+          bytes32[] memory args1,
+          bytes32[] memory args2,
+          uint256 scheduledStateId,
+          address scheduler,
+          uint32 schedulerPermsLevel,
+          address booster,
+          uint32 boosterPermsLevel)
+   */
+  async applyAllPendingOperations () {
+    // const pendingTransactions = await this.listPendingTransactions()
+    const pendingConfigChanges = await this.listPendingConfigChanges()
+    await asyncForEach(pendingConfigChanges, async (it) => {
+      this.contract.applyConfig(
+        this.participant.permLevel
+      )
+    })
   }
 }

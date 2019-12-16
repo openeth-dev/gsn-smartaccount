@@ -73,4 +73,8 @@ export default class SimpleWalletApi {
   async addOperatorNow (newOperator) {
     error('initialize add operator flow')
   }
+
+  async applyAllPendingOperations () {
+    error('apply all')
+  }
 }

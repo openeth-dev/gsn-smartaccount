@@ -86,7 +86,7 @@ describe('SimpleWallet', async function () {
     let testContext
     before(async function () {
       testContext = await newTest()
-      testContext.wallet._getPastOperationsEvents = async function () {
+      testContext.wallet._getRawPastEvents = async function () {
         return {
           scheduledEvents: sampleTransactionHistory.filter(it => it.event === 'BypassCallPending'),
           completedEvents: sampleTransactionHistory.filter(it => it.event === 'BypassCallApplied'),
@@ -115,7 +115,7 @@ describe('SimpleWallet', async function () {
     let testContext
     before(async function () {
       testContext = await newTest()
-      testContext.wallet._getPastConfigChangeEvents = function () {
+      testContext.wallet._getRawPastEvents = function () {
         return {
           scheduledEvents: sampleConfigChangeHistoryA.filter(it => it.event === 'ConfigPending'),
           completedEvents: sampleConfigChangeHistoryA.filter(it => it.event === 'ConfigCancelled'),
