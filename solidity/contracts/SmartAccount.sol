@@ -295,8 +295,9 @@ contract SmartAccount is PermissionsLevel, GsnRecipient {
         uint32 boosterPermsLevel
     ) internal {
         bytes32 transactionHash = Utilities.transactionHash(actions, args1, args2, stateNonce, sender, senderPermsLevel, booster, boosterPermsLevel);
-        pendingChanges[transactionHash] = PendingChange(SafeMath.add(now, delays[extractLevel(senderPermsLevel)]), new bytes32[](0));
-        emit ConfigPending(transactionHash, sender, senderPermsLevel, booster, boosterPermsLevel, stateNonce, actions, args1, args2);
+        uint dueTime = SafeMath.add(now, delays[extractLevel(senderPermsLevel)]);
+        pendingChanges[transactionHash] = PendingChange(dueTime, new bytes32[](0));
+        emit ConfigPending(transactionHash, sender, senderPermsLevel, booster, boosterPermsLevel, stateNonce, actions, args1, args2, dueTime);
         stateNonce++;
     }
 
@@ -528,8 +529,9 @@ contract SmartAccount is PermissionsLevel, GsnRecipient {
             delay = delays[extractLevel(senderPermsLevel)];
         }
         bytes32 bypassCallHash = Utilities.bypassCallHash(stateNonce, sender, senderPermsLevel, target, value, encodedFunction);
-        pendingBypassCalls[bypassCallHash] = PendingChange(SafeMath.add(now, delay), new bytes32[](0));
-        emit BypassCallPending(bypassCallHash, stateNonce, sender, senderPermsLevel, target, value, encodedFunction);
+        uint dueTime = SafeMath.add(now, delay);
+        pendingBypassCalls[bypassCallHash] = PendingChange(dueTime, new bytes32[](0));
+        emit BypassCallPending(bypassCallHash, stateNonce, sender, senderPermsLevel, target, value, encodedFunction, dueTime);
 
         stateNonce++;
     }
