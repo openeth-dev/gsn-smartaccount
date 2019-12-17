@@ -31,8 +31,8 @@ export default class Account extends AccountApi {
     this.storage = storageProps(storage)
   }
 
-  async enableApp({appTitle, appUrl}) {
-    error( "ask the user to enable the given app/url. once enabled, returns immediately")
+  async enableApp ({ appTitle, appUrl }) {
+    throw new Error('ask the user to enable the given app/url. once enabled, returns immediately')
   }
 
   async getEmail () {

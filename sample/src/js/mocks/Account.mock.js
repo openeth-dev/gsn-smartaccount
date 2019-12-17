@@ -8,8 +8,8 @@ export default class AccountMock extends AccountApi {
     this.storage = this.options.localStorage || {}
   }
 
-  async enableApp({appTitle, appUrl}) {
-    console.log( `Get user's permission enable ${appTitle} at url ${appUrl}`)
+  async enableApp ({ appTitle, appUrl }) {
+    console.log(`Get user's permission enable ${appTitle} at url ${appUrl}`)
   }
 
   async getEmail () {

@@ -86,5 +86,4 @@ export default class AccountProxy {
       this.iframe.postMessage({ method, args, id }, '*')
     })
   }
-
 }

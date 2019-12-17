@@ -1,4 +1,4 @@
-/* global describe it */
+/* global describe it before after */
 
 import { assert, expect } from 'chai'
 import { MockStorage } from '../mocks/MockStorage'
@@ -11,20 +11,33 @@ import FactoryContractInteractor from 'safechannels-contracts/src/js/FactoryCont
 import SMSmock from '../../src/js/mocks/SMS.mock'
 import { startBackendServer, stopBackendServer } from '../utils/testBackendServer'
 
+import axios from 'axios'
 const relayHubAddress = '0xD216153c06E857cD7f72665E0aF1d7D82172F494'
 
 describe.only('SafeAccount flows', () => {
+  const relayUrl = 'http://localhost:8090'
+  let relayAddr
+
+  before('check "gsn-dock-relay" is active', async function () {
+    try {
+      const res = await axios.get(relayUrl + '/getaddr')
+      relayAddr = res.data.RelayServerAddress
+    } catch (e) {
+      console.log('skipped flow test - no active "gsn-dock-relay"')
+      this.skip()
+    }
+  })
   describe('create flow with account', async () => {
     const verbose = false
     const userEmail = 'user@email.com'
-    let mgr, sms
+    let mgr
     let jwt, phoneNumber
 
     let backendAddress
 
     before('start backend', async () => {
       backendAddress = await startBackendServer({ port: 8887 })
-      console.log( "started server address: ", backendAddress)
+      console.log('started server address: ', backendAddress)
     })
 
     after('stop backend', async () => {
@@ -32,8 +45,7 @@ describe.only('SafeAccount flows', () => {
     })
 
     before('create manager', async () => {
-
-      let ethNodeUrl = 'http://localhost:8545'
+      const ethNodeUrl = 'http://localhost:8545'
       const web3provider = new Web3.providers.HttpProvider(ethNodeUrl)
       const web3 = new Web3(web3provider)
       const accounts = await web3.eth.getAccounts()
@@ -42,8 +54,13 @@ describe.only('SafeAccount flows', () => {
       const backend = new ClientBackend({ serverURL: 'http://localhost:8887/' })
 
       const sponsor = await FactoryContractInteractor.deploySponsor(from, relayHubAddress, ethNodeUrl)
-      await sponsor.relayHubDeposit({value:2e18, from})
-      await sponsor.relayHubDeposit({value:2e18, from})
+      await sponsor.relayHubDeposit({ value: 2e18, from })
+      await sponsor.relayHubDeposit({ value: 2e18, from })
+
+      if (await web3.eth.getBalance(relayAddr) < 3e18) {
+        await web3.eth.sendTransaction({ from, value: 3e18, to: relayAddr })
+        console.log('funded relay')
+      }
 
       const forwarderAddress = await sponsor.contract.methods.getGsnForwarder().call()
       const forward = await FactoryContractInteractor.getGsnForwarder({
@@ -54,18 +71,13 @@ describe.only('SafeAccount flows', () => {
       await factory.addTrustedSigners([backendAddress], { from })
 
       const relayOptions = {
-        verbose:true,
-        // httpSend: new RelayServerMock({
-        //   mockHubContract: mockhub,
-        //   relayServerAddress: from,
-        //   web3provider: web3provider
-        // }),
+        verbose,
         sponsor: sponsor.address
       }
       const storage = new MockStorage()
       const acc = await SafeAccount.init({
         network: web3provider,
-        account: new Account(storage), //override default proxy
+        account: new Account(storage), // override default proxy
         relayOptions
       })
 
@@ -79,8 +91,6 @@ describe.only('SafeAccount flows', () => {
         backend,
         factoryConfig
       })
-
-      sms = mgr.smsApi
     })
 
     it('new browser attempt login', async () => {
@@ -93,8 +103,7 @@ describe.only('SafeAccount flows', () => {
       const { jwt: _jwt, email, address } = await mgr.googleLogin()
       jwt = _jwt
 
-      console.log('jwt=', JSON.parse(Buffer.from(jwt.split('.')[1], 'base64').toString()))
-      expect(jwt).to.match(/\w+/) //just verify there's something..
+      expect(jwt).to.match(/\w+/) // just verify there's something..
       assert.equal(email, userEmail) // only in mock...
       assert.equal(email, await mgr.getEmail())
       assert.equal(address, await mgr.getOwner())
@@ -111,12 +120,12 @@ describe.only('SafeAccount flows', () => {
 
       const smsVerificationCode = msg.message.match(/verif.*?(\d+)/)[1]
 
-      await mgr.createWallet({ jwt, phoneNumber, smsVerificationCode })
+      const wallet = await mgr.createWallet({ jwt, phoneNumber, smsVerificationCode })
+      console.log('wallet=', await wallet.getWalletInfo())
     })
 
     it('after wallet creation', async function () {
       const wallet = await mgr.loadWallet()
-      if ( !wallet ) this.skip()
 
       assert.equal((await wallet.getWalletInfo()).address, await mgr.getWalletAddress())
 

@@ -169,7 +169,7 @@ contract SmartAccount is PermissionsLevel, GsnRecipient {
         allowAddOperatorNow = _allowAddOperatorNow;
         requiredApprovalsPerLevel = _requiredApprovalsPerLevel;
 
-        emit SmartAccountInitialized(initialParticipants, delays, requiredApprovalsPerLevel);
+        emit  SmartAccountInitialized(initialParticipants, delays, requiredApprovalsPerLevel);
         for (uint8 i = 0; i < bypassTargets.length; i++) {
             bypassPoliciesByTarget[bypassTargets[i]] = BypassPolicy(bypassModules[i]);
         }

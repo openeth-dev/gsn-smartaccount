@@ -9,7 +9,7 @@ export default class SMSmock extends SMSapi {
   constructor (props) {
     super(props)
 
-    //remove sms from previous run..
+    // remove sms from previous run..
     if (fs.existsSync(SMS_TMP_FILE_NAME)) {
       fs.unlinkSync(SMS_TMP_FILE_NAME)
     }
@@ -21,8 +21,7 @@ export default class SMSmock extends SMSapi {
   }
 
   static readSms () {
-    if (!fs.existsSync(SMS_TMP_FILE_NAME))
-      return null
+    if (!fs.existsSync(SMS_TMP_FILE_NAME)) { return null }
     const val = fs.readFileSync(SMS_TMP_FILE_NAME, { encoding: 'utf8' })
     fs.unlinkSync(SMS_TMP_FILE_NAME)
     if (val == null) return null
@@ -40,7 +39,7 @@ export default class SMSmock extends SMSapi {
         reject(Error('timed-out waiting for sms'))
       }
 
-      setTimeout(()=>this.asyncReadSms(), interval)
+      setTimeout(() => this.asyncReadSms(), interval)
     })
   }
 }

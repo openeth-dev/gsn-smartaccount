@@ -56,9 +56,6 @@ export default class SimpleManager extends SimpleManagerApi {
     return this.wallet != null
   }
 
-  async loadWallet () {
-  }
-
   async recoverWallet ({ owner, email }) {
     error('trigger recover flow')
   }
@@ -94,12 +91,19 @@ export default class SimpleManager extends SimpleManagerApi {
       gas: 1e8,
       approvalData: approvalData
     })
+
+    return this.loadWallet()
+  }
+
+  async loadWallet () {
+    const sender = await this.getOwner()
+
     const smartAccount = await FactoryContractInteractor.getCreatedSmartAccount(
       {
         factoryAddress: this.factoryConfig.factoryAddress,
         sender: sender,
         // TODO: just pass the event from the receipt!
-        blockNumber: receipt.blockNumber,
+        blockNumber: 1,
         provider: this.factoryConfig.provider
       })
     return new SimpleWallet({ contract: smartAccount, participant: {}, knownParticipants: [] })

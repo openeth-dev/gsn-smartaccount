@@ -1,0 +1,231 @@
+#!/usr/bin/env node
+
+Web3=require( 'web3')
+
+const abiDecoder = require('abi-decoder');
+fs=require('fs')
+network='https://ropsten.infura.io/v3/c3422181d0594697a38defe7706a1e5b'
+network='http://localhost:8545'
+// network='https://mainnet.infura.io/v3/c3422181d0594697a38defe7706a1e5b'
+
+web3 = new Web3(new Web3.providers.HttpProvider(network))
+
+folders= ('./build/contracts/:' + (process.env.FOLDERS||"")).split(":")
+console.log( "folders=",folders )
+folders.filter(folder=>folder!="").forEach(folder=>
+  fs.readdirSync(folder).filter( c=>c.indexOf('.json')>0 ).forEach( c => {
+	abi = JSON.parse(fs.readFileSync(folder+c)).abi
+	abiDecoder.addABI(abi)
+  })
+)
+
+//pre-defined names. better to decode from events...
+names = {
+    '0xd216153c06e857cd7f72665e0af1d7d82172f494' : 'RelayHub'
+    // '0x92d170be226f6b9de332f85d1f3cc4cd3c041745': "identOwner",
+    // '0x8cee114e982aa0e99d4fd803d07cff05c3c59ae7': "faucet"
+}
+
+valByName=Object.keys(names).map(k=>({name:k, val:names[k]})).
+        reduce(function(map, obj) {
+            map[obj.name] = obj.val;
+            return map;
+        }, {})
+
+function getname(val) {
+    let name = names[ val.toLowerCase() ]
+    return name ? `${name} (${val})` : val
+}
+
+function addname(name, val) {
+    if ( !val )
+        return console.log( "WARNING: ignore null value for name ", name)
+    val = val.toLowerCase()
+    if ( valByName[name] && valByName[name] != val ) {
+        return console.log( "ERROR: already named",name,valByName[name], "!=", val)
+    }
+    if ( names[val] && names[val] != name ) {
+        console.log( "WARNING: namechange ",names[val]+"=>", name, "for",val )
+    }
+    names[val] = name
+}
+fromindex=process.argv[2] || 'latest'
+toindex=process.argv[3] || 'latest'
+
+function strvalue(p) {
+    if ( p.type==='string')
+        return '"'+p.value+'"'
+    return p.value
+}
+
+function setval(obj, key, parent) {
+    val = obj[key]
+    if ( typeof(val) === 'object' && val !== null) {
+        addnames(val, obj)
+        return
+    }
+    if ( key === 'encodedFunction' ) {
+        relayedCall = formatMethod(val)
+        if ( relayedCall && relayedCall.name != '<constructor>' ) {
+            if ( relayedCall.name === 'callRecipient') {
+                relayedCall = Object.assign({
+                    recipient: relayedCall.params.recipient,
+                },formatMethod(relayedCall.params.func))
+            }
+            parent._relayedCall = addnames(relayedCall, obj)
+        }
+
+    } else
+
+    if ( typeof(val)=='string' ) {
+        obj[key] = getname(val) || val
+    }
+}
+
+function addnames(obj, parent) {
+    if ( typeof(obj) === 'object' && obj !== null )  {
+
+        if ( obj.name === 'stake' ) {
+            addname( 'relay', obj.params.relayaddr )
+            addname( 'relayOwner', obj.from )
+            addname( "RelayHub", obj.to)
+        }
+
+        //first, decode known names:
+        if ( obj.name === 'relayToTarget' ) {
+            addname('relay', obj.from )
+            addname('RelayHub', obj.to )
+            addname('sponsor', obj.params.to )
+        }
+        if ( obj.name == 'relayHubDeposit') {
+            addname( 'sponsor', obj.to)
+            addname( 'faucet', obj.from)
+        }
+        if ( obj.event === 'Deposited' ) {
+            addname( 'RelayHub', obj.address )
+        }
+        if ( obj.event === 'IdentityCreated' ) {
+            addname( 'ident', obj.args.newIdentity )
+        }
+        if ( obj.event === 'Transfer'  ) {
+            addname('token', obj.address)
+        }
+
+        Object.keys(obj).forEach( key=>{
+            setval(obj,key, parent)
+        })
+    }
+
+    return obj
+}
+
+function formatTxMethod(tx) {
+    return formatMethod(tx.input, tx)
+}
+
+function formatMethod(input,tx) {
+    let j = abiDecoder.decodeMethod(input)
+    if ( !j ) {
+        if ( !tx ) tx={}
+        return {
+            txblock: tx['blockNumber'] + "/" + tx['transactionIndex'],
+            from: tx['from'],
+            to: tx['to'],
+            name: "<constructor>",
+        }
+    }
+    m = {
+        name: j.name,
+        params: j.params.map( p=> ({name:p.name, val:strvalue(p)})).
+        reduce(function(map, obj) {
+            map[obj.name] = obj.val;
+            return map;
+        }, {})
+    }
+    if ( !tx )
+        return m
+    return Object.assign({
+            txblock: tx.blockNumber + "/" + tx.transactionIndex,
+            from: tx.from,
+            to: tx.to,
+        },m)
+
+    //one-liner string, but it doesn't look nicer on dump...
+    return j.name+"("+ j.params.map(p=> p.name+":"+strvalue(p)).join(", ") +")"
+}
+
+function dumpEvent(e) {
+    if ( !e || !e.events )
+        return "not event: "+e
+    console.log( addnames({
+        event:e.name, address:e.address,
+        args: e.events.reduce(function(map, obj) {
+            map[obj.name] = obj.value;
+            return map;
+        }, {})
+    }) )
+}
+
+async function decodeTx(txhash) {
+	let tx = await web3.eth.getTransaction(txhash)
+    try {
+
+//	if ( tx.to.indexOf('82172') == -1 ) { return } //only relayhub methods
+
+    if ( tx.input==='0x') {
+        console.log( addnames({
+            txblock: tx.blockNumber + "/" + tx.transactionIndex,
+	    name:'<move ether>',from:tx.from, to:tx.to, value:tx.value}) )
+    } else {
+        console.log(addnames( formatTxMethod(tx)))
+    }
+
+    rcpt = await web3.eth.getTransactionReceipt(txhash)
+	abiDecoder.decodeLogs(rcpt.logs).forEach(dumpEvent)
+    } catch( e) {
+        console.log( "==== failed", e, tx)
+    }
+}
+
+function parseIndex(index,cur) {
+    
+    if ( index==='latest' ) index=0
+    if ( index<=0 ) {
+        index = cur+index
+    }
+    return index
+}
+
+const sleepAsync = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+async function run() {
+
+    cur = await web3.eth.getBlockNumber()
+    index=parseIndex(fromindex, cur)
+    last = parseIndex(toindex,cur)
+
+    while (true) {
+        for (; index <= last; index++) {
+            block = await web3.eth.getBlock(index)
+            console.log("## block ", block.number)
+            for (t in block.transactions) {
+                await decodeTx(block.transactions[t])
+            }
+        }
+        if ( !process.env.C ) break;
+        while (true) {
+            await sleepAsync(2000)
+            let newblock = await web3.eth.getBlockNumber()
+            if ( newblock!= last ) {
+                last=newblock;
+                break;
+            }
+        }
+
+    }
+
+    console.log("\n==== Names =\n", names)
+}
+
+run()
+

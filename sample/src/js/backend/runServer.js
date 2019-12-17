@@ -32,13 +32,12 @@ function hookBackend (backend) {
   //   }
   // }
 
-  const verifyFn = async function({idToken, audience}) {
+  const verifyFn = async function ({ idToken, audience }) {
     const parsed = JSON.parse(Buffer.from(idToken.split('.')[1], 'base64'))
-    if ( parsed.aud != audience )
-      throw new Error( 'unexpected JWT aud:'+parse.aud)
+    if (parsed.aud !== audience) { throw new Error('unexpected JWT aud:' + parsed.aud) }
 
     return {
-      getPayload: ()=> parsed
+      getPayload: () => parsed
     }
   }
   backend.secretSMSCodeSeed = Buffer.from('f'.repeat(64), 'hex')
@@ -60,7 +59,7 @@ if (process.argv[3] === '--dev') {
   hookBackend(backend)
 }
 
-console.log( 'server address='+keypair.address)
+console.log('server address=' + keypair.address)
 
 const server = new Webserver({ port, backend })
 server.start()

@@ -58,11 +58,11 @@ export default class SafeAccount {
         const sig = await acc.account.signMessageHash(hash)
         cb(null, sig)
       },
-      eth_accounts: async function( cb ) {
-        //TODO: should we return OWNER account, or SAFE account ?
+      eth_accounts: async function (cb) {
+        // TODO: should we return OWNER account, or SAFE account ?
         // currently, operations are "managed" ops, and thus require operator account.
-        //once we become a "ProxyProvider", we want to use the getWallet account instead.
-        return [ await acc.account.getOwner() ]
+        // once we become a "ProxyProvider", we want to use the getWallet account instead.
+        return [await acc.account.getOwner()]
       }
     })
     acc.provider = await SponsorProvider.init(signerProvider, {
