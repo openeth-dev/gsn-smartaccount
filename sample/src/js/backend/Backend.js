@@ -25,6 +25,14 @@ export class Backend extends BEapi {
     })
   }
 
+  async getAddresses () {
+    return {
+      watchdog: this.ecdsaKeyPair.address,
+      admin: this.ecdsaKeyPair.address,
+      factory: null // should be the factory address..
+    }
+  }
+
   async validatePhone ({ jwt, phoneNumber }) {
     const formattedPhone = this._formatPhoneNumber(phoneNumber)
     this._validateJWTFormat(jwt)

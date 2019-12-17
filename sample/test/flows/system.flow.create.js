@@ -18,7 +18,7 @@ const relayHubAddress = '0xD216153c06E857cD7f72665E0aF1d7D82172F494'
 
 const verbose = false
 
-describe('SafeAccount flows', () => {
+describe.only('System flow: Create Account', () => {
   const relayUrl = 'http://localhost:8090'
   let relayAddr
 
@@ -39,7 +39,7 @@ describe('SafeAccount flows', () => {
     let backendAddress
 
     before('start backend', async () => {
-      backendAddress = await startBackendServer({ port: 8887 })
+      await startBackendServer({ port: 8887 })
       console.log('started server address: ', backendAddress)
     })
 
@@ -55,6 +55,8 @@ describe('SafeAccount flows', () => {
       const from = accounts[0]
 
       const backend = new ClientBackend({ serverURL: 'http://localhost:8887/' })
+
+      backendAddress = (await backend.getAddresses()).watchdog
 
       const sponsor = await FactoryContractInteractor.deploySponsor(from, relayHubAddress, ethNodeUrl)
       await sponsor.relayHubDeposit({ value: 2e18, from })

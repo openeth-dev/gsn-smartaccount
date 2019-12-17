@@ -26,6 +26,11 @@ export default class ClientBackend extends BEapi {
     this.serverURL = serverURL
   }
 
+  async getAddresses () {
+    const request = jsonrpc.request(Date.now(), this.getAddresses.name, {})
+    return this._sendRequest(request)
+  }
+
   async validatePhone ({ jwt, phoneNumber }) {
     const request = jsonrpc.request(Date.now(), this.validatePhone.name, { jwt, phoneNumber })
     return this._sendRequest(request)
