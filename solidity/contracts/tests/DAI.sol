@@ -191,4 +191,26 @@ contract DAI is IERC20 {
         _burn(account, value);
         emit Approval(account, msg.sender, _allowed[account][msg.sender]);
     }
+
+    /* parts of ERC20Detailed interface, plus setters (don't want to touch the constructor) */
+    /* https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC20/ERC20Detailed.sol */
+    string _symbol;
+
+    function setSymbol(string memory symbol) public {
+        _symbol = symbol;
+    }
+
+    function symbol() public view returns (string memory) {
+        return _symbol;
+    }
+
+    uint8 _decimals;
+
+    function setDecimals(uint8 decimals) public {
+        _decimals = decimals;
+    }
+
+    function decimals() public view returns (uint8) {
+        return _decimals;
+    }
 }

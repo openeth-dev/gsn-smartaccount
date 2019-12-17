@@ -101,7 +101,7 @@ export default class SimpleManager extends SimpleManagerApi {
         blockNumber: receipt.blockNumber,
         provider: this.factoryConfig.provider
       })
-    return new SimpleWallet({ contract: smartAccount, participant: {}, knownParticipants: [] })
+    return new SimpleWallet({ contract: smartAccount, participant: {}, knownParticipants: [], knownTokens: [] })
   }
 
   _validateConfig (factoryConfig) {
