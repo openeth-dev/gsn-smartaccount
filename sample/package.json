@@ -1,10 +1,10 @@
 {
-  "name": "sc-sample",
+  "name": "safeaccount-sample",
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
     "mocha": "mocha --require esm --recursive test --exit",
-    "test": "npx run-with-testrpc -d -a 15 -l 100000000 --allowUnlimitedContractSize 'yarn mocha'",
+    "test": "npx run-with-testrpc -d -a 15 -e 1e6 -g 1e8 -l 1e12 --allowUnlimitedContractSize 'yarn mocha'",
     "ci": "yarn run lint && yarn test",
     "lint": "yarn run lint:js",
     "lint:fix": "yarn run lint:js:fix",

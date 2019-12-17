@@ -125,12 +125,12 @@ describe('#SimpleManager.test', () => {
             validatePhone: sinon.spy(() => { return { code: 200 } })
           }
           const jwt = {}
-          const phone = '0000'
-          const { success, reason } = await sm.validatePhone({ jwt, phone })
+          const phoneNumber = '0000'
+          const { success, reason } = await sm.validatePhone({ jwt, phoneNumber })
           assert.strictEqual(success, true)
           assert.strictEqual(reason, null)
           expect(sm.backend.validatePhone.calledOnce).to.be.true
-          expect(sm.backend.validatePhone.firstCall.args[0]).to.eql({ jwt, phone })
+          expect(sm.backend.validatePhone.firstCall.args[0]).to.eql({ jwt, phoneNumber })
         })
       })
 
@@ -142,7 +142,7 @@ describe('#SimpleManager.test', () => {
         let web3provider
 
         const jwt = require('../backend/testJwt').jwt
-        const phone = '+1-541-754-3010'
+        const phoneNumber = '+1-541-754-3010'
 
         before(async function () {
           web3provider = new Web3.providers.HttpProvider(ethNodeUrl)
@@ -214,11 +214,11 @@ describe('#SimpleManager.test', () => {
           it('should deploy a new SmartAccount using SponsorProvider', async function () {
             const minuteTimestamp = backendTestInstance._getMinuteTimestamp({})
             const smsVerificationCode = backendTestInstance._calcSmsCode({
-              phoneNumber: backendTestInstance._formatPhoneNumber(phone),
+              phoneNumber: backendTestInstance._formatPhoneNumber(phoneNumber),
               email: 'shahaf@tabookey.com',
               minuteTimeStamp: minuteTimestamp
             })
-            const wallet = await sm.createWallet({ jwt, phone, smsVerificationCode })
+            const wallet = await sm.createWallet({ jwt, phoneNumber, smsVerificationCode })
             const operator = (await sm.getOwner()).toLowerCase()
             const creator = (await wallet.contract.creator()).toLowerCase()
             assert.strictEqual(creator, operator)

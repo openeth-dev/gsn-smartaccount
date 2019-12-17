@@ -7,8 +7,6 @@ import Webserver from './Webserver'
 import { Backend } from './Backend'
 import Wallet from 'ethereumjs-wallet'
 import SMSmock from '../mocks/SMS.mock'
-import { LoginTicket } from 'google-auth-library/build/src/auth/loginticket'
-import ticket from '../../../test/backend/ticket.json'
 
 function newEphemeralKeypair () {
   const a = Wallet.generate()

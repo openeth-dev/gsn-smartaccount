@@ -99,9 +99,9 @@ export default class SimpleManager extends SimpleManagerApi {
       gas: 1e8,
       approvalData: approvalData
     })
+    this.firstBlock = receipt.blockNumber
 
     return this.loadWallet()
-
   }
 
   async loadWallet () {
@@ -112,7 +112,7 @@ export default class SimpleManager extends SimpleManagerApi {
         factoryAddress: this.factoryConfig.factoryAddress,
         sender: owner,
         // TODO: just pass the event from the receipt!
-        blockNumber: 1,
+        blockNumber: this.firstBlock || 1,
         provider: this.factoryConfig.provider
       })
 

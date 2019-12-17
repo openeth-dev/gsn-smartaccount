@@ -16,9 +16,9 @@ import SimpleWallet from '../../src/js/impl/SimpleWallet'
 
 const relayHubAddress = '0xD216153c06E857cD7f72665E0aF1d7D82172F494'
 
-const verbose = true
+const verbose = false
 
-describe.only('SafeAccount flows', () => {
+describe('SafeAccount flows', () => {
   const relayUrl = 'http://localhost:8090'
   let relayAddr
 
@@ -27,7 +27,7 @@ describe.only('SafeAccount flows', () => {
       const res = await axios.get(relayUrl + '/getaddr')
       relayAddr = res.data.RelayServerAddress
     } catch (e) {
-      console.log('skipped flow test - no active "gsn-dock-relay"')
+      console.warn('skipped flow test - no active "gsn-dock-relay"')
       this.skip()
     }
   })
@@ -95,7 +95,7 @@ describe.only('SafeAccount flows', () => {
         factoryConfig
       })
 
-      //hack: to fill knownParticipants..
+      // hack: to fill knownParticipants..
       mgr.backendAddress = backendAddress
     })
 
@@ -135,7 +135,7 @@ describe.only('SafeAccount flows', () => {
       const config = SimpleWallet.getDefaultSampleInitialConfiguration({
         backendAddress,
         operatorAddress: await mgr.getOwner(),
-        whitelistModuleAddress: '0x' + '1'.repeat(40) //whitelistPolicy
+        whitelistModuleAddress: '0x' + '1'.repeat(40) // whitelistPolicy
       })
       await wallet.initialConfiguration(config)
 
@@ -145,9 +145,9 @@ describe.only('SafeAccount flows', () => {
     it('after wallet creation', async function () {
       const wallet = await mgr.loadWallet()
 
-      let info = await wallet.getWalletInfo()
+      const info = await wallet.getWalletInfo()
       assert.deepEqual(info.operators, [await mgr.getOwner()])
-      assert.equal( info.unknownGuardians, 0)
+      assert.equal(info.unknownGuardians, 0)
     })
   })
 })

@@ -36,7 +36,7 @@ export default class SimpleWallet extends SimpleWalletApi {
       configuration.bypassMethods,
       configuration.bypassModules,
       {
-        from: this.participant.address,
+        from: this.participant.address
       }
     )
   }
@@ -91,7 +91,7 @@ export default class SimpleWallet extends SimpleWalletApi {
     const allowAcceleratedCalls = await this.contract.allowAcceleratedCalls()
     const allowAddOperatorNow = await this.contract.allowAddOperatorNow()
     const deployedBlock = await this._getDeployedBlock()
-    const initEvent = (await this.contract.getPastEvents('SmartAccountInitialized', { fromBlock: 1, toBlock: 'latest' }))[0]
+    const initEvent = (await this.contract.getPastEvents('SmartAccountInitialized', { fromBlock: deployedBlock, toBlock: 'latest' }))[0]
     const args = initEvent.args
     const foundParticipants = this.knownParticipants.filter((it) => {
       const hash = '0x' + SafeChannelUtils.participantHash(it.address, it.permLevel).toString('hex')

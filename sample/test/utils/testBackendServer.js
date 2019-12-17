@@ -4,7 +4,8 @@ let ls
 
 export async function startBackendServer ({ port = 8888 }) {
   return new Promise((resolve, reject) => {
-    ls = spawn('node', ['-r', 'esm', __dirname + '/../../../sample/src/js/backend/runServer.js', port, '--dev'])
+    const folder = __dirname
+    ls = spawn('node', ['-r', 'esm', folder + '/../../../sample/src/js/backend/runServer.js', port, '--dev'])
     let serverAddress
     ls.stdout.on('data', (data) => {
       process.stdout.write(`stdout: ${data}`)
