@@ -24,6 +24,10 @@ const ConfigEventNames = {
   cancelled: 'ConfigCancelled'
 }
 
+const dueFilter = function (blockchainTime) {
+  return (it) => it.args.dueTime.toNumber() < blockchainTime
+}
+
 export default class SimpleWallet extends SimpleWalletApi {
   /**
    *
@@ -162,8 +166,7 @@ export default class SimpleWallet extends SimpleWalletApi {
   }
 
   async listTokens () {
-    const provider = this.contract.contract.currentProvider
-    const web3 = new Web3(provider)
+    const { provider, web3 } = this._getWeb3()
     const smartAccount = this.contract.address
     const ethBalance = await web3.eth.getBalance(smartAccount)
     const tokenBalances = await Promise.all(this.knownTokens.map(
@@ -187,6 +190,12 @@ export default class SimpleWallet extends SimpleWalletApi {
       { balance: ethBalance, decimals: 18, symbol: 'ETH' },
       ...tokenBalances
     ]
+  }
+
+  _getWeb3 () {
+    const provider = this.contract.contract.currentProvider
+    const web3 = new Web3(provider)
+    return { provider, web3 }
   }
 
   async _getDeployedBlock () {
@@ -314,9 +323,9 @@ export default class SimpleWallet extends SimpleWalletApi {
     // TODO: remove the ||, support only the most used flow
     const _fromBlock = fromBlock || this.deployedBlock || 0
     const _toBlock = toBlock || 'latest'
-    const scheduledEvents = await this.contract.getPastEvents(eventNames.pending, { _fromBlock, _toBlock })
-    const completedEvents = await this.contract.getPastEvents(eventNames.applied, { _fromBlock, _toBlock })
-    const cancelledEvents = await this.contract.getPastEvents(eventNames.cancelled, { _fromBlock, _toBlock })
+    const scheduledEvents = await this.contract.getPastEvents(eventNames.pending, { fromBlock: _fromBlock, toBlock: _toBlock })
+    const completedEvents = await this.contract.getPastEvents(eventNames.applied, { fromBlock: _fromBlock, toBlock: _toBlock })
+    const cancelledEvents = await this.contract.getPastEvents(eventNames.cancelled, { fromBlock: _fromBlock, toBlock: _toBlock })
     return { scheduledEvents, completedEvents, cancelledEvents }
   }
 
@@ -347,7 +356,7 @@ export default class SimpleWallet extends SimpleWalletApi {
       initialDelays: [86400, 172800],
       allowAcceleratedCalls: true,
       allowAddOperatorNow: true,
-      requiredApprovalsPerLevel: [0, 1],
+      requiredApprovalsPerLevel: [1, 0],
       bypassTargets: [],
       bypassMethods: ['0xa9059cbb', '0x095ea7b3'],
       bypassModules: [whitelistModuleAddress, whitelistModuleAddress]
@@ -366,7 +375,7 @@ export default class SimpleWallet extends SimpleWalletApi {
   }
 
   async addOperatorNow (newOperator) {
-    await this.contract.addOperatorNow(this.participant.permLevel, newOperator, this.stateId,
+    return this.contract.addOperatorNow(this.participant.permLevel, newOperator, this.stateId,
       {
         from: this.participant.address
       })
@@ -377,26 +386,46 @@ export default class SimpleWallet extends SimpleWalletApi {
     return this.backend.validateAddOperatorNow({ jwt, url })
   }
 
-  /*
-      function applyConfig(
-          uint32 senderPermsLevel,
-          uint8[] memory actions,
-          bytes32[] memory args1,
-          bytes32[] memory args2,
-          uint256 scheduledStateId,
-          address scheduler,
-          uint32 schedulerPermsLevel,
-          address booster,
-          uint32 boosterPermsLevel)
-   */
+  // TODO: add support for 'approval required' transactions!
   async applyAllPendingOperations () {
-    // const pendingTransactions = await this.listPendingTransactions()
-    const pendingConfigChanges = await this.listPendingConfigChanges()
-    await asyncForEach(pendingConfigChanges, async (it) => {
-      this.contract.applyConfig(
-        this.participant.permLevel
+    const block = await this._getWeb3().web3.eth.getBlock('latest')
+    const blockchainTime = block.timestamp
+    const configEvents = await this._getPastEvents({ type: 'config' })
+    const dueConfigChanges = configEvents.pendingEvents.filter(dueFilter(blockchainTime))
+    const applyReceipts = []
+    await asyncForEach(dueConfigChanges, async (it) => {
+      const applyConfig = await this.contract.applyConfig(
+        this.participant.permLevel,
+        it.args.actions,
+        it.args.actionsArguments1,
+        it.args.actionsArguments2,
+        it.args.stateId,
+        it.args.sender,
+        it.args.senderPermsLevel.toNumber(),
+        it.args.booster,
+        it.args.boosterPermsLevel.toNumber(),
+        { from: this.participant.address }
       )
+      applyReceipts.push(applyConfig)
     })
+    const transferEvents = await this._getPastEvents({ type: 'transaction' })
+    const dueTransactions = transferEvents.pendingEvents.filter(dueFilter(blockchainTime))
+    await asyncForEach(dueTransactions, async (it) => {
+      const encodedFunction = it.args.msgdata || []
+      const applyCall = await this.contract.applyBypassCall(
+        this.participant.permLevel,
+        it.args.sender,
+        it.args.senderPermsLevel,
+        it.args.stateId,
+        it.args.target,
+        it.args.value,
+        encodedFunction,
+        { from: this.participant.address }
+      )
+      applyReceipts.push(applyCall)
+    })
+
+    return applyReceipts
   }
 
   _addKnownToken (address) {

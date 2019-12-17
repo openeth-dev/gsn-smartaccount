@@ -32,6 +32,7 @@
       "booster": "0x0000000000000000000000000000000000000000",
       "boosterPermsLevel": "0",
       "stateId": "31",
+      "dueTime": "100",
       "actions": [
         "8"
       ],

@@ -5,6 +5,7 @@ import assert from 'assert'
 import FactoryContractInteractor from 'safechannels-contracts/src/js/FactoryContractInteractor'
 import Permissions from 'safechannels-contracts/src/js/Permissions'
 import Participant from 'safechannels-contracts/src/js/Participant'
+import SafeChannelUtils from 'safechannels-contracts/src/js/SafeChannelUtils'
 
 import SimpleWallet from '../../src/js/impl/SimpleWallet'
 import ConfigEntry from '../../src/js/etc/ConfigEntry'
@@ -15,6 +16,8 @@ before(async function () {
 // TODO: get accounts
 })
 
+// TODO: the main TODO of this test: instead of json files with test data, create a class that would 'generate'
+//  required transaction history; also, stop mocking functions inside class under test - move stub logic to interactor
 describe('SimpleWallet', async function () {
   const whitelistPolicy = '0x1111111111111111111111111111111111111111'
   const backend = '0x2222222222222222222222222222222222222222'
@@ -241,6 +244,29 @@ describe('SimpleWallet', async function () {
     it('should return up-to-date balances of all known tokens', async function () {
       const balances = await testContext.wallet.listTokens()
       assert.deepStrictEqual(balances, expectedTokenBalances)
+    })
+  })
+
+  describe('#applyAllPendingOperations()', async function () {
+    let testContext
+    before(async function () {
+      testContext = await newTest(from)
+      await testContext.wallet.getWalletInfo()
+      // TODO: migrate to usage of wallet methods after implemented
+      await testContext.wallet.contract.changeConfiguration(
+        testContext.wallet.participant.permLevel,
+        [0], [operator], [operator], testContext.wallet.stateId,
+        { from: testContext.wallet.participant.address })
+      await testContext.wallet.getWalletInfo()
+      await testContext.wallet.transfer({ destination: operator, token: 'ETH', amount: 1e5 })
+      const timeGap = 60 * 60 * 24 * 2 + 10
+      await SafeChannelUtils.increaseTime(timeGap, testContext.wallet._getWeb3().web3)
+    })
+
+    it('should apply all operations that are due', async function () {
+      const applied = await testContext.wallet.applyAllPendingOperations()
+      // TODO: test more precisely
+      assert.strictEqual(applied.length, 2)
     })
   })
 })

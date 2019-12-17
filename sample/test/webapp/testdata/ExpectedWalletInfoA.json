@@ -22,11 +22,11 @@
   "levels": [
     {
       "delay": "86400",
-      "requiredApprovals": 0
+      "requiredApprovals": 1
     },
     {
       "delay": "172800",
-      "requiredApprovals": 1
+      "requiredApprovals": 0
     }
   ]
 }

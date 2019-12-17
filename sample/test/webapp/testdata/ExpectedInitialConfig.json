@@ -19,5 +19,5 @@
     "0x67bc56c5803119fe35293776b020975fe0691e2890b44956f2934c95c0727d82",
     "0x7cb3e4310827deaab62c9b804e7ab5da8df2dc7be5ad3f8fdb8dde9c93d32498"
   ],
-  "requiredApprovalsPerLevel": [0, 1]
+  "requiredApprovalsPerLevel": [1, 0]
 }
