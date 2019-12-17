@@ -422,7 +422,7 @@ contract('SmartAccount', async function (accounts) {
 
     assert.equal(log.event, 'BypassCallApplied')
     const hash = '0x' + utils.bypassCallHash(addedLog.stateId, operatorA.address, operatorA.permLevel, addedLog.target, addedLog.value, '').toString('hex')
-    assert.equal(log.args.bypassHash, hash)
+    assert.equal(log.args.delayedOpId, hash)
     assert.equal(log.args.status, true)
 
     const balanceSenderAfter = parseInt(await web3.eth.getBalance(smartAccount.address))
@@ -669,7 +669,7 @@ contract('SmartAccount', async function (accounts) {
     const res2 = await cancelDelayed({ log }, watchdogA, smartAccount)
     const log2 = res2.logs[0]
     assert.equal(log2.event, 'ConfigCancelled')
-    assert.equal(log2.args.transactionHash, hash)
+    assert.equal(log2.args.delayedOpId, hash)
     assert.equal(log2.args.sender, watchdogA.address)
 
     await utils.validateConfigParticipants(

@@ -45,7 +45,7 @@ export default class Webserver {
           status = jsonrpc.error(req.body.id, new jsonrpc.JsonRpcError(e.message, -124))
         }
         break
-      case this.backend.addDeviceNow.name:
+      case this.backend.addOperatorNow.name:
         try {
           // TODO
         } catch (e) {

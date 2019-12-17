@@ -210,4 +210,16 @@ export default class SimpleWalletMock extends SimpleWalletApi {
       }
     ]
   }
+
+  async addOperatorNow (newOperator) {
+    error()
+  }
+
+  async validateAddOperatorNow ({ jwt, url }) {
+    super.validateAddOperatorNow({ jwt, url })
+  }
+
+  async applyAllPendingOperations () {
+    super.applyAllPendingOperations()
+  }
 }

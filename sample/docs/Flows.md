@@ -256,7 +256,7 @@ new->+app: login
 activate new
 app->google: authenticate(email, nonce(newaddr))
 google-->app: JWT
-app->-be:addDeviceNow(jwt, title)
+app->-be:signInAsNewOperator(jwt, title)
 activate be
 note over be: get phone for email\nstore temporarily:\n(vault-addr,newaddr,timestamp,title)
 be->user: SMS: click to add (url+servernonce)

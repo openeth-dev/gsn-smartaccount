@@ -9,3 +9,13 @@ export const ChangeType = {
   ADD_OPERATOR: 7,
   ADD_OPERATOR_NOW: 8
 }
+
+export function changeTypeToString (val) {
+  const string = Object.keys(ChangeType)
+    .sort((a, b) => ChangeType[a] - (ChangeType[b]))
+    .map(it => it.toLowerCase())[val]
+  if (!string) {
+    throw Error(`Unknown change type: ${val}`)
+  }
+  return string
+}

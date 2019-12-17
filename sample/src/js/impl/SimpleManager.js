@@ -108,4 +108,20 @@ export default class SimpleManager extends SimpleManagerApi {
     // TODO: check all needed fields of config
     return factoryConfig
   }
+
+  async signInAsNewOperator ({ jwt, description, observer }) {
+    this.setSignInObserver({ observer, interval: 2000 })
+    const response = await this.backend.signInAsNewOperator({ jwt, description })
+    if (response.code === 200) {
+      return { success: true, reason: null }
+    } else {
+      return { success: false, reason: response.error }
+    }
+  }
+
+  setSignInObserver ({ observer, interval }) {
+    setInterval(() => {
+      console.log('how you gonna test?')
+    }, interval)
+  }
 }

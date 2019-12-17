@@ -29,6 +29,7 @@ const mockBackend = {
   }
 }
 
+// eslint-disable-next-line no-unused-vars
 const realBackend = new ClientBackend({ serverURL: 'http://localhost:8888/' })
 let ls
 let backendTestInstance
@@ -65,10 +66,11 @@ after(async function () {
 const backends = [
   {
     backend: mockBackend, name: 'Mock Backend'
-  },
-  {
-    backend: realBackend, name: 'Real Backend'
   }
+  //,
+  // {
+  //   backend: realBackend, name: 'Real Backend'
+  // }
 ]
 
 backends.forEach(function ({ backend, name }) {
@@ -128,6 +130,25 @@ backends.forEach(function ({ backend, name }) {
         expect(sm.backend.validatePhone.calledOnce).to.be.true
         expect(sm.backend.validatePhone.firstCall.args[0]).to.eql({ jwt, phone })
       })
+    })
+
+    describe('#signInAsNewOperator()', async function () {
+      it('should pass parameters to backend and handle http 200 OK code', async function () {
+        sm.backend = {
+          signInAsNewOperator: sinon.spy(() => { return { code: 200 } })
+        }
+        const jwt = {}
+        const description = '0000'
+        const { success, reason } = await sm.signInAsNewOperator({ jwt, description })
+        assert.strictEqual(success, true)
+        assert.strictEqual(reason, null)
+        expect(sm.backend.signInAsNewOperator.calledOnce).to.be.true
+        expect(sm.backend.signInAsNewOperator.firstCall.args[0]).to.eql({ jwt, description })
+      })
+    })
+
+    describe('#setSignInObserver()', async function () {
+      it('should observe progress of sign in process via calls to the observer')
     })
 
     describe('#createWallet()', async function () {
