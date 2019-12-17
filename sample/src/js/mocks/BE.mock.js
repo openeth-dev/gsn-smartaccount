@@ -18,7 +18,7 @@ export default class BEapi {
     error('validate fresh jwt, validate phone (from smsUrl). return approvalData')
   }
 
-  addDeviceNow ({ jwt, newaddr }) {
+  addOperatorNow ({ jwt, newaddr }) {
     error('validate jwt, return "click to add" SMS')
   }
 

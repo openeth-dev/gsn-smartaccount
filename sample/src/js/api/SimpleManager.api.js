@@ -42,7 +42,7 @@ export default class SimpleManagerApi extends EventEmitter {
     error('check if a wallet exists for this email)')
   }
 
-  async addDeviceNow ({ jwt, description }) {
+  async addOperatorNow ({ jwt, description }) {
     error('ask backend to add the new device')
   }
 

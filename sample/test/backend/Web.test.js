@@ -19,7 +19,7 @@ describe('http layer tests', async function () {
     mockBE = {}
     mockBE.validatePhone = function validatePhone () {}
     mockBE.createAccount = function createAccount () {}
-    mockBE.addDeviceNow = function addDeviceNow () {}
+    mockBE.addOperatorNow = function addOperatorNow () {}
     mockBE.handleNotifications = function handleNotifications () {}
   })
   it('should construct webclient, webserver and start server', async function () {
@@ -92,7 +92,7 @@ describe('http layer tests', async function () {
     })
   })
 
-  describe.skip('addDeviceNow', async function () {
+  describe.skip('addOperatorNow', async function () {
     it('should send valid http request and receive valid response', async function () {
     })
 

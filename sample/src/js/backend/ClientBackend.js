@@ -36,13 +36,13 @@ export default class ClientBackend extends BEapi {
     return this._sendRequest(request)
   }
 
-  async addDeviceNow ({ jwt, title }) {
-    const request = jsonrpc.request(Date.now(), this.addDeviceNow.name, { jwt, title })
+  async addOperatorNow ({ jwt, title }) {
+    const request = jsonrpc.request(Date.now(), this.addOperatorNow.name, { jwt, title })
     return this._sendRequest(request)
   }
 
   async valdiataeAddDevice ({ jwt, addDeviceUrl }) {
-    throw new Error('validate that addDeviceUrl is the one sent by addDeviceNow. save validation in memory')
+    throw new Error('validate that addDeviceUrl is the one sent by addOperatorNow. save validation in memory')
   }
 
   handleNotifications () {

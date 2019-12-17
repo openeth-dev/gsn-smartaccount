@@ -30,7 +30,7 @@ function unhookBackend (backend) {
   delete backend.gclient._orig_verifyIdToken
 }
 
-describe('Backend', async function () {
+describe.skip('Backend', async function () {
   let backend
   const keypair = {
     privateKey: Buffer.from('20e12d5dc484a03c969d48446d897a006ebef40a806dab16d58db79ba64aa01f', 'hex'),
@@ -184,7 +184,7 @@ describe('Backend', async function () {
     })
   })
 
-  describe('addDeviceNow', async function () {
+  describe('addOperatorNow', async function () {
 
   })
 })

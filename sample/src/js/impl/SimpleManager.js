@@ -109,7 +109,12 @@ export default class SimpleManager extends SimpleManagerApi {
     return factoryConfig
   }
 
-  async addDeviceNow ({ jwt, description }) {
-    super.addDeviceNow({ jwt, description })
+  async addOperatorNow ({ jwt, description }) {
+    const response = await this.backend.addOperatorNow({ jwt, description })
+    if (response.code === 200) {
+      return { success: true, reason: null }
+    } else {
+      return { success: false, reason: response.error }
+    }
   }
 }

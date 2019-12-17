@@ -101,7 +101,7 @@ export default class SimpleManagerMock extends SimpleManagerApi {
     error('trigger recover flow')
   }
 
-  async addDeviceNow ({ jwt, description }) {
+  async addOperatorNow ({ jwt, description }) {
     error()
   }
 }
