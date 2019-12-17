@@ -105,7 +105,7 @@ export default class SimpleManagerMock extends SimpleManagerApi {
     super.signInAsNewOperator({ jwt, description, observer })
   }
 
-  setOnSignInProgressChangeObserver ({ observer, interval }) {
-    super.setOnSignInProgressChangeObserver({ observer, interval })
+  setSignInObserver ({ observer, interval }) {
+    super.setSignInObserver({ observer, interval })
   }
 }

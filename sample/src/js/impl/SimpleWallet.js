@@ -347,26 +347,7 @@ export default class SimpleWallet extends SimpleWalletApi {
   async validateAddOperatorNow ({ jwt, url }) {
     return this.backend.validateAddOperatorNow({ jwt, url })
   }
-
-  /*
-      function applyConfig(
-          uint32 senderPermsLevel,
-          uint8[] memory actions,
-          bytes32[] memory args1,
-          bytes32[] memory args2,
-          uint256 scheduledStateId,
-          address scheduler,
-          uint32 schedulerPermsLevel,
-          address booster,
-          uint32 boosterPermsLevel)
-   */
   async applyAllPendingOperations () {
-    // const pendingTransactions = await this.listPendingTransactions()
-    const pendingConfigChanges = await this.listPendingConfigChanges()
-    await asyncForEach(pendingConfigChanges, async (it) => {
-      this.contract.applyConfig(
-        this.participant.permLevel
-      )
-    })
+    super.applyAllPendingOperations()
   }
 }

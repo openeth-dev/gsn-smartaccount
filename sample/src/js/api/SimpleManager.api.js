@@ -46,7 +46,12 @@ export default class SimpleManagerApi extends EventEmitter {
     error('ask backend to add our address as an operator for existing vault')
   }
 
-  setOnSignInProgressChangeObserver ({ observer, interval }) {
+  /**
+   *
+   * @param observer: function(newState){ ... }
+   * @param interval: how often should the manager query the blockchain (TBD)
+   */
+  setSignInObserver ({ observer, interval }) {
     error('callback should be called when sign in events happen')
   }
 

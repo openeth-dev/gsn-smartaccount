@@ -110,7 +110,7 @@ export default class SimpleManager extends SimpleManagerApi {
   }
 
   async signInAsNewOperator ({ jwt, description, observer }) {
-    this.setOnSignInProgressChangeObserver({ observer, interval: 2000 })
+    this.setSignInObserver({ observer, interval: 2000 })
     const response = await this.backend.signInAsNewOperator({ jwt, description })
     if (response.code === 200) {
       return { success: true, reason: null }
@@ -119,7 +119,7 @@ export default class SimpleManager extends SimpleManagerApi {
     }
   }
 
-  setOnSignInProgressChangeObserver ({ observer, interval }) {
+  setSignInObserver ({ observer, interval }) {
     setInterval(() => {
       console.log('how you gonna test?')
     }, interval)
