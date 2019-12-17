@@ -8,6 +8,8 @@ import Participant from 'safechannels-contracts/src/js/Participant'
 
 import SimpleWallet from '../../src/js/impl/SimpleWallet'
 import ConfigEntry from '../../src/js/etc/ConfigEntry'
+import sinon from 'sinon'
+import { expect } from 'chai'
 
 before(async function () {
 // TODO: get accounts
@@ -158,25 +160,55 @@ describe('SimpleWallet', async function () {
     it('should transfer ERC immediately to a whitelisted destination')
   })
 
-  describe('#addOperatorNow()', async function () {
+  describe('Add Operator Now', async function () {
+    // TODO: url parameters TBD
+    const url = 'http://server.com/validate?a=123&b=456'
+    const description = 'New operator device'
     const newOperator = '0x3333333333333333333333333333333333333333'
+
     let testContext
 
     before(async function () {
-      testContext = await newTest(from)
-      await testContext.wallet.getWalletInfo()
+      testContext = await newTest()
     })
 
-    it('should initiate adding new operator', async function () {
-      await testContext.wallet.addOperatorNow(newOperator)
-      const pending = await testContext.wallet.listPendingConfigChanges()
-      assert.strictEqual(pending.length, 1)
-      assert.strictEqual(pending[0].operations.length, 1)
-      const expectedConfigChange = new ConfigEntry({
-        type: 'add_operator_now',
-        args: [newOperator]
+    describe('#validateAddOperatorNow()', async function () {
+      it('should pass parameters to backend and handle http 200 OK code', async function () {
+        testContext.wallet.backend = {
+          validateAddOperatorNow: sinon.spy(
+            () => {
+              return { code: 200, error: null, newOperator, description }
+            })
+        }
+        const jwt = {}
+        const { error, newOperator: newOperatorResp, description: descrResp } = await testContext.wallet.validateAddOperatorNow({ jwt,url})
+        expect(testContext.wallet.backend.validateAddOperatorNow.calledOnce).to.be.true
+        expect(testContext.wallet.backend.validateAddOperatorNow.firstCall.args[0]).to.eql({ jwt, url })
+        assert.strictEqual(error, null)
+        assert.strictEqual(newOperatorResp, newOperator)
+        assert.strictEqual(descrResp, description)
       })
-      assert.deepStrictEqual(pending[0].operations[0], expectedConfigChange)
+    })
+
+    describe('#addOperatorNow()', async function () {
+      let testContext
+
+      before(async function () {
+        testContext = await newTest(from)
+        await testContext.wallet.getWalletInfo()
+      })
+
+      it('should initiate adding new operator', async function () {
+        await testContext.wallet.addOperatorNow(newOperator)
+        const pending = await testContext.wallet.listPendingConfigChanges()
+        assert.strictEqual(pending.length, 1)
+        assert.strictEqual(pending[0].operations.length, 1)
+        const expectedConfigChange = new ConfigEntry({
+          type: 'add_operator_now',
+          args: [newOperator]
+        })
+        assert.deepStrictEqual(pending[0].operations[0], expectedConfigChange)
+      })
     })
   })
 

@@ -101,7 +101,11 @@ export default class SimpleManagerMock extends SimpleManagerApi {
     error('trigger recover flow')
   }
 
-  async addOperatorNow ({ jwt, description }) {
-    error()
+  async signInAsNewOperator ({ jwt, description, observer }) {
+    super.signInAsNewOperator({ jwt, description, observer })
+  }
+
+  setOnSignInProgressChangeObserver ({ observer, interval }) {
+    super.setOnSignInProgressChangeObserver({ observer, interval })
   }
 }

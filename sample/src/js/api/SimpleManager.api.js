@@ -42,8 +42,12 @@ export default class SimpleManagerApi extends EventEmitter {
     error('check if a wallet exists for this email)')
   }
 
-  async addOperatorNow ({ jwt, description }) {
-    error('ask backend to add the new device')
+  async signInAsNewOperator ({ jwt, description, observer }) {
+    error('ask backend to add our address as an operator for existing vault')
+  }
+
+  setOnSignInProgressChangeObserver ({ observer, interval }) {
+    error('callback should be called when sign in events happen')
   }
 
   async loadWallet () {

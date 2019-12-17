@@ -343,6 +343,10 @@ export default class SimpleWallet extends SimpleWalletApi {
     // TODO: Add new operator to known participants
   }
 
+  async validateAddOperatorNow ({ jwt, url }) {
+    return this.backend.validateAddOperatorNow( {jwt, url } )
+  }
+
   /*
       function applyConfig(
           uint32 senderPermsLevel,
