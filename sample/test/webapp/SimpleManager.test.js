@@ -147,7 +147,7 @@ backends.forEach(function ({ backend, name }) {
       })
     })
 
-    describe('#setOnSignInProgressChangeObserver()', async function () {
+    describe('#setSignInObserver()', async function () {
       it('should observe progress of sign in process via calls to the observer')
     })
 
