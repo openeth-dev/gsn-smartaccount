@@ -398,6 +398,7 @@ export default class SimpleWallet extends SimpleWalletApi {
       )
     })
   }
+
   _addKnownToken (address) {
     this.knownTokens.push(address)
   }
