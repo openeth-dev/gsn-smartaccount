@@ -109,7 +109,6 @@ describe('Backend', async function () {
     })
 
     it('should validate phone number', async function () {
-      // let jwt = 'eyJhbGciOiJSUzI1NiIsImtpZCI6IjViNWRkOWJlNDBiNWUxY2YxMjFlMzU3M2M4ZTQ5ZjEyNTI3MTgzZDMiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJhY2NvdW50cy5nb29nbGUuY29tIiwiYXpwIjoiMjAyNzQ2OTg2ODgwLXUxN3JiZ285NWg3amE0ZmdoaWtpZXR1cGprbmQxYmxuLmFwcHMuZ29vZ2xldXNlcmNvbnRlbnQuY29tIiwiYXVkIjoiMjAyNzQ2OTg2ODgwLXUxN3JiZ285NWg3amE0ZmdoaWtpZXR1cGprbmQxYmxuLmFwcHMuZ29vZ2xldXNlcmNvbnRlbnQuY29tIiwic3ViIjoiMTE1NDEzOTQ3Njg0Mjk5Njg1NDQ5IiwiaGQiOiJ0YWJvb2tleS5jb20iLCJlbWFpbCI6InNoYWhhZkB0YWJvb2tleS5jb20iLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwibm9uY2UiOiJoZWxsby13b3JsZCIsImlhdCI6MTU3NTM5Njg2NiwiZXhwIjoxNTc1NDAwNDY2LCJqdGkiOiJiMDk2YzYwY2EzZjlmNGRjN2Y5MzEwM2U4ZGRkOGU1YzAyOWVlOTgwIn0.nXcDojzPnXp300gXYhGQ_uPEU2MGRszNHTbka__FZbnHg0PdmZpEd-4JAOh_rRq0UsmOzelLPd49XlBiCS62US0JqZUxqVJd1UvvvetwMJ9X3Nds_CkkTVF3Dx0hjzLrbDlvf3YOOuUPkoI1OTbtsN2iJtJLBNEQIz_l7rrZVv287-6JvgperPkLu9Dbqpneas7kzB7EDWj8lAI2a4Ru06YkZKb017RDtQNRaLHcMb9hHqqFYXaIaafFOXhS0ESHQa4GhDNMxEYTxW47-MXYjPKnxK_g4APWua2aFAwjfpmZmmXyCnv8wNvPyHrYJxIqvL2z2-IYj36cQtpFgp8Asg'
       await backend.validatePhone({ jwt, phoneNumber })
       smsCode = backend.smsManager.getSmsCode(
         { phoneNumber: backend._formatPhoneNumber(phoneNumber), email: email })
