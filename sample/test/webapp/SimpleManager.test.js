@@ -29,6 +29,7 @@ const mockBackend = {
   }
 }
 
+// eslint-disable-next-line no-unused-vars
 const realBackend = new ClientBackend({ serverURL: 'http://localhost:8888/' })
 let ls
 let backendTestInstance
@@ -65,7 +66,8 @@ after(async function () {
 const backends = [
   {
     backend: mockBackend, name: 'Mock Backend'
-  },
+  }
+  //,
   // {
   //   backend: realBackend, name: 'Real Backend'
   // }

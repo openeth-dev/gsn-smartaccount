@@ -181,7 +181,10 @@ describe('SimpleWallet', async function () {
             })
         }
         const jwt = {}
-        const { error, newOperator: newOperatorResp, description: descrResp } = await testContext.wallet.validateAddOperatorNow({ jwt,url})
+        const { error, newOperator: newOperatorResp, description: descrResp } = await testContext.wallet.validateAddOperatorNow({
+          jwt,
+          url
+        })
         expect(testContext.wallet.backend.validateAddOperatorNow.calledOnce).to.be.true
         expect(testContext.wallet.backend.validateAddOperatorNow.firstCall.args[0]).to.eql({ jwt, url })
         assert.strictEqual(error, null)
