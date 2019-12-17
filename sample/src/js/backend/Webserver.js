@@ -37,7 +37,10 @@ export default class Webserver {
 
       status = jsonrpc.success(req.body.id, res)
     } catch (e) {
-      status = jsonrpc.error(req.body.id, new jsonrpc.JsonRpcError(e.message, -125))
+      let stack = e.stack.toString()
+      //remove anything after 'rootHandler'
+      stack = stack.replace(/(rootHandler.*)[\s\S]*/, '$1')
+      status = jsonrpc.error(req.body.id, new jsonrpc.JsonRpcError(stack, -125))
     }
 
     res.send(status)

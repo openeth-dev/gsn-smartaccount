@@ -55,7 +55,7 @@ describe('http layer tests', async function () {
         }
         await client.validatePhone({ jwt: undefined, phoneNumber: myPhoneNumber })
       } catch (e) {
-        assert.equal(e.toString(), `Error: ${errorMessage}. code: -125`)
+        assert.match(e.toString(), /Error: hubba.*\n.*validatePhone/ )
       }
     })
   })
@@ -86,7 +86,8 @@ describe('http layer tests', async function () {
         assert.equal(res.error.code, -124)
         assert.equal(res.error.message, `Error: ${errorMessage}`)
       } catch (e) {
-        assert.equal(e.toString(), `Error: ${errorMessage}. code: -125`)
+        console.log(e)
+        assert.match(e.toString(), /Error: go fish.*\ncreateAccount/ )
       }
     })
   })
