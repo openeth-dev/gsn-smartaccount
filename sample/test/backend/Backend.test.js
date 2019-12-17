@@ -3,7 +3,6 @@
 import { Account, Backend } from '../../src/js/backend/Backend'
 import { assert } from 'chai'
 import SMSmock from '../../src/js/mocks/SMS.mock'
-import { LoginTicket } from 'google-auth-library/build/src/auth/loginticket'
 
 const ethUtils = require('ethereumjs-util')
 const abi = require('ethereumjs-abi')
@@ -19,11 +18,6 @@ function hookBackend (backend) {
     }
   }
   backend.secretSMSCodeSeed = Buffer.from('f'.repeat(64), 'hex')
-}
-
-function unhookBackend (backend) {
-  backend._verifyJWT = backend.orig_verifyJWT
-  delete backend.orig_verifyJWT
 }
 
 describe('Backend', async function () {
