@@ -1,6 +1,8 @@
 import Web3 from 'web3'
 import crypto from 'crypto'
 // import FactoryContractInteractor from 'safechannels-contracts/src/js/FactoryContractInteractor'
+import Permissions from 'safechannels-contracts/src/js/Permissions'
+import scutils from 'safechannels-contracts/src/js/SafeChannelUtils'
 import { knownEvents } from './knownEvents'
 import abiDecoder from 'abi-decoder'
 import SmartAccountFactoryABI from 'safechannels-contracts/src/js/generated/SmartAccountFactory'
@@ -19,6 +21,8 @@ export class Watchdog {
     })
     abiDecoder.addABI(SmartAccountFactoryABI)
     abiDecoder.addABI(SmartAccountABI)
+    this.permsLevel = scutils.packPermissionLevel(Permissions.WatchdogPermissions, 1)
+    this.smartAccountInteractor = new this.web3.eth.Contract(SmartAccountABI, '', { from: this.keyManager.Address() })
     this.lastScannedBlock = 0
     this.changesToApply = {}
   }
@@ -28,7 +32,6 @@ export class Watchdog {
     //   { smartAccountFactoryAddress: this.smartAccountFactoryAddress, provider: this.web3provider })
     console.log('setting periodic task')
     this.task = await setInterval(this._worker, 100 * 2)
-    // await this._worker()
   }
 
   async stop () {
@@ -36,7 +39,6 @@ export class Watchdog {
   }
 
   async _worker () {
-    // TODO fetch all relevant events from blockchain
     const options = {
       fromBlock: this.lastScannedBlock,
       toBlock: 'latest',
@@ -59,23 +61,15 @@ export class Watchdog {
         case 'SmartAccountCreated':
           await this._handleSmartAccountCreatedEvent(dlog)
           break
-        case 'BypassCallPending':
-          await this._handleBypassCallPendingEvent(dlog)
-          break
         case 'ConfigPending':
-          await this._handleConfigPendingEvent(dlog)
-          break
-        case 'BypassCallCancelled':
-          await this._handleBypassCallCancelledEvent(dlog)
+        case 'BypassCallPending':
+          await this._handlePendingEvent(dlog)
           break
         case 'ConfigCancelled':
-          await this._handleConfigCancelledEvent(dlog)
-          break
+        case 'BypassCallCancelled':
         case 'ConfigApplied':
-          await this._handleConfigAppliedEvent(dlog)
-          break
         case 'BypassCallApplied':
-          await this._handleBypassCallAppliedEvent(dlog)
+          await this._handleCancelledOrAppliedEvent(dlog)
           break
       }
     }
@@ -83,108 +77,140 @@ export class Watchdog {
     this.lastScannedBlock = logs[logs.length - 1].blockNumber
   }
 
-  // event SmartAccountCreated(address sender, SmartAccount smartAccount, bytes32 smartAccountId);
   async _handleSmartAccountCreatedEvent (dlog) {
     const account = this.accountManager.getAccountById({ accountId: dlog.args.smartAccountId })
-    if (!account) {
+    if (!account || this.smartAccountFactoryAddress !== dlog.address) {
       return
     }
-    account.address = dlog.args.address
+    account.address = dlog.args.smartAccount
     this.accountManager.putAccount({ account })
-    console.log('account is', account)
   }
 
-  // event ConfigPending(bytes32 indexed transactionHash, address sender, uint32 senderPermsLevel, address booster,
-  // uint32 boosterPermsLevel, uint256 stateId, uint8[] actions, bytes32[] actionsArguments1, bytes32[] actionsArguments2);
-  async _handleConfigPendingEvent (dlog) {
+  async _handlePendingEvent (dlog) {
     const account = this.accountManager.getAccountByAddress({ address: dlog.address })
     if (!account) {
       return
     }
     await this.smsManager.sendSMS({ phoneNumber: account.phone, email: account.email })
-    const dueTime = dlog.args.dueTime * 1000 // TODO add dueTime to event
-    const changeHash = dlog.args.transactionHash
-    this.changesToApply[changeHash] = { dueTime: dueTime, log: dlog }
+    const dueTime = Date.now() // dlog.args.dueTime * 1000 // TODO add dueTime to events
+    const delayedOpId = dlog.args.delayedOpId
+    this.changesToApply[delayedOpId] = { dueTime: dueTime, log: dlog }
   }
 
-  async _handleBypassCallPendingEvent (dlog) {
+  async _handleCancelledOrAppliedEvent (dlog) {
     const account = this.accountManager.getAccountByAddress({ address: dlog.address })
     if (!account) {
       return
     }
-    await this.smsManager.sendSMS({ phoneNumber: account.phone, email: account.email })
-    const dueTime = dlog.args.dueTime * 1000 // TODO add dueTime to event
-    const changeHash = dlog.args.bypassHash
-    this.changesToApply[changeHash] = { dueTime: dueTime, log: dlog }
-  }
-
-  async _handleConfigCancelledEvent (dlog) {
-    const account = this.accountManager.getAccountByAddress({ address: dlog.address })
-    if (!account) {
-      return
-    }
-    const changeHash = dlog.args.transactionHash
-    delete this.changesToApply[changeHash]
-  }
-
-  async _handleBypassCallCancelledEvent (dlog) {
-    const account = this.accountManager.getAccountByAddress({ address: dlog.address })
-    if (!account) {
-      return
-    }
-    const changeHash = dlog.args.bypassHash
-    delete this.changesToApply[changeHash]
-  }
-
-  async _handleConfigAppliedEvent (dlog) {
-    const account = this.accountManager.getAccountByAddress({ address: dlog.address })
-    if (!account) {
-      return
-    }
-    const changeHash = dlog.args.transactionHash
-    delete this.changesToApply[changeHash]
-  }
-
-  async _handleBypassCallAppliedEvent (dlog) {
-    const account = this.accountManager.getAccountByAddress({ address: dlog.address })
-    if (!account) {
-      return
-    }
-    const changeHash = dlog.args.bypassHash
-    delete this.changesToApply[changeHash]
+    const delayedOpId = dlog.args.delayedOpId
+    delete this.changesToApply[delayedOpId]
   }
 
   async _applyChanges () {
-    for (const change of Object.keys(this.changesToApply)) {
-      if (change.dueTime >= Date.now() / 1000) {
-        // TODO apply pending change onchain
-        // ...
-
-        delete this.changesToApply[change]
+    for (const delayedOpId of Object.keys(this.changesToApply)) {
+      const change = this.changesToApply[delayedOpId]
+      if (change.dueTime <= Date.now()) {
+        await this._finalizeChange(delayedOpId, { apply: true })
       }
     }
   }
 
-  async cancelChange ({ smsCode, change, address }) {
+  async cancelChange ({ smsCode, delayedOpId, address }) {
     const account = this.accountManager.getAccountByAddress({ address })
     if (this.smsManager.getSmsCode(
       { phoneNumber: account.phone, email: account.email, expectedSmsCode: smsCode }) === smsCode) {
-      // TODO cancel pending change onchain
-      delete this.changesToApply[change]
+      return this._finalizeChange(delayedOpId, { cancel: true })
     }
+  }
+
+  async _finalizeChange (delayedOpId, { apply, cancel }) {
+    if (!apply && !cancel) {
+      throw new Error('Please specify apply/cancel')
+    }
+    const change = this.changesToApply[delayedOpId]
+    let method
+    let smartAccountMethod
+    this.smartAccountInteractor.options.address = change.log.address
+    // TODO we should refactor events and function args to match in naming, and just use '...Object.values(change.log.args)'
+    if (change.log.name === 'BypassCallPending') {
+      if (apply) {
+        smartAccountMethod = this.smartAccountInteractor.methods.applyBypassCall
+      } else if (cancel) {
+        smartAccountMethod = this.smartAccountInteractor.methods.cancelBypassCall
+      }
+      method = smartAccountMethod(
+        this.permsLevel,
+        change.log.args.sender,
+        change.log.args.senderPermsLevel,
+        change.log.args.stateId,
+        change.log.args.target,
+        change.log.args.value,
+        change.log.args.msgdata || Buffer.alloc(0)
+      )
+    } else if (change.log.name === 'ConfigPending') {
+      if (apply) {
+        smartAccountMethod = this.smartAccountInteractor.methods.applyConfig
+      } else if (cancel) {
+        smartAccountMethod = this.smartAccountInteractor.methods.cancelOperation
+      }
+      method = smartAccountMethod(
+        this.permsLevel,
+        change.log.args.actions,
+        change.log.args.actionsArguments1,
+        change.log.args.actionsArguments2,
+        change.log.args.stateId,
+        change.log.args.sender,
+        change.log.args.senderPermsLevel,
+        change.log.args.booster,
+        change.log.args.boosterPermsLevel
+      )
+    } else {
+      return
+    }
+    try {
+      const receipt = await this._sendTransaction(method, change)
+      delete this.changesToApply[delayedOpId]
+      return receipt
+    } catch (e) {
+      console.log(change.log.name)
+      console.log('wtf e is', e)
+    }
+  }
+
+  async _sendTransaction (method, change) {
+    const encodedCall = method.encodeABI()
+    let gasPrice = await this.web3.eth.getGasPrice()
+    gasPrice = parseInt(gasPrice)
+    console.log('wtf is gasPrice', gasPrice)
+    const gas = await method.estimateGas({ from: this.keyManager.Address(), value: change.log.args.value || 0 })
+    console.log('wtf is gas', gas)
+    const nonce = await this.web3.eth.getTransactionCount(this.keyManager.Address())
+    const txToSign = {
+      to: change.log.address,
+      value: 0,
+      gasPrice: gasPrice || 1e9,
+      gas: gas + 1e5,
+      data: encodedCall ? Buffer.from(encodedCall.slice(2), 'hex') : Buffer.alloc(0),
+      nonce
+    }
+    const signedTx = this.keyManager.signTransaction(txToSign)
+    const receipt = await this.web3.eth.sendSignedTransaction(signedTx)
+    console.log('txhash is', receipt.transactionHash)
+    return receipt
   }
 
   _parseEvent (e) {
     if (!e || !e.events) {
       return 'not event: ' + e
     }
+    const args = {}
+    for (const ee of e.events) {
+      args[ee.name] = ee.value
+    }
     return {
       name: e.name,
       address: e.address,
-      args: e.events.reduce(function (map, obj) {
-        map[obj.name] = obj.value
-        return map
-      }, {})
+      args: args
     }
   }
 }

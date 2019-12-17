@@ -1,6 +1,7 @@
 import Wallet from 'ethereumjs-wallet'
+import { Transaction } from 'ethereumjs-tx'
+import abi from 'ethereumjs-abi'
 
-const abi = require('ethereumjs-abi')
 const ethUtils = require('ethereumjs-util')
 
 export class KeyManager {
@@ -28,5 +29,20 @@ export class KeyManager {
 
   Address () {
     return this.ecdsaKeyPair.address
+  }
+
+  signTransaction ({ to, value, gas, gasPrice, data, nonce }) {
+    const tx = new Transaction({
+      from: this.Address(),
+      to,
+      value,
+      gas,
+      gasPrice,
+      data,
+      nonce
+    })
+    tx.sign(this.ecdsaKeyPair.privateKey)
+    const rawTx = tx.serialize().toString('hex')
+    return rawTx
   }
 }

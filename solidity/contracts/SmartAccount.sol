@@ -296,7 +296,7 @@ contract SmartAccount is PermissionsLevel, GsnRecipient {
         bytes32 transactionHash = Utilities.transactionHash(actions, args1, args2, stateNonce, sender, senderPermsLevel, booster, boosterPermsLevel);
         uint dueTime = SafeMath.add(now, delays[extractLevel(senderPermsLevel)]);
         pendingChanges[transactionHash] = PendingChange(dueTime, new bytes32[](0));
-        emit ConfigPending(transactionHash, sender, senderPermsLevel, booster, boosterPermsLevel, stateNonce, actions, args1, args2, dueTime);
+        emit ConfigPending(transactionHash, sender, senderPermsLevel, booster, boosterPermsLevel, stateNonce, actions, args1, args2);
         stateNonce++;
     }
 

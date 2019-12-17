@@ -13,9 +13,9 @@
     ["BypassByMethodAdded","(bytes4,address)"],
     ["BypassByTargetRemoved","(address,address)"],
     ["BypassByMethodRemoved","(bytes4,address)"],
-    ["BypassCallPending","(bytes32,uint256,address,uint32,address,uint256,bytes)"],
+    ["BypassCallPending","(bytes32,uint256,address,uint32,address,uint256,bytes,uint256)"],
     ["BypassCallCancelled","(bytes32,address)"],
-    ["BypassCallApplied","(bytes32,bool);"],
+    ["BypassCallApplied","(bytes32,bool)"],
     ["BypassCallExecuted","(bool)"],
     ["AcceleratedCAllSet","(bool)"],
     ["AddOperatorNowSet","(bool)"]
