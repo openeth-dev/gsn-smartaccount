@@ -18,7 +18,7 @@ const relayHubAddress = '0xD216153c06E857cD7f72665E0aF1d7D82172F494'
 
 const verbose = false
 
-describe.only('System flow: Create Account', () => {
+describe('System flow: Create Account', () => {
   const relayUrl = 'http://localhost:8090'
   let relayAddr
 

@@ -9,25 +9,21 @@ const ethUtils = require('ethereumjs-util')
 const abi = require('ethereumjs-abi')
 const phone = require('phone')
 
-function hookBackend (backend, verifyFn) {
-  backend.gclient._orig_verifyIdToken = backend.gclient.verifyIdToken
-  verifyFn = async function ({ idToken, audience }) {
-    try {
-      return await backend.gclient._orig_verifyIdToken({ idToken, audience })
-    } catch (e) {
-      console.log('hooking google auth verifyIdToken() function')
-      if (e.toString().includes('Error: Token used too late')) {
-        const rawTicket = require('./ticket')
-        return new LoginTicket(rawTicket.envelope, rawTicket.payload)
-      }
+function hookBackend (backend) {
+  backend.orig_verifyJWT = backend._verifyJWT
+  backend._verifyJWT = async function (jwt) {
+    const parsed = JSON.parse(Buffer.from(jwt.split('.')[1], 'base64'))
+
+    return {
+      getPayload: () => parsed
     }
   }
-  backend.gclient.verifyIdToken = verifyFn
+  backend.secretSMSCodeSeed = Buffer.from('f'.repeat(64), 'hex')
 }
 
 function unhookBackend (backend) {
-  backend.gclient.verifyIdToken = backend.gclient._orig_verifyIdToken
-  delete backend.gclient._orig_verifyIdToken
+  backend._verifyJWT = backend.orig_verifyJWT
+  delete backend.orig_verifyJWT
 }
 
 describe('Backend', async function () {
@@ -120,21 +116,7 @@ describe('Backend', async function () {
       }
     })
 
-    it.skip('should throw on expired jwt', async function () {
-      const invalidjwt = 'eyJhbGciOiJSUzI1NiIsImtpZCI6IjViNWRkOWJlNDBiNWUxY2YxMjFlMzU3M2M4ZTQ5ZjEyNTI3MTgzZDMiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJhY2NvdW50cy5nb29nbGUuY29tIiwiYXpwIjoiMjAyNzQ2OTg2ODgwLXUxN3JiZ285NWg3amE0ZmdoaWtpZXR1cGprbmQxYmxuLmFwcHMuZ29vZ2xldXNlcmNvbnRlbnQuY29tIiwiYXVkIjoiMjAyNzQ2OTg2ODgwLXUxN3JiZ285NWg3amE0ZmdoaWtpZXR1cGprbmQxYmxuLmFwcHMuZ29vZ2xldXNlcmNvbnRlbnQuY29tIiwic3ViIjoiMTE1NDEzOTQ3Njg0Mjk5Njg1NDQ5IiwiaGQiOiJ0YWJvb2tleS5jb20iLCJlbWFpbCI6InNoYWhhZkB0YWJvb2tleS5jb20iLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwibm9uY2UiOiJoZWxsby13b3JsZCIsImlhdCI6MTU3NTM5Njg2NiwiZXhwIjoxNTc1NDAwNDY2LCJqdGkiOiJiMDk2YzYwY2EzZjlmNGRjN2Y5MzEwM2U4ZGRkOGU1YzAyOWVlOTgwIn0.nXcDojzPnXp300gXYhGQ_uPEU2MGRszNHTbka__FZbnHg0PdmZpEd-4JAOh_rRq0UsmOzelLPd49XlBiCS62US0JqZUxqVJd1UvvvetwMJ9X3Nds_CkkTVF3Dx0hjzLrbDlvf3YOOuUPkoI1OTbtsN2iJtJLBNEQIz_l7rrZVv287-6JvgperPkLu9Dbqpneas7kzB7EDWj8lAI2a4Ru06YkZKb017RDtQNRaLHcMb9hHqqFYXaIaafFOXhS0ESHQa4GhDNMxEYTxW47-MXYjPKnxK_g4APWua2aFAwjfpmZmmXyCnv8wNvPyHrYJxIqvL2z2-IYj36cQtpFgp8Asg'
-
-      try {
-        unhookBackend(backend)
-        await backend.validatePhone({ jwt: invalidjwt, phoneNumber })
-        assert.fail()
-      } catch (e) {
-        assert.isTrue(e.toString().includes('Error: Token used too late'))
-      } finally {
-        hookBackend(backend, verifyFn)
-      }
-    })
-
-    it.skip('should validate phone number', async function () {
+    it('should validate phone number', async function () {
       console.log('\nvalidate phone')
       // let jwt = 'eyJhbGciOiJSUzI1NiIsImtpZCI6IjViNWRkOWJlNDBiNWUxY2YxMjFlMzU3M2M4ZTQ5ZjEyNTI3MTgzZDMiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJhY2NvdW50cy5nb29nbGUuY29tIiwiYXpwIjoiMjAyNzQ2OTg2ODgwLXUxN3JiZ285NWg3amE0ZmdoaWtpZXR1cGprbmQxYmxuLmFwcHMuZ29vZ2xldXNlcmNvbnRlbnQuY29tIiwiYXVkIjoiMjAyNzQ2OTg2ODgwLXUxN3JiZ285NWg3amE0ZmdoaWtpZXR1cGprbmQxYmxuLmFwcHMuZ29vZ2xldXNlcmNvbnRlbnQuY29tIiwic3ViIjoiMTE1NDEzOTQ3Njg0Mjk5Njg1NDQ5IiwiaGQiOiJ0YWJvb2tleS5jb20iLCJlbWFpbCI6InNoYWhhZkB0YWJvb2tleS5jb20iLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwibm9uY2UiOiJoZWxsby13b3JsZCIsImlhdCI6MTU3NTM5Njg2NiwiZXhwIjoxNTc1NDAwNDY2LCJqdGkiOiJiMDk2YzYwY2EzZjlmNGRjN2Y5MzEwM2U4ZGRkOGU1YzAyOWVlOTgwIn0.nXcDojzPnXp300gXYhGQ_uPEU2MGRszNHTbka__FZbnHg0PdmZpEd-4JAOh_rRq0UsmOzelLPd49XlBiCS62US0JqZUxqVJd1UvvvetwMJ9X3Nds_CkkTVF3Dx0hjzLrbDlvf3YOOuUPkoI1OTbtsN2iJtJLBNEQIz_l7rrZVv287-6JvgperPkLu9Dbqpneas7kzB7EDWj8lAI2a4Ru06YkZKb017RDtQNRaLHcMb9hHqqFYXaIaafFOXhS0ESHQa4GhDNMxEYTxW47-MXYjPKnxK_g4APWua2aFAwjfpmZmmXyCnv8wNvPyHrYJxIqvL2z2-IYj36cQtpFgp8Asg'
       await backend.validatePhone({ jwt, phoneNumber })
@@ -144,7 +126,7 @@ describe('Backend', async function () {
     })
   })
 
-  describe.skip('createAccount', async function () {
+  describe('createAccount', async function () {
     it('should throw on invalid sms code', async function () {
       const wrongSmsCode = smsCode - 1
       try {
