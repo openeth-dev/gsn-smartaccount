@@ -1,5 +1,3 @@
-import asyncForEach from 'async-await-foreach'
-
 import Permissions from 'safechannels-contracts/src/js/Permissions'
 import SafeChannelUtils from 'safechannels-contracts/src/js/SafeChannelUtils'
 import FactoryContractInteractor from 'safechannels-contracts/src/js/FactoryContractInteractor'
@@ -347,6 +345,7 @@ export default class SimpleWallet extends SimpleWalletApi {
   async validateAddOperatorNow ({ jwt, url }) {
     return this.backend.validateAddOperatorNow({ jwt, url })
   }
+
   async applyAllPendingOperations () {
     super.applyAllPendingOperations()
   }
