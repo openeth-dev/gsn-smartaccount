@@ -11,7 +11,7 @@ export const ChangeType = {
 }
 
 export function changeTypeToString (val) {
-  let string = Object.keys(ChangeType)
+  const string = Object.keys(ChangeType)
     .sort((a, b) => ChangeType[a] - (ChangeType[b]))
     .map(it => it.toLowerCase())[val]
   if (!string) {
