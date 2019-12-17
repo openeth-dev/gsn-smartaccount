@@ -12,7 +12,11 @@ import SMSmock from '../../src/js/mocks/SMS.mock'
 import { startBackendServer, stopBackendServer } from '../utils/testBackendServer'
 
 import axios from 'axios'
+import SimpleWallet from '../../src/js/impl/SimpleWallet'
+
 const relayHubAddress = '0xD216153c06E857cD7f72665E0aF1d7D82172F494'
+
+const verbose = true
 
 describe.only('SafeAccount flows', () => {
   const relayUrl = 'http://localhost:8090'
@@ -28,7 +32,6 @@ describe.only('SafeAccount flows', () => {
     }
   })
   describe('create flow with account', async () => {
-    const verbose = false
     const userEmail = 'user@email.com'
     let mgr
     let jwt, phoneNumber
@@ -91,6 +94,9 @@ describe.only('SafeAccount flows', () => {
         backend,
         factoryConfig
       })
+
+      //hack: to fill knownParticipants..
+      mgr.backendAddress = backendAddress
     })
 
     it('new browser attempt login', async () => {
@@ -120,16 +126,28 @@ describe.only('SafeAccount flows', () => {
 
       const smsVerificationCode = msg.message.match(/verif.*?(\d+)/)[1]
 
-      const wallet = await mgr.createWallet({ jwt, phoneNumber, smsVerificationCode })
+      wallet = await mgr.createWallet({ jwt, phoneNumber, smsVerificationCode })
+    })
+
+    let wallet
+
+    it('initialConfiguration', async () => {
+      const config = SimpleWallet.getDefaultSampleInitialConfiguration({
+        backendAddress,
+        operatorAddress: await mgr.getOwner(),
+        whitelistModuleAddress: '0x' + '1'.repeat(40) //whitelistPolicy
+      })
+      await wallet.initialConfiguration(config)
+
       console.log('wallet=', await wallet.getWalletInfo())
     })
 
     it('after wallet creation', async function () {
       const wallet = await mgr.loadWallet()
 
-      assert.equal((await wallet.getWalletInfo()).address, await mgr.getWalletAddress())
-
-      // todo: validate more wallet info..
+      let info = await wallet.getWalletInfo()
+      assert.deepEqual(info.operators, [await mgr.getOwner()])
+      assert.equal( info.unknownGuardians, 0)
     })
   })
 })

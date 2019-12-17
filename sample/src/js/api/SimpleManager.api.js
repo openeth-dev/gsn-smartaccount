@@ -35,7 +35,7 @@ export default class SimpleManagerApi extends EventEmitter {
   }
 
   async getWalletAddress () {
-    error('return the wallet address (valid only after is was created)')
+    error('return the wallet address (valid only after is was created on-chain)')
   }
 
   async hasWallet () {

@@ -37,7 +37,6 @@ export default class SimpleWallet extends SimpleWalletApi {
       configuration.bypassModules,
       {
         from: this.participant.address,
-        gasPrice: 10
       }
     )
   }

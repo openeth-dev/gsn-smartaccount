@@ -1,10 +1,14 @@
 import TruffleContract from '@truffle/contract'
 /* global error */
 import SmartAccountFactoryABI from 'safechannels-contracts/src/js/generated/SmartAccountFactory'
+
 import FactoryContractInteractor from 'safechannels-contracts/src/js/FactoryContractInteractor'
 
 import SimpleWallet from './SimpleWallet'
 import SimpleManagerApi from '../api/SimpleManager.api.js'
+
+import Participant from 'safechannels-contracts/src/js/Participant'
+import Permissions from 'safechannels-contracts/src/js/Permissions'
 
 // API of the main factory object.
 export default class SimpleManager extends SimpleManagerApi {
@@ -80,7 +84,11 @@ export default class SimpleManager extends SimpleManagerApi {
       await this._initializeFactory(this.factoryConfig)
     }
 
-    const response = await this.backend.createAccount({ jwt: jwt, phoneNumber: phoneNumber, smsCode: smsVerificationCode })
+    const response = await this.backend.createAccount({
+      jwt: jwt,
+      phoneNumber: phoneNumber,
+      smsCode: smsVerificationCode
+    })
 
     const sender = await this.getOwner()
     // TODO: next commit: make 'FactoryContractInteractor.deployNewSmartAccount' do this job
@@ -93,20 +101,35 @@ export default class SimpleManager extends SimpleManagerApi {
     })
 
     return this.loadWallet()
+
   }
 
   async loadWallet () {
-    const sender = await this.getOwner()
+    const owner = await this.getOwner()
 
     const smartAccount = await FactoryContractInteractor.getCreatedSmartAccount(
       {
         factoryAddress: this.factoryConfig.factoryAddress,
-        sender: sender,
+        sender: owner,
         // TODO: just pass the event from the receipt!
         blockNumber: 1,
         provider: this.factoryConfig.provider
       })
-    return new SimpleWallet({ contract: smartAccount, participant: {}, knownParticipants: [] })
+
+    const participants = this._getParticipants({ ownerAddress: owner, backendAddress: this.backendAddress })
+    return new SimpleWallet({
+      contract: smartAccount,
+      participant: participants.operator,
+      knownParticipants: [participants.backendAsAdmin, participants.backendAsWatchdog]
+    })
+  }
+
+  _getParticipants ({ ownerAddress, backendAddress }) {
+    return {
+      operator: new Participant(ownerAddress, Permissions.OwnerPermissions, 1),
+      backendAsWatchdog: new Participant(backendAddress, Permissions.WatchdogPermissions, 1),
+      backendAsAdmin: new Participant(backendAddress, Permissions.AdminPermissions, 1)
+    }
   }
 
   _validateConfig (factoryConfig) {
