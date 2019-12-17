@@ -38,6 +38,7 @@ contract('SmartAccountFactory', function (accounts) {
 
     assert.equal(event.event, 'SmartAccountCreated')
     assert.equal(event.args.sender, sender)
+        assert.equal(event.args.smartAccountId, '0x' + smartAccountId.toString('hex'));
   })
 
   it('should revert when deploying with same smartAccountId', async function () {

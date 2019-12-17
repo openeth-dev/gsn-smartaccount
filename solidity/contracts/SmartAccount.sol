@@ -34,13 +34,12 @@ contract SmartAccount is PermissionsLevel, GsnRecipient {
 
     //***** events
 
-    event ConfigPending(bytes32 indexed delayedOpId, address sender, uint32 senderPermsLevel, address booster, uint32 boosterPermsLevel, uint256 stateId, uint8[] actions, bytes32[] actionsArguments1, bytes32[] actionsArguments2, uint dueTime);
+    event ConfigPending(bytes32 indexed delayedOpId, address sender, uint32 senderPermsLevel, address booster, uint32 boosterPermsLevel, uint256 stateId, uint8[] actions, bytes32[] actionsArguments1, bytes32[] actionsArguments2);
     event ConfigCancelled(bytes32 indexed delayedOpId, address sender);
-    event ConfigApplied(bytes32 indexed transactionHash, address sender);
+    event ConfigApplied(bytes32 indexed delayedOpId, address sender);
     // TODO: add 'ConfigApplied' event - this is the simplest way to track what is applied and whatnot
     event ParticipantAdded(bytes32 indexed participant);
     event ParticipantRemoved(bytes32 indexed participant);
-    event OwnerChanged(address indexed newOwner);
     // TODO: not log participants
     event SmartAccountInitialized(bytes32[] participants, uint256[] delays, uint256[] requiredApprovalsPerLevel);
     event LevelFrozen(uint256 frozenLevel, uint256 frozenUntil, address sender);
@@ -165,7 +164,7 @@ contract SmartAccount is PermissionsLevel, GsnRecipient {
         allowAddOperatorNow = _allowAddOperatorNow;
         requiredApprovalsPerLevel = _requiredApprovalsPerLevel;
 
-        emit  SmartAccountInitialized(initialParticipants, delays, requiredApprovalsPerLevel);
+        emit SmartAccountInitialized(initialParticipants, delays, requiredApprovalsPerLevel);
         for (uint8 i = 0; i < bypassTargets.length; i++) {
             bypassPoliciesByTarget[bypassTargets[i]] = BypassPolicy(bypassModules[i]);
         }
@@ -413,6 +412,7 @@ contract SmartAccount is PermissionsLevel, GsnRecipient {
             dispatch(actions[i], args1[i], args2[i], scheduler, schedulerPermsLevel);
         }
         // TODO: do this in every method, as a function/modifier
+        emit ConfigApplied(transactionHash, sender);
         stateNonce++;
     }
 

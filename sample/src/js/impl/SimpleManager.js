@@ -98,9 +98,9 @@ export default class SimpleManager extends SimpleManagerApi {
 
     const sender = await this.getOwner()
     // TODO: next commit: make 'FactoryContractInteractor.deployNewSmartAccount' do this job
-    const smartAccountIdId = response.smartAccountId
+    const smartAccountId = response.smartAccountId
     const approvalData = response.approvalData
-    await this.smartAccountFactory.newSmartAccount(smartAccountIdId, {
+    await this.smartAccountFactory.newSmartAccount(smartAccountId, {
       from: sender,
       gas: 1e8,
       approvalData: approvalData

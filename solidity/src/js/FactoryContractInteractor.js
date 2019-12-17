@@ -34,11 +34,18 @@ const ERC20Contract = TruffleContract({
 const smartAccountCreatedEvent = 'SmartAccountCreated'
 
 class FactoryContractInteractor {
+    //@deprecated
   constructor (credentials, smartAccountFactoryAddress) {
     this.credentials = credentials
     this.smartAccountFactoryAddress = smartAccountFactoryAddress
   }
 
+    static async getInstance({credentials, smartAccountFactoryAddress, provider}) {
+        SmartAccountFactory.setProvider(provider);
+        const instance = new FactoryContractInteractor(credentials, smartAccountFactoryAddress)
+        instance.smartAccountFactory = await SmartAccountFactory.at(instance.smartAccountFactoryAddress)
+        return instance
+    }
   /**
    * Not a constructor because constructors cannot be async
    * @param credentials
@@ -46,6 +53,7 @@ class FactoryContractInteractor {
    * @param ethNodeUrl
    * @param networkId
    */
+    //@deprecated
   static connect (credentials, smartAccountFactoryAddress, ethNodeUrl, networkId) {
     // Note to self: totally makes sense that this kind of code is only visible on the lowest, pure JS level
     // All the data needed to run this code should be passed as either strings or callbacks to the js-foundation
@@ -55,6 +63,7 @@ class FactoryContractInteractor {
     return new FactoryContractInteractor(credentials, smartAccountFactoryAddress)
   }
 
+    //@deprecated
   async attachToContracts () {
     if (this.smartAccountFactory) {
       return

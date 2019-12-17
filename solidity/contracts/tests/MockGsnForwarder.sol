@@ -7,7 +7,7 @@ import "gsn-sponsor/contracts/GsnForwarder.sol";
 contract MockGsnForwarder is GsnForwarder {
 
     // Just so truffle can parse the event when call wrapped by 'mockCallRecipient'
-    event SmartAccountCreated(address sender, address smartAccount, bytes32 salt);
+    event SmartAccountCreated(address sender, address smartAccount, bytes32 smartAccountId);
 
     constructor(IRelayHub hub) GsnForwarder(hub, IRelayRecipient (0)) public {
     }
