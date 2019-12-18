@@ -177,15 +177,13 @@ export class Watchdog {
     const encodedCall = method.encodeABI()
     let gasPrice = await this.web3.eth.getGasPrice()
     gasPrice = parseInt(gasPrice)
-    console.log('wtf is gasPrice', gasPrice)
-    const gas = await method.estimateGas({ from: this.keyManager.Address(), value: change.log.args.value || 0 })
-    console.log('wtf is gas', gas)
+    const gas = await method.estimateGas({ from: this.keyManager.Address() })
     const nonce = await this.web3.eth.getTransactionCount(this.keyManager.Address())
     const txToSign = {
       to: change.log.address,
       value: 0,
       gasPrice: gasPrice || 1e9,
-      gas: gas + 1e5,
+      gas: gas,
       data: encodedCall ? Buffer.from(encodedCall.slice(2), 'hex') : Buffer.alloc(0),
       nonce
     }
