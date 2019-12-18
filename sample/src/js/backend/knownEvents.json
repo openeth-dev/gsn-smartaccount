@@ -1,7 +1,7 @@
 {
   "knownEvents": [
     ["SmartAccountCreated","(address,address,bytes32)"],
-    ["ConfigPending","(bytes32,address,uint32,address,uint32,uint256,uint8[],bytes32[],bytes32[])"],
+    ["ConfigPending","(bytes32,address,uint32,address,uint32,uint256,uint8[],bytes32[],bytes32[],uint256)"],
     ["ConfigCancelled","(bytes32,address)"],
     ["ConfigApplied","(bytes32,address)"],
     ["ParticipantAdded","(bytes32)"],

@@ -12,7 +12,7 @@ import crypto from 'crypto'
 import SimpleWallet from '../../src/js/impl/SimpleWallet'
 import Participant from 'safechannels-contracts/src/js/Participant'
 import Permissions from 'safechannels-contracts/src/js/Permissions'
-// import scutils from 'safechannels-contracts/src/js/SafeChannelUtils'
+// import { sleep } from './testutils'
 
 // const ethUtils = require('ethereumjs-util')
 // const abi = require('ethereumjs-abi')
@@ -38,6 +38,7 @@ describe('As Guardian', async function () {
   const whitelistPolicy = '0x1111111111111111111111111111111111111111'
   const transferDestination = '0x1234567891111111111111111111111111111111'
   const amount = 1e3
+  let config
 
   async function fundAddress (guardianAddress) {
     const tx = {
@@ -66,11 +67,12 @@ describe('As Guardian', async function () {
       ]
     }
     wallet = new SimpleWallet(walletConfig)
-    const config = SimpleWallet.getDefaultSampleInitialConfiguration({
+    config = SimpleWallet.getDefaultSampleInitialConfiguration({
       backendAddress: keypair.address,
       operatorAddress: accountZero,
       whitelistModuleAddress: whitelistPolicy
     })
+    // config.initialDelays = [1, 1]
     config.initialDelays = [0, 0]
     config.requiredApprovalsPerLevel = [0, 0]
     await wallet.initialConfiguration(config)
@@ -106,7 +108,7 @@ describe('As Guardian', async function () {
       console.log('WD address', watchdog.keyManager.Address())
     })
 
-    it('should NOT apply delayed transfer for unknown accounts', async function () {
+    it('should not apply delayed transfer for unknown accounts', async function () {
       const stateId = await wallet.contract.stateNonce()
       receipt = await wallet.contract.scheduleBypassCall(wallet.participant.permLevel, transferDestination, amount, [],
         stateId,
@@ -131,7 +133,7 @@ describe('As Guardian', async function () {
       watchdog.accountManager.putAccount({ account: newAccount })
 
       const balanceBefore = await web3.eth.getBalance(transferDestination)
-      const bypassCallAppliedEventsBefore = await wallet.contract.getPastEvents('BypassCallCancelled')
+      const cancelledEventsBefore = await wallet.contract.getPastEvents('BypassCallCancelled')
       const smsCode = watchdog.smsManager.getSmsCode(
         { phoneNumber: newAccount.phone, email: newAccount.email })
 
@@ -141,9 +143,9 @@ describe('As Guardian', async function () {
       receipt = await watchdog.cancelChange(
         { smsCode, delayedOpId: receipt.logs[0].args.delayedOpId, address: newAccount.address })
       const balanceAfter = await web3.eth.getBalance(transferDestination)
-      const bypassCallAppliedEventsAfter = await wallet.contract.getPastEvents('BypassCallCancelled')
+      const cancelledEventsAfter = await wallet.contract.getPastEvents('BypassCallCancelled')
       assert.equal(balanceAfter, balanceBefore)
-      assert.equal(bypassCallAppliedEventsAfter.length, bypassCallAppliedEventsBefore.length + 1)
+      assert.equal(cancelledEventsAfter.length, cancelledEventsBefore.length + 1)
     })
 
     it('should apply delayed transfer for a known account', async function () {
@@ -152,6 +154,7 @@ describe('As Guardian', async function () {
         { from: accountZero })
       const balanceBefore = await web3.eth.getBalance(transferDestination)
       const bypassCallAppliedEventsBefore = await wallet.contract.getPastEvents('BypassCallApplied')
+      // await sleep(1000)
       await watchdog._worker()
       const balanceAfter = await web3.eth.getBalance(transferDestination)
       const bypassCallAppliedEventsAfter = await wallet.contract.getPastEvents('BypassCallApplied')
@@ -160,7 +163,7 @@ describe('As Guardian', async function () {
       assert.deepEqual(watchdog.changesToApply, {})
     })
 
-    it('should NOT apply bypass call twice', async function () {
+    it('should not apply bypass call twice', async function () {
       hookWatchdogApplyChanges()
       watchdog.lastScannedBlock = 0
       await watchdog._worker()
@@ -168,13 +171,21 @@ describe('As Guardian', async function () {
       unhookWatchdogApplyChanges()
     })
 
-    it('should NOT apply config change for unknown accounts')
+    it('should not apply config change for unknown accounts')
 
     it('should cancel config change for a known account')
 
     it.skip('should apply config change for a known account', async function () {
       await wallet.contract.changeConfiguration(wallet.participant.permLevel)
       await watchdog._worker()
+    })
+
+    it.skip('should not apply config change twice', async function () {
+      hookWatchdogApplyChanges()
+      watchdog.lastScannedBlock = 0
+      await watchdog._worker()
+      assert.deepEqual(watchdog.changesToApply, {})
+      unhookWatchdogApplyChanges()
     })
 
     after(async function () {

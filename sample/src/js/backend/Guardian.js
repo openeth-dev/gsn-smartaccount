@@ -52,10 +52,6 @@ export class Watchdog {
     // .filter(dlog => !!this.accountManager.getAccountById({ accountId: dlog.args.smartAccountId }) ||
     //   !!this.accountManager.getAccountByAddress({ address: dlog.address }))
 
-    // const pending = decodedLogs.filter(d => d && d.name.includes('Pending'))
-    // const applied = decodedLogs.filter(d => d && d.name.includes('Applied'))
-    // const cancelled = decodedLogs.filter(d => d && d.name.includes('Cancelled'))
-
     for (const dlog of decodedLogs) {
       switch (dlog.name) {
         case 'SmartAccountCreated':
@@ -92,7 +88,7 @@ export class Watchdog {
       return
     }
     await this.smsManager.sendSMS({ phoneNumber: account.phone, email: account.email })
-    const dueTime = Date.now() // dlog.args.dueTime * 1000 // TODO add dueTime to events
+    const dueTime = dlog.args.dueTime * 1000
     const delayedOpId = dlog.args.delayedOpId
     this.changesToApply[delayedOpId] = { dueTime: dueTime, log: dlog }
   }
