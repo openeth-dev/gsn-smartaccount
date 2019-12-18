@@ -24,6 +24,7 @@ describe('SimpleWallet', async function () {
 
   const expectedInitialConfig = require('./testdata/ExpectedInitialConfig')
   const expectedWalletInfoA = require('./testdata/ExpectedWalletInfoA')
+  const expectedTokenBalances = require('./testdata/ExpectedTokenBalances')
   const sampleTransactionHistory = require('./testdata/SampleTransactionHistory')
   const sampleConfigChangeHistoryA = require('./testdata/SampleConfigChangeHistoryA')
   const sampleTransactionsPendingList = require('./testdata/SampleTransactionsPendingList')
@@ -40,7 +41,7 @@ describe('SimpleWallet', async function () {
 
   async function newTest (operator = null) {
     const smartAccount = await FactoryContractInteractor.deploySmartAccountDirectly(from, ethNodeUrl)
-    const wallet = new SimpleWallet({ ...walletSharedConfig, contract: smartAccount })
+    const wallet = new SimpleWallet({ ...walletSharedConfig, contract: smartAccount, knownTokens: [] })
     if (operator !== null) {
       const config = SimpleWallet.getDefaultSampleInitialConfiguration({
         backendAddress: backend,
@@ -217,5 +218,29 @@ describe('SimpleWallet', async function () {
 
   describe('#cancelPending()', async function () {
     it('should cancel the delayed operation')
+  })
+
+  describe('#listTokens()', async function () {
+    let testContext
+    let dai
+    let bat
+    before(async function () {
+      testContext = await newTest(from)
+      dai = await FactoryContractInteractor.deployERC20(from, ethNodeUrl)
+      bat = await FactoryContractInteractor.deployERC20(from, ethNodeUrl)
+      await dai.setSymbol('DAI', { from })
+      await bat.setSymbol('BAT', { from })
+      await dai.setDecimals(13, { from })
+      await bat.setDecimals(11, { from })
+      await dai.transfer(testContext.wallet.contract.address, 20000, { from })
+      await bat.transfer(testContext.wallet.contract.address, 123456, { from })
+      testContext.wallet._addKnownToken(dai.address)
+      testContext.wallet._addKnownToken(bat.address)
+    })
+
+    it('should return up-to-date balances of all known tokens', async function () {
+      const balances = await testContext.wallet.listTokens()
+      assert.deepStrictEqual(balances, expectedTokenBalances)
+    })
   })
 })

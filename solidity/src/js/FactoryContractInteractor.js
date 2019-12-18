@@ -26,6 +26,11 @@ const FreeRecipientSponsorContract = TruffleContract({
   abi: FreeRecipientSponsorABI
 })
 
+const ERC20Contract = TruffleContract({
+  contractName: 'ERC20',
+  abi: ERC20ABI
+})
+
 const smartAccountCreatedEvent = 'SmartAccountCreated'
 
 class FactoryContractInteractor {
@@ -35,12 +40,12 @@ class FactoryContractInteractor {
   }
 
   /**
-     * Not a constructor because constructors cannot be async
-     * @param credentials
-     * @param smartAccountFactoryAddress
-     * @param ethNodeUrl
-     * @param networkId
-     */
+   * Not a constructor because constructors cannot be async
+   * @param credentials
+   * @param smartAccountFactoryAddress
+   * @param ethNodeUrl
+   * @param networkId
+   */
   static connect (credentials, smartAccountFactoryAddress, ethNodeUrl, networkId) {
     // Note to self: totally makes sense that this kind of code is only visible on the lowest, pure JS level
     // All the data needed to run this code should be passed as either strings or callbacks to the js-foundation
@@ -86,6 +91,15 @@ class FactoryContractInteractor {
     return { instance, contract }
   }
 
+  static async deployERC20 (from, ethNodeUrl) {
+    const { instance } = await this.deployContract(
+      'generated/tests/DAI',
+      'DAI',
+      [], [], from, ethNodeUrl
+    )
+    return instance
+  }
+
   static async deployMockHub (from, ethNodeUrl) {
     const { instance } = await this.deployContract(
       'generated/tests/MockHub',
@@ -125,10 +139,10 @@ class FactoryContractInteractor {
   }
 
   /**
-     * Migrated this from test code to allow the Factory Interactor to deploy the Factory Contract.
-     * This is mainly useful for tests, but anyways, JS-Foundation is the easiest place to put this code.
-     * @returns {Promise<String>} - the address of the newly deployed Factory
-     */
+   * Migrated this from test code to allow the Factory Interactor to deploy the Factory Contract.
+   * This is mainly useful for tests, but anyways, JS-Foundation is the easiest place to put this code.
+   * @returns {Promise<String>} - the address of the newly deployed Factory
+   */
   static async deployNewSmartAccountFactory (from, ethNodeUrl, forwarder) {
     const utilitiesContract = await this.deployUtilitiesLibrary(from, ethNodeUrl)
     const { instance: smartAccountFactory } = await this.deployContract('generated/SmartAccountFactory', 'SmartAccountFactory', [utilitiesContract], [forwarder], from, ethNodeUrl)
@@ -154,6 +168,11 @@ class FactoryContractInteractor {
     return FreeRecipientSponsorContract.at(address)
   }
 
+  static async getErc20ContractAt ({ address, provider }) {
+    ERC20Contract.setProvider(provider)
+    return ERC20Contract.at(address)
+  }
+
   static encodeErc20Call ({ destination, amount, operation }) {
     return new (new Web3()).eth.Contract(ERC20ABI).methods.transfer(destination, amount).encodeABI()
   }
@@ -175,7 +194,10 @@ class FactoryContractInteractor {
     await this.attachToContracts()
     // TODO: figure out what is wrong with 'estimate gas'.
     //  Works for Truffle test, fails in Mocha test, doesn't give a "out of gas" in console;
-    const receipt = await this.smartAccountFactory.newSmartAccount({ from: this.credentials.getAddress(), gas: 0x6691b7 })
+    const receipt = await this.smartAccountFactory.newSmartAccount({
+      from: this.credentials.getAddress(),
+      gas: 0x6691b7
+    })
     return new SmartAccountCreatedEvent(receipt.logs[0])
   }
 

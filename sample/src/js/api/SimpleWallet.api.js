@@ -54,7 +54,7 @@ export default class SimpleWalletApi {
     error('wallet info')
   }
 
-  listTokens () {
+  async listTokens () {
     error('return static list of {token,balance,decimals} - loaded with refresh()')
   }
 

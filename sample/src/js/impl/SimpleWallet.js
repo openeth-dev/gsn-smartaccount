@@ -1,3 +1,6 @@
+import asyncForEach from 'async-await-foreach'
+import Web3 from 'web3'
+
 import Permissions from 'safechannels-contracts/src/js/Permissions'
 import SafeChannelUtils from 'safechannels-contracts/src/js/SafeChannelUtils'
 import FactoryContractInteractor from 'safechannels-contracts/src/js/FactoryContractInteractor'
@@ -27,14 +30,17 @@ export default class SimpleWallet extends SimpleWalletApi {
    * @param contract - TruffleContract instance of the Gatekeeper
    * @param participant - the participant to be used as the 'from' of all operations
    * @param knownParticipants - all other possible participants known to the wallet. Not necessarily activated on vault.
-   * Note: participants should be of 'Participant' class!
+   *        Note: participants should be of 'Participant' class!
+   * @param knownTokens - tokens currently supported.
    */
-  constructor ({ contract, participant, knownParticipants }) {
+  constructor ({ contract, participant, knownParticipants, knownTokens }) {
     super()
     this.contract = contract
     this.participant = participant
-    this.knownParticipants = knownParticipants
-    this.knownParticipants.push(participant)
+    this.knownTokens = []
+    this.knownParticipants = []
+    this.knownTokens.push(...knownTokens)
+    this.knownParticipants.push(...knownParticipants, participant)
     // TODO: make sure no duplicates
   }
 
@@ -155,7 +161,32 @@ export default class SimpleWallet extends SimpleWalletApi {
     }
   }
 
-  listTokens () {
+  async listTokens () {
+    const provider = this.contract.contract.currentProvider
+    const web3 = new Web3(provider)
+    const smartAccount = this.contract.address
+    const ethBalance = await web3.eth.getBalance(smartAccount)
+    const tokenBalances = await Promise.all(this.knownTokens.map(
+      async (address) => {
+        const erc20 = await FactoryContractInteractor.getErc20ContractAt({ address, provider })
+        const balance = (await erc20.balanceOf(smartAccount)).toString()
+        let decimals
+        let symbol
+        try {
+          decimals = (await erc20.decimals()).toString()
+          symbol = await erc20.symbol()
+        } catch (e) {
+          decimals = 18
+          symbol = 'N/A'
+        }
+        return {
+          balance, decimals, symbol
+        }
+      }))
+    return [
+      { balance: ethBalance, decimals: 18, symbol: 'ETH' },
+      ...tokenBalances
+    ]
   }
 
   async _getDeployedBlock () {
@@ -346,7 +377,29 @@ export default class SimpleWallet extends SimpleWalletApi {
     return this.backend.validateAddOperatorNow({ jwt, url })
   }
 
+  /*
+      function applyConfig(
+          uint32 senderPermsLevel,
+          uint8[] memory actions,
+          bytes32[] memory args1,
+          bytes32[] memory args2,
+          uint256 scheduledStateId,
+          address scheduler,
+          uint32 schedulerPermsLevel,
+          address booster,
+          uint32 boosterPermsLevel)
+   */
   async applyAllPendingOperations () {
-    super.applyAllPendingOperations()
+    // const pendingTransactions = await this.listPendingTransactions()
+    const pendingConfigChanges = await this.listPendingConfigChanges()
+    await asyncForEach(pendingConfigChanges, async (it) => {
+      this.contract.applyConfig(
+        this.participant.permLevel
+      )
+    })
+  }
+
+  _addKnownToken (address) {
+    this.knownTokens.push(address)
   }
 }
