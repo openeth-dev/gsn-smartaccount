@@ -45,7 +45,7 @@ describe('#SimpleManager.test', () => {
     backendTestInstance.secretSMSCodeSeed = Buffer.from('f'.repeat(64), 'hex')
 
     await new Promise((resolve, reject) => {
-      ls = spawn('node', ['-r', 'esm', '../sample/src/js/backend/runServer.js', '8888', '--dev'])
+      ls = spawn('node', ['-r', 'esm', '../sample/src/js/backend/runServer.js', '8888', 'factoryaddr', 'sponsoraddr', '--dev'])
       ls.stdout.on('data', (data) => {
         console.log(`stdout: ${data}`)
         if (data.includes('listening')) {

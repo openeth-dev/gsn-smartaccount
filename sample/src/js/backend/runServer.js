@@ -28,16 +28,20 @@ function hookBackend (backend) {
 }
 
 const port = process.argv[2]
+const factoryAddress = process.argv[3]
+const sponsorAddress = process.argv[4]
 const smsProvider = new SMSmock()
 const keypair = newEphemeralKeypair()
 const backend = new Backend(
   {
     smsProvider,
     audience: '202746986880-u17rbgo95h7ja4fghikietupjknd1bln.apps.googleusercontent.com',
-    ecdsaKeyPair: keypair
+    ecdsaKeyPair: keypair,
+    factoryAddress,
+    sponsorAddress
   })
 
-if (process.argv[3] === '--dev') {
+if (process.argv[5] === '--dev') {
   console.log('Running server in dev mode')
   hookBackend(backend)
 }

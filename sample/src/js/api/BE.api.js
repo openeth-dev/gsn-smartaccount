@@ -11,7 +11,7 @@ export default class BEapi {
   }
 
   async getAddresses () {
-    error('return ethereum addresses of watchdog,admin,factory')
+    error('return ethereum addresses of {watchdog,admin,factory,sponsor}')
   }
 
   async validatePhone ({ jwt, phoneNumber }) {

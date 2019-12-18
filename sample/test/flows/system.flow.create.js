@@ -36,30 +36,20 @@ describe('System flow: Create Account', () => {
     let mgr
     let jwt, phoneNumber
 
-    let backendAddress
-
-    before('start backend', async () => {
-      await startBackendServer({ port: 8887 })
-      console.log('started server address: ', backendAddress)
-    })
-
     after('stop backend', async () => {
       await stopBackendServer()
     })
 
-    before('create manager', async () => {
-      const ethNodeUrl = 'http://localhost:8545'
+    const ethNodeUrl = 'http://localhost:8545'
+
+    before('deploy contracts, start server', async () => {
       const web3provider = new Web3.providers.HttpProvider(ethNodeUrl)
       const web3 = new Web3(web3provider)
       const accounts = await web3.eth.getAccounts()
       const from = accounts[0]
 
-      const backend = new ClientBackend({ serverURL: 'http://localhost:8887/' })
-
-      backendAddress = (await backend.getAddresses()).watchdog
-
+      // servers, contract deployment:
       const sponsor = await FactoryContractInteractor.deploySponsor(from, relayHubAddress, ethNodeUrl)
-      await sponsor.relayHubDeposit({ value: 2e18, from })
       await sponsor.relayHubDeposit({ value: 2e18, from })
 
       if (await web3.eth.getBalance(relayAddr) < 3e18) {
@@ -67,17 +57,29 @@ describe('System flow: Create Account', () => {
         console.log('funded relay')
       }
 
-      const forwarderAddress = await sponsor.contract.methods.getGsnForwarder().call()
+      const forwarderAddress = await sponsor.getGsnForwarder()
+
       const forward = await FactoryContractInteractor.getGsnForwarder({
         address: forwarderAddress,
         provider: web3provider
       })
+
       const factory = await FactoryContractInteractor.deployNewSmartAccountFactory(from, ethNodeUrl, forward.address)
+
+      const backendAddress = await startBackendServer({ port: 8887, factoryAddress:factory.address, sponsorAddress:sponsor.address })
       await factory.addTrustedSigners([backendAddress], { from })
+    })
+
+    before('setup client', async () => {
+      const web3provider = new Web3.providers.HttpProvider(ethNodeUrl)
+
+      const backend = new ClientBackend({ serverURL: 'http://localhost:8887/' })
+
+      const { watchdog, sponsor, factory } = (await backend.getAddresses())
 
       const relayOptions = {
         verbose,
-        sponsor: sponsor.address
+        sponsor
       }
       const storage = new MockStorage()
       const acc = await SafeAccount.init({
@@ -88,7 +90,7 @@ describe('System flow: Create Account', () => {
 
       const factoryConfig = {
         provider: acc.provider,
-        factoryAddress: factory.address
+        factoryAddress: factory
       }
 
       mgr = new SimpleManager({
@@ -97,8 +99,8 @@ describe('System flow: Create Account', () => {
         factoryConfig
       })
 
-      // hack: to fill knownParticipants..
-      mgr.backendAddress = backendAddress
+      // TODO: do we have better way to fill in knownParticipants ?
+      mgr.backendAddress = watchdog
     })
 
     it('new browser attempt login', async () => {
@@ -135,7 +137,7 @@ describe('System flow: Create Account', () => {
 
     it('initialConfiguration', async () => {
       const config = SimpleWallet.getDefaultSampleInitialConfiguration({
-        backendAddress,
+        backendAddress: mgr.backendAddress,
         operatorAddress: await mgr.getOwner(),
         whitelistModuleAddress: '0x' + '1'.repeat(40) // whitelistPolicy
       })

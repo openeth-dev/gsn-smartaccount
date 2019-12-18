@@ -87,7 +87,7 @@ describe('http layer tests', async function () {
         assert.equal(res.error.message, `Error: ${errorMessage}`)
       } catch (e) {
         console.log(e)
-        assert.match(e.toString(), /Error: go fish.*\ncreateAccount/)
+        assert.match(e.toString(), /Error: go fish.*\n.*createAccount/)
       }
     })
   })

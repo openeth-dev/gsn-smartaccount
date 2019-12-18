@@ -2,10 +2,12 @@ import { spawn } from 'child_process'
 
 let ls
 
-export async function startBackendServer ({ port = 8888 }) {
+export async function startBackendServer ({ port = 8888, factoryAddress, sponsorAddress }) {
   return new Promise((resolve, reject) => {
     const folder = __dirname
-    ls = spawn('node', ['-r', 'esm', folder + '/../../../sample/src/js/backend/runServer.js', port, '--dev'])
+    ls = spawn('node', [
+      '-r', 'esm', folder + '/../../../sample/src/js/backend/runServer.js',
+      port, factoryAddress, sponsorAddress, '--dev'])
     let serverAddress
     ls.stdout.on('data', (data) => {
       process.stdout.write(`stdout: ${data}`)
