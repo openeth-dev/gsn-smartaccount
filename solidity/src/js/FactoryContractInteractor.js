@@ -29,7 +29,6 @@ const FreeRecipientSponsorContract = TruffleContract({
 const smartAccountCreatedEvent = 'SmartAccountCreated'
 
 class FactoryContractInteractor {
-
   constructor (credentials, smartAccountFactoryAddress) {
     this.credentials = credentials
     this.smartAccountFactoryAddress = smartAccountFactoryAddress
@@ -43,10 +42,9 @@ class FactoryContractInteractor {
    * @param networkId
    */
   static connect (credentials, smartAccountFactoryAddress, ethNodeUrl, networkId) {
-
     // Note to self: totally makes sense that this kind of code is only visible on the lowest, pure JS level
     // All the data needed to run this code should be passed as either strings or callbacks to the js-foundation
-    let provider = new Web3.providers.HttpProvider(ethNodeUrl)
+    const provider = new Web3.providers.HttpProvider(ethNodeUrl)
 
     SmartAccountFactory.setProvider(provider)
     return new FactoryContractInteractor(credentials, smartAccountFactoryAddress)
@@ -78,8 +76,8 @@ class FactoryContractInteractor {
       contract.link(it)
     })
     let promise
-    let gas = undefined //truffle-contract does "autoGas" by default.
-    contract.gasMultiplier = 1.0 //default 1.25 is too much...
+    const gas = undefined // truffle-contract does "autoGas" by default.
+    contract.gasMultiplier = 1.0 // default 1.25 is too much...
     if (params && params.length > 0) {
       promise = contract.new(...params, { from: from, gas: gas })
     } else {
@@ -139,7 +137,7 @@ class FactoryContractInteractor {
     return smartAccountFactory
   }
 
-  //TODO: there is no reason anymore to depend on a library as instance. All methods must be 'inline'
+  // TODO: there is no reason anymore to depend on a library as instance. All methods must be 'inline'
   static async deployUtilitiesLibrary (from, ethNodeUrl) {
     const utilitiesLibraryPlaceholder = '\\$' + Web3.utils.keccak256('Utilities.sol:Utilities').substr(2, 34) + '\\$'
     const deployed = await this.deployContract(
@@ -167,7 +165,7 @@ class FactoryContractInteractor {
     SmartAccountContract.setProvider(provider)
     const smartAccountFactory = await SmartAccountFactory.at(factoryAddress)
     const fromBlock = blockNumber
-    const toBlock = blockNumber == 1 ? 'latest' : blockNumber
+    const toBlock = blockNumber === 1 ? 'latest' : blockNumber
     const options = { fromBlock, toBlock }
     let events = await Utils.getEvents(smartAccountFactory, smartAccountCreatedEvent, options, SmartAccountCreatedEvent)
     events = events.filter(event => event.sender.toLowerCase() === sender)
