@@ -12,23 +12,23 @@ export function hookRpcProvider (provider, hooks) {
       if (typeof origfunc !== 'function' || (p !== 'send' && p !== 'sendAsync')) {
         return origfunc
       }
-      return function (param, cb) {
-        const func = hooks[param.method]
-        if (func) {
-          const wrapperCB = (err, res) => {
-            const resp = {
-              jsonrpc: param.jsonrpc,
-              id: param.id,
-              result: res,
-              error: err
-            }
-            if (err) cb(resp)
-            else cb(null, resp)
-          }
-          func(param.params, wrapperCB)
-        } else {
-          origfunc.apply(target, arguments)
+      return function (rpccall, cb) {
+        const origCallback = cb
+        const func = hooks[rpccall.method]
+        if (!func) {
+          return origfunc.apply(target, arguments)
         }
+        const wrapperCB = (err, res) => {
+          const resp = {
+            jsonrpc: rpccall.jsonrpc,
+            id: rpccall.id,
+            result: res,
+            error: err
+          }
+          if (err) origCallback(resp)
+          else origCallback(null, resp)
+        }
+        func(...rpccall.params).then(res => wrapperCB(null, res)).catch(err => wrapperCB(err))
       }
     }
   })

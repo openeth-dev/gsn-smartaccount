@@ -2,7 +2,7 @@
 
 import { assert, expect } from 'chai'
 import { MockStorage } from '../mocks/MockStorage'
-import SafeAccount from '../../src/js/impl/SafeAccount'
+import SmartAccountSDK from '../../src/js/impl/SmartAccountSDK'
 import Account from '../../src/js/impl/Account'
 import SimpleManager from '../../src/js/impl/SimpleManager'
 import ClientBackend from '../../src/js/backend/ClientBackend'
@@ -66,7 +66,14 @@ describe('System flow: Create Account', () => {
 
       const factory = await FactoryContractInteractor.deployNewSmartAccountFactory(from, ethNodeUrl, forward.address)
 
-      const backendAddress = await startBackendServer({ port: 8887, factoryAddress:factory.address, sponsorAddress:sponsor.address })
+      await startBackendServer({
+        port: 8887,
+        factoryAddress: factory.address,
+        sponsorAddress: sponsor.address
+      })
+
+      const { watchdog: backendAddress } = await new ClientBackend({ serverURL: 'http://localhost:8887/' }).getAddresses()
+
       await factory.addTrustedSigners([backendAddress], { from })
     })
 
@@ -75,14 +82,14 @@ describe('System flow: Create Account', () => {
 
       const backend = new ClientBackend({ serverURL: 'http://localhost:8887/' })
 
-      const { watchdog, sponsor, factory } = (await backend.getAddresses())
+      const { sponsor, factory } = (await backend.getAddresses())
 
       const relayOptions = {
         verbose,
         sponsor
       }
       const storage = new MockStorage()
-      const acc = await SafeAccount.init({
+      const acc = await SmartAccountSDK.init({
         network: web3provider,
         account: new Account(storage), // override default proxy
         relayOptions
@@ -98,9 +105,6 @@ describe('System flow: Create Account', () => {
         backend,
         factoryConfig
       })
-
-      // TODO: do we have better way to fill in knownParticipants ?
-      mgr.backendAddress = watchdog
     })
 
     it('new browser attempt login', async () => {
@@ -120,7 +124,7 @@ describe('System flow: Create Account', () => {
     })
 
     it('after user inputs phone', async () => {
-      phoneNumber = '+972545655145' // user input
+      phoneNumber = '+972541234567' // user input
 
       await mgr.validatePhone({ jwt, phoneNumber })
     })
@@ -136,8 +140,10 @@ describe('System flow: Create Account', () => {
     let wallet
 
     it('initialConfiguration', async () => {
+      const { watchdog } = (await mgr.backend.getAddresses())
+
       const config = SimpleWallet.getDefaultSampleInitialConfiguration({
-        backendAddress: mgr.backendAddress,
+        backendAddress: watchdog,
         operatorAddress: await mgr.getOwner(),
         whitelistModuleAddress: '0x' + '1'.repeat(40) // whitelistPolicy
       })

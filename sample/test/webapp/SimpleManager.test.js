@@ -45,7 +45,14 @@ describe('#SimpleManager.test', () => {
     backendTestInstance.secretSMSCodeSeed = Buffer.from('f'.repeat(64), 'hex')
 
     await new Promise((resolve, reject) => {
-      ls = spawn('node', ['-r', 'esm', '../sample/src/js/backend/runServer.js', '8888', 'factoryaddr', 'sponsoraddr', '--dev'])
+      ls = spawn('node', [
+        '-r',
+        'esm',
+        '../sample/src/js/backend/runServer.js',
+        '8888',
+        'factoryaddr',
+        'sponsoraddr',
+        '--dev'])
       ls.stdout.on('data', (data) => {
         console.log(`stdout: ${data}`)
         if (data.includes('listening')) {
@@ -150,7 +157,10 @@ describe('#SimpleManager.test', () => {
           mockhub = await FactoryContractInteractor.deployMockHub(from, ethNodeUrl)
           sponsor = await FactoryContractInteractor.deploySponsor(from, mockhub.address, ethNodeUrl)
           const forwarderAddress = await sponsor.contract.methods.getGsnForwarder().call()
-          forward = await FactoryContractInteractor.getGsnForwarder({ address: forwarderAddress, provider: web3provider })
+          forward = await FactoryContractInteractor.getGsnForwarder({
+            address: forwarderAddress,
+            provider: web3provider
+          })
           factory = await FactoryContractInteractor.deployNewSmartAccountFactory(from, ethNodeUrl, forward.address)
           if (!verbose) {
             return
@@ -161,7 +171,7 @@ describe('#SimpleManager.test', () => {
           const vfFwd = await factory.contract.methods.getGsnForwarder().call()
           console.log(`spHub = ${spHub} fwHub=${fwHub} vfHub=${vfHub} vfFwd=${vfFwd}`)
           console.log(
-          `mockhub = ${mockhub.address} factory=${factory.address} sponsor=${sponsor.address} forward=${forward.address}`)
+            `mockhub = ${mockhub.address} factory=${factory.address} sponsor=${sponsor.address} forward=${forward.address}`)
         })
 
         describe('main flows', async function () {
@@ -184,16 +194,15 @@ describe('#SimpleManager.test', () => {
               sponsor: sponsor.address,
               proxyOwner: {
                 address: await accountApi.getOwner()
-              // privateKey: accountApi.storage.privKey
+                // privateKey: accountApi.storage.privKey
               }
             }
             const signerProvider = hookRpcProvider(web3provider, {
-              eth_sign: async function ([account, hash], cb) {
+              eth_sign: async function (account, hash) {
                 if (account !== await accountApi.getOwner()) {
-                  cb(Error('wrong signer: not valid account'))
+                  throw new Error('wrong signer: not valid account')
                 }
-                const sig = await accountApi.signMessageHash(hash)
-                cb(null, sig)
+                return accountApi.signMessageHash(hash)
               }
             })
 

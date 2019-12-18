@@ -3,12 +3,13 @@ import { hookRpcProvider } from '../utils/hookRpcProvider'
 import { SponsorProvider } from 'gsn-sponsor'
 import AccountProxy from './Account.proxy'
 import Web3 from 'web3'
+
 /**
- * SafeAccount - client API to bring up the account API and provider.
+ * SmartAccountSDK - client API to bring up the account API and provider.
  * getProvider() - return a web3 provider that uses the IFRAME
  * implements normal send,sendAcync
  */
-export default class SafeAccount {
+export default class SmartAccountSDK {
   netUrl (network, infuraId = 'c3422181d0594697a38defe7706a1e5b') {
     if (network.toString().match(/mainnet|ropsten|rinkeby|kovan|goerli/)) {
       network = network + '.infura.io/api/v3/' + infuraId
@@ -17,17 +18,13 @@ export default class SafeAccount {
   }
 
   /**
-   * Create a SafeAccount object
+   * Create a SmartAccountSDK object
    * @param network - network name mainnet/ropsten/etc or URL or provider
    * @param account - AccountApi to use (defaults to AccountProxy)
    * @param relayOptions - relay options (at minimum: sponsor address)
    * @param storage - account storage (defaults to localStorage)
    */
-  static async init ({
-    network,
-    relayOptions,
-    storage, account
-  }) {
+  static async init ({ network, relayOptions, storage, account }) {
     if (!account) {
       if (!storage) {
         storage = localStorage
@@ -37,7 +34,7 @@ export default class SafeAccount {
     if (!network) {
       throw new Error('missing \'network\' (network-name/url/provider)')
     }
-    const acc = new SafeAccount()
+    const acc = new SmartAccountSDK()
     if (typeof network.send === 'function') {
       acc.origProvider = network
     } else {
@@ -48,17 +45,16 @@ export default class SafeAccount {
         acc.origProvider = new Web3.providers.HttpProvider(url)
       }
     }
-    acc.account = account || new AccountProxy({ storage })
+    acc.account = account
 
     const signerProvider = hookRpcProvider(acc.origProvider, {
-      eth_sign: async function ([account, hash], cb) {
+      eth_sign: async function (account, hash) {
         if (account !== await acc.account.getOwner()) {
-          cb(Error('wrong signer: not valid account'))
+          throw new Error('wrong signer: not valid account')
         }
-        const sig = await acc.account.signMessageHash(hash)
-        cb(null, sig)
+        return acc.account.signMessageHash(hash)
       },
-      eth_accounts: async function (cb) {
+      eth_accounts: async function () {
         // TODO: should we return OWNER account, or SAFE account ?
         // currently, operations are "managed" ops, and thus require operator account.
         // once we become a "ProxyProvider", we want to use the getWallet account instead.
@@ -76,11 +72,11 @@ export default class SafeAccount {
   }
 
   /**
-   * enable SafeAccount for this app.
+   * enable SmartAccountSDK for this app.
    * attempt to enable the Account object.
    * - if this app is already enabled, it will return immediately.
    * - otherwise, it will prompt the user to allow this app (title and URL) to use
-   *   the SafeAccount.
+   *   the SmartAccountSDK.
    * - exception is thrown if the user doesn't accept.
    * - account API is active only after enabling.
    * @param appTitle
