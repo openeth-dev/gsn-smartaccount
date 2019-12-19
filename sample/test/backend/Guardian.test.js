@@ -12,6 +12,8 @@ import crypto from 'crypto'
 import SimpleWallet from '../../src/js/impl/SimpleWallet'
 import Participant from 'safechannels-contracts/src/js/Participant'
 import Permissions from 'safechannels-contracts/src/js/Permissions'
+import scutils from 'safechannels-contracts/src/js/SafeChannelUtils'
+import ChangeType from 'safechannels-contracts/test/etc/ChangeType'
 // import { sleep } from './testutils'
 
 // const ethUtils = require('ethereumjs-util')
@@ -39,6 +41,7 @@ describe('As Guardian', async function () {
   const transferDestination = '0x1234567891111111111111111111111111111111'
   const amount = 1e3
   let config
+  let newAccount
 
   async function fundAddress (guardianAddress) {
     const tx = {
@@ -77,8 +80,16 @@ describe('As Guardian', async function () {
     config.requiredApprovalsPerLevel = [0, 0]
     await wallet.initialConfiguration(config)
     await fundAddress(wallet.contract.address)
+    newAccount = new Account({
+      accountId: '123456',
+      email: '',
+      phone: '',
+      verified: true,
+      address: wallet.contract.address
+    })
   })
 
+  // TODO refactor tests to ['bypass','config'].forEach as they are very similar
   describe('As Watchdog', async function () {
     let receipt
 
@@ -103,9 +114,8 @@ describe('As Guardian', async function () {
       accountManager = new AccountManager()
       watchdog = new Watchdog(
         { smsManager, keyManager, accountManager, smartAccountFactoryAddress: accountZero, web3provider })
-      assert.isTrue(await wallet.contract.isParticipant(keypair.address,
+      assert.isTrue(await wallet.contract.isParticipant(watchdog.address,
         watchdog.permsLevel))
-      console.log('WD address', watchdog.keyManager.Address())
     })
 
     it('should not apply delayed transfer for unknown accounts', async function () {
@@ -114,38 +124,29 @@ describe('As Guardian', async function () {
         stateId,
         { from: accountZero })
       const balanceBefore = await web3.eth.getBalance(transferDestination)
-      const bypassCallAppliedEventsBefore = await wallet.contract.getPastEvents('BypassCallApplied')
+      const eventsBefore = await wallet.contract.getPastEvents('BypassCallApplied')
       await watchdog._worker()
       const balanceAfter = await web3.eth.getBalance(transferDestination)
-      const bypassCallAppliedEventsAfter = await wallet.contract.getPastEvents('BypassCallApplied')
+      const eventsAfter = await wallet.contract.getPastEvents('BypassCallApplied')
       assert.equal(balanceAfter, balanceBefore)
-      assert.equal(bypassCallAppliedEventsAfter.length, bypassCallAppliedEventsBefore.length)
+      assert.equal(eventsAfter.length, eventsBefore.length)
     })
 
     it('should cancel delayed transfer for a known account', async function () {
-      const newAccount = new Account({
-        accountId: '123456',
-        email: '',
-        phone: '',
-        verified: true,
-        address: wallet.contract.address
-      })
       watchdog.accountManager.putAccount({ account: newAccount })
-
       const balanceBefore = await web3.eth.getBalance(transferDestination)
-      const cancelledEventsBefore = await wallet.contract.getPastEvents('BypassCallCancelled')
+      const eventsBefore = await wallet.contract.getPastEvents('BypassCallCancelled')
       const smsCode = watchdog.smsManager.getSmsCode(
         { phoneNumber: newAccount.phone, email: newAccount.email })
-
       hookWatchdogApplyChanges()
       await watchdog._worker()
       unhookWatchdogApplyChanges()
       receipt = await watchdog.cancelChange(
         { smsCode, delayedOpId: receipt.logs[0].args.delayedOpId, address: newAccount.address })
       const balanceAfter = await web3.eth.getBalance(transferDestination)
-      const cancelledEventsAfter = await wallet.contract.getPastEvents('BypassCallCancelled')
+      const eventsAfter = await wallet.contract.getPastEvents('BypassCallCancelled')
       assert.equal(balanceAfter, balanceBefore)
-      assert.equal(cancelledEventsAfter.length, cancelledEventsBefore.length + 1)
+      assert.equal(eventsAfter.length, eventsBefore.length + 1)
     })
 
     it('should apply delayed transfer for a known account', async function () {
@@ -153,13 +154,13 @@ describe('As Guardian', async function () {
       await wallet.contract.scheduleBypassCall(wallet.participant.permLevel, transferDestination, amount, [], stateId,
         { from: accountZero })
       const balanceBefore = await web3.eth.getBalance(transferDestination)
-      const bypassCallAppliedEventsBefore = await wallet.contract.getPastEvents('BypassCallApplied')
+      const eventsBefore = await wallet.contract.getPastEvents('BypassCallApplied')
       // await sleep(1000)
       await watchdog._worker()
       const balanceAfter = await web3.eth.getBalance(transferDestination)
-      const bypassCallAppliedEventsAfter = await wallet.contract.getPastEvents('BypassCallApplied')
+      const eventsAfter = await wallet.contract.getPastEvents('BypassCallApplied')
       assert.equal(balanceAfter, amount + parseInt(balanceBefore) + '')
-      assert.equal(bypassCallAppliedEventsAfter.length, bypassCallAppliedEventsBefore.length + 1)
+      assert.equal(eventsAfter.length, eventsBefore.length + 1)
       assert.deepEqual(watchdog.changesToApply, {})
     })
 
@@ -171,16 +172,51 @@ describe('As Guardian', async function () {
       unhookWatchdogApplyChanges()
     })
 
-    it('should not apply config change for unknown accounts')
-
-    it('should cancel config change for a known account')
-
-    it.skip('should apply config change for a known account', async function () {
-      await wallet.contract.changeConfiguration(wallet.participant.permLevel)
+    it('should not apply config change for unknown accounts', async function () {
+      watchdog.accountManager.removeAccount({ account: newAccount })
+      const actions = [ChangeType.ADD_PARTICIPANT]
+      const args = [scutils.participantHash(watchdog.address, watchdog.permsLevel)]
+      const stateId = await wallet.contract.stateNonce()
+      receipt = await wallet.contract.changeConfiguration(wallet.participant.permLevel, actions, args, args, stateId,
+        { from: accountZero })
+      assert.equal(receipt.logs[0].event, 'ConfigPending')
+      const eventsBefore = await wallet.contract.getPastEvents('ConfigApplied')
       await watchdog._worker()
+      const eventsAfter = await wallet.contract.getPastEvents('ConfigApplied')
+      assert.equal(eventsAfter.length, eventsBefore.length)
     })
 
-    it.skip('should not apply config change twice', async function () {
+    it('should cancel config change for a known account', async function () {
+      watchdog.accountManager.putAccount({ account: newAccount })
+      const eventsBefore = await wallet.contract.getPastEvents('ConfigCancelled')
+      const smsCode = watchdog.smsManager.getSmsCode(
+        { phoneNumber: newAccount.phone, email: newAccount.email })
+      hookWatchdogApplyChanges()
+      await watchdog._worker()
+      unhookWatchdogApplyChanges()
+      receipt = await watchdog.cancelChange(
+        { smsCode, delayedOpId: receipt.logs[0].args.delayedOpId, address: newAccount.address })
+      const eventsAfter = await wallet.contract.getPastEvents('ConfigCancelled')
+      assert.equal(eventsAfter.length, eventsBefore.length + 1)
+    })
+
+    it('should apply config change for a known account', async function () {
+      const actions = [ChangeType.ADD_PARTICIPANT]
+      const args = [scutils.participantHash(watchdog.address, watchdog.permsLevel)]
+      const stateId = await wallet.contract.stateNonce()
+      await wallet.contract.changeConfiguration(wallet.participant.permLevel, actions, args, args, stateId,
+        { from: accountZero })
+      const eventsBefore = await wallet.contract.getPastEvents('ConfigApplied')
+      const peventsBefore = await wallet.contract.getPastEvents('ParticipantAdded')
+      await watchdog._worker()
+      const eventsAfter = await wallet.contract.getPastEvents('ConfigApplied')
+      const peventsAfter = await wallet.contract.getPastEvents('ParticipantAdded')
+      assert.equal(eventsAfter.length, eventsBefore.length + 1)
+      assert.equal(peventsAfter.length, peventsBefore.length + 1)
+      assert.deepEqual(watchdog.changesToApply, {})
+    })
+
+    it('should not apply config change twice', async function () {
       hookWatchdogApplyChanges()
       watchdog.lastScannedBlock = 0
       await watchdog._worker()

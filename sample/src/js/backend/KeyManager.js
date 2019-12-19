@@ -27,13 +27,13 @@ export class KeyManager {
     return Buffer.concat([sig.r, sig.s, Buffer.from(sig.v.toString(16), 'hex')])
   }
 
-  Address () {
+  address () {
     return this.ecdsaKeyPair.address
   }
 
   signTransaction ({ to, value, gas, gasPrice, data, nonce }) {
     const tx = new Transaction({
-      from: this.Address(),
+      from: this.address(),
       to,
       value,
       gas,

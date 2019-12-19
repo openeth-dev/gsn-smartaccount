@@ -45,6 +45,7 @@ async function getDelayedOpHashFromEvent (log, utilities) {
 async function cancelDelayed ({ res, log }, fromParticipant, smartAccount) {
   const { actions, args1, args2, schedulerAddress, schedulerPermsLevel, boosterAddress, boosterPermsLevel, scheduledStateId } = extractLog(log, res)
   return smartAccount.cancelOperation(
+        fromParticipant.permLevel,
     actions,
     args1,
     args2,
@@ -53,7 +54,6 @@ async function cancelDelayed ({ res, log }, fromParticipant, smartAccount) {
     schedulerPermsLevel,
     boosterAddress,
     boosterPermsLevel,
-    fromParticipant.permLevel,
     { from: fromParticipant.address })
 }
 

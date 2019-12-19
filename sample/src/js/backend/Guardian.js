@@ -22,7 +22,8 @@ export class Watchdog {
     abiDecoder.addABI(SmartAccountFactoryABI)
     abiDecoder.addABI(SmartAccountABI)
     this.permsLevel = scutils.packPermissionLevel(Permissions.WatchdogPermissions, 1)
-    this.smartAccountInteractor = new this.web3.eth.Contract(SmartAccountABI, '', { from: this.keyManager.Address() })
+    this.address = keyManager.address()
+    this.smartAccountInteractor = new this.web3.eth.Contract(SmartAccountABI, '', { from: this.keyManager.address() })
     this.lastScannedBlock = 0
     this.changesToApply = {}
   }
@@ -177,8 +178,8 @@ export class Watchdog {
     const encodedCall = method.encodeABI()
     let gasPrice = await this.web3.eth.getGasPrice()
     gasPrice = parseInt(gasPrice)
-    const gas = await method.estimateGas({ from: this.keyManager.Address() })
-    const nonce = await this.web3.eth.getTransactionCount(this.keyManager.Address())
+    const gas = await method.estimateGas({ from: this.keyManager.address() })
+    const nonce = await this.web3.eth.getTransactionCount(this.keyManager.address())
     const txToSign = {
       to: change.log.address,
       value: 0,
@@ -189,7 +190,7 @@ export class Watchdog {
     }
     const signedTx = this.keyManager.signTransaction(txToSign)
     const receipt = await this.web3.eth.sendSignedTransaction(signedTx)
-    console.log('txhash is', receipt.transactionHash)
+    console.log('\ntxhash is', receipt.transactionHash)
     return receipt
   }
 

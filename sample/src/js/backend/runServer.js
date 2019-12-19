@@ -36,7 +36,7 @@ if (process.argv[5] === '--dev') {
   smsManager.secretSMSCodeSeed = Buffer.from('f'.repeat(64), 'hex')
 }
 
-console.log('server address=' + backend.keyManager.Address())
+console.log('server address=' + backend.keyManager.address())
 
 const server = new Webserver({ port, backend })
 server.start()

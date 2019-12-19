@@ -312,6 +312,7 @@ contract SmartAccount is PermissionsLevel, GsnRecipient {
     }
 
     function cancelOperation(
+        uint32 senderPermsLevel,
         uint8[] memory actions,
         bytes32[] memory args1,
         bytes32[] memory args2,
@@ -319,8 +320,7 @@ contract SmartAccount is PermissionsLevel, GsnRecipient {
         address scheduler,
         uint32 schedulerPermsLevel,
         address booster,
-        uint32 boosterPermsLevel,
-        uint32 senderPermsLevel)
+        uint32 boosterPermsLevel)
     public {
         address sender = getSender();
         requirePermissions(sender, canCancel, senderPermsLevel);

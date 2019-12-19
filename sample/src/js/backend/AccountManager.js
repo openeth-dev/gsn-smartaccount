@@ -24,4 +24,8 @@ export class AccountManager {
   getAccountById ({ accountId }) {
     return this.accounts[accountId]
   }
+
+  removeAccount ({ account }) {
+    delete this.accounts[account.accountId]
+  }
 }

@@ -21,8 +21,8 @@ export class Backend extends BEapi {
 
   async getAddresses () {
     return {
-      watchdog: this.keyManager.Address(),
-      admin: this.keyManager.Address(),
+      watchdog: this.keyManager.address(),
+      admin: this.keyManager.address(),
       factory: this.factoryAddress,
       sponsor: this.sponsorAddress
     }
