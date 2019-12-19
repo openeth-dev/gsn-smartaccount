@@ -25,11 +25,14 @@ describe('#SimpleManager.test', () => {
 
   const verbose = false
   const mockBackend = {
-    createAccount: function () {
+    createAccount: async function () {
       return {
         approvalData: '0x' + 'f'.repeat(64),
         smartAccountId: '0x' + '1'.repeat(64)
       }
+    },
+    getSmartAccountId: async function () {
+      return '0x' + '1'.repeat(64)
     }
   }
 

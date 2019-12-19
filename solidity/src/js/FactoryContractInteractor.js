@@ -194,6 +194,11 @@ class FactoryContractInteractor {
     return SmartAccountContract.at(events[0].smartAccount)
   }
 
+  static async getCreatedSmartAccountAt ({ address, provider }) {
+    SmartAccountContract.setProvider(provider)
+    return SmartAccountContract.at(address)
+  }
+
   async deployNewSmartAccount () {
     await this.attachToContracts()
     // TODO: figure out what is wrong with 'estimate gas'.
