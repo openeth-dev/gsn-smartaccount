@@ -7,9 +7,9 @@
 //    cb - callback to call (err,resp)
 export function hookRpcProvider (provider, hooks) {
   return new Proxy(provider, {
-    get (target, p) {
-      const origfunc = target[p]
-      if (typeof origfunc !== 'function' || (p !== 'send' && p !== 'sendAsync')) {
+    get (target, propName) {
+      const origfunc = target[propName]
+      if (typeof origfunc !== 'function' || (propName !== 'send' && propName !== 'sendAsync')) {
         return origfunc
       }
       return function (rpccall, cb) {

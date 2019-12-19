@@ -15,11 +15,6 @@ contract SmartAccount is PermissionsLevel, GsnRecipient {
 
     using LibBytes for bytes;
 
-    //override to remove code..
-    function getMessageData() public view returns (bytes memory) {
-        return "";
-    }
-
     // Nice idea to use mock token address for ETH instead of 'address(0)'
     address constant internal ETH_TOKEN_ADDRESS = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 

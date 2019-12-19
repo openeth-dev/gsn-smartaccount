@@ -199,8 +199,7 @@ describe('#SimpleManager.test', () => {
 
           before(async function () {
             const storage = new MockStorage()
-            // storage.data.ownerAddress = '0x90f8bf6a479f320ead074411a4b0e7944ea8c9c1';
-            // storage.data.privKey = '0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d';
+
             const accountApi = new Account(storage)
             accountApi.googleLogin()
 
@@ -213,7 +212,6 @@ describe('#SimpleManager.test', () => {
               sponsor: sponsor.address,
               proxyOwner: {
                 address: await accountApi.getOwner()
-                // privateKey: accountApi.storage.privKey
               }
             }
             const signerProvider = hookRpcProvider(web3provider, {
