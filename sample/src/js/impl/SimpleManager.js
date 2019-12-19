@@ -1,7 +1,6 @@
 import TruffleContract from '@truffle/contract'
 /* global error */
 import SmartAccountFactoryABI from 'safechannels-contracts/src/js/generated/SmartAccountFactory'
-
 import FactoryContractInteractor from 'safechannels-contracts/src/js/FactoryContractInteractor'
 
 import SimpleWallet from './SimpleWallet'
@@ -9,7 +8,6 @@ import SimpleManagerApi from '../api/SimpleManager.api.js'
 
 import Participant from 'safechannels-contracts/src/js/Participant'
 import Permissions from 'safechannels-contracts/src/js/Permissions'
-
 // API of the main factory object.
 export default class SimpleManager extends SimpleManagerApi {
   constructor ({ accountApi, backend, guardianAddress, factoryConfig }) {
@@ -61,6 +59,7 @@ export default class SimpleManager extends SimpleManagerApi {
     return this.wallet != null
   }
 
+
   async recoverWallet ({ owner, email }) {
     error('trigger recover flow')
   }
@@ -107,7 +106,7 @@ export default class SimpleManager extends SimpleManagerApi {
 
   async loadWallet () {
     const owner = await this.getOwner()
-
+	// TODO: read wallet with address, not from event!
     const smartAccount = await FactoryContractInteractor.getCreatedSmartAccount(
       {
         factoryAddress: this.factoryConfig.factoryAddress,
@@ -132,9 +131,24 @@ export default class SimpleManager extends SimpleManagerApi {
       backendAsAdmin: new Participant(guardianAddress, Permissions.AdminPermissions, 1)
     }
   }
-
   _validateConfig (factoryConfig) {
     // TODO: check all needed fields of config
     return factoryConfig
+  }
+
+  async signInAsNewOperator ({ jwt, description, observer }) {
+    this.setSignInObserver({ observer, interval: 2000 })
+    const response = await this.backend.signInAsNewOperator({ jwt, description })
+    if (response.code === 200) {
+      return { success: true, reason: null }
+    } else {
+      return { success: false, reason: response.error }
+    }
+  }
+
+  setSignInObserver ({ observer, interval }) {
+    setInterval(() => {
+      console.log('how you gonna test?')
+    }, interval)
   }
 }

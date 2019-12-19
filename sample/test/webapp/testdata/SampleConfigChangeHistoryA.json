@@ -1,0 +1,46 @@
+[
+  {
+    "logIndex": 0,
+    "transactionIndex": 0,
+    "transactionHash": "0x7247dafb43492720822b6b578ce05c5bc2cd967ce4e3d6f859f10185ed3dcde2",
+    "blockHash": "0xd8b08b227062fc1286586c1748121259ea6486a3c282e84c612f240a6140148e",
+    "blockNumber": 1,
+    "address": "0x9982bCCb508C19E61cf683307768d3F88Fda55Cc",
+    "type": "mined",
+    "id": "log_59908f57",
+    "event": "ConfigPending",
+    "args": {
+      "0": "0x6d73f8098e37b142e65abb8f80c49dd1edc801e0b01ca60677c7524d25ebae3a",
+      "1": "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1",
+      "2": "800fddf",
+      "3": "0x0000000000000000000000000000000000000000",
+      "4": "0",
+      "5": "31",
+      "6": [
+        "8"
+      ],
+      "7": [
+        "0x9d6a40eb9663919e8b90a76b7213154fa45c1eb1285b99039c2d3449f256da10"
+      ],
+      "8": [
+        "0x9d6a40eb9663919e8b90a76b7213154fa45c1eb1285b99039c2d3449f256da10"
+      ],
+      "__length__": 9,
+      "transactionHash": "0x6d73f8098e37b142e65abb8f80c49dd1edc801e0b01ca60677c7524d25ebae3a",
+      "sender": "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1",
+      "senderPermsLevel": "800fddf",
+      "booster": "0x0000000000000000000000000000000000000000",
+      "boosterPermsLevel": "0",
+      "stateId": "31",
+      "actions": [
+        "8"
+      ],
+      "actionsArguments1": [
+        "0x9d6a40eb9663919e8b90a76b7213154fa45c1eb1285b99039c2d3449f256da10"
+      ],
+      "actionsArguments2": [
+        "0x9d6a40eb9663919e8b90a76b7213154fa45c1eb1285b99039c2d3449f256da10"
+      ]
+    }
+  }
+]

@@ -80,7 +80,7 @@ export default class SimpleWalletMock extends SimpleWalletApi {
     }
   }
 
-  listTokens () {
+  async listTokens () {
     return [
       { token: 'ETH', balance: 10e18, decimals: 18 },
       { token: 'DAI', balance: 10e18, decimals: 18 },
@@ -209,5 +209,17 @@ export default class SimpleWalletMock extends SimpleWalletApi {
 
       }
     ]
+  }
+
+  async addOperatorNow (newOperator) {
+    error()
+  }
+
+  async validateAddOperatorNow ({ jwt, url }) {
+    super.validateAddOperatorNow({ jwt, url })
+  }
+
+  async applyAllPendingOperations () {
+    super.applyAllPendingOperations()
   }
 }

@@ -26,6 +26,11 @@ const FreeRecipientSponsorContract = TruffleContract({
   abi: FreeRecipientSponsorABI
 })
 
+const ERC20Contract = TruffleContract({
+  contractName: 'ERC20',
+  abi: ERC20ABI
+})
+
 const smartAccountCreatedEvent = 'SmartAccountCreated'
 
 class FactoryContractInteractor {
@@ -86,6 +91,15 @@ class FactoryContractInteractor {
     const instance = await promise
     contract.address = instance.address
     return { instance, contract }
+  }
+
+  static async deployERC20 (from, ethNodeUrl) {
+    const { instance } = await this.deployContract(
+      'generated/tests/DAI',
+      'DAI',
+      [], [], from, ethNodeUrl
+    )
+    return instance
   }
 
   static async deployMockHub (from, ethNodeUrl) {
@@ -154,6 +168,11 @@ class FactoryContractInteractor {
   static async getGsnForwarder ({ address, provider }) {
     FreeRecipientSponsorContract.setProvider(provider)
     return FreeRecipientSponsorContract.at(address)
+  }
+
+  static async getErc20ContractAt ({ address, provider }) {
+    ERC20Contract.setProvider(provider)
+    return ERC20Contract.at(address)
   }
 
   static encodeErc20Call ({ destination, amount, operation }) {

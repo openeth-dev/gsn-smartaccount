@@ -1,6 +1,6 @@
 {
-  "_allowAcceleratedCalls": true,
-  "_allowAddOperatorNow": true,
+  "allowAcceleratedCalls": true,
+  "allowAddOperatorNow": true,
   "bypassMethods": [
     "0xa9059cbb",
     "0x095ea7b3"

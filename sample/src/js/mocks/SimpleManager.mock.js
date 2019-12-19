@@ -100,4 +100,12 @@ export default class SimpleManagerMock extends SimpleManagerApi {
   async recoverWallet ({ owner, email }) {
     error('trigger recover flow')
   }
+
+  async signInAsNewOperator ({ jwt, description, observer }) {
+    super.signInAsNewOperator({ jwt, description, observer })
+  }
+
+  setSignInObserver ({ observer, interval }) {
+    super.setSignInObserver({ observer, interval })
+  }
 }

@@ -42,6 +42,19 @@ export default class SimpleManagerApi extends EventEmitter {
     error('check if a wallet exists for this email)')
   }
 
+  async signInAsNewOperator ({ jwt, description, observer }) {
+    error('ask backend to add our address as an operator for existing vault')
+  }
+
+  /**
+   *
+   * @param observer: function(newState){ ... }
+   * @param interval: how often should the manager query the blockchain (TBD)
+   */
+  setSignInObserver ({ observer, interval }) {
+    error('callback should be called when sign in events happen')
+  }
+
   async loadWallet () {
     error(
       'return a SimpleWallet object for the current google account (after it was created)')

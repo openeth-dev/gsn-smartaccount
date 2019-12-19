@@ -67,12 +67,12 @@ export class Backend extends BEapi {
     return { approvalData: '0x' + approvalData.toString('hex'), smartAccountId: '0x' + smartAccountId.toString('hex') }
   }
 
-  async addDeviceNow ({ jwt, title }) {
+  async signInAsNewOperator ({ jwt, title }) {
     throw new Error('validate jwt, return "click to add" SMS')
   }
 
-  async valdiataeAddDevice ({ jwt, addDeviceUrl }) {
-    throw new Error('validate that addDeviceUrl is the one sent by addDeviceNow. save validation in memory')
+  async validateAddOperatorNow ({ jwt, url }) {
+    throw new Error('validate that addDeviceUrl is the one sent by addOperatorNow. save validation in memory')
   }
 
   handleNotifications () {

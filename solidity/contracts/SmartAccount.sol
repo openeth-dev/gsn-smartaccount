@@ -39,8 +39,9 @@ contract SmartAccount is PermissionsLevel, GsnRecipient {
 
     //***** events
 
-    event ConfigPending(bytes32 indexed transactionHash, address sender, uint32 senderPermsLevel, address booster, uint32 boosterPermsLevel, uint256 stateId, uint8[] actions, bytes32[] actionsArguments1, bytes32[] actionsArguments2);
-    event ConfigCancelled(bytes32 indexed transactionHash, address sender);
+    event ConfigPending(bytes32 indexed delayedOpId, address sender, uint32 senderPermsLevel, address booster, uint32 boosterPermsLevel, uint256 stateId, uint8[] actions, bytes32[] actionsArguments1, bytes32[] actionsArguments2, uint dueTime);
+    event ConfigCancelled(bytes32 indexed delayedOpId, address sender);
+    event ConfigApplied(bytes32 indexed transactionHash, address sender);
     // TODO: add 'ConfigApplied' event - this is the simplest way to track what is applied and whatnot
     event ParticipantAdded(bytes32 indexed participant);
     event ParticipantRemoved(bytes32 indexed participant);
@@ -53,9 +54,9 @@ contract SmartAccount is PermissionsLevel, GsnRecipient {
     event BypassByMethodAdded(bytes4 method, BypassPolicy indexed bypass);
     event BypassByTargetRemoved(address target, BypassPolicy indexed bypass);
     event BypassByMethodRemoved(bytes4 method, BypassPolicy indexed bypass);
-    event BypassCallPending(bytes32 indexed bypassHash, uint256 stateId, address sender, uint32 senderPermsLevel, address target, uint256 value, bytes msgdata);
-    event BypassCallCancelled(bytes32 indexed bypassHash, address sender);
-    event BypassCallApplied(bytes32 indexed bypassHash, bool status);
+    event BypassCallPending(bytes32 indexed delayedOpId, uint256 stateId, address sender, uint32 senderPermsLevel, address target, uint256 value, bytes msgdata, uint dueTime);
+    event BypassCallCancelled(bytes32 indexed delayedOpId, address sender);
+    event BypassCallApplied(bytes32 indexed delayedOpId, bool status);
     event BypassCallExecuted(bool status);
     event AcceleratedCAllSet(bool status);
     event AddOperatorNowSet(bool status);
@@ -299,8 +300,9 @@ contract SmartAccount is PermissionsLevel, GsnRecipient {
         uint32 boosterPermsLevel
     ) internal {
         bytes32 transactionHash = Utilities.transactionHash(actions, args1, args2, stateNonce, sender, senderPermsLevel, booster, boosterPermsLevel);
-        pendingChanges[transactionHash] = PendingChange(SafeMath.add(now, delays[extractLevel(senderPermsLevel)]), new bytes32[](0));
-        emit ConfigPending(transactionHash, sender, senderPermsLevel, booster, boosterPermsLevel, stateNonce, actions, args1, args2);
+        uint dueTime = SafeMath.add(now, delays[extractLevel(senderPermsLevel)]);
+        pendingChanges[transactionHash] = PendingChange(dueTime, new bytes32[](0));
+        emit ConfigPending(transactionHash, sender, senderPermsLevel, booster, boosterPermsLevel, stateNonce, actions, args1, args2, dueTime);
         stateNonce++;
     }
 
@@ -532,8 +534,9 @@ contract SmartAccount is PermissionsLevel, GsnRecipient {
             delay = delays[extractLevel(senderPermsLevel)];
         }
         bytes32 bypassCallHash = Utilities.bypassCallHash(stateNonce, sender, senderPermsLevel, target, value, encodedFunction);
-        pendingBypassCalls[bypassCallHash] = PendingChange(SafeMath.add(now, delay), new bytes32[](0));
-        emit BypassCallPending(bypassCallHash, stateNonce, sender, senderPermsLevel, target, value, encodedFunction);
+        uint dueTime = SafeMath.add(now, delay);
+        pendingBypassCalls[bypassCallHash] = PendingChange(dueTime, new bytes32[](0));
+        emit BypassCallPending(bypassCallHash, stateNonce, sender, senderPermsLevel, target, value, encodedFunction, dueTime);
 
         stateNonce++;
     }

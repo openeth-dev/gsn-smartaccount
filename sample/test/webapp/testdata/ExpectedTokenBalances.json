@@ -1,0 +1,17 @@
+[
+  {
+    "balance": "0",
+    "decimals": 18,
+    "symbol": "ETH"
+  },
+  {
+    "balance": "20000",
+    "decimals": "13",
+    "symbol": "DAI"
+  },
+  {
+    "balance": "123456",
+    "decimals": "11",
+    "symbol": "BAT"
+  }
+]
