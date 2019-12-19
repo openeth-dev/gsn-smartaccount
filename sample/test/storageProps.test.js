@@ -1,6 +1,6 @@
 /* global describe it */
 import { assert, expect } from 'chai'
-import { storageProps } from '../src/js/impl/Account.impl'
+import { storageProps } from '../src/js/impl/Account'
 import { MockStorage } from './mocks/MockStorage'
 
 describe('storageProps', () => {

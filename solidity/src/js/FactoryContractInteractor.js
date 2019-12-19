@@ -81,10 +81,12 @@ class FactoryContractInteractor {
       contract.link(it)
     })
     let promise
+    const gas = undefined // truffle-contract does "autoGas" by default.
+    contract.gasMultiplier = 1.0 // default 1.25 is too much...
     if (params && params.length > 0) {
-      promise = contract.new(...params, { from: from, gas: 1e8 })
+      promise = contract.new(...params, { from: from, gas: gas })
     } else {
-      promise = contract.new({ from: from, gas: 1e8 })
+      promise = contract.new({ from: from, gas: gas })
     }
     const instance = await promise
     contract.address = instance.address
@@ -181,7 +183,9 @@ class FactoryContractInteractor {
     SmartAccountFactory.setProvider(provider)
     SmartAccountContract.setProvider(provider)
     const smartAccountFactory = await SmartAccountFactory.at(factoryAddress)
-    const options = { fromBlock: blockNumber, toBlock: blockNumber }
+    const fromBlock = blockNumber
+    const toBlock = blockNumber === 1 ? 'latest' : blockNumber
+    const options = { fromBlock, toBlock }
     let events = await Utils.getEvents(smartAccountFactory, smartAccountCreatedEvent, options, SmartAccountCreatedEvent)
     events = events.filter(event => event.sender.toLowerCase() === sender)
     if (events.length !== 1) {

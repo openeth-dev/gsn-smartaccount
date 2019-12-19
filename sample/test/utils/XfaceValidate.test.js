@@ -1,6 +1,6 @@
 /* global error describe it */
 
-import validate from '../src/js/utils/XfaceValidate'
+import validate from '../../src/js/utils/XfaceValidate'
 
 import { assert } from 'chai'
 

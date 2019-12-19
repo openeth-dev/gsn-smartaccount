@@ -3,5 +3,10 @@
     "standard",
     "plugin:react/recommended"
   ],
-  "parser": "babel-eslint"
+  "parser": "babel-eslint",
+  "settings": {
+    "react" : {
+      "version" : "detect"
+    }
+  }
 }

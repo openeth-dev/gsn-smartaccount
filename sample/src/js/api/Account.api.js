@@ -9,6 +9,10 @@ export default class AccountApi {
     validate(AccountApi, this)
   }
 
+  async enableApp ({ appTitle, appUrl }) {
+    error('ask the user to enable the given app/url. once enabled, returns immediately')
+  }
+
   async getEmail () {
     error('iframe: return current google logged in email (google account), or null')
   }

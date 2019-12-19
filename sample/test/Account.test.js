@@ -2,10 +2,11 @@
 
 import chai, { assert } from 'chai'
 import chaiAsPromised from 'chai-as-promised'
-import Account from '../src/js/impl/Account.impl'
 import { MockStorage } from './mocks/MockStorage'
 import { getTransactionSignatureWithKey } from 'tabookey-gasless/src/js/relayclient/utils'
 import { keccak } from 'ethereumjs-util'
+import { buf2hex, hex2buf } from '../src/js/utils/utils'
+import Account from '../src/js/impl/Account'
 
 chai.use(chaiAsPromised)
 
@@ -82,9 +83,11 @@ describe('Account', () => {
     const datahash = keccak('hello')
     await acct.googleLogin()
     const sig = getTransactionSignatureWithKey(
-      Buffer.from(acct.storage.privKey, 'hex'), '0x' + datahash.toString('hex'))
+      hex2buf(acct.storage.privKey),
+      buf2hex(datahash))
 
-    assert.equal(await acct.signMessageHash(datahash), sig)
+    assert.equal(await acct.signMessageHash(Buffer.from(datahash)), sig)
+    assert.equal(await acct.signMessageHash('0x' + datahash.toString('hex')), sig)
     assert.equal(await acct.signMessage(Buffer.from('hello')), sig)
     assert.equal(await acct.signMessage('hello'), sig)
   })

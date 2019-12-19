@@ -7,8 +7,6 @@ import Webserver from './Webserver'
 import { Backend } from './Backend'
 import Wallet from 'ethereumjs-wallet'
 import SMSmock from '../mocks/SMS.mock'
-import { LoginTicket } from 'google-auth-library/build/src/auth/loginticket'
-import ticket from '../../../test/backend/ticket.json'
 
 function newEphemeralKeypair () {
   const a = Wallet.generate()
@@ -19,36 +17,36 @@ function newEphemeralKeypair () {
 }
 
 function hookBackend (backend) {
-  backend.gclient._orig_verifyIdToken = backend.gclient.verifyIdToken
-  const verifyFn = async function ({ idToken, audience }) {
-    try {
-      return await backend.gclient._orig_verifyIdToken({ idToken, audience })
-    } catch (e) {
-      console.log('hooking google auth verifyIdToken() function')
-      if (e.toString().includes('Error: Token used too late')) {
-        const loginTicket = new LoginTicket(ticket.envelope, ticket.payload)
-        return loginTicket
-      }
+  backend._verifyJWT = async function (jwt) {
+    const parsed = JSON.parse(Buffer.from(jwt.split('.')[1], 'base64'))
+
+    return {
+      getPayload: () => parsed
     }
   }
   backend.secretSMSCodeSeed = Buffer.from('f'.repeat(64), 'hex')
-  backend.gclient.verifyIdToken = verifyFn
 }
 
 const port = process.argv[2]
+const factoryAddress = process.argv[3]
+const sponsorAddress = process.argv[4]
 const smsProvider = new SMSmock()
 const keypair = newEphemeralKeypair()
 const backend = new Backend(
   {
     smsProvider,
     audience: '202746986880-u17rbgo95h7ja4fghikietupjknd1bln.apps.googleusercontent.com',
-    ecdsaKeyPair: keypair
+    ecdsaKeyPair: keypair,
+    factoryAddress,
+    sponsorAddress
   })
 
-if (process.argv[3] === '--dev') {
+if (process.argv[5] === '--dev') {
   console.log('Running server in dev mode')
   hookBackend(backend)
 }
+
+console.log('server address=' + keypair.address)
 
 const server = new Webserver({ port, backend })
 server.start()

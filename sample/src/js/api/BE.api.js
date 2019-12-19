@@ -10,6 +10,10 @@ export default class BEapi {
     validate(BEapi, this)
   }
 
+  async getAddresses () {
+    error('return ethereum addresses of {watchdog,admin,factory,sponsor}')
+  }
+
   async validatePhone ({ jwt, phoneNumber }) {
     error('validate jwt, return SMS url to pass to createSmartAccount')
   }
