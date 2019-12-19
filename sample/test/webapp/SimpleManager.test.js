@@ -33,16 +33,10 @@ describe('#SimpleManager.test', () => {
     }
   }
 
-<<<<<<< HEAD
+  // eslint-disable-next-line no-unused-vars
   const realBackend = new ClientBackend({ serverURL: 'http://localhost:8888/' })
   let ls
   let backendTestInstance
-=======
-// eslint-disable-next-line no-unused-vars
-const realBackend = new ClientBackend({ serverURL: 'http://localhost:8888/' })
-let ls
-let backendTestInstance
->>>>>>> 9497d5389ece576f53eb781a846e243936c79690
 
   before(async function () {
     // TODO: get accounts
@@ -80,7 +74,6 @@ let backendTestInstance
     ls.kill(9)
   })
 
-<<<<<<< HEAD
   const backends = [
     {
       backend: mockBackend, name: 'Mock Backend'
@@ -89,17 +82,6 @@ let backendTestInstance
       backend: realBackend, name: 'Real Backend'
     }
   ]
-=======
-const backends = [
-  {
-    backend: mockBackend, name: 'Mock Backend'
-  }
-  //,
-  // {
-  //   backend: realBackend, name: 'Real Backend'
-  // }
-]
->>>>>>> 9497d5389ece576f53eb781a846e243936c79690
 
   backends.forEach(function ({ backend, name }) {
     describe(`SimpleManager with ${name}`, async function () {
@@ -160,69 +142,37 @@ const backends = [
         })
       })
 
-<<<<<<< HEAD
+      describe('#signInAsNewOperator()', async function () {
+        it('should pass parameters to backend and handle http 200 OK code', async function () {
+          sm.backend = {
+            signInAsNewOperator: sinon.spy(() => { return { code: 200 } })
+          }
+          const jwt = {}
+          const description = '0000'
+          const { success, reason } = await sm.signInAsNewOperator({ jwt, description })
+          assert.strictEqual(success, true)
+          assert.strictEqual(reason, null)
+          expect(sm.backend.signInAsNewOperator.calledOnce).to.be.true
+          expect(sm.backend.signInAsNewOperator.firstCall.args[0]).to.eql({ jwt, description })
+        })
+      })
+
+      describe('#setSignInObserver()', async function () {
+        it('should observe progress of sign in process via calls to the observer')
+      })
+
       describe('#createWallet()', async function () {
         let mockhub
         let factory
         let sponsor
         let forward
         let web3provider
-=======
-    describe('#signInAsNewOperator()', async function () {
-      it('should pass parameters to backend and handle http 200 OK code', async function () {
-        sm.backend = {
-          signInAsNewOperator: sinon.spy(() => { return { code: 200 } })
-        }
-        const jwt = {}
-        const description = '0000'
-        const { success, reason } = await sm.signInAsNewOperator({ jwt, description })
-        assert.strictEqual(success, true)
-        assert.strictEqual(reason, null)
-        expect(sm.backend.signInAsNewOperator.calledOnce).to.be.true
-        expect(sm.backend.signInAsNewOperator.firstCall.args[0]).to.eql({ jwt, description })
-      })
-    })
-
-    describe('#setSignInObserver()', async function () {
-      it('should observe progress of sign in process via calls to the observer')
-    })
-
-    describe('#createWallet()', async function () {
-      let mockhub
-      let factory
-      let sponsor
-      let forward
-      let web3provider
-
-      const jwt = require('../backend/testJwt').jwt
-      const phone = '+1-541-754-3010'
-
-      before(async function () {
-        web3provider = new Web3.providers.HttpProvider(ethNodeUrl)
-        mockhub = await FactoryContractInteractor.deployMockHub(from, ethNodeUrl)
-        sponsor = await FactoryContractInteractor.deploySponsor(from, mockhub.address, ethNodeUrl)
-        const forwarderAddress = await sponsor.contract.methods.getGsnForwarder().call()
-        forward = await FactoryContractInteractor.getGsnForwarder({ address: forwarderAddress, provider: web3provider })
-        factory = await FactoryContractInteractor.deployNewSmartAccountFactory(from, ethNodeUrl, forward.address)
-        if (!verbose) {
-          return
-        }
-        const spHub = await sponsor.contract.methods.getHubAddr().call()
-        const fwHub = await forward.contract.methods.getHubAddr().call()
-        const vfHub = await factory.contract.methods.getHubAddr().call()
-        const vfFwd = await factory.contract.methods.getGsnForwarder().call()
-        console.log(`spHub = ${spHub} fwHub=${fwHub} vfHub=${vfHub} vfFwd=${vfFwd}`)
-        console.log(
-          `mockhub = ${mockhub.address} factory=${factory.address} sponsor=${sponsor.address} forward=${forward.address}`)
-      })
->>>>>>> 9497d5389ece576f53eb781a846e243936c79690
 
         const jwt = require('../backend/testJwt').jwt
         const phoneNumber = '+1-541-754-3010'
 
         before(async function () {
           web3provider = new Web3.providers.HttpProvider(ethNodeUrl)
-
           mockhub = await FactoryContractInteractor.deployMockHub(from, ethNodeUrl)
           sponsor = await FactoryContractInteractor.deploySponsor(from, mockhub.address, ethNodeUrl)
           const forwarderAddress = await sponsor.contract.methods.getGsnForwarder().call()

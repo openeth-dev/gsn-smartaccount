@@ -59,7 +59,6 @@ export default class SimpleManager extends SimpleManagerApi {
     return this.wallet != null
   }
 
-
   async recoverWallet ({ owner, email }) {
     error('trigger recover flow')
   }
@@ -106,7 +105,7 @@ export default class SimpleManager extends SimpleManagerApi {
 
   async loadWallet () {
     const owner = await this.getOwner()
-	// TODO: read wallet with address, not from event!
+    // TODO: read wallet with address, not from event!
     const smartAccount = await FactoryContractInteractor.getCreatedSmartAccount(
       {
         factoryAddress: this.factoryConfig.factoryAddress,
@@ -131,6 +130,7 @@ export default class SimpleManager extends SimpleManagerApi {
       backendAsAdmin: new Participant(guardianAddress, Permissions.AdminPermissions, 1)
     }
   }
+
   _validateConfig (factoryConfig) {
     // TODO: check all needed fields of config
     return factoryConfig

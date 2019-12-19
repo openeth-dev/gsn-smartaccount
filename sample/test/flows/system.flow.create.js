@@ -82,7 +82,7 @@ describe('System flow: Create Account', () => {
 
       const backend = new ClientBackend({ serverURL: 'http://localhost:8887/' })
 
-      const { sponsor, factory, watchdog:guardianAddress } = (await backend.getAddresses())
+      const { sponsor, factory, watchdog: guardianAddress } = (await backend.getAddresses())
 
       const relayOptions = {
         verbose,

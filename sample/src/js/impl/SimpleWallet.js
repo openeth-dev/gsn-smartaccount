@@ -33,14 +33,12 @@ export default class SimpleWallet extends SimpleWalletApi {
    *        Note: participants should be of 'Participant' class!
    * @param knownTokens - tokens currently supported.
    */
-  constructor ({ contract, participant, knownParticipants, knownTokens }) {
+  constructor ({ contract, participant, knownParticipants = [], knownTokens = [] }) {
     super()
     this.contract = contract
     this.participant = participant
-    this.knownTokens = []
-    this.knownParticipants = []
-    this.knownTokens.push(...knownTokens)
-    this.knownParticipants.push(...knownParticipants, participant)
+    this.knownTokens = knownTokens
+    this.knownParticipants = [...knownParticipants, participant]
     // TODO: make sure no duplicates
   }
 
@@ -110,35 +108,35 @@ export default class SimpleWallet extends SimpleWalletApi {
     const allowAcceleratedCalls = await this.contract.allowAcceleratedCalls()
     const allowAddOperatorNow = await this.contract.allowAddOperatorNow()
     const deployedBlock = await this._getDeployedBlock()
-    const initEvent = (await this.contract.getPastEvents('SmartAccountInitialized', { fromBlock: deployedBlock, toBlock: 'latest' }))[0]
+    const initEvent = (await this.contract.getPastEvents('SmartAccountInitialized', {
+      fromBlock: deployedBlock,
+      toBlock: 'latest'
+    }))[0]
     const args = initEvent.args
     const foundParticipants = this.knownParticipants.filter((it) => {
       const hash = '0x' + SafeChannelUtils.participantHash(it.address, it.permLevel).toString('hex')
       return args.participants.includes(hash)
     })
-    const operators = foundParticipants
-      .filter(it => it.permissions === Permissions.OwnerPermissions)
-      .map(it => {
-        return it.address
-      })
+    const operators = foundParticipants.filter(it => it.permissions === Permissions.OwnerPermissions).map(it => {
+      return it.address
+    })
 
-    const guardians = foundParticipants.filter(it => it.permissions !== Permissions.OwnerPermissions)
-      .map(it => {
-        let type // TODO: move to participant class
-        switch (it.permissions) {
-          case Permissions.WatchdogPermissions:
-            type = 'watchdog'
-            break
-          case Permissions.AdminPermissions:
-            type = 'admin'
-            break
-        }
-        return {
-          address: it.address,
-          level: it.level,
-          type: type
-        }
-      })
+    const guardians = foundParticipants.filter(it => it.permissions !== Permissions.OwnerPermissions).map(it => {
+      let type // TODO: move to participant class
+      switch (it.permissions) {
+        case Permissions.WatchdogPermissions:
+          type = 'watchdog'
+          break
+        case Permissions.AdminPermissions:
+          type = 'admin'
+          break
+      }
+      return {
+        address: it.address,
+        level: it.level,
+        type: type
+      }
+    })
     const levels = []
     for (let i = 0; i < args.delays.length; i++) {
       levels[i] = {
@@ -198,57 +196,54 @@ export default class SimpleWallet extends SimpleWalletApi {
   async listPendingConfigChanges () {
     const pastTransactionEvents = await this._getPastEvents({ type: 'transaction' })
     const activeBypassPolicies = await this.listBypassPolicies()
-    const bypassCalls = pastTransactionEvents.pendingEvents
-      .filter(it => {
-        return activeBypassPolicies.includes(it.args.target)
+    const bypassCalls = pastTransactionEvents.pendingEvents.filter(it => {
+      return activeBypassPolicies.includes(it.args.target)
+    }).map((it) => {
+      // TODO: if needed, support other types of bypass policy config changes; parse parameters
+      const entry = new ConfigEntry({
+        type: 'whitelist_change',
+        args: ['TODO'],
+        targetModule: it.args.destination
       })
-      .map((it) => {
-        // TODO: if needed, support other types of bypass policy config changes; parse parameters
-        const entry = new ConfigEntry({
-          type: 'whitelist_change',
-          args: ['TODO'],
-          targetModule: it.args.destination
-        })
-        const operations = [entry]
-        return new DelayedConfigChange({
-          txHash: it.transactionHash,
-          delayedOpId: it.args.bypassHash,
-          dueTime: 0, // TODO: pendingChange.dueTime.toNumber(),
-          state: 'mined',
-          operations: operations
-        })
+      const operations = [entry]
+      return new DelayedConfigChange({
+        txHash: it.transactionHash,
+        delayedOpId: it.args.bypassHash,
+        dueTime: 0, // TODO: pendingChange.dueTime.toNumber(),
+        state: 'mined',
+        operations: operations
       })
+    })
     const pastConfigEvents = await this._getPastEvents({ type: 'config' })
-    const configChanges = pastConfigEvents.pendingEvents
-      .map((it) => {
-        const operations = []
-        const common = {
-          txHash: it.transactionHash,
-          delayedOpId: it.args.transactionHash,
-          dueTime: 0, // TODO: fix events!
-          state: 'mined'
-        }
-        for (let i = 0; i < it.args.actions.length; i++) {
-          const type = changeTypeToString(it.args.actions[i])
-          let args = [it.args.actionsArguments1[i], it.args.actionsArguments2[i]]
-          // TODO: parse all args types to human-readable format
-          // This is a hack to make one specific test pass. Will be fixed as more tests are added
-          if (type === 'add_operator_now') {
-            const participantToAdd = this.knownParticipants.filter((it) => {
-              const hash = '0x' + SafeChannelUtils.participantHash(it.address, it.permLevel).toString('hex')
-              return args[0] === hash
-            })
-            if (participantToAdd.length > 0) {
-              args = [participantToAdd[0].address]
-            }
+    const configChanges = pastConfigEvents.pendingEvents.map((it) => {
+      const operations = []
+      const common = {
+        txHash: it.transactionHash,
+        delayedOpId: it.args.transactionHash,
+        dueTime: 0, // TODO: fix events!
+        state: 'mined'
+      }
+      for (let i = 0; i < it.args.actions.length; i++) {
+        const type = changeTypeToString(it.args.actions[i])
+        let args = [it.args.actionsArguments1[i], it.args.actionsArguments2[i]]
+        // TODO: parse all args types to human-readable format
+        // This is a hack to make one specific test pass. Will be fixed as more tests are added
+        if (type === 'add_operator_now') {
+          const participantToAdd = this.knownParticipants.filter((it) => {
+            const hash = '0x' + SafeChannelUtils.participantHash(it.address, it.permLevel).toString('hex')
+            return args[0] === hash
+          })
+          if (participantToAdd.length > 0) {
+            args = [participantToAdd[0].address]
           }
-          operations.push(new ConfigEntry({ type, args }))
         }
-        return new DelayedConfigChange({
-          ...common,
-          operations: operations
-        })
+        operations.push(new ConfigEntry({ type, args }))
+      }
+      return new DelayedConfigChange({
+        ...common,
+        operations: operations
       })
+    })
     return [...bypassCalls, ...configChanges]
   }
 
@@ -256,49 +251,47 @@ export default class SimpleWallet extends SimpleWalletApi {
     const pastTransactionEvents = await this._getPastEvents({ type: 'transaction' })
     const allPendingTransactions = pastTransactionEvents.pendingEvents
     const activeBypassPolicies = await this.listBypassPolicies()
-    return allPendingTransactions
-      .filter(it => {
-        return !activeBypassPolicies.includes(it.args.target)
-      })
-      .map(
-        (it) => {
-          const isEtherValuePassed = it.value !== 0
-          const isDataPassed = it.args.data !== undefined && it.args.data.length > 0
-          const isErc20Method = isDataPassed && erc20Methods.includes(it.args.data.substr(0, 10))
-          // TODO: get all data from events, save roundtrips here
-          const common = {
-            txHash: it.transactionHash,
-            delayedOpId: it.args.delayedOpId,
-            dueTime: it.args.dueTime,
-            state: 'mined'
-          }
-          if (isEtherValuePassed && !isDataPassed) {
-            return new DelayedTransfer({
-              ...common,
-              operation: 'transfer',
-              tokenSymbol: 'ETH',
-              value: it.args.value.toString(),
-              destination: it.args.target
-            })
-          } else if (isErc20Method) {
-            const parsedErc20 = this._parseErc20Transaction({
-              target: it.args.target,
-              data: it.args.msgdata
-            })
-            return new DelayedTransfer({
-              ...common,
-              ...parsedErc20
-            })
-          } else {
-            return new DelayedContractCall({
-              ...common,
-              value: it.args.value,
-              destination: it.args.target,
-              data: it.args.data
-            })
-          }
+    return allPendingTransactions.filter(it => {
+      return !activeBypassPolicies.includes(it.args.target)
+    }).map(
+      (it) => {
+        const isEtherValuePassed = it.value !== 0
+        const isDataPassed = it.args.data !== undefined && it.args.data.length > 0
+        const isErc20Method = isDataPassed && erc20Methods.includes(it.args.data.substr(0, 10))
+        // TODO: get all data from events, save roundtrips here
+        const common = {
+          txHash: it.transactionHash,
+          delayedOpId: it.args.delayedOpId,
+          dueTime: it.args.dueTime,
+          state: 'mined'
         }
-      )
+        if (isEtherValuePassed && !isDataPassed) {
+          return new DelayedTransfer({
+            ...common,
+            operation: 'transfer',
+            tokenSymbol: 'ETH',
+            value: it.args.value.toString(),
+            destination: it.args.target
+          })
+        } else if (isErc20Method) {
+          const parsedErc20 = this._parseErc20Transaction({
+            target: it.args.target,
+            data: it.args.msgdata
+          })
+          return new DelayedTransfer({
+            ...common,
+            ...parsedErc20
+          })
+        } else {
+          return new DelayedContractCall({
+            ...common,
+            value: it.args.value,
+            destination: it.args.target,
+            data: it.args.data
+          })
+        }
+      }
+    )
   }
 
   async _getRawPastEvents (type, fromBlock, toBlock) {
@@ -323,11 +316,10 @@ export default class SimpleWallet extends SimpleWalletApi {
     const { scheduledEvents, completedEvents, cancelledEvents } = await this._getRawPastEvents(type, fromBlock, toBlock)
     const completedEventsHashes = completedEvents.map(it => it.args.delayedOpId)
     const cancelledEventsHashes = cancelledEvents.map(it => it.args.delayedOpId)
-    const pendingEvents = scheduledEvents
-      .filter(it => {
-        return !completedEventsHashes.includes(it.args.delayedOpId) &&
-          !cancelledEventsHashes.includes(it.args.delayedOpId)
-      })
+    const pendingEvents = scheduledEvents.filter(it => {
+      return !completedEventsHashes.includes(it.args.delayedOpId) &&
+        !cancelledEventsHashes.includes(it.args.delayedOpId)
+    })
     return {
       scheduledEvents, completedEvents, cancelledEvents, pendingEvents
     }
@@ -338,9 +330,12 @@ export default class SimpleWallet extends SimpleWalletApi {
   }
 
   static getDefaultSampleInitialConfiguration ({ backendAddress, operatorAddress, whitelistModuleAddress }) {
-    const backendAsWatchdog = '0x' + SafeChannelUtils.participantHashUnpacked(backendAddress, Permissions.WatchdogPermissions, 1).toString('hex')
-    const backendAsAdmin = '0x' + SafeChannelUtils.participantHashUnpacked(backendAddress, Permissions.AdminPermissions, 1).toString('hex')
-    const operator = '0x' + SafeChannelUtils.participantHashUnpacked(operatorAddress, Permissions.OwnerPermissions, 1).toString('hex')
+    const backendAsWatchdog = '0x' +
+      SafeChannelUtils.participantHashUnpacked(backendAddress, Permissions.WatchdogPermissions, 1).toString('hex')
+    const backendAsAdmin = '0x' +
+      SafeChannelUtils.participantHashUnpacked(backendAddress, Permissions.AdminPermissions, 1).toString('hex')
+    const operator = '0x' +
+      SafeChannelUtils.participantHashUnpacked(operatorAddress, Permissions.OwnerPermissions, 1).toString('hex')
     return {
       initialParticipants: [operator, backendAsWatchdog, backendAsAdmin],
       initialDelays: [86400, 172800],
