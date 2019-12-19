@@ -12,10 +12,11 @@ import Permissions from 'safechannels-contracts/src/js/Permissions'
 
 // API of the main factory object.
 export default class SimpleManager extends SimpleManagerApi {
-  constructor ({ accountApi, backend, factoryConfig }) {
+  constructor ({ accountApi, backend, guardianAddress, factoryConfig }) {
     super()
     this.accountApi = accountApi
     this.backend = backend
+    this.guardianAddress = guardianAddress
     this.factoryConfig = this._validateConfig(factoryConfig)
   }
 
@@ -116,7 +117,7 @@ export default class SimpleManager extends SimpleManagerApi {
         provider: this.factoryConfig.provider
       })
 
-    const participants = this._getParticipants({ ownerAddress: owner, backendAddress: this.backendAddress })
+    const participants = this._getParticipants({ ownerAddress: owner, guardianAddress: this.guardianAddress })
     return new SimpleWallet({
       contract: smartAccount,
       participant: participants.operator,
@@ -124,11 +125,11 @@ export default class SimpleManager extends SimpleManagerApi {
     })
   }
 
-  _getParticipants ({ ownerAddress, backendAddress }) {
+  _getParticipants ({ ownerAddress, guardianAddress }) {
     return {
       operator: new Participant(ownerAddress, Permissions.OwnerPermissions, 1),
-      backendAsWatchdog: new Participant(backendAddress, Permissions.WatchdogPermissions, 1),
-      backendAsAdmin: new Participant(backendAddress, Permissions.AdminPermissions, 1)
+      backendAsWatchdog: new Participant(guardianAddress, Permissions.WatchdogPermissions, 1),
+      backendAsAdmin: new Participant(guardianAddress, Permissions.AdminPermissions, 1)
     }
   }
 

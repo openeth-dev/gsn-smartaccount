@@ -82,7 +82,7 @@ describe('System flow: Create Account', () => {
 
       const backend = new ClientBackend({ serverURL: 'http://localhost:8887/' })
 
-      const { sponsor, factory } = (await backend.getAddresses())
+      const { sponsor, factory, watchdog:guardianAddress } = (await backend.getAddresses())
 
       const relayOptions = {
         verbose,
@@ -103,6 +103,7 @@ describe('System flow: Create Account', () => {
       mgr = new SimpleManager({
         accountApi: acc.account,
         backend,
+        guardianAddress,
         factoryConfig
       })
     })
