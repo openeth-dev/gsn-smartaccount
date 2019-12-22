@@ -25,7 +25,7 @@ export default class SimpleWalletMock extends SimpleWalletApi {
     error('add "remove operator" operation, (delayed, can be canceled by watchdog)')
   }
 
-  cancelPending (id) {
+  async cancelPending (delayedOpId) {
     error('immediately cancel a pending operation (see listPending)')
   }
 

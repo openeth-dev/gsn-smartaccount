@@ -26,12 +26,13 @@
         "0x9d6a40eb9663919e8b90a76b7213154fa45c1eb1285b99039c2d3449f256da10"
       ],
       "__length__": 9,
-      "transactionHash": "0x6d73f8098e37b142e65abb8f80c49dd1edc801e0b01ca60677c7524d25ebae3a",
+      "delayedOpId": "0x6d73f8098e37b142e65abb8f80c49dd1edc801e0b01ca60677c7524d25ebae3a",
       "sender": "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1",
       "senderPermsLevel": "800fddf",
       "booster": "0x0000000000000000000000000000000000000000",
       "boosterPermsLevel": "0",
       "stateId": "31",
+      "dueTime": "100",
       "actions": [
         "8"
       ],
