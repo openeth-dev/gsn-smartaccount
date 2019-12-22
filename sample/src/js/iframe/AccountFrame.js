@@ -19,7 +19,7 @@ function initMessageHandler ({ window }) {
   account = new Account(window.localStorage)
 
   const onMessage = function onMessage ({ source, data }) {
-    const { method, id, params } = data
+    const { method, id, args: params } = data
     if (data === 'account-iframe-ping') {
       if (verbose) { console.log('got ping. resend "initialized" ') }
 

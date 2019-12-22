@@ -18,6 +18,10 @@ export default class BEapi {
     error('validate jwt, return SMS url to pass to createSmartAccount')
   }
 
+  async getSmartAccountId ({ email }) {
+    error('return the unique ID for the given account')
+  }
+
   async createAccount ({ jwt, smsCode, phoneNumber }) {
     error('validate fresh jwt, validate phone (from smsUrl). return { approvalData, smartAccountId }')
   }

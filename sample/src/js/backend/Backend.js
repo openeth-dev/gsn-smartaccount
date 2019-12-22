@@ -1,4 +1,5 @@
 import BEapi from '../api/BE.api'
+import { buf2hex } from '../utils/utils'
 
 const phone = require('phone')
 const gauth = require('google-auth-library')
@@ -85,6 +86,10 @@ export class Backend extends BEapi {
    * @returns {Buffer} - keccak256(email) as SmartAccount id, to be verified by SmartAccountFactory on-chain during SmartAccount creation.
    * @private
    */
+  async getSmartAccountId ({ email }) {
+    return buf2hex(this._getSmartAccountId(email))
+  }
+
   _getSmartAccountId (email) {
     return abi.soliditySHA3(['string'], [email])
   }

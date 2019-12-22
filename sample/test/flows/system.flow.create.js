@@ -12,7 +12,6 @@ import SMSmock from '../../src/js/mocks/SMS.mock'
 import { startBackendServer, stopBackendServer } from '../utils/testBackendServer'
 
 import axios from 'axios'
-import SimpleWallet from '../../src/js/impl/SimpleWallet'
 
 const relayHubAddress = '0xD216153c06E857cD7f72665E0aF1d7D82172F494'
 
@@ -136,19 +135,14 @@ describe('System flow: Create Account', () => {
       const smsVerificationCode = msg.message.match(/verif.*?(\d+)/)[1]
 
       wallet = await mgr.createWallet({ jwt, phoneNumber, smsVerificationCode })
+
+      assert.equal(await mgr.getWalletAddress(), wallet.contract.address)
     })
 
     let wallet
 
     it('initialConfiguration', async () => {
-      const { watchdog } = (await mgr.backend.getAddresses())
-
-      const config = SimpleWallet.getDefaultSampleInitialConfiguration({
-        backendAddress: watchdog,
-        operatorAddress: await mgr.getOwner(),
-        whitelistModuleAddress: '0x' + '1'.repeat(40) // whitelistPolicy
-      })
-      await wallet.initialConfiguration(config)
+      await mgr.setInitialConfiguration()
 
       console.log('wallet=', await wallet.getWalletInfo())
     })

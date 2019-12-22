@@ -25,11 +25,14 @@ describe('#SimpleManager.test', () => {
 
   const verbose = false
   const mockBackend = {
-    createAccount: function () {
+    createAccount: async function () {
       return {
         approvalData: '0x' + 'f'.repeat(64),
         smartAccountId: '0x' + '1'.repeat(64)
       }
+    },
+    getSmartAccountId: async function () {
+      return '0x' + '1'.repeat(64)
     }
   }
 
@@ -85,7 +88,7 @@ describe('#SimpleManager.test', () => {
 
   backends.forEach(function ({ backend, name }) {
     describe(`SimpleManager with ${name}`, async function () {
-      const email = 'hello@world.com'
+      const email = 'shahaf@tabookey.com'
       const ethNodeUrl = 'http://localhost:8545'
       const from = '0x90f8bf6a479f320ead074411a4b0e7944ea8c9c1'
 
@@ -199,7 +202,6 @@ describe('#SimpleManager.test', () => {
 
           before(async function () {
             const storage = new MockStorage()
-
             const accountApi = new Account(storage)
             accountApi.googleLogin()
 

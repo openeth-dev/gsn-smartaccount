@@ -6,6 +6,10 @@ import './App.css'
 
 import SimpleManagerMock from '../js/mocks/SimpleManager.mock'
 import AccountProxy from '../js/impl/Account.proxy'
+import Web3 from 'web3'
+import ClientBackend from '../js/backend/ClientBackend'
+import SmartAccountSDK from '../js/impl/SmartAccountSDK'
+import SimpleManager from '../js/impl/SimpleManager'
 
 var mgr, sms
 const Button = ({ title, action }) => <input type="submit" onClick={action}
@@ -13,7 +17,9 @@ const Button = ({ title, action }) => <input type="submit" onClick={action}
 
 function GoogleLogin ({ refresh }) {
   async function login () {
-    const { jwt } = await mgr.googleLogin()
+    const logininfo = await mgr.googleLogin()
+    if (!logininfo) { return }
+    const { jwt } = logininfo
     refresh({ jwt })
   }
 
@@ -24,14 +30,17 @@ function GoogleLogin ({ refresh }) {
 }
 
 function CreateWallet ({ refresh, jwt, email }) {
-  let phone
+  let phoneNumber
   const startCreate = () => {
-    phone = prompt('enter phone number to validate')
-    if (!phone) {
+    phoneNumber = prompt('enter phone number to validate (put 1)')
+    if (!phoneNumber) {
       return
     }
-    console.log('validate:', jwt, phone)
-    mgr.validatePhone({ jwt, phone })
+    if (phoneNumber === '1') {
+      phoneNumber = '+972541234567'
+    }
+    console.log('validate:', jwt, phoneNumber)
+    mgr.validatePhone({ jwt, phoneNumber })
   }
   const createWallet = async () => {
     const smsVerificationCode = prompt('enter SMS verification code')
@@ -40,7 +49,9 @@ function CreateWallet ({ refresh, jwt, email }) {
     }
 
     try {
-      await mgr.createWallet({ jwt, phone, smsVerificationCode })
+      await mgr.createWallet({ jwt, phoneNumber, smsVerificationCode })
+      await mgr.setInitialConfiguration()
+
       refresh({ err: undefined })
     } catch (e) {
       refresh({ err: e.message })
@@ -82,13 +93,13 @@ function WalletComponent (options) {
   const { walletAddr, email, walletInfo } = options
 
   if (!email) {
-    return <GoogleLogin {...options}/>
+    return <>noemail<GoogleLogin {...options}/></>
   }
   if (!walletAddr) {
-    return <CreateWallet {...options} />
+    return <>nowalletAddr<CreateWallet {...options} /></>
   }
   if (!walletInfo) {
-    return <RecoverOrNewDevice {...options} />
+    return <>nowalletInfo<RecoverOrNewDevice {...options} /></>
   }
 
   return <ActiveWallet {...options} />
@@ -98,19 +109,17 @@ function WalletComponent (options) {
 class App extends React.Component {
   constructor (props) {
     super(props)
-    mgr = new SimpleManagerMock({ accountApi: new AccountProxy() })
-    sms = mgr.smsApi
-    sms.on('mocksms', (data) => {
-      setTimeout(() => {
-        alert('Received SMS to ' + data.phone + ':\n' + data.message)
-      }, 1000)
-    })
+    // manager is initialized (async'ly) from first call to readMgrState
 
     this.state = {}
     this.readMgrState().then(x => { this.state = x })
   }
 
   async readMgrState () {
+    if (!mgr) {
+      await this.initMgr()
+    }
+
     const mgrState = {
       ownerAddr: await mgr.getOwner(),
       walletAddr: await mgr.getWalletAddress(),
@@ -118,11 +127,62 @@ class App extends React.Component {
       walletInfo: undefined
     }
     // TODO: this is hack: we want to check if it already loaded, not load it.
-    if (mgr.wallet) {
+    if (mgrState.walletAddr) {
       const wallet = await mgr.loadWallet()
-      mgrState.walletInfo = wallet.getWalletInfo()
+      mgrState.walletInfo = await wallet.getWalletInfo()
     }
     return mgrState
+  }
+
+  async initMgr () {
+    // mock initialization:
+    const debug = false
+
+    const verbose = true
+    if (debug) {
+      mgr = new SimpleManagerMock({ accountApi: new AccountProxy() })
+      sms = mgr.smsApi
+      sms.on('mocksms', (data) => {
+        setTimeout(() => {
+          alert('Received SMS to ' + data.phone + ':\n' + data.message)
+        }, 1000)
+      })
+      return
+    }
+
+    // real init below:
+
+    const serverURL = window.location.protocol + '//' + window.location.host.replace(/(:\d+)?$/, ':8887')
+
+    // debug node runs on server's host. real node might use infura.
+    const ethNodeUrl = window.location.protocol + '//' + window.location.host.replace(/(:\d+)?$/, ':8545')
+
+    console.log({ serverURL, ethNodeUrl })
+    const web3provider = new Web3.providers.HttpProvider(ethNodeUrl)
+
+    const backend = new ClientBackend({ serverURL })
+
+    const { sponsor, factory } = (await backend.getAddresses())
+
+    const relayOptions = {
+      verbose,
+      sponsor
+    }
+    const sdk = await SmartAccountSDK.init({
+      network: web3provider,
+      relayOptions
+    })
+
+    const factoryConfig = {
+      provider: sdk.provider,
+      factoryAddress: factory
+    }
+
+    mgr = new SimpleManager({
+      accountApi: sdk.account,
+      backend,
+      factoryConfig
+    })
   }
 
   reloadState (extra) {
@@ -157,6 +217,7 @@ class App extends React.Component {
     // await mgr.validatePhone({jwt, phone:123})
     if (!await mgr.hasWallet()) {
       await mgr.createWallet({ jwt, phone: '123', smsVerificationCode: 'v123' })
+      await mgr.setInitialConfiguration()
     } else {
       await mgr.loadWallet()
     }
@@ -179,7 +240,7 @@ class App extends React.Component {
           }
         </div>
         {
-          !!mgr.wallet ||
+          !!(mgr && mgr.wallet) ||
           <div><Button title="debug: activate wallet"
             action={this.debugActiveWallet.bind(this)}/><p/></div>
         }

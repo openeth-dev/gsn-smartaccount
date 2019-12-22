@@ -1,3 +1,4 @@
+/* global window */
 import AccountApi from '../api/Account.api'
 
 import ethWallet from 'ethereumjs-wallet'
@@ -65,7 +66,16 @@ export default class Account extends AccountApi {
     if (this.verbose) {
       console.log('open google auth popup. prompt user for google account.\n')
     }
-    this.storage.email = 'user@email.com'
+    let newemail
+    if (typeof window !== 'undefined') {
+      newemail = window.prompt('Sign in to google account', this.storage.email || 'user@email.com')
+      if (!newemail) {
+        return null
+      }
+    } else {
+      newemail = 'shahaf@tabookey.com' // must match our 'testjwt'
+    }
+    this.storage.email = newemail
     if (!this.storage.ownerAddress) {
       this._createOwner()
     }
