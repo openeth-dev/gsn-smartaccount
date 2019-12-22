@@ -29,15 +29,14 @@ const backend = new Backend(
     smsManager,
     audience: '202746986880-u17rbgo95h7ja4fghikietupjknd1bln.apps.googleusercontent.com',
     keyManager,
-    accountManager,
-    factoryAddress,
-    sponsorAddress
+    accountManager
   })
 const watchdog = new Watchdog({
   smsManager,
   keyManager,
   accountManager,
   smartAccountFactoryAddress: factoryAddress,
+  sponsorAddress: sponsorAddress,
   web3provider: web3provider
 })
 const admin = undefined // TODO

@@ -5,25 +5,14 @@ const gauth = require('google-auth-library')
 const abi = require('ethereumjs-abi')
 
 export class Backend {
-  constructor ({ smsManager, audience, keyManager, accountManager, factoryAddress, sponsorAddress }) {
+  constructor ({ smsManager, audience, keyManager, accountManager }) {
     Object.assign(this, {
       smsManager,
       audience,
       gclient: new gauth.OAuth2Client(audience),
       keyManager,
-      accountManager,
-      factoryAddress,
-      sponsorAddress
+      accountManager
     })
-  }
-
-  async getAddresses () {
-    return {
-      watchdog: this.keyManager.address(),
-      admin: this.keyManager.address(),
-      factory: this.factoryAddress,
-      sponsor: this.sponsorAddress
-    }
   }
 
   async validatePhone ({ jwt, phoneNumber }) {

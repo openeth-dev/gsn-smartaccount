@@ -8,12 +8,13 @@ import SmartAccountFactoryABI from 'safechannels-contracts/src/js/generated/Smar
 import SmartAccountABI from 'safechannels-contracts/src/js/generated/SmartAccount'
 
 export class Watchdog {
-  constructor ({ smsManager, keyManager, accountManager, smartAccountFactoryAddress, web3provider }) {
+  constructor ({ smsManager, keyManager, accountManager, smartAccountFactoryAddress, sponsorAddress, web3provider }) {
     Object.assign(this, {
       smsManager,
       keyManager,
       accountManager,
       smartAccountFactoryAddress,
+      sponsorAddress,
       web3provider,
       web3: new Web3(web3provider),
       secretSMSCodeSeed: crypto.randomBytes(32)
@@ -208,6 +209,15 @@ export class Watchdog {
       name: e.name,
       address: e.address,
       args: args
+    }
+  }
+
+  async getAddresses () {
+    return {
+      watchdog: this.keyManager.address(),
+      admin: this.keyManager.address(),
+      factory: this.smartAccountFactoryAddress,
+      sponsor: this.sponsorAddress
     }
   }
 }
