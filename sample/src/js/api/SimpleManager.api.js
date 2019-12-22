@@ -14,11 +14,11 @@ export default class SimpleManagerApi extends EventEmitter {
 
   // wrapper calls for the background IFRAME:
 
-  getEmail () {
+  async getEmail () {
     error('return this.accountApi.getEmail()')
   }
 
-  getOwner () {
+  async getOwner () {
     error('return this.accountApi.getOwner()')
   }
 
@@ -35,7 +35,7 @@ export default class SimpleManagerApi extends EventEmitter {
   }
 
   async getWalletAddress () {
-    error('return the wallet address (valid only after is was created)')
+    error('return the wallet address (valid only after is was created on-chain)')
   }
 
   async hasWallet () {
@@ -46,7 +46,12 @@ export default class SimpleManagerApi extends EventEmitter {
     error('ask backend to add our address as an operator for existing vault')
   }
 
-  setOnSignInProgressChangeObserver ({ observer, interval }) {
+  /**
+   *
+   * @param observer: function(newState){ ... }
+   * @param interval: how often should the manager query the blockchain (TBD)
+   */
+  setSignInObserver ({ observer, interval }) {
     error('callback should be called when sign in events happen')
   }
 
@@ -55,12 +60,12 @@ export default class SimpleManagerApi extends EventEmitter {
       'return a SimpleWallet object for the current google account (after it was created)')
   }
 
-  async validatePhone ({ jwt, phone }) {
+  async validatePhone ({ jwt, phoneNumber }) {
     error(
       'contact backend to send SMS with verification code to client). mock emit event "mocksms". real server sends SMS')
   }
 
-  async createWallet ({ jwt, phone, smsVerificationCode }) {
+  async createWallet ({ jwt, phoneNumber, smsVerificationCode }) {
     error('create contract via GSN. returns after wallet created on chain.')
   }
 

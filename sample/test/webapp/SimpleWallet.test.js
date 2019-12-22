@@ -15,7 +15,6 @@ import { testValidationBehavior } from './behavior/SimpleWallet.behavior'
 before(async function () {
 // TODO: get accounts
 })
-
 // TODO: the main TODO of this test: instead of json files with test data, create a class that would 'generate'
 //  required transaction history; also, stop mocking functions inside class under test - move stub logic to interactor
 describe('SimpleWallet', async function () {
@@ -184,6 +183,7 @@ describe('SimpleWallet', async function () {
           })
       }
     })
+
 
     testValidationBehavior(() => testContext)
 

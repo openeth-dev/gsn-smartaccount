@@ -3,6 +3,7 @@
 $src="./contracts/PermissionsLevel.sol";
 $out = "./src/js/Permissions.js";
 
+
 warn "re-creating $out from $src\n";
 
 open SRC, $src;
@@ -14,11 +15,9 @@ while (<SRC>) {
         $switched=true;
     }
     #uint32 constant public canSpend = 1 << 0;
-
     ($perm, $val) = /constant public (\w+)\s+=\s+(.*)\s*;\s*/;
     if ($perm ) {
         push @perms, "\u$perm: $val";
-
         next;
     }
 

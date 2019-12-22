@@ -1,6 +1,7 @@
 import express from 'express'
 import jsonrpc from 'jsonrpc-lite'
 import bodyParser from 'body-parser'
+import BEapi from '../api/BE.api'
 
 export default class Webserver {
   constructor ({ port, backend }) {
@@ -27,33 +28,18 @@ export default class Webserver {
 
   async rootHandler (req, res) {
     let status
-    switch (req.body.method) {
-      case this.backend.validatePhone.name:
-        try {
-          await this.backend.validatePhone({ jwt: req.body.params.jwt, phoneNumber: req.body.params.phoneNumber })
-          status = jsonrpc.success(req.body.id, 'OK')
-        } catch (e) {
-          status = jsonrpc.error(req.body.id, new jsonrpc.JsonRpcError(e.message, -123))
-        }
-        break
-      case this.backend.createAccount.name:
-        try {
-          const approvalData = await this.backend.createAccount(
-            { jwt: req.body.params.jwt, smsCode: req.body.params.smsCode, phoneNumber: req.body.params.phoneNumber })
-          status = jsonrpc.success(req.body.id, approvalData)
-        } catch (e) {
-          status = jsonrpc.error(req.body.id, new jsonrpc.JsonRpcError(e.message, -124))
-        }
-        break
-      case this.backend.addOperatorNow.name:
-        try {
-          // TODO
-        } catch (e) {
-          status = jsonrpc.error(req.body.id, new jsonrpc.JsonRpcError(e.message, -125))
-        }
-        break
-      default:
-        status = jsonrpc.error(req.body.id || -1, new jsonrpc.JsonRpcError('Unknown method', -130))
+    try {
+      if (!BEapi.prototype[req.body.method]) { throw new Error('no such method: ' + req.body.method) }
+
+      const func = this.backend[req.body.method]
+      const res = await func.apply(this.backend, [req.body.params]) || {}
+
+      status = jsonrpc.success(req.body.id, res)
+    } catch (e) {
+      let stack = e.stack.toString()
+      // remove anything after 'rootHandler'
+      stack = stack.replace(/(rootHandler.*)[\s\S]*/, '$1')
+      status = jsonrpc.error(req.body.id, new jsonrpc.JsonRpcError(stack, -125))
     }
     res.send(status)
   }

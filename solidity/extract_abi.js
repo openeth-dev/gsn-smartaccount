@@ -27,6 +27,10 @@ function compileFile (contractFile, c) {
         '*': {
           '*': ['*']
         }
+      },
+      optimizer: {
+        enabled: true,
+        runs: 1 // optimized for deployment. higher value optimize for runtime.
       }
     }
   }
@@ -40,7 +44,7 @@ function compileFile (contractFile, c) {
       const subPath = parts.length === 0 ? '' : '/' + parts.join('/')
       let realPath = contractsFolder + subPath + '/' + path
       if (!fs.existsSync(realPath)) {
-        realPath = projectFolder + 'node_modules/' + path
+        realPath = projectFolder + '/node_modules/' + path
       }
       console.log(fs.existsSync(realPath) ? 'resolved:' : 'failed to resolve', realPath)
 

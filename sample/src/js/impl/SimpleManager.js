@@ -6,16 +6,19 @@ import FactoryContractInteractor from 'safechannels-contracts/src/js/FactoryCont
 import SimpleWallet from './SimpleWallet'
 import SimpleManagerApi from '../api/SimpleManager.api.js'
 
+import Participant from 'safechannels-contracts/src/js/Participant'
+import Permissions from 'safechannels-contracts/src/js/Permissions'
 // API of the main factory object.
 export default class SimpleManager extends SimpleManagerApi {
-  constructor ({ accountApi, backend, factoryConfig }) {
+  constructor ({ accountApi, backend, guardianAddress, factoryConfig }) {
     super()
     this.accountApi = accountApi
     this.backend = backend
+    this.guardianAddress = guardianAddress
     this.factoryConfig = this._validateConfig(factoryConfig)
   }
 
-  getEmail () {
+  async getEmail () {
     return this.accountApi.getEmail()
   }
 
@@ -31,12 +34,12 @@ export default class SimpleManager extends SimpleManagerApi {
     this.accountApi.signout()
   }
 
-  getOwner () {
+  async getOwner () {
     return this.accountApi.getOwner()
   }
 
-  async validatePhone ({ jwt, phone }) {
-    const response = await this.backend.validatePhone({ jwt, phone })
+  async validatePhone ({ jwt, phoneNumber }) {
+    const response = await this.backend.validatePhone({ jwt, phoneNumber })
     if (response.code === 200) {
       return { success: true, reason: null }
     } else {
@@ -56,9 +59,6 @@ export default class SimpleManager extends SimpleManagerApi {
     return this.wallet != null
   }
 
-  async loadWallet () {
-  }
-
   async recoverWallet ({ owner, email }) {
     error('trigger recover flow')
   }
@@ -75,16 +75,21 @@ export default class SimpleManager extends SimpleManagerApi {
     this.smartAccountFactory = await SmartAccountFactoryContract.at(factoryAddress)
   }
 
-  async createWallet ({ jwt, phone, smsVerificationCode }) {
-    if (!jwt || !phone || !smsVerificationCode) {
+  async createWallet ({ jwt, phoneNumber, smsVerificationCode }) {
+    if (!jwt || !phoneNumber || !smsVerificationCode) {
       throw Error('All parameters are required')
     }
     if (this.smartAccountFactory === undefined) {
       await this._initializeFactory(this.factoryConfig)
     }
-    const response = await this.backend.createAccount({ jwt: jwt, phoneNumber: phone, smsCode: smsVerificationCode })
 
-    const sender = this.getOwner()
+    const response = await this.backend.createAccount({
+      jwt: jwt,
+      phoneNumber: phoneNumber,
+      smsCode: smsVerificationCode
+    })
+
+    const sender = await this.getOwner()
     // TODO: next commit: make 'FactoryContractInteractor.deployNewSmartAccount' do this job
     const smartAccountIdId = response.smartAccountId
     const approvalData = response.approvalData
@@ -93,15 +98,37 @@ export default class SimpleManager extends SimpleManagerApi {
       gas: 1e8,
       approvalData: approvalData
     })
+    this.firstBlock = receipt.blockNumber
+
+    return this.loadWallet()
+  }
+
+  async loadWallet () {
+    const owner = await this.getOwner()
+    // TODO: read wallet with address, not from event!
     const smartAccount = await FactoryContractInteractor.getCreatedSmartAccount(
       {
         factoryAddress: this.factoryConfig.factoryAddress,
-        sender: sender,
+        sender: owner,
         // TODO: just pass the event from the receipt!
-        blockNumber: receipt.blockNumber,
+        blockNumber: this.firstBlock || 1,
         provider: this.factoryConfig.provider
       })
-    return new SimpleWallet({ contract: smartAccount, participant: {}, knownParticipants: [], knownTokens: [] })
+
+    const participants = this._getParticipants({ ownerAddress: owner, guardianAddress: this.guardianAddress })
+    return new SimpleWallet({
+      contract: smartAccount,
+      participant: participants.operator,
+      knownParticipants: [participants.backendAsAdmin, participants.backendAsWatchdog]
+    })
+  }
+
+  _getParticipants ({ ownerAddress, guardianAddress }) {
+    return {
+      operator: new Participant(ownerAddress, Permissions.OwnerPermissions, 1),
+      backendAsWatchdog: new Participant(guardianAddress, Permissions.WatchdogPermissions, 1),
+      backendAsAdmin: new Participant(guardianAddress, Permissions.AdminPermissions, 1)
+    }
   }
 
   _validateConfig (factoryConfig) {
@@ -110,7 +137,7 @@ export default class SimpleManager extends SimpleManagerApi {
   }
 
   async signInAsNewOperator ({ jwt, description, observer }) {
-    this.setOnSignInProgressChangeObserver({ observer, interval: 2000 })
+    this.setSignInObserver({ observer, interval: 2000 })
     const response = await this.backend.signInAsNewOperator({ jwt, description })
     if (response.code === 200) {
       return { success: true, reason: null }
@@ -119,7 +146,7 @@ export default class SimpleManager extends SimpleManagerApi {
     }
   }
 
-  setOnSignInProgressChangeObserver ({ observer, interval }) {
+  setSignInObserver ({ observer, interval }) {
     setInterval(() => {
       console.log('how you gonna test?')
     }, interval)

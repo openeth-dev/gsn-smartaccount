@@ -3,16 +3,37 @@
 import AccountApi from '../api/Account.api'
 
 const verbose = false
+const ACCOUNT_FRAME_ID = 'account-frame'
 
-export default class AccountProxy extends AccountApi {
+export default class AccountProxy {
   // storage - property access.
   // localStorage - getItem/setItem (use only if no storage..)
   constructor () {
-    super()
+    const methods = Object.getOwnPropertyNames(AccountApi.prototype)
+    for (const m in methods) {
+      const method = methods[m]
+      this[method] = function () {
+        return this._call(method, Array.prototype.slice.apply(arguments))
+      }.bind(this)
+    }
+    this._initFrame()
     window.addEventListener('message', this._onMessage.bind(this))
     this.idseq = Math.floor(Math.random() * 1e5)
-    this.iframe = document.getElementById('account-frame').contentWindow
+    this.iframe = document.getElementById(ACCOUNT_FRAME_ID).contentWindow
     this.pending = {}
+  }
+
+  // create an IFRAME in our window
+  _initFrame () {
+    console.log('doc=', document)
+    const frame = document.createElement('iframe')
+    // todo: absolute URL, e.g.: 'https://account.safeaccount.xyz'
+    frame.setAttribute('src', 'account.html')
+    frame.setAttribute('id', ACCOUNT_FRAME_ID)
+    frame.setAttribute('scrolling', 'no')
+    frame.style.width = '30px'
+    frame.style.height = '30px'
+    document.body.appendChild(frame)
   }
 
   _onMessage ({ source, data }) {
@@ -64,37 +85,5 @@ export default class AccountProxy extends AccountApi {
       }
       this.iframe.postMessage({ method, args, id }, '*')
     })
-  }
-
-  async getEmail () {
-    return this._call('getEmail')
-  }
-
-  async getOwner () {
-    return this._call('getOwner')
-  }
-
-  async googleLogin () {
-    return this._call('googleLogin')
-  }
-
-  async googleAuthenticate () {
-    return this._call('googleAuthenticate')
-  }
-
-  async signOut () {
-    return this._call('signOut')
-  }
-
-  async signTransaction ({ tx }) {
-    return this._call('signTransaction', arguments)
-  }
-
-  async signMessage (message) {
-    return this._call('signMessage', arguments)
-  }
-
-  async signMessageHash (messageHash) {
-    return this._call('signMessageHash', arguments)
   }
 }

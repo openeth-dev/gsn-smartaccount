@@ -13,7 +13,7 @@ export class Account {
 }
 
 export class Backend extends BEapi {
-  constructor ({ smsProvider, audience, ecdsaKeyPair }) {
+  constructor ({ smsProvider, audience, ecdsaKeyPair, factoryAddress, sponsorAddress }) {
     super()
     Object.assign(this, {
       accounts: {},
@@ -21,8 +21,19 @@ export class Backend extends BEapi {
       audience,
       gclient: new gauth.OAuth2Client(audience),
       ecdsaKeyPair,
+      factoryAddress,
+      sponsorAddress,
       secretSMSCodeSeed: crypto.randomBytes(32)
     })
+  }
+
+  async getAddresses () {
+    return {
+      watchdog: this.ecdsaKeyPair.address,
+      admin: this.ecdsaKeyPair.address,
+      factory: this.factoryAddress,
+      sponsor: this.sponsorAddress
+    }
   }
 
   async validatePhone ({ jwt, phoneNumber }) {

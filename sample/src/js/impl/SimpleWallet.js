@@ -37,14 +37,12 @@ export default class SimpleWallet extends SimpleWalletApi {
    *        Note: participants should be of 'Participant' class!
    * @param knownTokens - tokens currently supported.
    */
-  constructor ({ contract, participant, knownParticipants, knownTokens }) {
+  constructor ({ contract, participant, knownParticipants = [], knownTokens = [] }) {
     super()
     this.contract = contract
     this.participant = participant
-    this.knownTokens = []
-    this.knownParticipants = []
-    this.knownTokens.push(...knownTokens)
-    this.knownParticipants.push(...knownParticipants, participant)
+    this.knownTokens = knownTokens
+    this.knownParticipants = [...knownParticipants, participant]
     // TODO: make sure no duplicates
   }
 
@@ -59,8 +57,7 @@ export default class SimpleWallet extends SimpleWalletApi {
       configuration.bypassMethods,
       configuration.bypassModules,
       {
-        from: this.participant.address,
-        gasPrice: 10
+        from: this.participant.address
       }
     )
   }
@@ -167,35 +164,35 @@ export default class SimpleWallet extends SimpleWalletApi {
     const allowAcceleratedCalls = await this.contract.allowAcceleratedCalls()
     const allowAddOperatorNow = await this.contract.allowAddOperatorNow()
     const deployedBlock = await this._getDeployedBlock()
-    const initEvent = (await this.contract.getPastEvents('SmartAccountInitialized', { fromBlock: deployedBlock }))[0]
+    const initEvent = (await this.contract.getPastEvents('SmartAccountInitialized', {
+      fromBlock: deployedBlock,
+      toBlock: 'latest'
+    }))[0]
     const args = initEvent.args
     const foundParticipants = this.knownParticipants.filter((it) => {
       const hash = '0x' + SafeChannelUtils.participantHash(it.address, it.permLevel).toString('hex')
       return args.participants.includes(hash)
     })
-    const operators = foundParticipants
-      .filter(it => it.permissions === Permissions.OwnerPermissions)
-      .map(it => {
-        return it.address
-      })
+    const operators = foundParticipants.filter(it => it.permissions === Permissions.OwnerPermissions).map(it => {
+      return it.address
+    })
 
-    const guardians = foundParticipants.filter(it => it.permissions !== Permissions.OwnerPermissions)
-      .map(it => {
-        let type // TODO: move to participant class
-        switch (it.permissions) {
-          case Permissions.WatchdogPermissions:
-            type = 'watchdog'
-            break
-          case Permissions.AdminPermissions:
-            type = 'admin'
-            break
-        }
-        return {
-          address: it.address,
-          level: it.level,
-          type: type
-        }
-      })
+    const guardians = foundParticipants.filter(it => it.permissions !== Permissions.OwnerPermissions).map(it => {
+      let type // TODO: move to participant class
+      switch (it.permissions) {
+        case Permissions.WatchdogPermissions:
+          type = 'watchdog'
+          break
+        case Permissions.AdminPermissions:
+          type = 'admin'
+          break
+      }
+      return {
+        address: it.address,
+        level: it.level,
+        type: type
+      }
+    })
     const levels = []
     for (let i = 0; i < args.delays.length; i++) {
       levels[i] = {
@@ -409,9 +406,12 @@ export default class SimpleWallet extends SimpleWalletApi {
   }
 
   static getDefaultSampleInitialConfiguration ({ backendAddress, operatorAddress, whitelistModuleAddress }) {
-    const backendAsWatchdog = '0x' + SafeChannelUtils.participantHashUnpacked(backendAddress, Permissions.WatchdogPermissions, 1).toString('hex')
-    const backendAsAdmin = '0x' + SafeChannelUtils.participantHashUnpacked(backendAddress, Permissions.AdminPermissions, 1).toString('hex')
-    const operator = '0x' + SafeChannelUtils.participantHashUnpacked(operatorAddress, Permissions.OwnerPermissions, 1).toString('hex')
+    const backendAsWatchdog = '0x' +
+      SafeChannelUtils.participantHashUnpacked(backendAddress, Permissions.WatchdogPermissions, 1).toString('hex')
+    const backendAsAdmin = '0x' +
+      SafeChannelUtils.participantHashUnpacked(backendAddress, Permissions.AdminPermissions, 1).toString('hex')
+    const operator = '0x' +
+      SafeChannelUtils.participantHashUnpacked(operatorAddress, Permissions.OwnerPermissions, 1).toString('hex')
     return {
       initialParticipants: [operator, backendAsWatchdog, backendAsAdmin],
       initialDelays: [86400, 172800],
@@ -447,7 +447,6 @@ export default class SimpleWallet extends SimpleWalletApi {
     return this.backend.validateAddOperatorNow({ jwt, url })
   }
 
-  // TODO: add support for 'approval required' transactions!
   async applyAllPendingOperations () {
     const block = await this._getWeb3().web3.eth.getBlock('latest')
     const blockchainTime = block.timestamp
