@@ -39,13 +39,15 @@ async function getDelayedOpHashFromEvent (log, utilities) {
   const schedulerPermsLevel = log.args.senderPermsLevel
   const boosterAddress = log.args.booster
   const boosterPermsLevel = log.args.boosterPermsLevel
-  return utilities.transactionHashPublic(actions, args1, args2, stateId, schedulerAddress, schedulerPermsLevel, boosterAddress, boosterPermsLevel)
+  return utilities.transactionHashPublic(actions, args1, args2, stateId, schedulerAddress, schedulerPermsLevel,
+    boosterAddress, boosterPermsLevel)
 }
 
 async function cancelDelayed ({ res, log }, fromParticipant, smartAccount) {
-  const { actions, args1, args2, schedulerAddress, schedulerPermsLevel, boosterAddress, boosterPermsLevel, scheduledStateId } = extractLog(log, res)
+  const { actions, args1, args2, schedulerAddress, schedulerPermsLevel, boosterAddress, boosterPermsLevel, scheduledStateId } = extractLog(
+    log, res)
   return smartAccount.cancelOperation(
-        fromParticipant.permLevel,
+    fromParticipant.permLevel,
     actions,
     args1,
     args2,
@@ -94,7 +96,8 @@ function extractLog (log, res) {
 
 async function applyBypass ({ res, log }, fromParticipant, smartAccount) {
   // eslint-disable-next-line no-unused-vars
-  const { msgdata, value, target, schedulerAddress, schedulerPermsLevel, boosterAddress, boosterPermsLevel, scheduledStateId } = extractLog(log, res)
+  const { msgdata, value, target, schedulerAddress, schedulerPermsLevel, boosterAddress, boosterPermsLevel, scheduledStateId } = extractLog(
+    log, res)
 
   return smartAccount.applyBypassCall(
     fromParticipant.permLevel,
@@ -108,7 +111,8 @@ async function applyBypass ({ res, log }, fromParticipant, smartAccount) {
 }
 
 async function applyDelayed ({ res, log }, fromParticipant, smartAccount) {
-  const { actions, args1, args2, schedulerAddress, schedulerPermsLevel, boosterAddress, boosterPermsLevel, scheduledStateId } = extractLog(log, res)
+  const { actions, args1, args2, schedulerAddress, schedulerPermsLevel, boosterAddress, boosterPermsLevel, scheduledStateId } = extractLog(
+    log, res)
 
   return smartAccount.applyConfig(
     fromParticipant.permLevel,
@@ -249,7 +253,8 @@ contract('SmartAccount', async function (accounts) {
       utils.bufferToHex(utils.participantHash(adminB2.address, adminB2.permLevel))
     ]
 
-    const res = await smartAccount.initialConfig(initialParticipants, initialDelays, true, true, requiredApprovalsPerLevel, [], [], [], { from: operatorA.address })
+    const res = await smartAccount.initialConfig(initialParticipants, initialDelays, true, true,
+      requiredApprovalsPerLevel, [], [], [], { from: operatorA.address })
     const log = res.logs[0]
     assert.equal(log.event, 'SmartAccountInitialized')
 
@@ -273,7 +278,8 @@ contract('SmartAccount', async function (accounts) {
     const initialDelays = []
     const initialParticipants = []
     await expect(
-      smartAccount.initialConfig(initialParticipants, initialDelays, true, true, requiredApprovalsPerLevel, [], [], [], { from: operatorA.address })
+      smartAccount.initialConfig(initialParticipants, initialDelays, true, true, requiredApprovalsPerLevel, [], [], [],
+        { from: operatorA.address })
     ).to.be.revertedWith('already initialized')
   })
   /* Positive flows */
@@ -356,7 +362,8 @@ contract('SmartAccount', async function (accounts) {
       const actions = [ChangeType.SET_ACCELERATED_CALLS]
       // bool to bytes32 basically...
       const args = [Buffer.from('0'.repeat(64), 'hex')]
-      const res = await smartAccount.changeConfiguration(operatorA.permLevel, actions, args, args, stateId, { from: operatorA.address })
+      const res = await smartAccount.changeConfiguration(operatorA.permLevel, actions, args, args, stateId,
+        { from: operatorA.address })
       assert.equal(res.logs[0].event, 'ConfigPending')
       await expect(
         applyDelayed({ res }, operatorA, smartAccount)
@@ -378,7 +385,8 @@ contract('SmartAccount', async function (accounts) {
       const actions = [ChangeType.SET_ACCELERATED_CALLS]
       // bool to bytes32 basically...
       const args = [Buffer.from('1'.repeat(64), 'hex')]
-      const res = await smartAccount.changeConfiguration(operatorA.permLevel, actions, args, args, stateId, { from: operatorA.address })
+      const res = await smartAccount.changeConfiguration(operatorA.permLevel, actions, args, args, stateId,
+        { from: operatorA.address })
       assert.equal(res.logs[0].event, 'ConfigPending')
       await expect(
         applyDelayed({ res }, operatorA, smartAccount)
@@ -402,7 +410,8 @@ contract('SmartAccount', async function (accounts) {
     assert.equal(log.address, smartAccount.address)
     assert.equal(log.args.target, destinationAddress)
     assert.equal(log.args.value, amount)
-    const hash = '0x' + utils.bypassCallHash(stateId, operatorA.address, operatorA.permLevel, destinationAddress, amount, '').toString('hex')
+    const hash = '0x' + utils.bypassCallHash(stateId, operatorA.address, operatorA.permLevel, destinationAddress,
+      amount, '').toString('hex')
     const pendingCall = await smartAccount.pendingBypassCalls(hash)
     assert.isAbove(pendingCall.toNumber(), 0)
   })
@@ -417,11 +426,13 @@ contract('SmartAccount', async function (accounts) {
     const balanceReceiverBefore = parseInt(await web3.eth.getBalance(destinationAddress))
     assert.isAbove(balanceSenderBefore, amount)
     await utils.increaseTime(timeGap, web3)
-    const res = await smartAccount.applyBypassCall(operatorA.permLevel, operatorA.address, operatorA.permLevel, addedLog.stateId, addedLog.target, addedLog.value, [], { from: operatorA.address })
+    const res = await smartAccount.applyBypassCall(operatorA.permLevel, operatorA.address, operatorA.permLevel,
+      addedLog.stateId, addedLog.target, addedLog.value, [], { from: operatorA.address })
     const log = res.logs[0]
 
     assert.equal(log.event, 'BypassCallApplied')
-    const hash = '0x' + utils.bypassCallHash(addedLog.stateId, operatorA.address, operatorA.permLevel, addedLog.target, addedLog.value, '').toString('hex')
+    const hash = '0x' + utils.bypassCallHash(addedLog.stateId, operatorA.address, operatorA.permLevel, addedLog.target,
+      addedLog.value, '').toString('hex')
     assert.equal(log.args.delayedOpId, hash)
     assert.equal(log.args.status, true)
 
@@ -446,7 +457,8 @@ contract('SmartAccount', async function (accounts) {
     assert.equal(log.args.value, 0)
     assert.equal(log.args.target, erc20.address)
 
-    const hash = '0x' + utils.bypassCallHash(log.args.stateId, log.args.sender, log.args.senderPermsLevel, log.args.target, log.args.value, log.args.msgdata).toString('hex')
+    const hash = '0x' + utils.bypassCallHash(log.args.stateId, log.args.sender, log.args.senderPermsLevel,
+      log.args.target, log.args.value, log.args.msgdata).toString('hex')
     const pendingCall = await smartAccount.pendingBypassCalls(hash)
     assert.isAbove(pendingCall.toNumber(), 0)
   })
@@ -458,7 +470,8 @@ contract('SmartAccount', async function (accounts) {
     assert.isAbove(balanceSenderBefore, amount)
     await utils.increaseTime(timeGap, web3)
 
-    const res = await smartAccount.applyBypassCall(operatorA.permLevel, addedLog.sender, addedLog.senderPermsLevel, addedLog.stateId, addedLog.target, addedLog.value, addedLog.msgdata, { from: operatorA.address })
+    const res = await smartAccount.applyBypassCall(operatorA.permLevel, addedLog.sender, addedLog.senderPermsLevel,
+      addedLog.stateId, addedLog.target, addedLog.value, addedLog.msgdata, { from: operatorA.address })
 
     let log = res.logs[0]
     assert.equal(log.event, 'Transfer')
@@ -484,7 +497,8 @@ contract('SmartAccount', async function (accounts) {
     await utils.increaseTime(timeGap, web3)
 
     await expect(
-      smartAccount.applyBypassCall(operatorA.permLevel, addedLog.sender, addedLog.senderPermsLevel, addedLog.stateId, addedLog.target, addedLog.value, addedLog.msgdata, { from: operatorA.address })
+      smartAccount.applyBypassCall(operatorA.permLevel, addedLog.sender, addedLog.senderPermsLevel, addedLog.stateId,
+        addedLog.target, addedLog.value, addedLog.msgdata, { from: operatorA.address })
     ).to.be.revertedWith('apply called for non existent pending bypass call')
   })
 
@@ -503,8 +517,8 @@ contract('SmartAccount', async function (accounts) {
   })
 
   /**
-     * If running this 'describe' only, do not forget to initialize and fund the smartAccount
-     */
+   * If running this 'describe' only, do not forget to initialize and fund the smartAccount
+   */
   describe('Bypass Modules', async function () {
     let module
     let allowAll
@@ -529,7 +543,8 @@ contract('SmartAccount', async function (accounts) {
       const actions = [ChangeType.ADD_BYPASS_BY_TARGET, ChangeType.ADD_BYPASS_BY_TARGET]
       const stateId = await smartAccount.stateNonce()
       const res = await smartAccount.changeConfiguration(
-        operatorA.permLevel, actions, [targetThatCanDoAll, testContract.address], [allowAll.address, testPolicy.address], stateId)
+        operatorA.permLevel, actions, [targetThatCanDoAll, testContract.address],
+        [allowAll.address, testPolicy.address], stateId)
       await utils.increaseTime(timeGap, web3)
       const res2 = await applyDelayed({ res }, operatorA, smartAccount)
       const bypassForTarget = await smartAccount.bypassPoliciesByTarget(erc20.address)
@@ -561,7 +576,8 @@ contract('SmartAccount', async function (accounts) {
         smartAccount.executeBypassCall(operatorA.permLevel, differentErc20.address, 0, calldata)
       ).to.be.revertedWith('Call cannot be executed immediately')
       const stateId = await smartAccount.stateNonce()
-      const res = await smartAccount.scheduleBypassCall(operatorA.permLevel, differentErc20.address, 0, calldata, stateId)
+      const res = await smartAccount.scheduleBypassCall(operatorA.permLevel, differentErc20.address, 0, calldata,
+        stateId)
       await utils.increaseTime(timeGap, web3)
       const res2 = await applyBypass({ res }, operatorA, smartAccount)
       assert.equal(res2.logs[0].event, 'Transfer')
@@ -584,7 +600,8 @@ contract('SmartAccount', async function (accounts) {
       const stateId = await smartAccount.stateNonce()
       await smartAccount.scheduleBypassCall(operatorA.permLevel, testContract.address, 7, [], stateId)
       await expect(
-        smartAccount.applyBypassCall(operatorA.permLevel, operatorA.address, operatorA.permLevel, stateId, testContract.address, 7, [])
+        smartAccount.applyBypassCall(operatorA.permLevel, operatorA.address, operatorA.permLevel, stateId,
+          testContract.address, 7, [])
       ).to.be.revertedWith('Pending approvals')
 
       await expect(
@@ -601,7 +618,8 @@ contract('SmartAccount', async function (accounts) {
           from: watchdogA.address
         }
       )
-      const res = await smartAccount.applyBypassCall(operatorA.permLevel, operatorA.address, operatorA.permLevel, stateId, testContract.address, 7, [])
+      const res = await smartAccount.applyBypassCall(operatorA.permLevel, operatorA.address, operatorA.permLevel,
+        stateId, testContract.address, 7, [])
       assert.equal(res.logs[0].event, 'DoNotWaitForDelay')
     })
 
@@ -623,10 +641,12 @@ contract('SmartAccount', async function (accounts) {
         }
       )
       await expect(
-        smartAccount.applyBypassCall(operatorA.permLevel, operatorA.address, operatorA.permLevel, stateId, testContract.address, 6, [])
+        smartAccount.applyBypassCall(operatorA.permLevel, operatorA.address, operatorA.permLevel, stateId,
+          testContract.address, 6, [])
       ).to.be.revertedWith('apply called before due time')
       await utils.increaseTime(timeGap, web3)
-      const res = await smartAccount.applyBypassCall(operatorA.permLevel, operatorA.address, operatorA.permLevel, stateId, testContract.address, 6, [])
+      const res = await smartAccount.applyBypassCall(operatorA.permLevel, operatorA.address, operatorA.permLevel,
+        stateId, testContract.address, 6, [])
       assert.equal(res.logs[0].event, 'WaitForDelay')
     })
   })
@@ -635,7 +655,8 @@ contract('SmartAccount', async function (accounts) {
 
   it('should revert when trying to cancel a transfer transaction that does not exist', async function () {
     await expect(
-      smartAccount.cancelBypassCall(watchdogA.permLevel, operatorA.address, operatorA.permLevel, 0, zeroAddress, 0, [], { from: watchdogA.address })
+      smartAccount.cancelBypassCall(watchdogA.permLevel, operatorA.address, operatorA.permLevel, 0, zeroAddress, 0, [],
+        { from: watchdogA.address })
     ).to.be.revertedWith('cancel called for non existent pending bypass call')
   })
 
@@ -656,7 +677,7 @@ contract('SmartAccount', async function (accounts) {
     }))
   })
 
-  it("should store admins' credentials hashed", async function () {
+  it('should store admins\' credentials hashed', async function () {
     const hash = utils.bufferToHex(utils.participantHash(adminA.address, adminA.permLevel))
     const isAdmin = await smartAccount.participants(hash)
     assert.equal(true, isAdmin)
@@ -734,15 +755,19 @@ contract('SmartAccount', async function (accounts) {
     const changeArg1 = utils.participantHash(adminB1.address, adminB1.permLevel)
     const changeType2 = ChangeType.REMOVE_PARTICIPANT
     const changeArg2 = utils.participantHash(adminB.address, adminB.permLevel)
-    await smartAccount.changeConfiguration(operatorA.permLevel, [changeType1, changeType2], [changeArg1, changeArg2], [changeArg1, changeArg2], stateId)
+    await smartAccount.changeConfiguration(operatorA.permLevel, [changeType1, changeType2], [changeArg1, changeArg2],
+      [changeArg1, changeArg2], stateId)
 
     await expect(
-      smartAccount.applyConfig(operatorA.permLevel, [changeType1, changeType2], [changeArg1, changeArg2], [changeArg1, changeArg2], stateId, operatorA.address, operatorA.permLevel, zeroAddress, 0)
+      smartAccount.applyConfig(operatorA.permLevel, [changeType1, changeType2], [changeArg1, changeArg2],
+        [changeArg1, changeArg2], stateId, operatorA.address, operatorA.permLevel, zeroAddress, 0)
     ).to.be.revertedWith('called before due time')
 
     await utils.increaseTime(timeGap, web3)
 
-    const res = await smartAccount.applyConfig(operatorA.permLevel, [changeType1, changeType2], [changeArg1, changeArg2], [changeArg1, changeArg2], stateId, operatorA.address, operatorA.permLevel, zeroAddress, 0)
+    const res = await smartAccount.applyConfig(operatorA.permLevel, [changeType1, changeType2],
+      [changeArg1, changeArg2], [changeArg1, changeArg2], stateId, operatorA.address, operatorA.permLevel, zeroAddress,
+      0)
 
     assert.equal(res.logs[0].event, 'ParticipantAdded')
     assert.equal(res.logs[1].event, 'ParticipantRemoved')
@@ -759,12 +784,14 @@ contract('SmartAccount', async function (accounts) {
     await smartAccount.changeConfiguration(operatorA.permLevel, [changeType1], [changeArg1], [changeArg1], stateId)
 
     await expect(
-      smartAccount.applyConfig(operatorA.permLevel, [changeType1], [changeArg1], [changeArg1], stateId, operatorA.address, operatorA.permLevel, zeroAddress, 0)
+      smartAccount.applyConfig(operatorA.permLevel, [changeType1], [changeArg1], [changeArg1], stateId,
+        operatorA.address, operatorA.permLevel, zeroAddress, 0)
     ).to.be.revertedWith('called before due time')
 
     await utils.increaseTime(timeGap, web3)
 
-    const res = await smartAccount.applyConfig(operatorA.permLevel, [changeType1], [changeArg1], [changeArg1], stateId, operatorA.address, operatorA.permLevel, zeroAddress, 0)
+    const res = await smartAccount.applyConfig(operatorA.permLevel, [changeType1], [changeArg1], [changeArg1], stateId,
+      operatorA.address, operatorA.permLevel, zeroAddress, 0)
 
     assert.equal(res.logs[0].event, 'ParticipantAdded')
 
@@ -773,7 +800,8 @@ contract('SmartAccount', async function (accounts) {
       smartAccount)
 
     await expect(
-      smartAccount.applyConfig(operatorA.permLevel, [changeType1], [changeArg1], [changeArg1], stateId, operatorA.address, operatorA.permLevel, zeroAddress, 0)
+      smartAccount.applyConfig(operatorA.permLevel, [changeType1], [changeArg1], [changeArg1], stateId,
+        operatorA.address, operatorA.permLevel, zeroAddress, 0)
     ).to.be.revertedWith('apply called for non existent pending change')
   })
 
@@ -784,7 +812,8 @@ contract('SmartAccount', async function (accounts) {
     const stateId = await smartAccount.stateNonce()
     assert.equal(true, await smartAccount.isParticipant(adminA.address, adminA.permLevel))
     assert.equal(false, await smartAccount.isParticipant(operatorB.address, operatorB.permLevel))
-    const res = await smartAccount.scheduleAddOperator(adminA.permLevel, operatorB.address, stateId, { from: adminA.address })
+    const res = await smartAccount.scheduleAddOperator(adminA.permLevel, operatorB.address, stateId,
+      { from: adminA.address })
     await expect(
       applyDelayed({ res }, adminA, smartAccount)
     ).to.be.revertedWith('apply called before due time')
@@ -802,7 +831,8 @@ contract('SmartAccount', async function (accounts) {
     const stateId = await smartAccount.stateNonce()
     const actions = [ChangeType.REMOVE_PARTICIPANT]
     const args = [utils.participantHash(operatorB.address, operatorB.permLevel)]
-    const res = await smartAccount.changeConfiguration(operatorA.permLevel, actions, args, args, stateId, { from: operatorA.address })
+    const res = await smartAccount.changeConfiguration(operatorA.permLevel, actions, args, args, stateId,
+      { from: operatorA.address })
     await utils.increaseTime(timeGap, web3)
     await applyDelayed({ res }, operatorB, smartAccount)
     participants = [operatorA.expect(), operatorB]
@@ -818,7 +848,8 @@ contract('SmartAccount', async function (accounts) {
       assert.equal(true, await smartAccount.isParticipant(adminA.address, adminA.permLevel))
       assert.equal(false, await smartAccount.isParticipant(operatorB.address, operatorB.permLevel))
       const stateId = await smartAccount.stateNonce()
-      res = await smartAccount.addOperatorNow(operatorA.permLevel, operatorB.address, stateId, { from: operatorA.address })
+      res = await smartAccount.addOperatorNow(operatorA.permLevel, operatorB.address, stateId,
+        { from: operatorA.address })
       assert.equal(res.logs[0].event, 'ConfigPending')
       await expect(
         applyDelayed({ res }, operatorA, smartAccount)
@@ -837,22 +868,25 @@ contract('SmartAccount', async function (accounts) {
       assert.equal(res.logs[0].event, 'ConfigCancelled')
     })
 
-    it("should add operator immediately with watchdog's approval", async function () {
+    it('should add operator immediately with watchdog\'s approval', async function () {
       let participants = [operatorA.expect(), operatorB]
       await utils.validateConfigParticipants(participants, smartAccount)
       assert.equal(true, await smartAccount.isParticipant(adminA.address, adminA.permLevel))
       assert.equal(false, await smartAccount.isParticipant(operatorB.address, operatorB.permLevel))
       let stateId = await smartAccount.stateNonce()
-      res = await smartAccount.addOperatorNow(operatorA.permLevel, operatorB.address, stateId, { from: operatorA.address })
+      res = await smartAccount.addOperatorNow(operatorA.permLevel, operatorB.address, stateId,
+        { from: operatorA.address })
       assert.equal(res.logs[0].event, 'ConfigPending')
       await expect(
         applyDelayed({ res }, adminA, smartAccount)
       ).to.be.revertedWith('apply called before due time')
       stateId = res.logs[0].args.stateId
       await expect(
-        smartAccount.approveAddOperatorNow(adminA.permLevel, operatorB.address, stateId, operatorA.address, operatorA.permLevel, { from: adminA.address })
+        smartAccount.approveAddOperatorNow(adminA.permLevel, operatorB.address, stateId, operatorA.address,
+          operatorA.permLevel, { from: adminA.address })
       ).to.be.revertedWith(`permissions missing: ${Permissions.CanApprove}`)
-      await smartAccount.approveAddOperatorNow(watchdogA.permLevel, operatorB.address, stateId, operatorA.address, operatorA.permLevel, { from: watchdogA.address })
+      await smartAccount.approveAddOperatorNow(watchdogA.permLevel, operatorB.address, stateId, operatorA.address,
+        operatorA.permLevel, { from: watchdogA.address })
       participants = [operatorA.expect(), operatorB.expect()]
       assert.equal(true, await smartAccount.isParticipant(operatorB.address, operatorB.permLevel))
       await utils.validateConfigParticipants(participants, smartAccount)
@@ -864,7 +898,8 @@ contract('SmartAccount', async function (accounts) {
       const actions = [ChangeType.SET_ADD_OPERATOR_NOW]
       // bool to bytes32 basically...
       const args = [Buffer.from('0'.repeat(64), 'hex')]
-      res = await smartAccount.changeConfiguration(operatorA.permLevel, actions, args, args, stateId, { from: operatorA.address })
+      res = await smartAccount.changeConfiguration(operatorA.permLevel, actions, args, args, stateId,
+        { from: operatorA.address })
       assert.equal(res.logs[0].event, 'ConfigPending')
       await expect(
         applyDelayed({ res }, operatorA, smartAccount)
@@ -884,7 +919,8 @@ contract('SmartAccount', async function (accounts) {
       const actions = [ChangeType.SET_ADD_OPERATOR_NOW]
       // bool to bytes32 basically...
       const args = [Buffer.from('1'.repeat(64), 'hex')]
-      res = await smartAccount.changeConfiguration(operatorA.permLevel, actions, args, args, stateId, { from: operatorA.address })
+      res = await smartAccount.changeConfiguration(operatorA.permLevel, actions, args, args, stateId,
+        { from: operatorA.address })
       assert.equal(res.logs[0].event, 'ConfigPending')
       await expect(
         applyDelayed({ res }, operatorA, smartAccount)
@@ -893,7 +929,8 @@ contract('SmartAccount', async function (accounts) {
       applyDelayed({ res }, operatorA, smartAccount)
       assert.equal(true, await smartAccount.allowAddOperatorNow())
       stateId = await smartAccount.stateNonce()
-      res = await smartAccount.addOperatorNow(operatorA.permLevel, operatorB.address, stateId, { from: operatorA.address })
+      res = await smartAccount.addOperatorNow(operatorA.permLevel, operatorB.address, stateId,
+        { from: operatorA.address })
       await cancelDelayed({ res }, watchdogA, smartAccount)
     })
 
@@ -918,7 +955,8 @@ contract('SmartAccount', async function (accounts) {
       requiredApprovalsPerLevel = [1, 1, 1, 2, 3, 2, 5, 6, 7, 8]
       initialParticipants.push(utils.bufferToHex(utils.participantHash(operatorZ.address, operatorZ.permLevel)))
 
-      res = await failCloseGK.initialConfig(initialParticipants, initialDelays, true, true, requiredApprovalsPerLevel, [], [], [], { from: operatorA.address })
+      res = await failCloseGK.initialConfig(initialParticipants, initialDelays, true, true, requiredApprovalsPerLevel,
+        [], [], [], { from: operatorA.address })
       const log = res.logs[0]
       assert.equal(log.event, 'SmartAccountInitialized')
     })
@@ -929,7 +967,8 @@ contract('SmartAccount', async function (accounts) {
       const changeArg1 = utils.participantHash(adminB1.address, adminB1.permLevel)
 
       await expect(
-        failCloseGK.approveConfig(watchdogA.permLevel, [changeType1], [changeArg1], [changeArg1], stateId, operatorA.address, operatorA.permLevel, zeroAddress, 0, { from: watchdogA.address })
+        failCloseGK.approveConfig(watchdogA.permLevel, [changeType1], [changeArg1], [changeArg1], stateId,
+          operatorA.address, operatorA.permLevel, zeroAddress, 0, { from: watchdogA.address })
       ).to.be.revertedWith('approve called for non existent pending change')
     })
 
@@ -940,23 +979,29 @@ contract('SmartAccount', async function (accounts) {
       await failCloseGK.changeConfiguration(operatorA.permLevel, [changeType1], [changeArg1], [changeArg1], stateId)
 
       await expect(
-        failCloseGK.applyConfig(operatorA.permLevel, [changeType1], [changeArg1], [changeArg1], stateId, operatorA.address, operatorA.permLevel, zeroAddress, 0)
+        failCloseGK.applyConfig(operatorA.permLevel, [changeType1], [changeArg1], [changeArg1], stateId,
+          operatorA.address, operatorA.permLevel, zeroAddress, 0)
       ).to.be.revertedWith('called before due time')
 
       await utils.increaseTime(timeGap, web3)
 
       await expect(
-        failCloseGK.applyConfig(operatorA.permLevel, [changeType1], [changeArg1], [changeArg1], stateId, operatorA.address, operatorA.permLevel, zeroAddress, 0)
+        failCloseGK.applyConfig(operatorA.permLevel, [changeType1], [changeArg1], [changeArg1], stateId,
+          operatorA.address, operatorA.permLevel, zeroAddress, 0)
       ).to.be.revertedWith('Pending approvals')
 
       await expect(
-        failCloseGK.approveConfig(operatorA.permLevel, [changeType1], [changeArg1], [changeArg1], stateId, operatorA.address, operatorA.permLevel, zeroAddress, 0)
+        failCloseGK.approveConfig(operatorA.permLevel, [changeType1], [changeArg1], [changeArg1], stateId,
+          operatorA.address, operatorA.permLevel, zeroAddress, 0)
       ).to.be.revertedWith(`permissions missing: ${Permissions.CanApprove}`)
 
-      await failCloseGK.approveConfig(watchdogA.permLevel, [changeType1], [changeArg1], [changeArg1], stateId, operatorA.address, operatorA.permLevel, zeroAddress, 0, { from: watchdogA.address })
-      await failCloseGK.applyConfig(operatorA.permLevel, [changeType1], [changeArg1], [changeArg1], stateId, operatorA.address, operatorA.permLevel, zeroAddress, 0)
+      await failCloseGK.approveConfig(watchdogA.permLevel, [changeType1], [changeArg1], [changeArg1], stateId,
+        operatorA.address, operatorA.permLevel, zeroAddress, 0, { from: watchdogA.address })
+      await failCloseGK.applyConfig(operatorA.permLevel, [changeType1], [changeArg1], [changeArg1], stateId,
+        operatorA.address, operatorA.permLevel, zeroAddress, 0)
       await expect(
-        failCloseGK.applyConfig(operatorA.permLevel, [changeType1], [changeArg1], [changeArg1], stateId, operatorA.address, operatorA.permLevel, zeroAddress, 0)
+        failCloseGK.applyConfig(operatorA.permLevel, [changeType1], [changeArg1], [changeArg1], stateId,
+          operatorA.address, operatorA.permLevel, zeroAddress, 0)
       ).to.be.revertedWith('apply called for non existent pending change')
     })
 
@@ -964,36 +1009,45 @@ contract('SmartAccount', async function (accounts) {
       const stateId = await failCloseGK.stateNonce()
       const changeType1 = ChangeType.ADD_PARTICIPANT
       const changeArg1 = utils.participantHash(adminB1.address, adminB1.permLevel)
-      res = await failCloseGK.changeConfiguration(operatorZ.permLevel, [changeType1], [changeArg1], [changeArg1], stateId, { from: operatorZ.address })
+      res = await failCloseGK.changeConfiguration(operatorZ.permLevel, [changeType1], [changeArg1], [changeArg1],
+        stateId, { from: operatorZ.address })
 
-      const txhash = await utilities.transactionHashPublic([changeType1], [changeArg1], [changeArg1], stateId, operatorZ.address, operatorZ.permLevel, zeroAddress, 0)
+      const txhash = await utilities.transactionHashPublic([changeType1], [changeArg1], [changeArg1], stateId,
+        operatorZ.address, operatorZ.permLevel, zeroAddress, 0)
 
       await expect(
-        failCloseGK.applyConfig(operatorA.permLevel, [changeType1], [changeArg1], [changeArg1], stateId, operatorZ.address, operatorZ.permLevel, zeroAddress, 0)
+        failCloseGK.applyConfig(operatorA.permLevel, [changeType1], [changeArg1], [changeArg1], stateId,
+          operatorZ.address, operatorZ.permLevel, zeroAddress, 0)
       ).to.be.revertedWith('called before due time')
 
       await utils.increaseTime(5 * timeGap, web3)
 
       await expect(
-        failCloseGK.applyConfig(operatorA.permLevel, [changeType1], [changeArg1], [changeArg1], stateId, operatorZ.address, operatorZ.permLevel, zeroAddress, 0)
+        failCloseGK.applyConfig(operatorA.permLevel, [changeType1], [changeArg1], [changeArg1], stateId,
+          operatorZ.address, operatorZ.permLevel, zeroAddress, 0)
       ).to.be.revertedWith('Pending approvals')
 
       await expect(
-        failCloseGK.approveConfig(operatorA.permLevel, [changeType1], [changeArg1], [changeArg1], stateId, operatorZ.address, operatorZ.permLevel, zeroAddress, 0)
+        failCloseGK.approveConfig(operatorA.permLevel, [changeType1], [changeArg1], [changeArg1], stateId,
+          operatorZ.address, operatorZ.permLevel, zeroAddress, 0)
       ).to.be.revertedWith(`permissions missing: ${Permissions.CanApprove}`)
 
       await expect(
-        failCloseGK.approveConfig(watchdogA.permLevel, [changeType1], [changeArg1], [changeArg1], stateId, operatorZ.address, operatorZ.permLevel, zeroAddress, 0, { from: watchdogA.address })
+        failCloseGK.approveConfig(watchdogA.permLevel, [changeType1], [changeArg1], [changeArg1], stateId,
+          operatorZ.address, operatorZ.permLevel, zeroAddress, 0, { from: watchdogA.address })
       ).to.be.revertedWith('cannot approve operation from higher level')
 
-      await failCloseGK.approveConfig(watchdogZ.permLevel, [changeType1], [changeArg1], [changeArg1], stateId, operatorZ.address, operatorZ.permLevel, zeroAddress, 0, { from: watchdogZ.address })
+      await failCloseGK.approveConfig(watchdogZ.permLevel, [changeType1], [changeArg1], [changeArg1], stateId,
+        operatorZ.address, operatorZ.permLevel, zeroAddress, 0, { from: watchdogZ.address })
       assert.equal((await failCloseGK.getPendingChange(txhash)).approvers.length, 1)
       await expect(
-        failCloseGK.approveConfig(watchdogZ.permLevel, [changeType1], [changeArg1], [changeArg1], stateId, operatorZ.address, operatorZ.permLevel, zeroAddress, 0, { from: watchdogZ.address })
+        failCloseGK.approveConfig(watchdogZ.permLevel, [changeType1], [changeArg1], [changeArg1], stateId,
+          operatorZ.address, operatorZ.permLevel, zeroAddress, 0, { from: watchdogZ.address })
       ).to.be.revertedWith('Cannot approve twice')
 
       await expect(
-        failCloseGK.applyConfig(operatorA.permLevel, [changeType1], [changeArg1], [changeArg1], stateId, operatorZ.address, operatorZ.permLevel, zeroAddress, 0)
+        failCloseGK.applyConfig(operatorA.permLevel, [changeType1], [changeArg1], [changeArg1], stateId,
+          operatorZ.address, operatorZ.permLevel, zeroAddress, 0)
       ).to.be.revertedWith('Pending approvals')
 
       await expect(
@@ -1052,7 +1106,7 @@ contract('SmartAccount', async function (accounts) {
   function getNonConfigChangers () {
     return [
       adminA.expectError(`permissions missing: ${Permissions.CanChangeParticipants + Permissions.CanUnfreeze +
-            Permissions.CanChangeBypass + Permissions.CanSetAcceleratedCalls + Permissions.CanSetAddOperatorNow + Permissions.CanAddOperatorNow}`),
+      Permissions.CanChangeBypass + Permissions.CanSetAcceleratedCalls + Permissions.CanSetAddOperatorNow + Permissions.CanAddOperatorNow}`),
       watchdogA.expectError(`permissions missing: ${Permissions.CanChangeConfig}`),
       wrongaddr.expectError('not participant')
     ]
@@ -1061,8 +1115,8 @@ contract('SmartAccount', async function (accounts) {
   function getNonBoostees () {
     return [
       adminA.expectError(`permissions missing: ${Permissions.CanSignBoosts + Permissions.CanUnfreeze +
-            Permissions.CanChangeParticipants + Permissions.CanChangeBypass + Permissions.CanSetAcceleratedCalls +
-            Permissions.CanSetAddOperatorNow + Permissions.CanAddOperatorNow}`),
+      Permissions.CanChangeParticipants + Permissions.CanChangeBypass + Permissions.CanSetAcceleratedCalls +
+      Permissions.CanSetAddOperatorNow + Permissions.CanAddOperatorNow}`),
       watchdogA.expectError(`permissions missing: ${Permissions.CanSignBoosts + Permissions.CanChangeConfig}`),
       wrongaddr.expectError('not participant')
     ]
@@ -1085,14 +1139,16 @@ contract('SmartAccount', async function (accounts) {
       let actions = [ChangeType.ADD_PARTICIPANT]
       let args = [utils.participantHash(adminC.address, adminC.permLevel)]
       await expect(
-        smartAccount.changeConfiguration(participant.permLevel, actions, args, args, stateId, { from: participant.address })
+        smartAccount.changeConfiguration(participant.permLevel, actions, args, args, stateId,
+          { from: participant.address })
       ).to.be.revertedWith(participant.expectError)
       console.log(`${participant.name} + addParticipant + ${participant.expectError}`)
 
       actions = [ChangeType.REMOVE_PARTICIPANT]
       args = [utils.participantHash(adminA.address, adminA.permLevel)]
       await expect(
-        smartAccount.changeConfiguration(participant.permLevel, actions, args, args, stateId, { from: participant.address })
+        smartAccount.changeConfiguration(participant.permLevel, actions, args, args, stateId,
+          { from: participant.address })
       ).to.be.revertedWith(participant.expectError)
       console.log(`${participant.name} + removeParticipant + ${participant.expectError}`)
     })
@@ -1102,7 +1158,8 @@ contract('SmartAccount', async function (accounts) {
     const stateId = await smartAccount.stateNonce()
     await utils.asyncForEach(getNonSpenders(), async (participant) => {
       await expect(
-        smartAccount.sendEther(destinationAddress, amount, participant.permLevel, initialDelays[1], stateId, { from: participant.address })
+        smartAccount.sendEther(destinationAddress, amount, participant.permLevel, initialDelays[1], stateId,
+          { from: participant.address })
       ).to.be.revertedWith(participant.expectError)
       console.log(`${participant.name} + sendEther + ${participant.expectError}`)
     })
@@ -1112,7 +1169,8 @@ contract('SmartAccount', async function (accounts) {
     const stateId = await smartAccount.stateNonce()
     await utils.asyncForEach(getNonSpenders(), async (participant) => {
       await expect(
-        smartAccount.sendERC20(destinationAddress, amount, participant.permLevel, initialDelays[1], erc20.address, stateId, { from: participant.address })
+        smartAccount.sendERC20(destinationAddress, amount, participant.permLevel, initialDelays[1], erc20.address,
+          stateId, { from: participant.address })
       ).to.be.revertedWith(participant.expectError)
       console.log(`${participant.name} + sendERC20 + ${participant.expectError}`)
     })
@@ -1122,7 +1180,7 @@ contract('SmartAccount', async function (accounts) {
 
   })
 
-  it("should not allow to freeze level that is higher than the caller's")
+  it('should not allow to freeze level that is higher than the caller\'s')
   it('should not allow to freeze for zero time')
   it('should not allow to freeze for enormously long time')
 
@@ -1160,7 +1218,8 @@ contract('SmartAccount', async function (accounts) {
     const reason = 'level is frozen'
     stateId = await smartAccount.stateNonce()
     await expect(
-      smartAccount.scheduleBypassCall(operatorA.permLevel, destinationAddress, amount, [], stateId, { from: operatorA.address })
+      smartAccount.scheduleBypassCall(operatorA.permLevel, destinationAddress, amount, [], stateId,
+        { from: operatorA.address })
     ).to.be.revertedWith(reason)
 
     // On lower levels:
@@ -1170,7 +1229,7 @@ contract('SmartAccount', async function (accounts) {
     await expect(
       smartAccount.changeConfiguration(operatorA.permLevel, actions, args, args, stateId),
       'addParticipant did not revert correctly' +
-            ` with expected reason: "${reason}"`
+      ` with expected reason: "${reason}"`
     ).to.be.revertedWith(reason)
 
     // Admin cannot change owner any more
@@ -1184,13 +1243,14 @@ contract('SmartAccount', async function (accounts) {
     await expect(
       cancelDelayed({ res: res0 }, watchdogA, smartAccount),
       'cancelOperation did not revert correctly' +
-            ` with expected reason: "${reason}"`
+      ` with expected reason: "${reason}"`
     ).to.be.revertedWith(reason)
 
     await expect(
-      smartAccount.cancelBypassCall(watchdogA.permLevel, operatorA.address, operatorA.permLevel, 0, zeroAddress, 0, [], { from: watchdogA.address }),
+      smartAccount.cancelBypassCall(watchdogA.permLevel, operatorA.address, operatorA.permLevel, 0, zeroAddress, 0, [],
+        { from: watchdogA.address }),
       'cancelTransfer did not revert correctly' +
-            ` with expected reason: "${reason}"`
+      ` with expected reason: "${reason}"`
     ).to.be.revertedWith(reason)
 
     // On the level of the freezer or up:
@@ -1242,7 +1302,8 @@ contract('SmartAccount', async function (accounts) {
     let stateId = await smartAccount.stateNonce()
     const encodedHash = await utilities.changeHash(actions, args, args, stateId)// utils.getTransactionHash(ABI.solidityPack(["uint8[]", "bytes32[]", "uint256"], [actions, args, stateId]));
     const signature = await utils.signMessage(encodedHash, web3, { from: operatorA.address })
-    const res1 = await smartAccount.boostedConfigChange(adminB1.permLevel, actions, args, args, stateId, operatorA.permLevel, signature, { from: adminB1.address })
+    const res1 = await smartAccount.boostedConfigChange(adminB1.permLevel, actions, args, args, stateId,
+      operatorA.permLevel, signature, { from: adminB1.address })
     const log1 = res1.logs[0]
 
     assert.equal(log1.event, 'ConfigPending')
@@ -1253,14 +1314,16 @@ contract('SmartAccount', async function (accounts) {
     // Operator still cannot send money, not time-caused unfreeze
     stateId = await smartAccount.stateNonce()
     await expect(
-      smartAccount.scheduleBypassCall(operatorA.permLevel, destinationAddress, amount, [], stateId, { from: operatorA.address })
+      smartAccount.scheduleBypassCall(operatorA.permLevel, destinationAddress, amount, [], stateId,
+        { from: operatorA.address })
     ).to.be.revertedWith('level is frozen')
     const res3 = await applyDelayed({ log: log1 }, adminB1, smartAccount)
     const log3 = res3.logs[0]
 
     assert.equal(log3.event, 'UnfreezeCompleted')
     stateId = await smartAccount.stateNonce()
-    const res2 = await smartAccount.scheduleBypassCall(operatorA.permLevel, destinationAddress, amount, [], stateId, { from: operatorA.address })
+    const res2 = await smartAccount.scheduleBypassCall(operatorA.permLevel, destinationAddress, amount, [], stateId,
+      { from: operatorA.address })
     expectedDelayedEventsCount++
     const log2 = res2.logs[0]
     assert.equal(log2.event, 'BypassCallPending')
@@ -1268,56 +1331,58 @@ contract('SmartAccount', async function (accounts) {
   })
 
   describe('when schedule happens before freeze', function () {
-    it("should not allow to apply an already scheduled Delayed Op if the scheduler's rank is frozen", async function () {
-      // Schedule a totally valid config change
-      const actions = [ChangeType.ADD_PARTICIPANT]
-      const args = [utils.participantHash(adminB1.address, adminB1.permLevel)]
-      const stateId = await smartAccount.stateNonce()
-      const res1 = await smartAccount.changeConfiguration(operatorA.permLevel, actions, args, args, stateId)
+    it('should not allow to apply an already scheduled Delayed Op if the scheduler\'s rank is frozen',
+      async function () {
+        // Schedule a totally valid config change
+        const actions = [ChangeType.ADD_PARTICIPANT]
+        const args = [utils.participantHash(adminB1.address, adminB1.permLevel)]
+        const stateId = await smartAccount.stateNonce()
+        const res1 = await smartAccount.changeConfiguration(operatorA.permLevel, actions, args, args, stateId)
 
-      // Freeze the scheduler's rank
-      await smartAccount.freeze(watchdogB.permLevel, level, timeGap, { from: watchdogB.address })
+        // Freeze the scheduler's rank
+        await smartAccount.freeze(watchdogB.permLevel, level, timeGap, { from: watchdogB.address })
 
-      // Sender cannot apply anything - he is frozen
-      await expect(
-        applyDelayed({ res: res1 }, operatorA, smartAccount)
-      ).to.be.revertedWith('level is frozen')
+        // Sender cannot apply anything - he is frozen
+        await expect(
+          applyDelayed({ res: res1 }, operatorA, smartAccount)
+        ).to.be.revertedWith('level is frozen')
 
-      // Somebody who can apply cannot apply either
-      await expect(
-        applyDelayed({ res: res1 }, adminB1, smartAccount)
-      ).to.be.revertedWith('scheduler level is frozen')
-    })
+        // Somebody who can apply cannot apply either
+        await expect(
+          applyDelayed({ res: res1 }, adminB1, smartAccount)
+        ).to.be.revertedWith('scheduler level is frozen')
+      })
 
     // TODO: actually call unfreeze, as the state is different. Actually, this is a bit of a problem. (extra state: outdated freeze). Is there a way to fix it?
-    it("should not allow to apply an already scheduled boosted Delayed Op if the booster's rank is also frozen", async function () {
-      // Schedule a boosted unfreeze by a high level admin
+    it('should not allow to apply an already scheduled boosted Delayed Op if the booster\'s rank is also frozen',
+      async function () {
+        // Schedule a boosted unfreeze by a high level admin
 
-      const actions = [ChangeType.UNFREEZE]
-      const args = ['0x0']
-      const stateId = await smartAccount.stateNonce()
-      const encodedHash = await utilities.changeHash(actions, args, args, stateId)// utils.getTransactionHash(ABI.solidityPack(["uint8[]", "bytes32[]", "uint256"], [actions, args, stateId]));
-      const signature = await utils.signMessage(encodedHash, web3, { from: operatorA.address })
-      const res1 = await smartAccount.boostedConfigChange(
-        adminB1.permLevel,
-        actions,
-        args,
-        args,
-        stateId,
-        operatorA.permLevel,
-        signature,
-        { from: adminB1.address })
-      const log1 = res1.logs[0]
-      assert.equal(log1.event, 'ConfigPending')
+        const actions = [ChangeType.UNFREEZE]
+        const args = ['0x0']
+        const stateId = await smartAccount.stateNonce()
+        const encodedHash = await utilities.changeHash(actions, args, args, stateId)// utils.getTransactionHash(ABI.solidityPack(["uint8[]", "bytes32[]", "uint256"], [actions, args, stateId]));
+        const signature = await utils.signMessage(encodedHash, web3, { from: operatorA.address })
+        const res1 = await smartAccount.boostedConfigChange(
+          adminB1.permLevel,
+          actions,
+          args,
+          args,
+          stateId,
+          operatorA.permLevel,
+          signature,
+          { from: adminB1.address })
+        const log1 = res1.logs[0]
+        assert.equal(log1.event, 'ConfigPending')
 
-      // Increase freeze level to one above the old booster level
-      await smartAccount.freeze(watchdogZ.permLevel, highLevel, timeGap, { from: watchdogZ.address })
+        // Increase freeze level to one above the old booster level
+        await smartAccount.freeze(watchdogZ.permLevel, highLevel, timeGap, { from: watchdogZ.address })
 
-      // Admin with level 5 tries to apply the boosted operation
-      await expect(
-        applyDelayed({ res: res1 }, adminZ, smartAccount)
-      ).to.be.revertedWith('booster level is frozen')
-    })
+        // Admin with level 5 tries to apply the boosted operation
+        await expect(
+          applyDelayed({ res: res1 }, adminZ, smartAccount)
+        ).to.be.revertedWith('booster level is frozen')
+      })
   })
 
   it('should automatically unfreeze after a time interval')
@@ -1329,7 +1394,7 @@ contract('SmartAccount', async function (accounts) {
   it('should not allow any operation to be called without a delay')
   it('should only allow delayed calls to whitelisted operations')
 
-  it("should revert an attempt to apply an operation under some other participant's name", async function () {
+  it('should revert an attempt to apply an operation under some other participant\'s name', async function () {
     // Schedule config change by operator, and claim to be an admin when applying
     const stateId = await smartAccount.stateNonce()
     const changeType = ChangeType.ADD_PARTICIPANT
@@ -1340,11 +1405,12 @@ contract('SmartAccount', async function (accounts) {
     await utils.increaseTime(timeGap, web3)
     // adminA cannot apply it - will not find it by hash
     await expect(
-      smartAccount.applyConfig(adminA.permLevel, [changeType], [changeArgs], [changeArgs], stateId, adminA.address, adminA.permLevel, zeroAddress, 0, { from: adminA.address })
+      smartAccount.applyConfig(adminA.permLevel, [changeType], [changeArgs], [changeArgs], stateId, adminA.address,
+        adminA.permLevel, zeroAddress, 0, { from: adminA.address })
     ).to.be.revertedWith('apply called for non existent pending change')
   })
 
-  it("should revert an attempt to apply a boosted operation under some other participant's name")
+  it('should revert an attempt to apply a boosted operation under some other participant\'s name')
 
   it('should revert an attempt to apply a boosted operation claiming wrong permissions')
   it('should revert an attempt to apply an operation claiming wrong permissions')

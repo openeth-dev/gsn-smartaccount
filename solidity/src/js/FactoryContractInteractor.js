@@ -34,18 +34,19 @@ const ERC20Contract = TruffleContract({
 const smartAccountCreatedEvent = 'SmartAccountCreated'
 
 class FactoryContractInteractor {
-    //@deprecated
+  // @deprecated
   constructor (credentials, smartAccountFactoryAddress) {
     this.credentials = credentials
     this.smartAccountFactoryAddress = smartAccountFactoryAddress
   }
 
-    static async getInstance({credentials, smartAccountFactoryAddress, provider}) {
-        SmartAccountFactory.setProvider(provider);
-        const instance = new FactoryContractInteractor(credentials, smartAccountFactoryAddress)
-        instance.smartAccountFactory = await SmartAccountFactory.at(instance.smartAccountFactoryAddress)
-        return instance
-    }
+  static async getInstance ({ credentials, smartAccountFactoryAddress, provider }) {
+    SmartAccountFactory.setProvider(provider)
+    const instance = new FactoryContractInteractor(credentials, smartAccountFactoryAddress)
+    instance.smartAccountFactory = await SmartAccountFactory.at(instance.smartAccountFactoryAddress)
+    return instance
+  }
+
   /**
    * Not a constructor because constructors cannot be async
    * @param credentials
@@ -53,7 +54,7 @@ class FactoryContractInteractor {
    * @param ethNodeUrl
    * @param networkId
    */
-    //@deprecated
+  // @deprecated
   static connect (credentials, smartAccountFactoryAddress, ethNodeUrl, networkId) {
     // Note to self: totally makes sense that this kind of code is only visible on the lowest, pure JS level
     // All the data needed to run this code should be passed as either strings or callbacks to the js-foundation
@@ -63,7 +64,7 @@ class FactoryContractInteractor {
     return new FactoryContractInteractor(credentials, smartAccountFactoryAddress)
   }
 
-    //@deprecated
+  // @deprecated
   async attachToContracts () {
     if (this.smartAccountFactory) {
       return
@@ -156,7 +157,8 @@ class FactoryContractInteractor {
    */
   static async deployNewSmartAccountFactory (from, ethNodeUrl, forwarder) {
     const utilitiesContract = await this.deployUtilitiesLibrary(from, ethNodeUrl)
-    const { instance: smartAccountFactory } = await this.deployContract('generated/SmartAccountFactory', 'SmartAccountFactory', [utilitiesContract], [forwarder], from, ethNodeUrl)
+    const { instance: smartAccountFactory } = await this.deployContract('generated/SmartAccountFactory',
+      'SmartAccountFactory', [utilitiesContract], [forwarder], from, ethNodeUrl)
     return smartAccountFactory
   }
 
@@ -221,7 +223,8 @@ class FactoryContractInteractor {
 
   async getSmartAccountCreatedEvent (options) {
     await this.attachToContracts()
-    const events = await Utils.getEvents(this.smartAccountFactory, smartAccountCreatedEvent, options, SmartAccountCreatedEvent)
+    const events = await Utils.getEvents(this.smartAccountFactory, smartAccountCreatedEvent, options,
+      SmartAccountCreatedEvent)
     if (events.length !== 1) {
       throw new Error('Invalid smart account created events array size')
     }
