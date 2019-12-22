@@ -29,7 +29,7 @@ export default class AccountMock extends AccountApi {
     if (this.verbose) {
       console.log('open google auth popup. prompt user for google account.\n')
     }
-    this.storage.email = 'user@email.com'
+    this.storage.email = 'shahaf@tabookey.com'
     if (!this.storage.ownerAddress) { this._createOwner() }
 
     return {

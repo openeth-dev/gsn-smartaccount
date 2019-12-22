@@ -68,7 +68,7 @@ export default class Account extends AccountApi {
     }
     let newemail
     if (typeof window !== 'undefined') {
-      newemail = window.prompt('Sign in to google account', this.storage.email || 'user@email.com')
+      newemail = window.prompt('Sign in to google account', this.storage.email || 'shahaf@tabookey.com')
       if (!newemail) {
         return null
       }
