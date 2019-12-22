@@ -8,10 +8,8 @@ export class SmsManager {
     })
   }
 
-  async sendSMS ({ phoneNumber, email }) {
-    const code = this.getSmsCode({ phoneNumber, email })
-    await this.smsProvider.sendSms({ phone: phoneNumber[0], message: `verification code ${code}` })
-    return code
+  async sendSMS ({ phoneNumber, message }) {
+    await this.smsProvider.sendSms({ phone: phoneNumber[0], message: `${message}` })
   }
 
   getSmsCode ({ phoneNumber, email, expectedSmsCode }) {

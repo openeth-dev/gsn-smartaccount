@@ -34,7 +34,9 @@ export class Backend extends BEapi {
     const ticket = await this._verifyJWT(jwt)
 
     const email = ticket.getPayload().email
-    await this.smsManager.sendSMS({ phoneNumber: formattedPhone, email })
+    const smsCode = this.smsManager.getSmsCode({ phoneNumber: formattedPhone, email })
+    await this.smsManager.sendSMS(
+      { phoneNumber: formattedPhone, email, message: `To validate phone and create Account, enter code: ${smsCode}` })
   }
 
   async createAccount ({ jwt, smsCode, phoneNumber }) {

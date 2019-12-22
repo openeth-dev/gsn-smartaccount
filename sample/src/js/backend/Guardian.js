@@ -89,7 +89,8 @@ export class Watchdog {
     if (!account) {
       return
     }
-    await this.smsManager.sendSMS({ phoneNumber: account.phone, email: account.email })
+    const smsCode = this.smsManager.getSmsCode({ phoneNumber: account.phone, email: account.email })
+    await this.smsManager.sendSMS({ phoneNumber: account.phone, message: `To cancel event, enter code ${smsCode}` })
     const dueTime = dlog.args.dueTime * 1000
     const delayedOpId = dlog.args.delayedOpId
     this.changesToApply[delayedOpId] = { dueTime: dueTime, log: dlog }
