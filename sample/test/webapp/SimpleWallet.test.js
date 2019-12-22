@@ -1,5 +1,5 @@
 /* eslint-disable no-unused-expressions */
-/* global describe before it */
+/* global describe before after it */
 import assert from 'assert'
 
 import FactoryContractInteractor from 'safechannels-contracts/src/js/FactoryContractInteractor'
@@ -18,6 +18,7 @@ before(async function () {
 // TODO: the main TODO of this test: instead of json files with test data, create a class that would 'generate'
 //  required transaction history; also, stop mocking functions inside class under test - move stub logic to interactor
 describe('SimpleWallet', async function () {
+  let id
   const whitelistPolicy = '0x1111111111111111111111111111111111111111'
   const backend = '0x2222222222222222222222222222222222222222'
   const operator = '0x3333333333333333333333333333333333333333'
@@ -264,6 +265,7 @@ describe('SimpleWallet', async function () {
     let testContext
     before(async function () {
       testContext = await newTest(from)
+      id = (await SafeChannelUtils.snapshot(testContext.wallet._getWeb3().web3)).result
       await testContext.wallet.getWalletInfo()
       // TODO: migrate to usage of wallet methods after implemented
       await testContext.wallet.contract.changeConfiguration(
@@ -274,6 +276,10 @@ describe('SimpleWallet', async function () {
       await testContext.wallet.transfer({ destination: operator, token: 'ETH', amount: 1e5 })
       const timeGap = 60 * 60 * 24 * 2 + 10
       await SafeChannelUtils.increaseTime(timeGap, testContext.wallet._getWeb3().web3)
+    })
+
+    after(async function () {
+      await SafeChannelUtils.revert(id, testContext.wallet._getWeb3().web3)
     })
 
     it('should apply all operations that are due', async function () {

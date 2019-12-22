@@ -10,6 +10,33 @@ module.exports = {
     return hex.replace(/^0x/, '')
   },
 
+  snapshot: function (web3) {
+    return new Promise((resolve, reject) => {
+      web3.currentProvider.send({
+        jsonrpc: '2.0',
+        method: 'evm_snapshot',
+        id: new Date().getSeconds()
+      }, (err, snapshotId) => {
+        if (err) { return reject(err) }
+        return resolve(snapshotId)
+      })
+    })
+  },
+
+  revert: function (id, web3) {
+    return new Promise((resolve, reject) => {
+      web3.currentProvider.send({
+        jsonrpc: '2.0',
+        method: 'evm_revert',
+        params: [id],
+        id: new Date().getSeconds()
+      }, (err, result) => {
+        if (err) { return reject(err) }
+        return resolve(result)
+      })
+    })
+  },
+
   // Only used in tests
   increaseTime: function (time, web3) {
     return new Promise((resolve, reject) => {
