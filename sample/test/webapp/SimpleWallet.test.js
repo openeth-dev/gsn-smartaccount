@@ -10,7 +10,7 @@ import SafeChannelUtils from 'safechannels-contracts/src/js/SafeChannelUtils'
 import SimpleWallet from '../../src/js/impl/SimpleWallet'
 import ConfigEntry from '../../src/js/etc/ConfigEntry'
 import sinon from 'sinon'
-import { expect } from 'chai'
+import { testValidationBehavior } from './behavior/SimpleWallet.behavior'
 
 before(async function () {
 // TODO: get accounts
@@ -174,28 +174,18 @@ describe('SimpleWallet', async function () {
 
     before(async function () {
       testContext = await newTest()
+      testContext.newOperator = newOperator
+      testContext.url = url
+      testContext.description = description
+      testContext.wallet.backend = {
+        validateAddOperatorNow: sinon.spy(
+          () => {
+            return { code: 200, error: null, newOperator, description }
+          })
+      }
     })
 
-    describe('#validateAddOperatorNow()', async function () {
-      it('should pass parameters to backend and handle http 200 OK code', async function () {
-        testContext.wallet.backend = {
-          validateAddOperatorNow: sinon.spy(
-            () => {
-              return { code: 200, error: null, newOperator, description }
-            })
-        }
-        const jwt = {}
-        const { error, newOperator: newOperatorResp, description: descrResp } = await testContext.wallet.validateAddOperatorNow({
-          jwt,
-          url
-        })
-        expect(testContext.wallet.backend.validateAddOperatorNow.calledOnce).to.be.true
-        expect(testContext.wallet.backend.validateAddOperatorNow.firstCall.args[0]).to.eql({ jwt, url })
-        assert.strictEqual(error, null)
-        assert.strictEqual(newOperatorResp, newOperator)
-        assert.strictEqual(descrResp, description)
-      })
-    })
+    testValidationBehavior(() => testContext)
 
     describe('#addOperatorNow()', async function () {
       let testContext
@@ -220,7 +210,31 @@ describe('SimpleWallet', async function () {
   })
 
   describe('#cancelPending()', async function () {
-    it('should cancel the delayed operation')
+    const newOperator = '0x3333333333333333333333333333333333333333'
+
+    let testContext
+    let pending
+
+    before(async function () {
+      testContext = await newTest(from)
+    })
+
+    it('should cancel the delayed operation', async function () {
+      await testContext.wallet.getWalletInfo()
+      await testContext.wallet.transfer({ destination: newOperator, amount: 1e3, token: 'ETH' })
+      pending = await testContext.wallet.listPendingTransactions()
+      let cancelled = await testContext.wallet.cancelPending(pending[0].delayedOpId)
+      assert.equal(cancelled.logs[0].args.delayedOpId, pending[0].delayedOpId)
+    })
+
+    it('should cancel the delayed config change', async function () {
+      await testContext.wallet.getWalletInfo()
+      // TODO: once implemented, use a regular config change here, addOpNow is very edge-case
+      await testContext.wallet.addOperatorNow(newOperator)
+      pending = await testContext.wallet.listPendingConfigChanges()
+      let cancelled = await testContext.wallet.cancelPending(pending[0].delayedOpId)
+      assert.equal(cancelled.logs[0].args.delayedOpId, pending[0].delayedOpId)
+    })
   })
 
   describe('#listTokens()', async function () {

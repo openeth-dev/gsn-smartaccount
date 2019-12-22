@@ -88,8 +88,61 @@ export default class SimpleWallet extends SimpleWalletApi {
   removeOperator (addr) {
   }
 
-  cancelPending (id) {
+  async cancelPending (delayedOpId) {
+    let isConfig = true
+    let pending = await this.contract.getPastEvents('ConfigPending',
+      {
+        topic: delayedOpId,
+        fromBlock: this.deployedBlock,
+        toBlock: 'latest'
+      }
+    )
+    if (pending.length === 0) {
+      isConfig = false
+      pending = await this.contract.getPastEvents('BypassCallPending',
+        {
+          topic: delayedOpId,
+          fromBlock: this.deployedBlock,
+          toBlock: 'latest'
+        }
+      )
+    }
+    if (pending.length === 0) {
+      throw Error(`Could not find a pending operation with id: ${delayedOpId}`)
+    }
+    const args = pending[0].args
+    if (isConfig) {
+      return this.contract.cancelOperation(
+        args.actions,
+        args.actionsArguments1,
+        args.actionsArguments2,
+        args.stateId,
+        args.sender,
+        args.senderPermsLevel,
+        args.booster,
+        args.boosterPermsLevel,
+        this.participant.permLevel,
+        {
+          from: this.participant.address
+        }
+      )
+    } else {
+      const msgdata = args.msgdata || '0x'
+      return this.contract.cancelBypassCall(
+        this.participant.permLevel,
+        args.sender,
+        args.senderPermsLevel,
+        args.stateId,
+        args.target,
+        args.value,
+        msgdata,
+        {
+          from: this.participant.address
+        }
+      )
+    }
   }
+
 
   refresh () {
   }
@@ -222,7 +275,7 @@ export default class SimpleWallet extends SimpleWalletApi {
         const operations = [entry]
         return new DelayedConfigChange({
           txHash: it.transactionHash,
-          delayedOpId: it.args.bypassHash,
+          delayedOpId: it.args.delayedOpId,
           dueTime: 0, // TODO: pendingChange.dueTime.toNumber(),
           state: 'mined',
           operations: operations
@@ -234,7 +287,7 @@ export default class SimpleWallet extends SimpleWalletApi {
         const operations = []
         const common = {
           txHash: it.transactionHash,
-          delayedOpId: it.args.transactionHash,
+          delayedOpId: it.args.delayedOpId,
           dueTime: 0, // TODO: fix events!
           state: 'mined'
         }
@@ -323,9 +376,18 @@ export default class SimpleWallet extends SimpleWalletApi {
     // TODO: remove the ||, support only the most used flow
     const _fromBlock = fromBlock || this.deployedBlock || 0
     const _toBlock = toBlock || 'latest'
-    const scheduledEvents = await this.contract.getPastEvents(eventNames.pending, { fromBlock: _fromBlock, toBlock: _toBlock })
-    const completedEvents = await this.contract.getPastEvents(eventNames.applied, { fromBlock: _fromBlock, toBlock: _toBlock })
-    const cancelledEvents = await this.contract.getPastEvents(eventNames.cancelled, { fromBlock: _fromBlock, toBlock: _toBlock })
+    const scheduledEvents = await this.contract.getPastEvents(eventNames.pending, {
+      fromBlock: _fromBlock,
+      toBlock: _toBlock
+    })
+    const completedEvents = await this.contract.getPastEvents(eventNames.applied, {
+      fromBlock: _fromBlock,
+      toBlock: _toBlock
+    })
+    const cancelledEvents = await this.contract.getPastEvents(eventNames.cancelled, {
+      fromBlock: _fromBlock,
+      toBlock: _toBlock
+    })
     return { scheduledEvents, completedEvents, cancelledEvents }
   }
 
