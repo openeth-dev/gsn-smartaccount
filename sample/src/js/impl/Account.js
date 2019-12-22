@@ -73,7 +73,7 @@ export default class Account extends AccountApi {
         return null
       }
     } else {
-      newemail = 'user@email.com'
+      newemail = 'shahaf@tabookey.com' // must match our 'testjwt'
     }
     this.storage.email = newemail
     if (!this.storage.ownerAddress) {

@@ -23,7 +23,7 @@ describe('Account', () => {
     it('should be set after googleLogin', async () => {
       assert.equal(await acct.getEmail(), null)
       await acct.googleLogin()
-      assert.equal(await acct.getEmail(), 'user@email.com')
+      assert.equal(await acct.getEmail(), 'shahaf@tabookey.com')
     })
 
     it('should be cleared after signOut', async () => {
