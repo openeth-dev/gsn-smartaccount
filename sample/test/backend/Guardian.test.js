@@ -1,4 +1,4 @@
-/* global describe before after it */
+/* global describe before it */
 
 import { assert } from 'chai'
 import Web3 from 'web3'
@@ -181,10 +181,6 @@ describe('As Guardian', async function () {
       await watchdog._worker()
       assert.deepEqual(watchdog.changesToApply, {})
       unhookWatchdogApplyChanges()
-    })
-
-    after(async function () {
-      // await watchdog.stop()
     })
   })
 

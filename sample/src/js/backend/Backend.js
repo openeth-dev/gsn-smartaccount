@@ -1,13 +1,11 @@
-import BEapi from '../api/BE.api'
 import { Account } from './AccountManager'
 
 const phone = require('phone')
 const gauth = require('google-auth-library')
 const abi = require('ethereumjs-abi')
 
-export class Backend extends BEapi {
+export class Backend {
   constructor ({ smsManager, audience, keyManager, accountManager, factoryAddress, sponsorAddress }) {
-    super()
     Object.assign(this, {
       smsManager,
       audience,

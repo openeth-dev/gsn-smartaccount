@@ -26,6 +26,7 @@ describe('#SimpleManager.test', () => {
   chai.should()
 
   const verbose = false
+  const ethNodeUrl = 'http://localhost:8545'
   const mockBackend = {
     createAccount: async function () {
       return {
@@ -59,8 +60,9 @@ describe('#SimpleManager.test', () => {
         'esm',
         '../sample/src/js/backend/runServer.js',
         '8888',
-        'factoryaddr',
-        'sponsoraddr',
+        '0x' + 'd'.repeat(40),
+        '0x' + 'e'.repeat(40),
+        ethNodeUrl,
         '--dev'])
       ls.stdout.on('data', (data) => {
         console.log(`stdout: ${data}`)
@@ -94,7 +96,6 @@ describe('#SimpleManager.test', () => {
   backends.forEach(function ({ backend, name }) {
     describe(`SimpleManager with ${name}`, async function () {
       const email = 'shahaf@tabookey.com'
-      const ethNodeUrl = 'http://localhost:8545'
       const from = '0x90f8bf6a479f320ead074411a4b0e7944ea8c9c1'
 
       let sm

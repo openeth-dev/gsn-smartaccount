@@ -46,6 +46,11 @@ export default class ClientBackend extends BEapi {
     return this._sendRequest(request)
   }
 
+  async cancelChange ({ smsCode, delayedOpId, address }) {
+    const request = jsonrpc.request(Date.now(), this.cancelChange.name, { smsCode, delayedOpId, address })
+    return this._sendRequest(request)
+  }
+
   async signInAsNewOperator ({ jwt, title }) {
     const request = jsonrpc.request(Date.now(), this.signInAsNewOperator.name, { jwt, title })
     return this._sendRequest(request)
