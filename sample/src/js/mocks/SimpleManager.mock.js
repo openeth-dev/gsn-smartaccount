@@ -82,6 +82,9 @@ export default class SimpleManagerMock extends SimpleManagerApi {
     return this.loadWallet()
   }
 
+  async setInitialConfiguration () {
+  }
+
   async loadWallet () {
     if (!this.wallet) {
       if (!this.getEmail()) {

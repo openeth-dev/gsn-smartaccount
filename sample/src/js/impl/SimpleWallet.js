@@ -163,7 +163,8 @@ export default class SimpleWallet extends SimpleWalletApi {
     this.stateId = await this.contract.stateNonce()
     const allowAcceleratedCalls = await this.contract.allowAcceleratedCalls()
     const allowAddOperatorNow = await this.contract.allowAddOperatorNow()
-    const deployedBlock = await this._getDeployedBlock()
+    const deployedBlock = 1 // await this._getDeployedBlock()
+    console.log('address', this.contract.address)
     const initEvent = (await this.contract.getPastEvents('SmartAccountInitialized', {
       fromBlock: deployedBlock,
       toBlock: 'latest'

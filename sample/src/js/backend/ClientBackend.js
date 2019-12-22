@@ -36,6 +36,11 @@ export default class ClientBackend extends BEapi {
     return this._sendRequest(request)
   }
 
+  async getSmartAccountId ({ email }) {
+    const request = jsonrpc.request(Date.now(), this.getSmartAccountId.name, { email })
+    return this._sendRequest(request)
+  }
+
   async createAccount ({ jwt, smsCode, phoneNumber }) {
     const request = jsonrpc.request(Date.now(), this.createAccount.name, { jwt, smsCode, phoneNumber })
     return this._sendRequest(request)
