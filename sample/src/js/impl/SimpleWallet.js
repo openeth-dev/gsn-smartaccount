@@ -143,7 +143,6 @@ export default class SimpleWallet extends SimpleWalletApi {
     }
   }
 
-
   refresh () {
   }
 

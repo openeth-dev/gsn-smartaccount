@@ -223,8 +223,8 @@ describe('SimpleWallet', async function () {
       await testContext.wallet.getWalletInfo()
       await testContext.wallet.transfer({ destination: newOperator, amount: 1e3, token: 'ETH' })
       pending = await testContext.wallet.listPendingTransactions()
-      let cancelled = await testContext.wallet.cancelPending(pending[0].delayedOpId)
-      assert.equal(cancelled.logs[0].args.delayedOpId, pending[0].delayedOpId)
+      const cancelled = await testContext.wallet.cancelPending(pending[0].delayedOpId)
+      assert.strictEqual(cancelled.logs[0].args.delayedOpId, pending[0].delayedOpId)
     })
 
     it('should cancel the delayed config change', async function () {
@@ -232,8 +232,8 @@ describe('SimpleWallet', async function () {
       // TODO: once implemented, use a regular config change here, addOpNow is very edge-case
       await testContext.wallet.addOperatorNow(newOperator)
       pending = await testContext.wallet.listPendingConfigChanges()
-      let cancelled = await testContext.wallet.cancelPending(pending[0].delayedOpId)
-      assert.equal(cancelled.logs[0].args.delayedOpId, pending[0].delayedOpId)
+      const cancelled = await testContext.wallet.cancelPending(pending[0].delayedOpId)
+      assert.strictEqual(cancelled.logs[0].args.delayedOpId, pending[0].delayedOpId)
     })
   })
 
