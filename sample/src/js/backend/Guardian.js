@@ -3,7 +3,6 @@ import crypto from 'crypto'
 // import FactoryContractInteractor from 'safechannels-contracts/src/js/FactoryContractInteractor'
 import Permissions from 'safechannels-contracts/src/js/Permissions'
 import scutils from 'safechannels-contracts/src/js/SafeChannelUtils'
-import { knownEvents } from './knownEvents'
 import abiDecoder from 'abi-decoder'
 import SmartAccountFactoryABI from 'safechannels-contracts/src/js/generated/SmartAccountFactory'
 import SmartAccountABI from 'safechannels-contracts/src/js/generated/SmartAccount'
@@ -23,7 +22,12 @@ export class Watchdog {
     abiDecoder.addABI(SmartAccountABI)
     this.permsLevel = scutils.packPermissionLevel(Permissions.WatchdogPermissions, 1)
     this.address = keyManager.address()
-    this.smartAccountInteractor = new this.web3.eth.Contract(SmartAccountABI, '', { from: this.keyManager.address() })
+    this.smartAccountContract = new this.web3.eth.Contract(SmartAccountABI, '')
+    this.smartAccountFactoryContract = new this.web3.eth.Contract(SmartAccountFactoryABI, smartAccountFactoryAddress)
+    const smartAccountTopics = Object.keys(this.smartAccountContract.events).filter(x => (x.includes('0x')))
+    const smartAccountFactoryTopics = Object.keys(this.smartAccountFactoryContract.events).filter(
+      x => (x.includes('0x')))
+    this.topics = smartAccountTopics.concat(smartAccountFactoryTopics)
     this.lastScannedBlock = 0
     this.changesToApply = {}
   }
@@ -32,7 +36,7 @@ export class Watchdog {
     // this.smartAccountFactoryInteractor = await FactoryContractInteractor.getInstance(
     //   { smartAccountFactoryAddress: this.smartAccountFactoryAddress, provider: this.web3provider })
     console.log('setting periodic task')
-    this.task = await setInterval(this._worker, 100 * 2)
+    this.task = await setInterval(this._worker, 12000)
   }
 
   async stop () {
@@ -43,10 +47,7 @@ export class Watchdog {
     const options = {
       fromBlock: this.lastScannedBlock,
       toBlock: 'latest',
-      topics: [knownEvents.map(event => {
-        return this.web3.utils.sha3(event[0] + event[1])
-      })]
-
+      topics: [this.topics]
     }
     const logs = await this.web3.eth.getPastLogs(options)
     const decodedLogs = abiDecoder.decodeLogs(logs).map(this._parseEvent)
@@ -127,13 +128,13 @@ export class Watchdog {
     const change = this.changesToApply[delayedOpId]
     let method
     let smartAccountMethod
-    this.smartAccountInteractor.options.address = change.log.address
+    this.smartAccountContract.options.address = change.log.address
     // TODO we should refactor events and function args to match in naming, and just use '...Object.values(change.log.args)'
     if (change.log.name === 'BypassCallPending') {
       if (apply) {
-        smartAccountMethod = this.smartAccountInteractor.methods.applyBypassCall
+        smartAccountMethod = this.smartAccountContract.methods.applyBypassCall
       } else if (cancel) {
-        smartAccountMethod = this.smartAccountInteractor.methods.cancelBypassCall
+        smartAccountMethod = this.smartAccountContract.methods.cancelBypassCall
       }
       method = smartAccountMethod(
         this.permsLevel,
@@ -146,9 +147,9 @@ export class Watchdog {
       )
     } else if (change.log.name === 'ConfigPending') {
       if (apply) {
-        smartAccountMethod = this.smartAccountInteractor.methods.applyConfig
+        smartAccountMethod = this.smartAccountContract.methods.applyConfig
       } else if (cancel) {
-        smartAccountMethod = this.smartAccountInteractor.methods.cancelOperation
+        smartAccountMethod = this.smartAccountContract.methods.cancelOperation
       }
       method = smartAccountMethod(
         this.permsLevel,
