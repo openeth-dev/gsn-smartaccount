@@ -184,7 +184,6 @@ describe('SimpleWallet', async function () {
       }
     })
 
-
     testValidationBehavior(() => testContext)
 
     describe('#addOperatorNow()', async function () {
