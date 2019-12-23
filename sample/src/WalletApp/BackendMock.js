@@ -1,6 +1,4 @@
 import BEapi from '../js/api/BE.api'
-import validate from '../js/utils/XfaceValidate'
-
 
 export class BackendMock extends BEapi {
   async getAddresses () {
@@ -36,5 +34,3 @@ export class BackendMock extends BEapi {
     throw new Error('monitor pending changes. can subscribe for events, but need also to handle due events.')
   }
 }
-
-

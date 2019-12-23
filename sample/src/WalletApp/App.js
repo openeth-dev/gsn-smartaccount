@@ -12,8 +12,7 @@ import SmartAccountSDK from '../js/impl/SmartAccountSDK'
 import SimpleManager from '../js/impl/SimpleManager'
 
 var mgr, sms, wallet
-const Button = ({ title, action }) => <input type="submit" onClick={action}
-  value={title}/>
+const Button = ({ title, action }) => <input type="submit" onClick={action} value={title}/>
 
 function GoogleLogin ({ refresh }) {
   async function login () {
@@ -60,8 +59,7 @@ function CreateWallet ({ refresh, jwt, email }) {
   return <div>
     Hello <b>{email}</b>, you dont have a wallet yet.<br/>
     Click <Button title="here to verify phone" action={startCreate}/><br/>
-    Click here to enter SMS verification code <Button title="verify"
-      action={createWallet}/>
+    Click here to enter SMS verification code <Button title="verify" action={createWallet}/>
   </div>
 }
 
@@ -72,7 +70,6 @@ function TokenWidget ({ token, balance, decimals, doTransfer }) {
 
 function ActiveWallet ({ walletInfo, walletBalances, walletPending, doTransfer, doCancelPending }) {
   const info = JSON.stringify(walletInfo, null, 2)
-  const balances = JSON.stringify(walletBalances, null, 2)
   const pending = JSON.stringify(walletPending, null, 2)
 
   return <>
@@ -136,7 +133,6 @@ class App extends React.Component {
   }
 
   async readMgrState () {
-
     const mgrState = {
       ownerAddr: await mgr.getOwner(),
       walletAddr: await mgr.getWalletAddress(),
@@ -148,12 +144,11 @@ class App extends React.Component {
 
     // TODO: this is hack: we want to check if it already loaded, not load it.
     if (mgrState.walletAddr) {
-      if (!wallet)
-        wallet = await mgr.loadWallet()
+      if (!wallet) { wallet = await mgr.loadWallet() }
       mgrState.walletInfo = await wallet.getWalletInfo()
       mgrState.walletBalances = await wallet.listTokens()
       mgrState.walletPending = await wallet.listPendingConfigChanges()
-      mgrState.walletPending.forEach((x, index) => x.index = index+1)
+      mgrState.walletPending.forEach((x, index) => { x.index = index + 1 })
     }
 
     return mgrState
@@ -161,7 +156,7 @@ class App extends React.Component {
 
   async initMgr () {
     // mock initialization:
-    const useMock = window.location.href.indexOf('mock')>0
+    const useMock = window.location.href.indexOf('mock') > 0
 
     const verbose = true
     if (useMock) {
@@ -213,9 +208,9 @@ class App extends React.Component {
   async doCancelPending () {
     const id = prompt('Enter pending index to cancel')
     if (!id) return
-    const p = JSON.parse(JSON.stringify( this.state.walletPending))
-    console.log( "looking for id",id, "in", p)
-    const pending = p.find(x => x.index == id)
+    const p = JSON.parse(JSON.stringify(this.state.walletPending))
+    console.log('looking for id', id, 'in', p)
+    const pending = p.find(x => x.index === id)
     if (!pending) {
       alert('No pending item with index=' + id)
       return
@@ -293,8 +288,7 @@ class App extends React.Component {
         </div>
         {
           !!(mgr && mgr.wallet) ||
-          <div><Button title="debug: activate wallet"
-            action={this.debugActiveWallet.bind(this)}/><p/></div>
+          <div><Button title="debug: activate wallet" action={this.debugActiveWallet.bind(this)}/><p/></div>
         }
         <Button title="signout" action={this.signout.bind(this)}/><p/>
         <WalletComponent
