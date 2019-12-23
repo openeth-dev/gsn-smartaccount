@@ -34,9 +34,7 @@ export class Watchdog {
   }
 
   async start () {
-    // this.smartAccountFactoryInteractor = await FactoryContractInteractor.getInstance(
-    //   { smartAccountFactoryAddress: this.smartAccountFactoryAddress, provider: this.web3provider })
-    console.log('setting periodic task')
+    console.log('Subscribing to new blocks')
     this.subscription = this.web3.eth.subscribe('newBlockHeaders', function (error, result) {
       if (error) {
         console.error(error)
@@ -62,8 +60,6 @@ export class Watchdog {
     }
     const logs = await this.web3.eth.getPastLogs(options)
     const decodedLogs = abiDecoder.decodeLogs(logs).map(this._parseEvent)
-    // .filter(dlog => !!this.accountManager.getAccountById({ accountId: dlog.args.smartAccountId }) ||
-    //   !!this.accountManager.getAccountByAddress({ address: dlog.address }))
 
     for (const dlog of decodedLogs) {
       switch (dlog.name) {
@@ -207,17 +203,18 @@ export class Watchdog {
     return receipt
   }
 
-  _parseEvent (e) {
-    if (!e || !e.events) {
-      return 'not event: ' + e
+  _parseEvent (event) {
+    if (!event || !event.events) {
+      return 'not event: ' + event
     }
     const args = {}
-    for (const ee of e.events) {
-      args[ee.name] = ee.value
+    // event arguments is for some weird reason give as ".events"
+    for (const eventArgument of event.events) {
+      args[eventArgument.name] = eventArgument.value
     }
     return {
-      name: e.name,
-      address: e.address,
+      name: event.name,
+      address: event.address,
       args: args
     }
   }

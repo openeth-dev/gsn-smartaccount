@@ -9,7 +9,7 @@ export class KeyManager {
     this.ecdsaKeyPair = ecdsaKeyPair
   }
 
-  static newEphemeralKeypair () {
+  static newKeypair () {
     const a = Wallet.generate()
     return {
       privateKey: a.privKey,

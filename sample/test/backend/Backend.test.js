@@ -145,7 +145,7 @@ describe('Backend', async function () {
       hash = abi.soliditySHA3(['string', 'bytes32'], ['\x19Ethereum Signed Message:\n32', hash])
       const backendExpectedAddress = ethUtils.publicToAddress(ethUtils.ecrecover(hash, sig.v, sig.r, sig.s))
       assert.equal('0x' + backendExpectedAddress.toString('hex'), backend.keyManager.address())
-      const accountId = backend._getSmartAccountId(email)
+      const accountId = await backend.getSmartAccountId({ email })
       const account = new BackendAccount(
         {
           accountId: accountId,

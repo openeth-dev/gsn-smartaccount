@@ -26,6 +26,9 @@ export class AccountManager {
   }
 
   removeAccount ({ account }) {
+    if (account.address) {
+      delete this.addressToId[account.address]
+    }
     delete this.accounts[account.accountId]
   }
 }

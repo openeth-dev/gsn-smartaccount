@@ -32,7 +32,7 @@ export class Backend {
     const ticket = await this._verifyJWT(jwt)
 
     const email = ticket.getPayload().email
-    const smartAccountId = this._getSmartAccountId(email)
+    const smartAccountId = await this.getSmartAccountId({ email })
     if (this.smsManager.getSmsCode({ phoneNumber: formattedPhone, email, expectedSmsCode: smsCode }) === smsCode) {
       const newAccount = new BackendAccount({
         accountId: smartAccountId,
@@ -45,8 +45,8 @@ export class Backend {
       throw new Error(`invalid sms code: ${smsCode}`)
     }
 
-    const approvalData = this._generateApproval({ smartAccountId: Buffer.from(smartAccountId, 'hex') })
-    return { approvalData: '0x' + approvalData.toString('hex'), smartAccountId: '0x' + smartAccountId.toString('hex') }
+    const approvalData = this._generateApproval({ smartAccountId })
+    return { approvalData: '0x' + approvalData.toString('hex'), smartAccountId: '0x' + smartAccountId }
   }
 
   async signInAsNewOperator ({ jwt, title }) {
@@ -68,16 +68,12 @@ export class Backend {
    * @private
    */
   async getSmartAccountId ({ email }) {
-    return this._getSmartAccountId(email)
-  }
-
-  _getSmartAccountId (email) {
     return abi.soliditySHA3(['string'], [email]).toString('hex')
   }
 
   _generateApproval ({ smartAccountId }) {
     const timestamp = Buffer.from(Math.floor(Date.now() / 1000).toString(16), 'hex')
-    const hash = abi.soliditySHA3(['bytes32', 'bytes4'], [smartAccountId, timestamp])
+    const hash = abi.soliditySHA3(['bytes32', 'bytes4'], [Buffer.from(smartAccountId, 'hex'), timestamp])
     const sig = this.keyManager.ecSignWithPrefix({ hash })
     return abi.rawEncode(['bytes4', 'bytes'], [timestamp, sig])
   }
