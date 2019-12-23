@@ -6,7 +6,7 @@ import SMSmock from '../../src/js/mocks/SMS.mock'
 import { Watchdog } from '../../src/js/backend/Guardian'
 import { KeyManager } from '../../src/js/backend/KeyManager'
 import FactoryContractInteractor from 'safechannels-contracts/src/js/FactoryContractInteractor'
-import { Account, AccountManager } from '../../src/js/backend/AccountManager'
+import { BackendAccount, AccountManager } from '../../src/js/backend/AccountManager'
 import { SmsManager } from '../../src/js/backend/SmsManager'
 import crypto from 'crypto'
 import SimpleWallet from '../../src/js/impl/SimpleWallet'
@@ -80,7 +80,7 @@ describe('As Guardian', async function () {
     config.requiredApprovalsPerLevel = [0, 0]
     await wallet.initialConfiguration(config)
     await fundAddress(wallet.contract.address)
-    newAccount = new Account({
+    newAccount = new BackendAccount({
       accountId: '123456',
       email: '',
       phone: '',

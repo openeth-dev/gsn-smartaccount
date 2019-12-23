@@ -7,7 +7,7 @@ import { hookBackend } from './testutils'
 import { KeyManager } from '../../src/js/backend/KeyManager'
 import { SmsManager } from '../../src/js/backend/SmsManager'
 import crypto from 'crypto'
-import { Account, AccountManager } from '../../src/js/backend/AccountManager'
+import { BackendAccount, AccountManager } from '../../src/js/backend/AccountManager'
 
 const ethUtils = require('ethereumjs-util')
 const abi = require('ethereumjs-abi')
@@ -146,7 +146,7 @@ describe('Backend', async function () {
       const backendExpectedAddress = ethUtils.publicToAddress(ethUtils.ecrecover(hash, sig.v, sig.r, sig.s))
       assert.equal('0x' + backendExpectedAddress.toString('hex'), backend.keyManager.address())
       const accountId = backend._getSmartAccountId(email)
-      const account = new Account(
+      const account = new BackendAccount(
         {
           accountId: accountId,
           email: email,

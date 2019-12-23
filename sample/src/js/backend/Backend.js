@@ -1,4 +1,4 @@
-import { Account } from './AccountManager'
+import { BackendAccount } from './AccountManager'
 
 const phone = require('phone')
 const gauth = require('google-auth-library')
@@ -34,7 +34,7 @@ export class Backend {
     const email = ticket.getPayload().email
     const smartAccountId = this._getSmartAccountId(email)
     if (this.smsManager.getSmsCode({ phoneNumber: formattedPhone, email, expectedSmsCode: smsCode }) === smsCode) {
-      const newAccount = new Account({
+      const newAccount = new BackendAccount({
         accountId: smartAccountId,
         email: email,
         phone: formattedPhone,
