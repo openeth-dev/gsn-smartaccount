@@ -37,14 +37,24 @@ export class Watchdog {
     // this.smartAccountFactoryInteractor = await FactoryContractInteractor.getInstance(
     //   { smartAccountFactoryAddress: this.smartAccountFactoryAddress, provider: this.web3provider })
     console.log('setting periodic task')
-    this.task = await setInterval(this._worker, 12000)
+    this.subscription = this.web3.eth.subscribe('newBlockHeaders', function (error, result) {
+      if (error) {
+        console.error(error)
+      }
+    }).on('data', this._worker.bind(this)).on('error', console.error)
   }
 
   async stop () {
-    clearInterval(this.task)
+    this.subscription.unsubscribe(function (error, success) {
+      if (success) {
+        console.log('Successfully unsubscribed!')
+      } else if (error) {
+        throw error
+      }
+    })
   }
 
-  async _worker () {
+  async _worker (blockHeader) {
     const options = {
       fromBlock: this.lastScannedBlock,
       toBlock: 'latest',

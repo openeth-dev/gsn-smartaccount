@@ -23,7 +23,7 @@ const smsManager = new SmsManager({ smsProvider, secretSMSCodeSeed: crypto.rando
 const keypair = KeyManager.newEphemeralKeypair()
 const keyManager = new KeyManager({ ecdsaKeyPair: keypair })
 const accountManager = new AccountManager()
-const web3provider = new Web3.providers.HttpProvider(ethNodeUrl)
+const web3provider = new Web3.providers.WebsocketProvider(ethNodeUrl)
 const backend = new Backend(
   {
     smsManager,

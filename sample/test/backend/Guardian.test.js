@@ -55,7 +55,7 @@ describe('As Guardian', async function () {
   }
 
   before(async function () {
-    web3provider = new Web3.providers.HttpProvider(ethNodeUrl)
+    web3provider = new Web3.providers.WebsocketProvider(ethNodeUrl)
     web3 = new Web3(web3provider)
     accountZero = (await web3.eth.getAccounts())[0]
     smartAccount = await FactoryContractInteractor.deploySmartAccountDirectly(accountZero, ethNodeUrl)
@@ -94,14 +94,18 @@ describe('As Guardian', async function () {
     let actions
     let args
 
-    function hookWatchdogApplyChanges () {
-      watchdog._applyChangesOrig = watchdog._applyChanges
-      watchdog._applyChanges = function () {}
+    function hookWatchdogFunction (funcName, newFunc) {
+      Object.defineProperty(newFunc, 'name', {
+        writable: true,
+        value: funcName
+      })
+      watchdog[funcName + 'Orig'] = watchdog[funcName]
+      watchdog[funcName] = newFunc
     }
 
-    function unhookWatchdogApplyChanges () {
-      watchdog._applyChanges = watchdog._applyChangesOrig
-      delete watchdog._applyChangesOrig
+    function unhookWatchdogFunction (funcName) {
+      watchdog[funcName] = watchdog[funcName + 'Orig']
+      delete watchdog[funcName + 'Orig']
     }
 
     before(async function () {
@@ -147,9 +151,9 @@ describe('As Guardian', async function () {
         const eventsBefore = await wallet.contract.getPastEvents(delayedOp + 'Cancelled')
         const smsCode = watchdog.smsManager.getSmsCode(
           { phoneNumber: newAccount.phone, email: newAccount.email })
-        hookWatchdogApplyChanges()
+        hookWatchdogFunction(watchdog._applyChanges.name, function () {})
         await watchdog._worker()
-        unhookWatchdogApplyChanges()
+        unhookWatchdogFunction(watchdog._applyChanges.name)
         receipt = await watchdog.cancelChange(
           { smsCode, delayedOpId: receipt.logs[0].args.delayedOpId, address: newAccount.address })
         const eventsAfter = await wallet.contract.getPastEvents(delayedOp + 'Cancelled')
@@ -176,11 +180,44 @@ describe('As Guardian', async function () {
     })
 
     it('should not apply any operation twice', async function () {
-      hookWatchdogApplyChanges()
+      hookWatchdogFunction(watchdog._applyChanges.name, function () {})
       watchdog.lastScannedBlock = 0
       await watchdog._worker()
       assert.deepEqual(watchdog.changesToApply, {})
-      unhookWatchdogApplyChanges()
+      unhookWatchdogFunction(watchdog._applyChanges.name)
+    })
+
+    it('should start periodic task and subscribe to new blocks', async function () {
+      let blockHeader = {}
+      hookWatchdogFunction(watchdog._worker.name, function (bh) {
+        blockHeader = bh
+      })
+      await watchdog.start()
+      await scutils.evmMine(web3)
+      const exampleHeader = {
+        hash: undefined,
+        parentHash: undefined,
+        sha3Uncles: undefined,
+        miner: undefined,
+        stateRoot: undefined,
+        transactionsRoot: undefined,
+        receiptsRoot: undefined,
+        logsBloom: undefined,
+        difficulty: undefined,
+        number: undefined,
+        gasLimit: undefined,
+        gasUsed: undefined,
+        nonce: undefined,
+        mixHash: undefined,
+        timestamp: undefined,
+        extraData: undefined,
+        size: undefined
+      }
+      assert.deepEqual(Object.keys(blockHeader).sort(), Object.keys(exampleHeader).sort())
+      unhookWatchdogFunction(watchdog._worker.name)
+    })
+    it('should stop periodic task and unsubscribe from new blocks', async function () {
+      await watchdog.stop()
     })
   })
 
