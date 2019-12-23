@@ -12,8 +12,7 @@ import SmartAccountSDK from '../js/impl/SmartAccountSDK'
 import SimpleManager from '../js/impl/SimpleManager'
 
 var mgr, sms, wallet
-const Button = ({ title, action }) => <input type="submit" onClick={action}
-  value={title}/>
+const Button = ({ title, action }) => <input type="submit" onClick={action} value={title}/>
 
 function GoogleLogin ({ refresh }) {
   async function login () {
@@ -71,7 +70,6 @@ function TokenWidget ({ symbol, balance, decimals, doTransfer }) {
 
 function ActiveWallet ({ walletInfo, walletBalances, walletPending, doTransfer, doCancelPending }) {
   const info = JSON.stringify(walletInfo, null, 2)
-  const balances = JSON.stringify(walletBalances, null, 2)
   const pending = JSON.stringify(walletPending, null, 2)
 
   return <>
@@ -135,7 +133,6 @@ class App extends React.Component {
   }
 
   async readMgrState () {
-
     const mgrState = {
       ownerAddr: await mgr.getOwner(),
       walletAddr: await mgr.getWalletAddress(),
