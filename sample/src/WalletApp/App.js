@@ -12,8 +12,7 @@ import SmartAccountSDK from '../js/impl/SmartAccountSDK'
 import SimpleManager from '../js/impl/SimpleManager'
 
 var mgr, sms, wallet
-const Button = ({ title, action }) => <input type="submit" onClick={action}
-  value={title}/>
+const Button = ({ title, action }) => <input type="submit" onClick={action} value={title}/>
 
 function GoogleLogin ({ refresh }) {
   async function login () {
@@ -60,8 +59,7 @@ function CreateWallet ({ refresh, jwt, email }) {
   return <div>
     Hello <b>{email}</b>, you dont have a wallet yet.<br/>
     Click <Button title="here to verify phone" action={startCreate}/><br/>
-    Click here to enter SMS verification code <Button title="verify"
-      action={createWallet}/>
+    Click here to enter SMS verification code <Button title="verify" action={createWallet}/>
   </div>
 }
 
@@ -135,7 +133,6 @@ class App extends React.Component {
   }
 
   async readMgrState () {
-
     const mgrState = {
       ownerAddr: await mgr.getOwner(),
       walletAddr: await mgr.getWalletAddress(),
@@ -296,8 +293,7 @@ class App extends React.Component {
         </div>
         {
           !!(mgr && mgr.wallet) ||
-          <div><Button title="debug: activate wallet"
-            action={this.debugActiveWallet.bind(this)}/><p/></div>
+          <div><Button title="debug: activate wallet" action={this.debugActiveWallet.bind(this)}/><p/></div>
         }
         <Button title="signout" action={this.signout.bind(this)}/><p/>
         <WalletComponent
