@@ -86,7 +86,6 @@ describe('http layer tests', async function () {
         await client.createAccount({ jwt: undefined, smsCode: mySmsCode, phoneNumber: myPhoneNumber })
         assert.fail()
       } catch (e) {
-        console.log(e)
         assert.match(e.message, /Error: go fish.*\n.*createAccount.*\n.*code: -125/)
       }
     })

@@ -171,15 +171,14 @@ export class Watchdog {
         change.log.args.boosterPermsLevel
       )
     } else {
-      throw new Error('Unsupported event')
+      throw new Error('Unsupported event' + change.log.name)
     }
     try {
       const receipt = await this._sendTransaction(method, change)
       delete this.changesToApply[delayedOpId]
       return receipt
     } catch (e) {
-      console.log(change.log.name)
-      console.log('wtf e is', e)
+      console.log(`Got error handling event ${e.message}\nevent ${change.log}`)
     }
   }
 
