@@ -56,7 +56,7 @@ describe('http layer tests', async function () {
         await client.validatePhone({ jwt: undefined, phoneNumber: myPhoneNumber })
         assert.fail()
       } catch (e) {
-        assert.match(e.toString(), /Error: hubba.*\n.*validatePhone/)
+        assert.match(e.message, /Error: hubba.*\n.*validatePhone.*\n.*code: -125/)
       }
     })
   })
@@ -87,7 +87,7 @@ describe('http layer tests', async function () {
         assert.fail()
       } catch (e) {
         console.log(e)
-        assert.match(e.toString(), /Error: go fish.*\n.*createAccount/)
+        assert.match(e.message, /Error: go fish.*\n.*createAccount.*\n.*code: -125/)
       }
     })
   })
@@ -102,7 +102,7 @@ describe('http layer tests', async function () {
       await client.cancelChange({ delayedOpId: myDelayedOpId, smsCode: mySmsCode, address: myAddress })
     })
 
-    it('should send invalid http request and receive error response', async function () {
+    it('should send invalid http request and throw on error response', async function () {
       const errorMessage = 'go fish'
       try {
         mockBE.cancelChange = function cancelChange ({ smsCode, delayedOpId, address }) {
@@ -111,7 +111,7 @@ describe('http layer tests', async function () {
         await client.cancelChange({ jwt: undefined, smsCode: mySmsCode, phoneNumber: myPhoneNumber })
         assert.fail()
       } catch (e) {
-        assert.match(e.toString(), /Error: go fish.*\n.*cancelChange/)
+        assert.match(e.message, /Error: go fish.*\n.*cancelChange.*\n.*code: -125/)
       }
     })
   })

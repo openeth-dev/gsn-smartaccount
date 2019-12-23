@@ -175,7 +175,7 @@ export class Watchdog {
         change.log.args.boosterPermsLevel
       )
     } else {
-      return
+      throw new Error('Unsupported event')
     }
     try {
       const receipt = await this._sendTransaction(method, change)

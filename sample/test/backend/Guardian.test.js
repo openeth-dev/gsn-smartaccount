@@ -140,6 +140,7 @@ describe('As Guardian', async function () {
             stateId,
             { from: accountZero })
         }
+        assert.equal(receipt.logs[0].event, delayedOp + 'Pending')
         const eventsBefore = await wallet.contract.getPastEvents(delayedOp + 'Applied')
         await watchdog._worker()
         const eventsAfter = await wallet.contract.getPastEvents(delayedOp + 'Applied')
