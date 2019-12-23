@@ -4,7 +4,6 @@ import SMSapi from '../api/SMS.api'
 
 let fs = require('fs')
 const SMS_TMP_FILE_NAME = '/tmp/sms.txt'
-
 // ignore unknown methods (when started in browser)
 fs = new Proxy(fs, {
   get (target, p, receiver) {
