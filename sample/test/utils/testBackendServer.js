@@ -28,5 +28,7 @@ export async function startBackendServer ({ port = 8888, factoryAddress, sponsor
 }
 
 export async function stopBackendServer () {
-  ls.kill(9)
+  if (ls) {
+    ls.kill(9)
+  }
 }

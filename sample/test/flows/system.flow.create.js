@@ -12,26 +12,30 @@ import SMSmock from '../../src/js/mocks/SMS.mock'
 import { startBackendServer, stopBackendServer } from '../utils/testBackendServer'
 
 import axios from 'axios'
+import { startGsnRelay } from '../../localGsn/localGsn'
 
 const relayHubAddress = '0xD216153c06E857cD7f72665E0aF1d7D82172F494'
 
 const verbose = false
 
-describe('System flow: Create Account', () => {
+describe.only('System flow: Create Account', () => {
   const relayUrl = 'http://localhost:8090'
   let relayAddr
 
-  before('check "gsn-dock-relay" is active', async function () {
-    try {
-      const res = await axios.get(relayUrl + '/getaddr')
-      relayAddr = res.data.RelayServerAddress
-    } catch (e) {
-      console.warn('skipped flow test - no active "gsn-dock-relay"')
-      this.skip()
-    }
+  before('startGsn', async () => {
+    relayAddr = await startGsnRelay(1)
   })
+  // before('check "gsn-dock-relay" is active', async function () {
+  //   try {
+  //     const res = await axios.get(relayUrl + '/getaddr')
+  //     relayAddr = res.data.RelayServerAddress
+  //   } catch (e) {
+  //     console.warn('skipped flow test - no active "gsn-dock-relay"')
+  //     this.skip()
+  //   }
+  // })
   describe('create flow with account', async () => {
-    const userEmail = 'user@email.com'
+    const userEmail = 'shahaf@tabookey.com'
     let mgr
     let jwt, phoneNumber
 
@@ -107,7 +111,7 @@ describe('System flow: Create Account', () => {
       })
     })
 
-    it('new browser attempt login', async () => {
+    it('should attempt to googleLogin', async () => {
       assert.equal(await mgr.hasWallet(), false)
       assert.equal(await mgr.getOwner(), null)
       assert.equal(await mgr.getEmail(), null)
@@ -118,18 +122,18 @@ describe('System flow: Create Account', () => {
       jwt = _jwt
 
       expect(jwt).to.match(/\w+/) // just verify there's something..
-      assert.equal(email, userEmail) // only in mock...
+      assert.equal(email, userEmail) // only in mock. in real UI, should ask user and authenticate
       assert.equal(email, await mgr.getEmail())
       assert.equal(address, await mgr.getOwner())
     })
 
-    it('after user inputs phone', async () => {
+    it('after user inputs phone, should initiate phone (and jwt) validation', async () => {
       phoneNumber = '+972541234567' // user input
 
       await mgr.validatePhone({ jwt, phoneNumber })
     })
 
-    it('after user receives SMS', async () => {
+    it('after user receives SMS, should create the wallet.', async () => {
       const msg = await SMSmock.asyncReadSms()
 
       const smsVerificationCode = msg.message.match(/verif.*?(\d+)/)[1]
