@@ -30,10 +30,39 @@ export default class Account extends AccountApi {
       throw new Error('missing Storage param')
     }
     this.storage = storageProps(storage)
+    this._approvedApps = JSON.parse(this.storage.approved ) || {}
+    console.log("approved: ",this._approvedApps)
+  }
+
+  _isApproved (url) {
+    return this._approvedApps[url]
+  }
+
+  _setApproved (url) {
+    this._approvedApps[url] = true
+    this.storage.approved = JSON.stringify(this._approvedApps)
+    console.log("SET approved: ",this.storage.approved)
+  }
+
+  //called by the AccountFrame, for all calls (except enableApp)
+  _verifyApproved (method, url) {
+    if (!this._isApproved(url)) {
+      throw new Error(method + ': App ' + url + ': not approved')
+    }
+  }
+
+  async isEnabled ({ appUrl }) {
+    return this._isApproved(appUrl)
   }
 
   async enableApp ({ appTitle, appUrl }) {
-    throw new Error('ask the user to enable the given app/url. once enabled, returns immediately')
+    if (this._isApproved(appUrl))
+      return
+
+    if (!confirm('Approve connection to\n' + appTitle + '\n' + appUrl)) {
+      throw new Error('App ' + appUrl + ': not approved')
+    }
+    this._setApproved(appUrl)
   }
 
   async getEmail () {
@@ -123,7 +152,9 @@ export default class Account extends AccountApi {
   }
 
   async signOut () {
-    this.storage.email = this.storage.ownerAddress = this.storage.privKey = undefined
+    this.storage.email = this.storage.ownerAddress = this.storage.privKey = this.storage.approved = undefined
+    console.log("approved: ",this.storage._approvedApps)
+
   }
 
   async signTransaction ({ tx }) {

@@ -129,18 +129,29 @@ class App extends React.Component {
 
     this.state = {}
     this.initMgr().then(() =>
-      this.readMgrState().then(x => { this.state = x }))
+      this.readMgrState().then(x => { this.setState(x) }))
   }
 
   async readMgrState () {
-    const mgrState = {
-      ownerAddr: await mgr.getOwner(),
-      walletAddr: await mgr.getWalletAddress(),
-      email: await mgr.getEmail(),
+    console.log('readMgrState')
+    let mgrState = {
       walletInfo: undefined,
       walletBalances: undefined,
       walletPending: undefined
     }
+    if (await sdk.isEnabled({appUrl:window.location.href})) {
+
+      Object.assign(mgrState, {
+        needApprove: undefined,
+        ownerAddr: await mgr.getOwner(),
+        walletAddr: await mgr.getWalletAddress(),
+        email: await mgr.getEmail()
+      })
+      console.log('readMgrState: has some state')
+    } else {
+      console.log( "not enabled", window.location.href)
+    }
+
     // TODO: this is hack: we want to check if it already loaded, not load it.
     if (mgrState.walletAddr) {
       if (!wallet) { wallet = await mgr.loadWallet() }
@@ -149,16 +160,22 @@ class App extends React.Component {
       mgrState.walletPending = await wallet.listPendingConfigChanges()
       mgrState.walletPending.forEach((x, index) => { x.index = index + 1 })
     }
+
     return mgrState
   }
 
   async initMgr () {
+    console.log('initMgr')
     // mock initialization:
     const useMock = window.location.href.indexOf('mock') > 0
 
     const verbose = true
     if (useMock) {
-      mgr = new SimpleManagerMock({ accountApi: new AccountProxy() })
+      //mock SDK...
+      sdk = new SmartAccountSDK()
+      sdk.account = new AccountProxy()
+
+      mgr = new SimpleManagerMock({ accountApi: sdk.account })
       sms = mgr.smsApi
       sms.on('mocksms', (data) => {
         setTimeout(() => {
@@ -186,11 +203,12 @@ class App extends React.Component {
       verbose,
       sponsor
     }
-    const sdk = await SmartAccountSDK.init({
+    sdk = await SmartAccountSDK.init({
       network: web3provider,
       relayOptions
     })
 
+    console.log('xx= ', global.sdk)
     const factoryConfig = {
       provider: sdk.provider,
       factoryAddress: factory
@@ -237,7 +255,7 @@ class App extends React.Component {
     }
   }
 
-  reloadState (extra) {
+  reloadState (extra = {}) {
     const self = this
     this.readMgrState().then(mgrState => {
       const newState = { ...mgrState, ...extra }
@@ -280,6 +298,10 @@ class App extends React.Component {
     this.setState({ debug: !this.state.debug })
   }
 
+  async enableApp () {
+    await sdk.enableApp({ appTitle: 'SampleWallet', appUrl: window.location.href })
+    this.reloadState()
+  }
   render () {
     return (
       <div style={{ margin: '10px' }}>
@@ -288,7 +310,8 @@ class App extends React.Component {
           <input type="checkbox" value={this.state.debug} onClick={() => this.toggleDebug()}/>
           Debug state
           {
-            this.state.debug && <xmp>{JSON.stringify(this.state, null, 4)}</xmp>
+            // this.state.debug &&
+            <xmp>{JSON.stringify(this.state, null, 4)}</xmp>
           }
         </div>
         {
@@ -296,12 +319,17 @@ class App extends React.Component {
           <div><Button title="debug: activate wallet" action={this.debugActiveWallet.bind(this)}/><p/></div>
         }
         <Button title="signout" action={this.signout.bind(this)}/><p/>
+        {
+          // this.state.needApprove &&
+          <div><Button title="Must first connect app to iframe wallet" action={() => this.enableApp()}/></div>
+        }
         <WalletComponent
           doTransfer={params => this.doTransfer(params)}
           doCancelPending={params => this.doCancelPending(params)}
           refresh={(extra) => this.reloadState(extra)} {...this.state} />
         {
-          this.state && this.state.err && <div style={{ color: 'red' }} onClick={() => this.reloadState({ err: undefined })}>
+          this.state.err &&
+          <div style={{ color: 'red' }} onClick={() => this.reloadState({ err: undefined })}>
             <h2>Error: {this.state.err} </h2>
           </div>
         }

@@ -4,7 +4,7 @@ import Account from '../impl/Account'
 import AccountApi from '../api/Account.api'
 // https://developer.mozilla.org/en-US/docs/Web/API/Window/postMessage
 let account
-const verbose = false
+const verbose = true
 
 // const enabledSites = {}
 function initMessageHandler ({ window }) {
@@ -53,28 +53,25 @@ async function handleMessage ({ source, method, id, params }) {
     return
   }
 
-  // enable is the only method allowed before prompting the use to enable
-  // if ( method !== 'enable' ) {
-  //   if ( enabledSites)
-  // }
-
-  // console.log("src=",source.location.href)
-  const methodToCall = account[method]
-  let response, error
-  if (verbose) { console.log('iframe: called', id, method, params) }
   try {
-    response = await methodToCall.apply(account, params)
+    if (verbose) { console.log('iframe: called', id, method, params) }
+    // enable is the only method allowed before prompting the use to enable
+    if (method !== 'enableApp' && method !== 'isEnabled') {
+      account._verifyApproved(method, source.location.href)
+    }
+
+    // console.log("src=",source.location.href)
+    const methodToCall = account[method]
+
+    const response = await methodToCall.apply(account, params)
+
+    if (verbose) { console.log('iframe: resp', id, response) }
+
+    source.postMessage({ id, response }, '*')
   } catch (e) {
-    error = e
+    console.log( "ex", e)
+    source.postMessage({ id, error: e.toString() }, '*')
   }
-  if (verbose) { console.log('iframe: resp', id, error || response) }
-
-  const val = (await account.getEmail() ? 'E' : ' ') +
-    (await account.getOwner() ? 'O' : ' ')
-  console.log('iframe value', val)
-  document.getElementById('valueDiv').innerText = val
-
-  source.postMessage({ id, response, error }, '*')
 }
 
 global.initMessageHandler = initMessageHandler
