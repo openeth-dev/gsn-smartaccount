@@ -104,13 +104,18 @@ export class Watchdog {
     if (!account) {
       return
     }
-    const smsCode = this.smsManager.getSmsCode({ phoneNumber: account.phone, email: account.email })
+    let dueTime
     const delayedOpId = dlog.args.delayedOpId
+    if (dlog.name === 'ConfigPending' && dlog.args.actions[0] === ChangeType.ADD_OPERATOR_NOW.toString()) {
+      dueTime = Date.now()
+    } else {
+      const smsCode = this.smsManager.getSmsCode({ phoneNumber: account.phone, email: account.email })
     await this.smsManager.sendSMS({
       phoneNumber: account.phone,
       message: `To cancel event ${delayedOpId} on smartAccount ${account.address}, enter code ${smsCode}`
     })
-    const dueTime = dlog.args.dueTime * 1000
+      dueTime = dlog.args.dueTime * 1000
+    }
     this.changesToApply[delayedOpId] = { dueTime: dueTime, log: dlog }
   }
 
@@ -149,6 +154,10 @@ export class Watchdog {
     }
   }
 
+  // _encodeMethod({bypass, config}, {apply, cancel, approve}) {
+  //
+  // }
+
   async _finalizeChange (delayedOpId, { apply, cancel }) {
     if (!apply && !cancel) {
       throw new Error('Please specify apply/cancel')
@@ -179,10 +188,14 @@ export class Watchdog {
         const newOperatorAddress = this.accountManager.getOperatorToAdd(
           { accountId: account.accountId })
         if (!newOperatorAddress) {
+          // TODO cancel operation
+          delete this.changesToApply[delayedOpId]
           return new Error(`Cannot find new operator address of accountId ${account.accountId}`)
         }
         const operatorHash = scutils.bufferToHex(scutils.operatorHash(newOperatorAddress))
         if (change.log.args.actionsArguments1[0] !== operatorHash) {
+          // TODO cancel operation
+          delete this.changesToApply[delayedOpId]
           return new Error(
             `participant hash mismatch:\nlog ${change.log.args.actionsArguments1[0]}\nexpected operator hash ${operatorHash}`)
         }
@@ -214,6 +227,7 @@ export class Watchdog {
         )
       }
     } else {
+      delete this.changesToApply[delayedOpId]
       return new Error('Unsupported event' + change.log.name)
     }
     try {
@@ -221,7 +235,8 @@ export class Watchdog {
       delete this.changesToApply[delayedOpId]
       return receipt
     } catch (e) {
-      return new Error(`Got error handling event ${e.message}\nevent ${change.log.name} ${JSON.stringify(change.log.args)}`)
+      return new Error(
+        `Got error handling event ${e.message}\nevent ${change.log.name} ${JSON.stringify(change.log.args)}`)
     }
   }
 

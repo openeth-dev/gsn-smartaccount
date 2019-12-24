@@ -192,6 +192,7 @@ describe('As Guardian', async function () {
     //
     // })
     it('should NOT approve addOperatorNow for unknown accounts', async function () {
+      const id = (await sctestutils.snapshot(web3)).result
       watchdog.accountManager.removeAccount({ account: newAccount })
       const stateId = await wallet.contract.stateNonce()
       receipt = await wallet.contract.addOperatorNow(wallet.participant.permLevel, newOperatorAddress, stateId,
@@ -202,6 +203,7 @@ describe('As Guardian', async function () {
       await watchdog._worker()
       const eventsAfter = await wallet.contract.getPastEvents('ConfigApplied')
       assert.equal(eventsAfter.length, eventsBefore.length)
+      sctestutils.revert(id, web3)
     })
 
     it('should NOT approve addOperatorNow for unknown requests', async function () {
@@ -218,7 +220,6 @@ describe('As Guardian', async function () {
     it('should NOT approve addOperatorNow on participant hash mismatch', async function () {
       watchdog.accountManager.putOperatorToAdd({ accountId: newAccount.accountId, address: wrongOperatorAddress })
       const stateId = await wallet.contract.stateNonce()
-      console.log('state id is', stateId)
       receipt = await wallet.contract.addOperatorNow(wallet.participant.permLevel, newOperatorAddress, stateId,
         { from: accountZero })
       assert.equal(receipt.logs[0].event, 'ConfigPending')
@@ -233,10 +234,7 @@ describe('As Guardian', async function () {
 
     it('should approve addOperatorNow for known requests', async function () {
       watchdog.accountManager.putOperatorToAdd({ accountId: newAccount.accountId, address: newOperatorAddress })
-      console.log('WTF', newAccount.accountId,
-        watchdog.accountManager.getOperatorToAdd({ accountId: newAccount.accountId }))
       const stateId = await wallet.contract.stateNonce()
-      console.log('state id is', stateId)
       receipt = await wallet.contract.addOperatorNow(wallet.participant.permLevel, newOperatorAddress, stateId,
         { from: accountZero })
       assert.equal(receipt.logs[0].event, 'ConfigPending')
@@ -248,11 +246,17 @@ describe('As Guardian', async function () {
     })
 
     it('should not apply any operation twice', async function () {
-      hookWatchdogFunction(watchdog._applyChanges.name, function () {})
+      hookWatchdogFunction(watchdog._sendTransaction.name, function () {
+        assert.fail()
+      })
       watchdog.lastScannedBlock = 0
       await watchdog._worker()
       assert.deepEqual(watchdog.changesToApply, {})
-      unhookWatchdogFunction(watchdog._applyChanges.name)
+      watchdog.accountManager.putOperatorToAdd({ accountId: newAccount.accountId, address: wrongOperatorAddress })
+      watchdog.lastScannedBlock = 0
+      await watchdog._worker()
+      assert.deepEqual(watchdog.changesToApply, {})
+      unhookWatchdogFunction(watchdog._sendTransaction.name)
     })
 
     it('should start periodic task and subscribe to new blocks', async function () {
