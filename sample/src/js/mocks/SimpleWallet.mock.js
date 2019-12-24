@@ -82,9 +82,9 @@ export default class SimpleWalletMock extends SimpleWalletApi {
 
   async listTokens () {
     return [
-      { token: 'ETH', balance: 10e18, decimals: 18 },
-      { token: 'DAI', balance: 10e18, decimals: 18 },
-      { token: 'BAT', balance: 10e18, decimals: 18 }
+      { symbol: 'ETH', balance: 10e18, decimals: 18 },
+      { symbol: 'DAI', balance: 10e18, decimals: 18 },
+      { symbol: 'BAT', balance: 10e18, decimals: 18 }
     ]
   }
 

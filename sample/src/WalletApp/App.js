@@ -63,9 +63,9 @@ function CreateWallet ({ refresh, jwt, email }) {
   </div>
 }
 
-function TokenWidget ({ token, balance, decimals, doTransfer }) {
+function TokenWidget ({ symbol, balance, decimals, doTransfer }) {
   const div = '1e' + (decimals || 1)
-  return <pre>{token}: {balance / div} <Button title={'send ' + token} action={() => doTransfer({ token })}/></pre>
+  return <pre>{symbol}: {balance / div} <Button title={'send ' + symbol} action={() => doTransfer({ symbol })}/></pre>
 }
 
 function ActiveWallet ({ walletInfo, walletBalances, walletPending, doTransfer, doCancelPending }) {
@@ -75,7 +75,7 @@ function ActiveWallet ({ walletInfo, walletBalances, walletPending, doTransfer, 
   return <>
     Balances<br/>
     {
-      walletBalances.map(token => <TokenWidget key={token.token} {...token} doTransfer={doTransfer}/>)
+      walletBalances.map(token => <TokenWidget key={token.symbol} {...token} doTransfer={doTransfer}/>)
     }
 
     <Button title="Cancel Pending" action={doCancelPending}/>
@@ -217,17 +217,24 @@ class App extends React.Component {
     wallet.cancelPending(pending.delayedOpId)
   }
 
-  async doTransfer ({ token }) {
-    const destination = prompt('Transfer ' + token + ' destination:')
-    if (!destination) return
-    const amount = prompt('Transfer ' + token + ' amount:')
-    if (!(amount > 0)) return
-    if (amount > this.state.walletBalances) {
-      alert('you don\'t have that much.')
-      return
-    }
+  async doTransfer ({ symbol }) {
+    let err
+    try {
+      const destination = prompt('Transfer ' + symbol + ' destination:')
+      if (!destination) return
+      const amount = prompt('Transfer ' + symbol + ' amount:')
+      if (!(amount > 0)) return
+      if (amount > this.state.walletBalances) {
+        alert('you don\'t have that much.')
+        return
+      }
 
-    await wallet.transfer({ destination, amount, token })
+      await wallet.transfer({ destination, amount, token: symbol })
+    } catch (e) {
+      err = e.message
+    } finally {
+      this.reloadState({ err: err })
+    }
   }
 
   reloadState (extra) {
@@ -294,7 +301,7 @@ class App extends React.Component {
           doCancelPending={params => this.doCancelPending(params)}
           refresh={(extra) => this.reloadState(extra)} {...this.state} />
         {
-          this.state && this.state.err && <div style={{ color: 'red' }}>
+          this.state && this.state.err && <div style={{ color: 'red' }} onClick={() => this.reloadState({ err: undefined })}>
             <h2>Error: {this.state.err} </h2>
           </div>
         }
