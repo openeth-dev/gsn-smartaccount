@@ -33,19 +33,13 @@ const mockBackend = {
 
 const ethNodeUrl = 'http://localhost:8545'
 
-async function newTest (relayOptions) {
+async function newTest () {
   // we use predictable SMS code generation for tests. this code predicts SMS codes.
   const backendTestInstance = new Backend(
     { audience: '202746986880-u17rbgo95h7ja4fghikietupjknd1bln.apps.googleusercontent.com' })
   backendTestInstance.secretSMSCodeSeed = Buffer.from('f'.repeat(64), 'hex')
   const testEnvironment = await TestEnvironment.initializeWithFakeBackendAndGSN({
-    relayOptions,
-    web3provider: new Web3.providers.HttpProvider(ethNodeUrl),
-    clientBackend: mockBackend,
-    shouldDeployMockHub: true,
-    shouldFundRelay: false,
-    shouldStartBackend: false,
-    shouldAddBackend: false
+    clientBackend: mockBackend
   })
   testEnvironment.backendTestInstance = backendTestInstance
   await testEnvironment.manager.accountApi.googleLogin()
