@@ -21,10 +21,12 @@
   "license": "MIT",
   "dependencies": {
     "@truffle/contract": "latest",
+    "abi-decoder": "^2.2.2",
     "async-await-foreach": "^1.0.4",
     "axios": "^0.19.0",
     "body-parser": "^1.19.0",
     "cors": "^2.8.5",
+    "eslint-plugin-react": "^7.17.0",
     "ethereumjs-abi": "^0.6.8",
     "ethereumjs-util": "^6.2.0",
     "ethereumjs-wallet": "^0.6.3",
