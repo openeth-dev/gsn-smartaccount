@@ -56,7 +56,7 @@ export default class ClientBackend extends BEapi {
     return this._sendRequest(request)
   }
 
-  async validateAddOperatorNow ({ jwt, url }) {
+  async validateAddOperatorNow ({ jwt, smsCode }) {
     throw new Error('validate that addDeviceUrl is the one sent by addOperatorNow. save validation in memory')
   }
 

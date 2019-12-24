@@ -6,6 +6,13 @@ import scutils from 'safechannels-contracts/src/js/SafeChannelUtils'
 import abiDecoder from 'abi-decoder'
 import SmartAccountFactoryABI from 'safechannels-contracts/src/js/generated/SmartAccountFactory'
 import SmartAccountABI from 'safechannels-contracts/src/js/generated/SmartAccount'
+import { ChangeType } from '../etc/ChangeType'
+
+// const Action = {
+//   CANCEL: 1,
+//   APPLY: 2,
+//   APPROVE: 3
+// }
 
 export class Watchdog {
   constructor ({ smsManager, keyManager, accountManager, smartAccountFactoryAddress, sponsorAddress, web3provider }) {
@@ -164,22 +171,45 @@ export class Watchdog {
         change.log.args.msgdata || Buffer.alloc(0)
       )
     } else if (change.log.name === 'ConfigPending') {
-      if (apply) {
-        smartAccountMethod = this.smartAccountContract.methods.applyConfig
-      } else if (cancel) {
-        smartAccountMethod = this.smartAccountContract.methods.cancelOperation
+      if (change.log.args.actions.length === 1 && change.log.args.actions[0] === ChangeType.ADD_OPERATOR_NOW) {
+        const account = this.accountManager.getAccountByAddress({ address: change.log.address })
+        const newOperatorAddress = this.accountManager.getOperatorToAdd(
+          { accountId: account.accountId })
+        if (!newOperatorAddress) {
+          throw new Error(`Cannot find operator address on accountId ${account.accountId}`)
+        }
+        const operatorHash = scutils.operatorHash(newOperatorAddress)
+        if (change.log.args.actionsArguments1[0] !== operatorHash) {
+          throw new Error(
+            `Event's participant hash ${change.log.args.actionsArguments1[0]} doesn't match expected operator hash ${operatorHash}`)
+        }
+        this.accountManager.removeOperatorToAdd({ accountId: account.accountId })
+        smartAccountMethod = this.smartAccountFactoryContract.methods.approveAddOperatorNow
+        method = smartAccountMethod(
+          this.permsLevel,
+          newOperatorAddress,
+          change.log.args.stateId,
+          change.log.args.sender,
+          change.log.args.senderPermsLevel
+        )
+      } else {
+        if (apply) {
+          smartAccountMethod = this.smartAccountContract.methods.applyConfig
+        } else if (cancel) {
+          smartAccountMethod = this.smartAccountContract.methods.cancelOperation
+        }
+        method = smartAccountMethod(
+          this.permsLevel,
+          change.log.args.actions,
+          change.log.args.actionsArguments1,
+          change.log.args.actionsArguments2,
+          change.log.args.stateId,
+          change.log.args.sender,
+          change.log.args.senderPermsLevel,
+          change.log.args.booster,
+          change.log.args.boosterPermsLevel
+        )
       }
-      method = smartAccountMethod(
-        this.permsLevel,
-        change.log.args.actions,
-        change.log.args.actionsArguments1,
-        change.log.args.actionsArguments2,
-        change.log.args.stateId,
-        change.log.args.sender,
-        change.log.args.senderPermsLevel,
-        change.log.args.booster,
-        change.log.args.boosterPermsLevel
-      )
     } else {
       throw new Error('Unsupported event' + change.log.name)
     }

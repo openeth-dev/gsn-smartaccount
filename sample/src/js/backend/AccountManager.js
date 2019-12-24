@@ -8,6 +8,7 @@ export class AccountManager {
   constructor () {
     this.accounts = {}
     this.addressToId = {}
+    this.operatorsToAdd = {}
   }
 
   _toLowerCase ({ account }) {
@@ -51,5 +52,17 @@ export class AccountManager {
       delete this.addressToId[account.address]
     }
     delete this.accounts[account.accountId]
+  }
+
+  putOperatorToAdd ({ accountId, address }) {
+    this.operatorsToAdd[accountId] = address
+  }
+
+  getOperatorToAdd ({ accountId }) {
+    return this.operatorsToAdd[accountId]
+  }
+
+  removeOperatorToAdd ({ accountId }) {
+    delete this.operatorsToAdd[accountId]
   }
 }
