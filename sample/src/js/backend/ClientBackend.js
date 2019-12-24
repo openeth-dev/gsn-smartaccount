@@ -60,10 +60,6 @@ export default class ClientBackend extends BEapi {
     throw new Error('validate that addDeviceUrl is the one sent by addOperatorNow. save validation in memory')
   }
 
-  handleNotifications () {
-    // TODO
-  }
-
   _handleJSONRPCResponse (response) {
     if (response.error) {
       throw new Error(`${response.error.message}. code: ${response.error.code}`)

@@ -37,8 +37,4 @@ export default class BEapi {
   async cancelByUrl ({ jwt, url }) {
     error('send cancel request to watchdog as a response to sms')
   }
-
-  handleNotifications () {
-    error('monitor pending changes. can subscribe for events, but need also to handle due events.')
-  }
 }

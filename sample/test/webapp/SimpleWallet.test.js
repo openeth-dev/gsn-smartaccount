@@ -45,7 +45,7 @@ describe('SimpleWallet', async function () {
   }
 
   before(async function () {
-    web3provider = new Web3.providers.WebsocketProvider(ethNodeUrl)
+    web3provider = new Web3.providers.HttpProvider(ethNodeUrl)
     web3 = new Web3(web3provider)
     id = (await scTestUtils.snapshot(web3)).result
   })

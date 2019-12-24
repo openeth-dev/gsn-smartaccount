@@ -84,10 +84,6 @@ export class Backend {
     return { newOperatorAddress, title }
   }
 
-  handleNotifications () {
-    throw new Error('monitor pending changes. can subscribe for events, but need also to handle due events.')
-  }
-
   /**
    *
    * @param email - user email address type string
