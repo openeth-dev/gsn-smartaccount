@@ -5,9 +5,11 @@ import BEapi from '../api/BE.api'
 import cors from 'cors'
 
 export default class Webserver {
-  constructor ({ port, backend }) {
+  constructor ({ port, backend, watchdog, admin }) {
     this.port = port
     this.backend = backend
+    this.watchdog = watchdog
+    this.admin = admin
     this.app = express()
     this.app.use(cors())
 
@@ -35,9 +37,15 @@ export default class Webserver {
     try {
       if (!BEapi.prototype[req.body.method]) { throw new Error('no such method: ' + req.body.method) }
 
-      const func = this.backend[req.body.method]
-      console.log('webserver: calling', req.body.method, req.body.params)
-      const res = await func.apply(this.backend, [req.body.params]) || {}
+      let res
+      let func
+      if ((func = this.backend[req.body.method])) {
+        res = await func.apply(this.backend, [req.body.params]) || {}
+      } else if ((func = this.watchdog[req.body.method])) {
+        res = await func.apply(this.watchdog, [req.body.params]) || {}
+      } else if ((func = this.admin[req.body.method])) {
+        res = await func.apply(this.admin, [req.body.params]) || {}
+      }
 
       status = jsonrpc.success(req.body.id, res)
     } catch (e) {
@@ -46,8 +54,6 @@ export default class Webserver {
       stack = stack.replace(/(rootHandler.*)[\s\S]*/, '$1')
       status = jsonrpc.error(req.body.id, new jsonrpc.JsonRpcError(stack, -125))
     }
-    console.log('webserver: response', req.body.method, JSON.stringify(status))
-
     res.send(status)
   }
 }

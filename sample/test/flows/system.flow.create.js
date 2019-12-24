@@ -68,7 +68,8 @@ describe('System flow: Create Account', () => {
       await startBackendServer({
         port: 8887,
         factoryAddress: factory.address,
-        sponsorAddress: sponsor.address
+        sponsorAddress: sponsor.address,
+        ethNodeUrl: ethNodeUrl
       })
 
       const { watchdog: backendAddress } = await new ClientBackend({ serverURL: 'http://localhost:8887/' }).getAddresses()

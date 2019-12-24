@@ -1,40 +1,18 @@
-import BEapi from '../api/BE.api'
-import { buf2hex } from '../utils/utils'
+import { BackendAccount } from './AccountManager'
 
 const phone = require('phone')
 const gauth = require('google-auth-library')
-const crypto = require('crypto')
 const abi = require('ethereumjs-abi')
-const ethUtils = require('ethereumjs-util')
 
-export class Account {
-  constructor ({ email, phone, verificationCode, verified }) {
-    Object.assign(this, { email, phone, verificationCode, verified })
-  }
-}
-
-export class Backend extends BEapi {
-  constructor ({ smsProvider, audience, ecdsaKeyPair, factoryAddress, sponsorAddress }) {
-    super()
+export class Backend {
+  constructor ({ smsManager, audience, keyManager, accountManager }) {
     Object.assign(this, {
-      accounts: {},
-      smsProvider,
+      smsManager,
       audience,
       gclient: new gauth.OAuth2Client(audience),
-      ecdsaKeyPair,
-      factoryAddress,
-      sponsorAddress,
-      secretSMSCodeSeed: crypto.randomBytes(32)
+      keyManager,
+      accountManager
     })
-  }
-
-  async getAddresses () {
-    return {
-      watchdog: this.ecdsaKeyPair.address,
-      admin: this.ecdsaKeyPair.address,
-      factory: this.factoryAddress,
-      sponsor: this.sponsorAddress
-    }
   }
 
   async validatePhone ({ jwt, phoneNumber }) {
@@ -43,7 +21,9 @@ export class Backend extends BEapi {
     const ticket = await this._verifyJWT(jwt)
 
     const email = ticket.getPayload().email
-    await this._sendSMS({ phoneNumber: formattedPhone, email })
+    const smsCode = this.smsManager.getSmsCode({ phoneNumber: formattedPhone, email })
+    await this.smsManager.sendSMS(
+      { phoneNumber: formattedPhone, email, message: `To validate phone and create Account, enter code: ${smsCode}` })
   }
 
   async createAccount ({ jwt, smsCode, phoneNumber }) {
@@ -52,20 +32,21 @@ export class Backend extends BEapi {
     const ticket = await this._verifyJWT(jwt)
 
     const email = ticket.getPayload().email
-    if (this._getSmsCode({ phoneNumber: formattedPhone, email, expectedSmsCode: smsCode }) === smsCode) {
-      this.accounts[email] = new Account({
+    const smartAccountId = await this.getSmartAccountId({ email })
+    if (this.smsManager.getSmsCode({ phoneNumber: formattedPhone, email, expectedSmsCode: smsCode }) === smsCode) {
+      const newAccount = new BackendAccount({
+        accountId: smartAccountId,
         email: email,
         phone: formattedPhone,
-        verificationCode: smsCode,
         verified: true
       })
+      this.accountManager.putAccount({ account: newAccount })
     } else {
       throw new Error(`invalid sms code: ${smsCode}`)
     }
 
-    const smartAccountId = this._getSmartAccountId(email)
-    const approvalData = this._generateApproval({ smartAccountId: smartAccountId })
-    return { approvalData: '0x' + approvalData.toString('hex'), smartAccountId: '0x' + smartAccountId.toString('hex') }
+    const approvalData = this._generateApproval({ smartAccountId })
+    return { approvalData: '0x' + approvalData.toString('hex'), smartAccountId: '0x' + smartAccountId }
   }
 
   async signInAsNewOperator ({ jwt, title }) {
@@ -83,21 +64,17 @@ export class Backend extends BEapi {
   /**
    *
    * @param email - user email address type string
-   * @returns {Buffer} - keccak256(email) as SmartAccount id, to be verified by SmartAccountFactory on-chain during SmartAccount creation.
+   * @returns {string} - keccak256(email) as SmartAccount id, to be verified by SmartAccountFactory on-chain during SmartAccount creation.
    * @private
    */
   async getSmartAccountId ({ email }) {
-    return buf2hex(this._getSmartAccountId(email))
-  }
-
-  _getSmartAccountId (email) {
-    return abi.soliditySHA3(['string'], [email])
+    return abi.soliditySHA3(['string'], [email]).toString('hex')
   }
 
   _generateApproval ({ smartAccountId }) {
     const timestamp = Buffer.from(Math.floor(Date.now() / 1000).toString(16), 'hex')
-    const hash = abi.soliditySHA3(['bytes32', 'bytes4'], [smartAccountId, timestamp])
-    const sig = this._ecSignWithPrefix({ hash })
+    const hash = abi.soliditySHA3(['bytes32', 'bytes4'], [Buffer.from(smartAccountId, 'hex'), timestamp])
+    const sig = this.keyManager.ecSignWithPrefix({ hash })
     return abi.rawEncode(['bytes4', 'bytes'], [timestamp, sig])
   }
 
@@ -122,7 +99,7 @@ export class Backend extends BEapi {
     try {
       parsed = JSON.parse(Buffer.from(jwt.split('.')[1], 'base64'))
     } catch (e) {
-      throw new Error(`invalid jwt: ${jwt}`)
+      throw new Error(`invalid jwt format: ${jwt}`)
     }
     if (!parsed.aud || parsed.aud !== parsed.azp || this.audience !== parsed.aud) {
       throw new Error('invalid jwt: Invalid azp/aud')
@@ -132,47 +109,4 @@ export class Backend extends BEapi {
     }
     return parsed
   }
-
-  async _sendSMS ({ phoneNumber, email }) {
-    const code = this._getSmsCode({ phoneNumber, email })
-    await this.smsProvider.sendSms({ phone: phoneNumber[0], message: `verification code ${code}` })
-    return code
-  }
-
-  _getSmsCode ({ phoneNumber, email, expectedSmsCode }) {
-    const minuteTimeStamp = this._getMinuteTimestamp({ expectedSmsCode })
-    return this._calcSmsCode({ phoneNumber, email, minuteTimeStamp })
-  }
-
-  _getMinuteTimestamp ({ expectedSmsCode }) {
-    let minuteTimeStamp = Math.floor(Date.now() / 1000 / 60)
-    if (expectedSmsCode !== undefined) {
-      expectedSmsCode = parseInt(expectedSmsCode)
-      const minutes = expectedSmsCode % 10
-      minuteTimeStamp = replaceDigits(minuteTimeStamp, minutes, 10)
-    }
-    return minuteTimeStamp
-  }
-
-  _calcSmsCode ({ phoneNumber, email, minuteTimeStamp }) {
-    const dataToHash = 'PAD' + this.secretSMSCodeSeed.toString('hex') + phoneNumber[0] + email + minuteTimeStamp + 'PAD'
-    let code = parseInt(abi.soliditySHA3(['string'], [dataToHash]).toString('hex').slice(0, 6), 16) % 1e7
-    code = code.toString() + (minuteTimeStamp % 10).toString()
-
-    return code
-  }
-
-  _ecSignWithPrefix ({ hash }) {
-    const prefixedHash = abi.soliditySHA3(['string', 'bytes32'], ['\x19Ethereum Signed Message:\n32', hash])
-    return this._ecSignNoPrefix({ hash: prefixedHash })
-  }
-
-  _ecSignNoPrefix ({ hash }) {
-    const sig = ethUtils.ecsign(hash, this.ecdsaKeyPair.privateKey)
-    return Buffer.concat([sig.r, sig.s, Buffer.from(sig.v.toString(16), 'hex')])
-  }
-}
-
-function replaceDigits (num, digit, mul = 10) {
-  return (num - num % mul + digit - (num % mul >= digit ? 0 : mul))
 }
