@@ -58,7 +58,7 @@ export default class TestEnvironment {
     relayUrl,
     relayHub,
     web3provider,
-    clientBackend,
+    clientBackend
   }) {
     const instance = new TestEnvironment({ ethNodeUrl, relayUrl, relayHub, web3provider, clientBackend })
     instance.from = (await instance.web3.eth.getAccounts())[0]
@@ -117,7 +117,6 @@ export default class TestEnvironment {
     this.sponsor = await FactoryContractInteractor.deploySponsor(this.from, this.relayHub, this.ethNodeUrl)
     await this.sponsor.relayHubDeposit({ value: 2e18, from: this.from, gas: 1e5 })
     const forwarderAddress = await this.sponsor.getGsnForwarder()
-    console.log('forwarderAddress', forwarderAddress)
     this.factory = await FactoryContractInteractor.deployNewSmartAccountFactory(this.from, this.ethNodeUrl, forwarderAddress)
   }
 
@@ -148,7 +147,7 @@ export default class TestEnvironment {
   async initializeSimpleManager () {
     const relayOptions = {
       verbose,
-      sponsor: this.sponsor.address,
+      sponsor: this.sponsor.address
     }
     if (this.isRelayHubMocked) {
       relayOptions.httpSend = new RelayServerMock({

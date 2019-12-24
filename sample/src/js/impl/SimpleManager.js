@@ -99,7 +99,7 @@ export default class SimpleManager extends SimpleManagerApi {
     // TODO: next commit: make 'FactoryContractInteractor.deployNewSmartAccount' do this job
     const smartAccountIdId = response.smartAccountId
     const approvalData = response.approvalData
-    let a = await this.smartAccountFactory.newSmartAccount(smartAccountIdId, {
+    await this.smartAccountFactory.newSmartAccount(smartAccountIdId, {
       from: sender,
       gas: 1e8,
       approvalData: approvalData
@@ -134,6 +134,7 @@ export default class SimpleManager extends SimpleManagerApi {
     const participants = this._getParticipants({ ownerAddress: owner, guardianAddress: this.guardianAddress })
     return new SimpleWallet({
       contract: smartAccount,
+      backend: this.backend,
       participant: participants.operator,
       knownParticipants: [participants.backendAsAdmin, participants.backendAsWatchdog]
     })

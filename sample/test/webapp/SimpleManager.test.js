@@ -4,44 +4,29 @@ import assert from 'assert'
 import chai, { expect } from 'chai'
 import chaiAsPromised from 'chai-as-promised'
 import sinon from 'sinon'
-import Web3 from 'web3'
 
 import SimpleManager from '../../src/js/impl/SimpleManager'
-import { Backend } from '../../src/js/backend/Backend'
-import { testCancelByUrlBehavior, testCreateWalletBehavior } from './behavior/SimpleManager.behavior'
+import {
+  testCancelByUrlBehavior,
+  testCreateWalletBehavior, testSignInBehavior,
+  testValidatePhoneBehavior
+} from './behavior/SimpleManager.behavior'
 import TestEnvironment from '../utils/TestEnvironment'
 
 chai.use(chaiAsPromised)
 chai.should()
-
-const mockBackend = {
-  createAccount: async function () {
-    return {
-      approvalData: '0x' + 'f'.repeat(64),
-      smartAccountId: '0x' + '1'.repeat(64)
-    }
-  },
-  getSmartAccountId: async function () {
-    return '0x' + '1'.repeat(64)
-  },
+const mockBackendBase = {
   getAddresses: async function () {
     return {
-      watchdog: '0x' + '1'.repeat(20)
+      watchdog: '0x' + '1'.repeat(40)
     }
   }
 }
 
-const ethNodeUrl = 'http://localhost:8545'
-
-async function newTest () {
-  // we use predictable SMS code generation for tests. this code predicts SMS codes.
-  const backendTestInstance = new Backend(
-    { audience: '202746986880-u17rbgo95h7ja4fghikietupjknd1bln.apps.googleusercontent.com' })
-  backendTestInstance.secretSMSCodeSeed = Buffer.from('f'.repeat(64), 'hex')
+async function newTest (backend) {
   const testEnvironment = await TestEnvironment.initializeWithFakeBackendAndGSN({
-    clientBackend: mockBackend
+    clientBackend: backend
   })
-  testEnvironment.backendTestInstance = backendTestInstance
   await testEnvironment.manager.accountApi.googleLogin()
   return testEnvironment
 }
@@ -87,34 +72,28 @@ describe('SimpleManager', async function () {
     })
   })
 
-  describe.skip('#validatePhone()', async function () {
-    it('should pass parameters to backend and handle http 200 OK code', async function () {
-      sm.backend = {
-        validatePhone: sinon.spy(() => { return { code: 200 } })
+  describe('#validatePhone()', async function () {
+    let testContext
+    before(async function () {
+      const mockBackend = {
+        validatePhone: sinon.spy(() => { return { code: 200 } }),
+        ...mockBackendBase
       }
-      const jwt = {}
-      const phoneNumber = '0000'
-      const { success, reason } = await sm.validatePhone({ jwt, phoneNumber })
-      assert.strictEqual(success, true)
-      assert.strictEqual(reason, null)
-      expect(sm.backend.validatePhone.calledOnce).to.be.true
-      expect(sm.backend.validatePhone.firstCall.args[0]).to.eql({ jwt, phoneNumber })
+      testContext = await newTest(mockBackend)
     })
+    testValidatePhoneBehavior(() => testContext)
   })
 
-  describe.skip('#signInAsNewOperator()', async function () {
-    it('should pass parameters to backend and handle http 200 OK code', async function () {
-      sm.backend = {
-        signInAsNewOperator: sinon.spy(() => { return { code: 200 } })
+  describe('#signInAsNewOperator()', async function () {
+    let testContext
+    before(async function () {
+      const mockBackend = {
+        signInAsNewOperator: sinon.spy(() => { return { code: 200 } }),
+        ...mockBackendBase
       }
-      const jwt = {}
-      const description = '0000'
-      const { success, reason } = await sm.signInAsNewOperator({ jwt, description })
-      assert.strictEqual(success, true)
-      assert.strictEqual(reason, null)
-      expect(sm.backend.signInAsNewOperator.calledOnce).to.be.true
-      expect(sm.backend.signInAsNewOperator.firstCall.args[0]).to.eql({ jwt, description })
+      testContext = await newTest(mockBackend)
     })
+    testSignInBehavior(() => testContext)
   })
 
   describe('#setSignInObserver()', async function () {
@@ -122,36 +101,45 @@ describe('SimpleManager', async function () {
   })
 
   describe('#createWallet()', async function () {
+    let testContext
 
-    // TODO: extract test to behavior file
-    describe('main flows', async function () {
-      let testContext
-
-      before(async function () {
-        testContext = await newTest()
-      })
-
-      testCreateWalletBehavior(() => testContext)
-
-      describe('secondary flows', async function () {
-        it('should throw if there is no operator set')
-
-        it('should throw if this user already has a SmartAccount deployed')
-      })
+    before(async function () {
+      const mockBackend = {
+        createAccount: async function () {
+          return {
+            approvalData: '0x' + 'f'.repeat(64),
+            smartAccountId: '0x' + '1'.repeat(64)
+          }
+        },
+        getSmartAccountId: async function () {
+          return '0x' + '1'.repeat(64)
+        },
+        ...mockBackendBase
+      }
+      testContext = await newTest(mockBackend)
+      testContext.jwt = {}
+      testContext.phoneNumber = '1'
+      testContext.smsCode = '1234'
     })
 
-    describe('#googleAuthenticate()', async function () {
-    })
+    testCreateWalletBehavior(() => testContext)
 
-    describe('#getWalletAddress()', async function () {
-    })
+    it('should throw if there is no operator set')
 
-    describe('#loadWallet()', async function () {
-    })
+    it('should throw if this user already has a SmartAccount deployed')
+  })
 
-    testCancelByUrlBehavior()
+  describe('#googleAuthenticate()', async function () {
+  })
 
-    describe('#recoverWallet()', async function () {
-    })
+  describe('#getWalletAddress()', async function () {
+  })
+
+  describe('#loadWallet()', async function () {
+  })
+
+  testCancelByUrlBehavior()
+
+  describe('#recoverWallet()', async function () {
   })
 })
