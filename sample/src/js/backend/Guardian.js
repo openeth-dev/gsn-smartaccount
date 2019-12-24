@@ -85,8 +85,9 @@ export class Watchdog {
           break
       }
     }
-    await this._applyChanges()
+    const txhashes = await this._applyChanges()
     this.lastScannedBlock = logs[logs.length - 1].blockNumber
+    return txhashes
   }
 
   async _handleSmartAccountCreatedEvent (dlog) {
@@ -123,12 +124,14 @@ export class Watchdog {
   }
 
   async _applyChanges () {
+    const txhashes = []
     for (const delayedOpId of Object.keys(this.changesToApply)) {
       const change = this.changesToApply[delayedOpId]
       if (change.dueTime <= Date.now()) {
-        await this._finalizeChange(delayedOpId, { apply: true })
+        txhashes.push(await this._finalizeChange(delayedOpId, { apply: true }))
       }
     }
+    return txhashes
   }
 
   _extractCancelParamsFromUrl ({ url }) {
@@ -171,20 +174,20 @@ export class Watchdog {
         change.log.args.msgdata || Buffer.alloc(0)
       )
     } else if (change.log.name === 'ConfigPending') {
-      if (change.log.args.actions.length === 1 && change.log.args.actions[0] === ChangeType.ADD_OPERATOR_NOW) {
+      if (change.log.args.actions.length === 1 && change.log.args.actions[0] === ChangeType.ADD_OPERATOR_NOW.toString()) {
         const account = this.accountManager.getAccountByAddress({ address: change.log.address })
         const newOperatorAddress = this.accountManager.getOperatorToAdd(
           { accountId: account.accountId })
         if (!newOperatorAddress) {
-          throw new Error(`Cannot find operator address on accountId ${account.accountId}`)
+          return new Error(`Cannot find new operator address of accountId ${account.accountId}`)
         }
-        const operatorHash = scutils.operatorHash(newOperatorAddress)
+        const operatorHash = scutils.bufferToHex(scutils.operatorHash(newOperatorAddress))
         if (change.log.args.actionsArguments1[0] !== operatorHash) {
-          throw new Error(
-            `Event's participant hash ${change.log.args.actionsArguments1[0]} doesn't match expected operator hash ${operatorHash}`)
+          return new Error(
+            `participant hash mismatch:\nlog ${change.log.args.actionsArguments1[0]}\nexpected operator hash ${operatorHash}`)
         }
         this.accountManager.removeOperatorToAdd({ accountId: account.accountId })
-        smartAccountMethod = this.smartAccountFactoryContract.methods.approveAddOperatorNow
+        smartAccountMethod = this.smartAccountContract.methods.approveAddOperatorNow
         method = smartAccountMethod(
           this.permsLevel,
           newOperatorAddress,
@@ -211,14 +214,14 @@ export class Watchdog {
         )
       }
     } else {
-      throw new Error('Unsupported event' + change.log.name)
+      return new Error('Unsupported event' + change.log.name)
     }
     try {
       const receipt = await this._sendTransaction(method, change)
       delete this.changesToApply[delayedOpId]
       return receipt
     } catch (e) {
-      console.log(`Got error handling event ${e.message}\nevent ${change.log}`)
+      return new Error(`Got error handling event ${e.message}\nevent ${change.log.name} ${JSON.stringify(change.log.args)}`)
     }
   }
 

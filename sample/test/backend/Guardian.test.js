@@ -40,6 +40,8 @@ describe('As Guardian', async function () {
   let wallet
   const whitelistPolicy = '0x1111111111111111111111111111111111111111'
   const transferDestination = '0x1234567891111111111111111111111111111111'
+  const newOperatorAddress = '0x1234567892222222222222222222222222222222'
+  const wrongOperatorAddress = '0x1234567892222222222222222222222222222223'
   const amount = 1e3
   let config
   let newAccount
@@ -58,6 +60,9 @@ describe('As Guardian', async function () {
   before(async function () {
     web3provider = new Web3.providers.WebsocketProvider(ethNodeUrl)
     web3 = new Web3(web3provider)
+    web3.eth.net.isListening(function (error, result) {
+      if (error) console.log('error listening', error)
+    })
     accountZero = (await web3.eth.getAccounts())[0]
     smartAccount = await FactoryContractInteractor.deploySmartAccountDirectly(accountZero, ethNodeUrl)
     walletConfig = {
@@ -181,6 +186,65 @@ describe('As Guardian', async function () {
         assert.equal(eventsAfter.length, eventsBefore.length + 1)
         assert.deepEqual(watchdog.changesToApply, {})
       })
+    })
+
+    // describe('addOperatorNow', async function () {
+    //
+    // })
+    it('should NOT approve addOperatorNow for unknown accounts', async function () {
+      watchdog.accountManager.removeAccount({ account: newAccount })
+      const stateId = await wallet.contract.stateNonce()
+      receipt = await wallet.contract.addOperatorNow(wallet.participant.permLevel, newOperatorAddress, stateId,
+        { from: accountZero })
+      assert.equal(receipt.logs[0].event, 'ConfigPending')
+      assert.equal(receipt.logs[0].args.actions[0], ChangeType.ADD_OPERATOR_NOW.toString())
+      const eventsBefore = await wallet.contract.getPastEvents('ConfigApplied')
+      await watchdog._worker()
+      const eventsAfter = await wallet.contract.getPastEvents('ConfigApplied')
+      assert.equal(eventsAfter.length, eventsBefore.length)
+    })
+
+    it('should NOT approve addOperatorNow for unknown requests', async function () {
+      watchdog.accountManager.putAccount({ account: newAccount })
+      const stateId = await wallet.contract.stateNonce()
+      receipt = await wallet.contract.addOperatorNow(wallet.participant.permLevel, newOperatorAddress, stateId,
+        { from: accountZero })
+      assert.equal(receipt.logs[0].event, 'ConfigPending')
+      assert.equal(receipt.logs[0].args.actions[0], ChangeType.ADD_OPERATOR_NOW.toString())
+      const ret = await watchdog._worker()
+      assert.equal(ret[0].message, `Cannot find new operator address of accountId ${newAccount.accountId}`)
+    })
+
+    it('should NOT approve addOperatorNow on participant hash mismatch', async function () {
+      watchdog.accountManager.putOperatorToAdd({ accountId: newAccount.accountId, address: wrongOperatorAddress })
+      const stateId = await wallet.contract.stateNonce()
+      console.log('state id is', stateId)
+      receipt = await wallet.contract.addOperatorNow(wallet.participant.permLevel, newOperatorAddress, stateId,
+        { from: accountZero })
+      assert.equal(receipt.logs[0].event, 'ConfigPending')
+      assert.equal(receipt.logs[0].args.actions[0], ChangeType.ADD_OPERATOR_NOW.toString())
+      const ret = await watchdog._worker()
+      assert.equal(ret[0].message,
+        `participant hash mismatch:\nlog ${receipt.logs[0].args.actionsArguments1[0]}\nexpected operator hash ${scutils.bufferToHex(
+          scutils.operatorHash(
+            wrongOperatorAddress))}`)
+      watchdog.accountManager.removeOperatorToAdd({ accountId: newAccount.accountId })
+    })
+
+    it('should approve addOperatorNow for known requests', async function () {
+      watchdog.accountManager.putOperatorToAdd({ accountId: newAccount.accountId, address: newOperatorAddress })
+      console.log('WTF', newAccount.accountId,
+        watchdog.accountManager.getOperatorToAdd({ accountId: newAccount.accountId }))
+      const stateId = await wallet.contract.stateNonce()
+      console.log('state id is', stateId)
+      receipt = await wallet.contract.addOperatorNow(wallet.participant.permLevel, newOperatorAddress, stateId,
+        { from: accountZero })
+      assert.equal(receipt.logs[0].event, 'ConfigPending')
+      assert.equal(receipt.logs[0].args.actions[0], ChangeType.ADD_OPERATOR_NOW.toString())
+      const eventsBefore = await wallet.contract.getPastEvents('ConfigApplied')
+      await watchdog._worker()
+      const eventsAfter = await wallet.contract.getPastEvents('ConfigApplied')
+      assert.equal(eventsAfter.length, eventsBefore.length + 1)
     })
 
     it('should not apply any operation twice', async function () {

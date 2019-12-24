@@ -214,7 +214,8 @@ contract SmartAccount is PermissionsLevel, GsnRecipient {
         uint256 scheduledStateId,
         address scheduler,
         uint32 schedulerPermsLevel) public {
-        requirePermissions(getSender(), canApprove, senderPermsLevel);
+        address sender = getSender();
+        requirePermissions(sender, canApprove, senderPermsLevel);
         requireNotFrozen(senderPermsLevel);
         uint8[] memory actions = new uint8[](1);
         bytes32[] memory args = new bytes32[](1);
@@ -224,6 +225,7 @@ contract SmartAccount is PermissionsLevel, GsnRecipient {
         require(pendingChanges[hash].dueTime != 0, "Pending change not found");
         delete pendingChanges[hash];
         participants[args[0]] = true;
+        emit ConfigApplied(hash, sender);
         emit ParticipantAdded(args[0]);
 
         stateNonce++;
