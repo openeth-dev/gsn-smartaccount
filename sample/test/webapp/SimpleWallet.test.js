@@ -1,11 +1,11 @@
 /* eslint-disable no-unused-expressions */
 /* global describe before after it */
 import assert from 'assert'
-
+import Web3 from 'web3'
 import FactoryContractInteractor from 'safechannels-contracts/src/js/FactoryContractInteractor'
 import Permissions from 'safechannels-contracts/src/js/Permissions'
 import Participant from 'safechannels-contracts/src/js/Participant'
-import SafeChannelUtils from 'safechannels-contracts/src/js/SafeChannelUtils'
+import scTestUtils from 'safechannels-contracts/test/utils'
 
 import SimpleWallet from '../../src/js/impl/SimpleWallet'
 import ConfigEntry from '../../src/js/etc/ConfigEntry'
@@ -19,6 +19,8 @@ before(async function () {
 //  required transaction history; also, stop mocking functions inside class under test - move stub logic to interactor
 describe('SimpleWallet', async function () {
   let id
+  let web3
+  let web3provider
   const whitelistPolicy = '0x1111111111111111111111111111111111111111'
   const backend = '0x2222222222222222222222222222222222222222'
   const operator = '0x3333333333333333333333333333333333333333'
@@ -41,6 +43,16 @@ describe('SimpleWallet', async function () {
       new Participant(backend, Permissions.AdminPermissions, 1)
     ]
   }
+
+  before(async function () {
+    web3provider = new Web3.providers.WebsocketProvider(ethNodeUrl)
+    web3 = new Web3(web3provider)
+    id = (await scTestUtils.snapshot(web3)).result
+  })
+
+  after(async function () {
+    await scTestUtils.revert(id, web3)
+  })
 
   async function newTest (operator = null) {
     const smartAccount = await FactoryContractInteractor.deploySmartAccountDirectly(from, ethNodeUrl)
@@ -265,7 +277,6 @@ describe('SimpleWallet', async function () {
     let testContext
     before(async function () {
       testContext = await newTest(from)
-      id = (await SafeChannelUtils.snapshot(testContext.wallet._getWeb3().web3)).result
       await testContext.wallet.getWalletInfo()
       // TODO: migrate to usage of wallet methods after implemented
       await testContext.wallet.contract.changeConfiguration(
@@ -275,11 +286,7 @@ describe('SimpleWallet', async function () {
       await testContext.wallet.getWalletInfo()
       await testContext.wallet.transfer({ destination: operator, token: 'ETH', amount: 1e5 })
       const timeGap = 60 * 60 * 24 * 2 + 10
-      await SafeChannelUtils.increaseTime(timeGap, testContext.wallet._getWeb3().web3)
-    })
-
-    after(async function () {
-      await SafeChannelUtils.revert(id, testContext.wallet._getWeb3().web3)
+      await scTestUtils.increaseTime(timeGap, testContext.wallet._getWeb3().web3)
     })
 
     it('should apply all operations that are due', async function () {
