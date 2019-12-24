@@ -111,4 +111,8 @@ export default class SimpleManagerMock extends SimpleManagerApi {
   setSignInObserver ({ observer, interval }) {
     super.setSignInObserver({ observer, interval })
   }
+
+  async cancelByUrl ({ jwt, url }) {
+    super.cancelByUrl({ jwt, url })
+  }
 }

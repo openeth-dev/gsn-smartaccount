@@ -3,42 +3,78 @@ import Web3 from 'web3'
 import FactoryContractInteractor from 'safechannels-contracts/src/js/FactoryContractInteractor'
 import axios from 'axios'
 import path from 'path'
-import ClientBackend from '../../src/js/backend/ClientBackend'
 import { MockStorage } from '../mocks/MockStorage'
 import SmartAccountSDK from '../../src/js/impl/SmartAccountSDK'
 import Account from '../../src/js/impl/Account'
 import SimpleManager from '../../src/js/impl/SimpleManager'
+import RelayServerMock from '../mocks/RelayServer.mock'
+import ClientBackend from '../../src/js/backend/ClientBackend'
 
 /**
  * AFAIK, the docker image will always deploy the hub to the same address
  * @type {string}
  */
-const relayHubAddress = '0xD216153c06E857cD7f72665E0aF1d7D82172F494'
-// TODO: accept as constructor params
-const ethNodeUrl = 'http://localhost:8545'
-const relayUrl = 'http://localhost:8090'
-const serverUrl = 'http://localhost:8888/'
+const _relayHub = '0xD216153c06E857cD7f72665E0aF1d7D82172F494'
+const _ethNodeUrl = 'http://localhost:8545'
+const _relayUrl = 'http://localhost:8090'
+const _serverUrl = 'http://localhost:8888/'
 const verbose = false
 
 export default class TestEnvironment {
-  constructor () {
+  constructor ({
+    ethNodeUrl = _ethNodeUrl,
+    relayUrl = _relayUrl,
+    serverUrl = _serverUrl,
+    relayHub = _relayHub,
+    clientBackend,
+    web3provider
+  }) {
     this.ethNodeUrl = ethNodeUrl
     this.relayUrl = relayUrl
-    this.serverURL = serverUrl
-    this.clientBackend = new ClientBackend({ serverURL: this.serverURL })
-    this.web3provider = new Web3.providers.HttpProvider(this.ethNodeUrl)
+    this.relayHub = relayHub
+    this.clientBackend = clientBackend || new ClientBackend({ serverURL: serverUrl })
+    this.web3provider = web3provider || new Web3.providers.HttpProvider(ethNodeUrl)
     this.web3 = new Web3(this.web3provider)
   }
 
-  async initialize () {
-    this.from = (await this.web3.eth.getAccounts())[0]
-    await this.getRelayAddress()
-    await this.fundRelayIfNeeded()
-    await this.deployNewFactory()
-    await this.startBackendServer()
-    this.backendAddresses = await this.clientBackend.getAddresses()
-    await this.addBackendAsTrustedSignerOnFactory()
-    await this.initializeSimpleManager()
+  static async initializeWithFakeBackendAndGSN ({
+    ethNodeUrl,
+    relayUrl,
+    relayHub,
+    web3provider,
+    clientBackend
+  }) {
+    const instance = new TestEnvironment({ ethNodeUrl, relayUrl, relayHub, web3provider, clientBackend })
+    instance.from = (await instance.web3.eth.getAccounts())[0]
+    instance.backendAddresses = await instance.clientBackend.getAddresses()
+    await instance.deployMockHub()
+    await instance.deployNewFactory()
+    await instance.initializeSimpleManager()
+    return instance
+  }
+
+  static async initializeAndStartBackendFoRealGSN ({
+    ethNodeUrl,
+    relayUrl,
+    relayHub,
+    web3provider,
+    clientBackend,
+  }) {
+    const instance = new TestEnvironment({ ethNodeUrl, relayUrl, relayHub, web3provider, clientBackend })
+    instance.from = (await instance.web3.eth.getAccounts())[0]
+    await instance.fundRelayIfNeeded()
+    await instance.deployNewFactory()
+    await instance.startBackendServer()
+    // From this point on, there is an external process running that has to be killed if construction fails
+    try {
+      instance.backendAddresses = await instance.clientBackend.getAddresses()
+      await instance.addBackendAsTrustedSignerOnFactory()
+      await instance.initializeSimpleManager()
+      return instance
+    } catch (e) {
+      instance.stopBackendServer()
+      throw e
+    }
   }
 
   async startBackendServer () {
@@ -73,15 +109,23 @@ export default class TestEnvironment {
     })
   }
 
-  async stopBackendServer () {
+  stopBackendServer () {
     this.ls.kill(9)
   }
 
   async deployNewFactory () {
-    this.sponsor = await FactoryContractInteractor.deploySponsor(this.from, relayHubAddress, this.ethNodeUrl)
-    await this.sponsor.relayHubDeposit({ value: 2e18, from: this.from })
+    this.sponsor = await FactoryContractInteractor.deploySponsor(this.from, this.relayHub, this.ethNodeUrl)
+    await this.sponsor.relayHubDeposit({ value: 2e18, from: this.from, gas: 1e5 })
     const forwarderAddress = await this.sponsor.getGsnForwarder()
+    console.log('forwarderAddress', forwarderAddress)
     this.factory = await FactoryContractInteractor.deployNewSmartAccountFactory(this.from, this.ethNodeUrl, forwarderAddress)
+  }
+
+  async deployMockHub () {
+    const mockHub = await FactoryContractInteractor.deployMockHub(this.from, this.ethNodeUrl)
+    this.relayHub = mockHub.address
+    this.mockHub = mockHub
+    this.isRelayHubMocked = true
   }
 
   async addBackendAsTrustedSignerOnFactory () {
@@ -90,12 +134,13 @@ export default class TestEnvironment {
 
   async getRelayAddress () {
     const res = await axios.get(this.relayUrl + '/getaddr')
-    this.relayAddr = res.data.RelayServerAddress
+    return res.data.RelayServerAddress
   }
 
   async fundRelayIfNeeded () {
-    if (await this.web3.eth.getBalance(this.relayAddr) < 3e18) {
-      await this.web3.eth.sendTransaction({ from: this.from, value: 3e18, to: this.relayAddr })
+    const relayAddr = await this.getRelayAddress()
+    if (await this.web3.eth.getBalance(relayAddr) < 3e18) {
+      await this.web3.eth.sendTransaction({ from: this.from, value: 3e18, to: relayAddr })
       console.log('funded relay')
     }
   }
@@ -103,7 +148,14 @@ export default class TestEnvironment {
   async initializeSimpleManager () {
     const relayOptions = {
       verbose,
-      sponsor: this.backendAddresses.sponsor
+      sponsor: this.sponsor.address,
+    }
+    if (this.isRelayHubMocked) {
+      relayOptions.httpSend = new RelayServerMock({
+        mockHubContract: this.mockHub,
+        relayServerAddress: this.from.toLowerCase(),
+        web3provider: this.web3provider
+      })
     }
     const storage = new MockStorage()
     const acc = await SmartAccountSDK.init({
@@ -113,13 +165,13 @@ export default class TestEnvironment {
     })
     const factoryConfig = {
       provider: acc.provider,
-      factoryAddress: this.backendAddresses.factory
+      factoryAddress: this.factory.address
     }
 
     this.manager = new SimpleManager({
       accountApi: acc.account,
       backend: this.clientBackend,
-      guardianAddress: this.backendAddresses.guardianAddress,
+      guardianAddress: this.backendAddresses.watchdog,
       factoryConfig
     })
   }

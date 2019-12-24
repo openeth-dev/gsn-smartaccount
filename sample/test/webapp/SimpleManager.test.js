@@ -6,22 +6,14 @@ import chaiAsPromised from 'chai-as-promised'
 import sinon from 'sinon'
 import Web3 from 'web3'
 
-import FactoryContractInteractor from 'safechannels-contracts/src/js/FactoryContractInteractor'
-
-import { SponsorProvider } from 'gsn-sponsor'
-
-import RelayServerMock from '../mocks/RelayServer.mock'
 import SimpleManager from '../../src/js/impl/SimpleManager'
 import { Backend } from '../../src/js/backend/Backend'
-import { MockStorage } from '../mocks/MockStorage'
-import Account from '../../src/js/impl/Account'
-import { hookRpcProvider } from '../../src/js/utils/hookRpcProvider'
-import { testCancelByUrlBehavior } from './behavior/SimpleManager.behavior'
+import { testCancelByUrlBehavior, testCreateWalletBehavior } from './behavior/SimpleManager.behavior'
+import TestEnvironment from '../utils/TestEnvironment'
 
 chai.use(chaiAsPromised)
 chai.should()
 
-const verbose = false
 const mockBackend = {
   createAccount: async function () {
     return {
@@ -31,23 +23,37 @@ const mockBackend = {
   },
   getSmartAccountId: async function () {
     return '0x' + '1'.repeat(64)
+  },
+  getAddresses: async function () {
+    return {
+      watchdog: '0x' + '1'.repeat(20)
+    }
   }
 }
 
-let backendTestInstance
+const ethNodeUrl = 'http://localhost:8545'
 
-before(async function () {
-  // TODO: get accounts
-
-  backendTestInstance = new Backend(
+async function newTest (relayOptions) {
+  // we use predictable SMS code generation for tests. this code predicts SMS codes.
+  const backendTestInstance = new Backend(
     { audience: '202746986880-u17rbgo95h7ja4fghikietupjknd1bln.apps.googleusercontent.com' })
   backendTestInstance.secretSMSCodeSeed = Buffer.from('f'.repeat(64), 'hex')
-})
+  const testEnvironment = await TestEnvironment.initializeWithFakeBackendAndGSN({
+    relayOptions,
+    web3provider: new Web3.providers.HttpProvider(ethNodeUrl),
+    clientBackend: mockBackend,
+    shouldDeployMockHub: true,
+    shouldFundRelay: false,
+    shouldStartBackend: false,
+    shouldAddBackend: false
+  })
+  testEnvironment.backendTestInstance = backendTestInstance
+  await testEnvironment.manager.accountApi.googleLogin()
+  return testEnvironment
+}
 
 describe('SimpleManager', async function () {
   const email = 'shahaf@tabookey.com'
-  const ethNodeUrl = 'http://localhost:8545'
-  const from = '0x90f8bf6a479f320ead074411a4b0e7944ea8c9c1'
 
   let sm
 
@@ -87,7 +93,7 @@ describe('SimpleManager', async function () {
     })
   })
 
-  describe('#validatePhone()', async function () {
+  describe.skip('#validatePhone()', async function () {
     it('should pass parameters to backend and handle http 200 OK code', async function () {
       sm.backend = {
         validatePhone: sinon.spy(() => { return { code: 200 } })
@@ -102,7 +108,7 @@ describe('SimpleManager', async function () {
     })
   })
 
-  describe('#signInAsNewOperator()', async function () {
+  describe.skip('#signInAsNewOperator()', async function () {
     it('should pass parameters to backend and handle http 200 OK code', async function () {
       sm.backend = {
         signInAsNewOperator: sinon.spy(() => { return { code: 200 } })
@@ -122,113 +128,36 @@ describe('SimpleManager', async function () {
   })
 
   describe('#createWallet()', async function () {
-    let mockhub
-    let factory
-    let sponsor
-    let forward
-    let web3provider
-
-    const jwt = require('../backend/testJwt').jwt
-    const phoneNumber = '+1-541-754-3010'
-
-    before(async function () {
-      web3provider = new Web3.providers.HttpProvider(ethNodeUrl)
-      mockhub = await FactoryContractInteractor.deployMockHub(from, ethNodeUrl)
-      sponsor = await FactoryContractInteractor.deploySponsor(from, mockhub.address, ethNodeUrl)
-      const forwarderAddress = await sponsor.contract.methods.getGsnForwarder().call()
-      forward = await FactoryContractInteractor.getGsnForwarder({
-        address: forwarderAddress,
-        provider: web3provider
-      })
-      factory = await FactoryContractInteractor.deployNewSmartAccountFactory(from, ethNodeUrl, forward.address)
-      if (!verbose) {
-        return
-      }
-      const spHub = await sponsor.contract.methods.getHubAddr().call()
-      const fwHub = await forward.contract.methods.getHubAddr().call()
-      const vfHub = await factory.contract.methods.getHubAddr().call()
-      const vfFwd = await factory.contract.methods.getGsnForwarder().call()
-      console.log(`spHub = ${spHub} fwHub=${fwHub} vfHub=${vfHub} vfFwd=${vfFwd}`)
-      console.log(
-        `mockhub = ${mockhub.address} factory=${factory.address} sponsor=${sponsor.address} forward=${forward.address}`)
-    })
 
     // TODO: extract test to behavior file
     describe('main flows', async function () {
-      let factoryConfig
-      let sm
+      let testContext
 
       before(async function () {
-        const storage = new MockStorage()
-        const accountApi = new Account(storage)
-        accountApi.googleLogin()
-
-        const relayOptions = {
-          httpSend: new RelayServerMock({
-            mockHubContract: mockhub,
-            relayServerAddress: from,
-            web3provider: web3provider
-          }),
-          sponsor: sponsor.address,
-          proxyOwner: {
-            address: await accountApi.getOwner()
-          }
-        }
-        const signerProvider = hookRpcProvider(web3provider, {
-          eth_sign: async function (account, hash) {
-            if (account !== await accountApi.getOwner()) {
-              throw new Error('wrong signer: not valid account')
-            }
-            return accountApi.signMessageHash(hash)
-          }
-        })
-
-        const sponsorProvider = await SponsorProvider.init(signerProvider, relayOptions)
-
-        factoryConfig = {
-          provider: sponsorProvider,
-          factoryAddress: factory.address
-        }
-        sm = new SimpleManager({
-          email: email,
-          accountApi: accountApi,
-          backend: mockBackend,
-          factoryConfig: factoryConfig
-        })
+        testContext = await newTest()
       })
 
-      it('should deploy a new SmartAccount using SponsorProvider', async function () {
-        const minuteTimestamp = backendTestInstance._getMinuteTimestamp({})
-        const smsVerificationCode = backendTestInstance._calcSmsCode({
-          phoneNumber: backendTestInstance._formatPhoneNumber(phoneNumber),
-          email: 'shahaf@tabookey.com',
-          minuteTimeStamp: minuteTimestamp
-        })
-        const wallet = await sm.createWallet({ jwt, phoneNumber, smsVerificationCode })
-        const operator = (await sm.getOwner()).toLowerCase()
-        const creator = (await wallet.contract.creator()).toLowerCase()
-        assert.strictEqual(creator, operator)
+      testCreateWalletBehavior(() => testContext)
+
+      describe('secondary flows', async function () {
+        it('should throw if there is no operator set')
+
+        it('should throw if this user already has a SmartAccount deployed')
       })
     })
 
-    describe('secondary flows', async function () {
-      it('should throw if there is no operator set')
-
-      it('should throw if this user already has a SmartAccount deployed')
+    describe('#googleAuthenticate()', async function () {
     })
-  })
 
-  describe('#googleAuthenticate()', async function () {
-  })
+    describe('#getWalletAddress()', async function () {
+    })
 
-  describe('#getWalletAddress()', async function () {
-  })
+    describe('#loadWallet()', async function () {
+    })
 
-  describe('#loadWallet()', async function () {
-  })
+    testCancelByUrlBehavior()
 
-  testCancelByUrlBehavior()
-
-  describe('#recoverWallet()', async function () {
+    describe('#recoverWallet()', async function () {
+    })
   })
 })

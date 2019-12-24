@@ -99,7 +99,7 @@ export default class SimpleManager extends SimpleManagerApi {
     // TODO: next commit: make 'FactoryContractInteractor.deployNewSmartAccount' do this job
     const smartAccountIdId = response.smartAccountId
     const approvalData = response.approvalData
-    await this.smartAccountFactory.newSmartAccount(smartAccountIdId, {
+    let a = await this.smartAccountFactory.newSmartAccount(smartAccountIdId, {
       from: sender,
       gas: 1e8,
       approvalData: approvalData
@@ -166,5 +166,9 @@ export default class SimpleManager extends SimpleManagerApi {
     setInterval(() => {
       console.log('how you gonna test?')
     }, interval)
+  }
+
+  async cancelByUrl ({ jwt, url }) {
+    return this.backend.cancelByUrl({ jwt, url })
   }
 }

@@ -448,6 +448,7 @@ export default class SimpleWallet extends SimpleWalletApi {
     return this.backend.validateAddOperatorNow({ jwt, url })
   }
 
+  // TODO: this code is not really covered with tests! Do not trust it!
   async applyAllPendingOperations () {
     const block = await this._getWeb3().web3.eth.getBlock('latest')
     const blockchainTime = block.timestamp

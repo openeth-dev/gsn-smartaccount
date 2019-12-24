@@ -4,14 +4,12 @@ import { assert, expect } from 'chai'
 import SMSmock from '../../src/js/mocks/SMS.mock'
 import TestEnvironment from '../utils/TestEnvironment'
 
-describe.only('System flow: Create Account', () => {
+describe('System flow: Create Account', () => {
   let testEnvironment
 
   before('check "gsn-dock-relay" is active', async function () {
-    testEnvironment = new TestEnvironment()
-    await testEnvironment.initialize()
     try {
-      await testEnvironment.getRelayAddress()
+      testEnvironment = await TestEnvironment.initializeAndStartBackendFoRealGSN({})
     } catch (e) {
       console.warn('skipped flow test - no active "gsn-dock-relay"')
       this.skip()
@@ -19,7 +17,9 @@ describe.only('System flow: Create Account', () => {
   })
 
   after('stop backend', async () => {
-    await testEnvironment.stopBackendServer()
+    if (testEnvironment) {
+      await testEnvironment.stopBackendServer()
+    }
   })
 
   describe('create flow with account', async () => {

@@ -74,4 +74,7 @@ contract MockHub {
         (bool relayedCallSuccess, bytes memory message) = recipient.call.gas(gasLimit)(encodedFunctionWithFrom);
         emit TransactionRelayed(relayedCallSuccess, string(message));
     }
+
+    function depositFor(address _address) public payable{
+    }
 }

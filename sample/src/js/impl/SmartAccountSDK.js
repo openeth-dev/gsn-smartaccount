@@ -49,6 +49,7 @@ export default class SmartAccountSDK {
 
     const signerProvider = hookRpcProvider(acc.origProvider, {
       eth_sign: async function (account, hash) {
+        // TODO: I am afraid this will fail on capitalization, I want to add .toLowerCase; not sure if this is safe
         if (account !== await acc.account.getOwner()) {
           throw new Error('wrong signer: not valid account')
         }
