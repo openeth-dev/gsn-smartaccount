@@ -13,6 +13,7 @@ import SimpleWallet from '../../src/js/impl/SimpleWallet'
 import Participant from 'safechannels-contracts/src/js/Participant'
 import Permissions from 'safechannels-contracts/src/js/Permissions'
 import scutils from 'safechannels-contracts/src/js/SafeChannelUtils'
+import sctestutils from 'safechannels-contracts/test/utils'
 import ChangeType from 'safechannels-contracts/test/etc/ChangeType'
 // import { sleep } from './testutils'
 
@@ -194,7 +195,7 @@ describe('As Guardian', async function () {
         blockHeader = bh
       })
       await watchdog.start()
-      await scutils.evmMine(web3)
+      await sctestutils.evmMine(web3)
       const exampleHeader = {
         hash: undefined,
         parentHash: undefined,
