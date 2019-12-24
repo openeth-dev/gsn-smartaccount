@@ -9,7 +9,7 @@ describe('System flow: Create Account', () => {
 
   before('check "gsn-dock-relay" is active', async function () {
     try {
-      testEnvironment = await TestEnvironment.initializeAndStartBackendFoRealGSN({})
+      testEnvironment = await TestEnvironment.initializeAndStartBackendForRealGSN({})
     } catch (e) {
       console.warn('skipped flow test - no active "gsn-dock-relay"')
       this.skip()

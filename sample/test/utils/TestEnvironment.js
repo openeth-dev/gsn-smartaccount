@@ -53,7 +53,7 @@ export default class TestEnvironment {
     return instance
   }
 
-  static async initializeAndStartBackendFoRealGSN ({
+  static async initializeAndStartBackendForRealGSN ({
     ethNodeUrl,
     relayUrl,
     relayHub,

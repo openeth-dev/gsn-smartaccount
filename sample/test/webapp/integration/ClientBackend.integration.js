@@ -31,7 +31,7 @@ describe.skip('Client <-> Backend <-> Blockchain', async function () {
   describe('SimpleManager', async function () {
     let testContext
     before(async function () {
-      testContext = await TestEnvironment.initializeAndStartBackendFoRealGSN({})
+      testContext = await TestEnvironment.initializeAndStartBackendForRealGSN({})
       await testContext.manager.googleLogin()
       testContext.jwt = jwt
       testContext.phoneNumber = phoneNumber
@@ -51,7 +51,7 @@ describe.skip('Client <-> Backend <-> Blockchain', async function () {
   describe('SimpleWallet', async function () {
     let testContext
     before(async function () {
-      testContext = await TestEnvironment.initializeAndStartBackendFoRealGSN({})
+      testContext = await TestEnvironment.initializeAndStartBackendForRealGSN({})
       await testContext.manager.googleLogin()
 
       const wallet = await testContext.manager.createWallet({
