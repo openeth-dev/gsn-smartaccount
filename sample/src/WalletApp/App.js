@@ -11,9 +11,8 @@ import ClientBackend from '../js/backend/ClientBackend'
 import SmartAccountSDK from '../js/impl/SmartAccountSDK'
 import SimpleManager from '../js/impl/SimpleManager'
 
-var mgr, sms
-const Button = ({ title, action }) => <input type="submit" onClick={action}
-  value={title}/>
+var mgr, sms, wallet
+const Button = ({ title, action }) => <input type="submit" onClick={action} value={title}/>
 
 function GoogleLogin ({ refresh }) {
   async function login () {
@@ -60,17 +59,34 @@ function CreateWallet ({ refresh, jwt, email }) {
   return <div>
     Hello <b>{email}</b>, you dont have a wallet yet.<br/>
     Click <Button title="here to verify phone" action={startCreate}/><br/>
-    Click here to enter SMS verification code <Button title="verify"
-      action={createWallet}/>
+    Click here to enter SMS verification code <Button title="verify" action={createWallet}/>
   </div>
 }
 
-function ActiveWallet ({ walletInfo }) {
+function TokenWidget ({ token, balance, decimals, doTransfer }) {
+  const div = '1e' + (decimals || 1)
+  return <pre>{token}: {balance / div} <Button title={'send ' + token} action={() => doTransfer({ token })}/></pre>
+}
+
+function ActiveWallet ({ walletInfo, walletBalances, walletPending, doTransfer, doCancelPending }) {
   const info = JSON.stringify(walletInfo, null, 2)
-  return <pre>
-    Wallet Info:
-    {info}
-  </pre>
+  const pending = JSON.stringify(walletPending, null, 2)
+
+  return <>
+    Balances<br/>
+    {
+      walletBalances.map(token => <TokenWidget key={token.token} {...token} doTransfer={doTransfer}/>)
+    }
+
+    <Button title="Cancel Pending" action={doCancelPending}/>
+
+    <xmp>
+      Pending: {pending}
+    </xmp>
+    <xmp>
+      Wallet Info: {info}
+    </xmp>
+  </>
 }
 
 function RecoverOrNewDevice ({ email, walletAddr }) {
@@ -112,34 +128,38 @@ class App extends React.Component {
     // manager is initialized (async'ly) from first call to readMgrState
 
     this.state = {}
-    this.readMgrState().then(x => { this.state = x })
+    this.initMgr().then(() =>
+      this.readMgrState().then(x => { this.state = x }))
   }
 
   async readMgrState () {
-    if (!mgr) {
-      await this.initMgr()
-    }
-
     const mgrState = {
       ownerAddr: await mgr.getOwner(),
       walletAddr: await mgr.getWalletAddress(),
       email: await mgr.getEmail(),
-      walletInfo: undefined
+      walletInfo: undefined,
+      walletBalances: undefined,
+      walletPending: undefined
     }
+
     // TODO: this is hack: we want to check if it already loaded, not load it.
     if (mgrState.walletAddr) {
-      const wallet = await mgr.loadWallet()
+      if (!wallet) { wallet = await mgr.loadWallet() }
       mgrState.walletInfo = await wallet.getWalletInfo()
+      mgrState.walletBalances = await wallet.listTokens()
+      mgrState.walletPending = await wallet.listPendingConfigChanges()
+      mgrState.walletPending.forEach((x, index) => { x.index = index + 1 })
     }
+
     return mgrState
   }
 
   async initMgr () {
     // mock initialization:
-    const debug = false
+    const useMock = window.location.href.indexOf('mock') > 0
 
     const verbose = true
-    if (debug) {
+    if (useMock) {
       mgr = new SimpleManagerMock({ accountApi: new AccountProxy() })
       sms = mgr.smsApi
       sms.on('mocksms', (data) => {
@@ -185,6 +205,33 @@ class App extends React.Component {
     })
   }
 
+  async doCancelPending () {
+    const id = prompt('Enter pending index to cancel')
+    if (!id) return
+    const p = JSON.parse(JSON.stringify(this.state.walletPending))
+    console.log('looking for id', id, 'in', p)
+    const pending = p.find(x => x.index === id)
+    if (!pending) {
+      alert('No pending item with index=' + id)
+      return
+    }
+
+    wallet.cancelPending(pending.delayedOpId)
+  }
+
+  async doTransfer ({ token }) {
+    const destination = prompt('Transfer ' + token + ' destination:')
+    if (!destination) return
+    const amount = prompt('Transfer ' + token + ' amount:')
+    if (!(amount > 0)) return
+    if (amount > this.state.walletBalances) {
+      alert('you don\'t have that much.')
+      return
+    }
+
+    await wallet.transfer({ destination, amount, token })
+  }
+
   reloadState (extra) {
     const self = this
     this.readMgrState().then(mgrState => {
@@ -216,7 +263,7 @@ class App extends React.Component {
     const { jwt } = await mgr.googleLogin()
     // await mgr.validatePhone({jwt, phone:123})
     if (!await mgr.hasWallet()) {
-      await mgr.createWallet({ jwt, phone: '123', smsVerificationCode: 'v123' })
+      await mgr.createWallet({ jwt, phoneNumber: '123', smsVerificationCode: 'v123' })
       await mgr.setInitialConfiguration()
     } else {
       await mgr.loadWallet()
@@ -241,11 +288,12 @@ class App extends React.Component {
         </div>
         {
           !!(mgr && mgr.wallet) ||
-          <div><Button title="debug: activate wallet"
-            action={this.debugActiveWallet.bind(this)}/><p/></div>
+          <div><Button title="debug: activate wallet" action={this.debugActiveWallet.bind(this)}/><p/></div>
         }
         <Button title="signout" action={this.signout.bind(this)}/><p/>
         <WalletComponent
+          doTransfer={params => this.doTransfer(params)}
+          doCancelPending={params => this.doCancelPending(params)}
           refresh={(extra) => this.reloadState(extra)} {...this.state} />
         {
           this.state && this.state.err && <div style={{ color: 'red' }}>
