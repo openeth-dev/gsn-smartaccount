@@ -9,6 +9,7 @@ import Account from '../../src/js/impl/Account'
 import SimpleManager from '../../src/js/impl/SimpleManager'
 import RelayServerMock from '../mocks/RelayServer.mock'
 import ClientBackend from '../../src/js/backend/ClientBackend'
+import SimpleWallet from '../../src/js/impl/SimpleWallet'
 
 /**
  * AFAIK, the docker image will always deploy the hub to the same address
@@ -19,6 +20,8 @@ const _ethNodeUrl = 'http://localhost:8545'
 const _relayUrl = 'http://localhost:8090'
 const _serverUrl = 'http://localhost:8888/'
 const verbose = false
+
+let ls
 
 export default class TestEnvironment {
   constructor ({
@@ -78,20 +81,25 @@ export default class TestEnvironment {
   }
 
   async startBackendServer () {
+    if (ls) {
+      console.error('Server is already running, watch out!')
+      return
+    }
     const port = 8888
     return new Promise((resolve, reject) => {
       const runServerPath = path.resolve(__dirname, '../../../sample/src/js/backend/runServer.js')
-      this.ls = spawn('node', [
+      ls = spawn('node', [
         '-r',
         'esm',
         runServerPath,
         port,
         this.factory.address,
         this.sponsor.address,
+        this.ethNodeUrl,
         '--dev'
       ])
       let serverAddress
-      this.ls.stdout.on('data', (data) => {
+      ls.stdout.on('data', (data) => {
         process.stdout.write(`stdout: ${data}`)
         const m = data.toString().match(/address=(.*)/)
         if (m) { serverAddress = m[1] }
@@ -99,10 +107,10 @@ export default class TestEnvironment {
           resolve(serverAddress)
         }
       })
-      this.ls.stderr.on('data', (data) => {
+      ls.stderr.on('data', (data) => {
         console.error(`stderr: ${data}`)
       })
-      this.ls.on('close', (code) => {
+      ls.on('close', (code) => {
         console.log(`child process exited with code ${code}`)
         reject(Error('process quit'))
       })
@@ -110,7 +118,8 @@ export default class TestEnvironment {
   }
 
   stopBackendServer () {
-    this.ls.kill(9)
+    ls.kill(9)
+    ls = null
   }
 
   async deployNewFactory () {
@@ -173,5 +182,17 @@ export default class TestEnvironment {
       guardianAddress: this.backendAddresses.watchdog,
       factoryConfig
     })
+  }
+
+  async createWallet ({ jwt, phoneNumber, smsVerificationCode }) {
+    this.wallet = await this.manager.createWallet({ jwt, phoneNumber, smsVerificationCode })
+    let owner = await this.manager.getOwner()
+    let config = SimpleWallet.getDefaultSampleInitialConfiguration({
+      backendAddress: this.from,
+      operatorAddress: owner,
+      whitelistModuleAddress: this.from
+    })
+    const a = await this.wallet.initialConfiguration(config)
+    console.log(a)
   }
 }

@@ -3,7 +3,6 @@
 import assert from 'assert'
 import chai, { expect } from 'chai'
 import chaiAsPromised from 'chai-as-promised'
-import sinon from 'sinon'
 
 import SimpleManager from '../../src/js/impl/SimpleManager'
 import {
@@ -12,10 +11,20 @@ import {
   testValidatePhoneBehavior
 } from './behavior/SimpleManager.behavior'
 import TestEnvironment from '../utils/TestEnvironment'
+import { Watchdog } from '../../src/js/backend/Guardian'
 
 chai.use(chaiAsPromised)
 chai.should()
 const mockBackendBase = {
+  getSmartAccountId: async function () {
+    return '0x' + '1'.repeat(64)
+  },
+  createAccount: async function () {
+    return {
+      approvalData: '0x' + 'f'.repeat(64),
+      smartAccountId: '0x' + '1'.repeat(64)
+    }
+  },
   getAddresses: async function () {
     return {
       watchdog: '0x' + '1'.repeat(40)
@@ -76,7 +85,7 @@ describe('SimpleManager', async function () {
     let testContext
     before(async function () {
       const mockBackend = {
-        validatePhone: sinon.spy(() => { return { code: 200 } }),
+        validatePhone: () => { return { code: 200 } },
         ...mockBackendBase
       }
       testContext = await newTest(mockBackend)
@@ -88,7 +97,7 @@ describe('SimpleManager', async function () {
     let testContext
     before(async function () {
       const mockBackend = {
-        signInAsNewOperator: sinon.spy(() => { return { code: 200 } }),
+        signInAsNewOperator: () => { return { code: 200 } },
         ...mockBackendBase
       }
       testContext = await newTest(mockBackend)
@@ -104,19 +113,7 @@ describe('SimpleManager', async function () {
     let testContext
 
     before(async function () {
-      const mockBackend = {
-        createAccount: async function () {
-          return {
-            approvalData: '0x' + 'f'.repeat(64),
-            smartAccountId: '0x' + '1'.repeat(64)
-          }
-        },
-        getSmartAccountId: async function () {
-          return '0x' + '1'.repeat(64)
-        },
-        ...mockBackendBase
-      }
-      testContext = await newTest(mockBackend)
+      testContext = await newTest(mockBackendBase)
       testContext.jwt = {}
       testContext.phoneNumber = '1'
       testContext.smsCode = '1234'
@@ -138,7 +135,27 @@ describe('SimpleManager', async function () {
   describe('#loadWallet()', async function () {
   })
 
-  testCancelByUrlBehavior()
+  describe('#cancelByUrl()', async function () {
+    let testContext
+
+    before(async function () {
+      const mockBackend = {
+        // eslint-disable-next-line no-unused-vars
+        cancelByUrl: async function ({ jwt, url }) {
+          const { delayedOpId } = Watchdog._extractCancelParamsFromUrl({url})
+          const res = await testContext.wallet.cancelPending(delayedOpId)
+          return { transactionHash: res.tx }
+        },
+        ...mockBackendBase
+      }
+
+      testContext = await newTest(mockBackend)
+      testContext.jwt = {}
+      testContext.smsCode = '1234'
+    })
+
+    testCancelByUrlBehavior(() => testContext)
+  })
 
   describe('#recoverWallet()', async function () {
   })

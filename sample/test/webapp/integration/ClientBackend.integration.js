@@ -30,7 +30,7 @@ function calculateSmsCode () {
   })
 }
 
-describe.skip('Client <-> Backend <-> Blockchain', async function () {
+describe('Client <-> Backend <-> Blockchain', async function () {
   before('set up the ', async function () {
     // set up test context here
   })
@@ -51,8 +51,19 @@ describe.skip('Client <-> Backend <-> Blockchain', async function () {
       }
     })
 
-    testCancelByUrlBehavior(() => testContext)
-    testCreateWalletBehavior(() => testContext)
+    describe.only('#cancelByUrl()', async function () {
+      let testContext
+      before(async function () {
+        this.timeout(15000)
+        testContext = await TestEnvironment.initializeAndStartBackendForRealGSN({})
+        await testContext.manager.googleLogin()
+        testContext.jwt = jwt
+        testContext.smsCode = calculateSmsCode()
+      })
+      testCancelByUrlBehavior(() => testContext)
+    })
+
+    // testCreateWalletBehavior(() => testContext)
   })
 
   describe('SimpleWallet', async function () {
