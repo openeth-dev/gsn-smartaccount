@@ -146,18 +146,19 @@ export class Watchdog {
     return { delayedOpId, address, smsCode }
   }
 
+  // TODO check jwt? not sure if needed ATM
   async cancelByUrl ({ jwt, url }) {
     const { delayedOpId, address, smsCode } = this._extractCancelParamsFromUrl({ url })
     const account = this.accountManager.getAccountByAddress({ address })
+    if (!account) {
+      throw new Error(
+        'Unknown account: either the account was not created on the backend or no address found from smartAccountCreated event')
+    }
     if (this.smsManager.getSmsCode(
       { phoneNumber: account.phone, email: account.email, expectedSmsCode: smsCode }) === smsCode) {
       return { transactionHash: (await this._finalizeChange(delayedOpId, { cancel: true })).transactionHash }
     }
   }
-
-  // _encodeMethod({bypass, config}, {apply, cancel, approve}) {
-  //
-  // }
 
   async _finalizeChange (delayedOpId, { apply, cancel }) {
     if (!apply && !cancel) {

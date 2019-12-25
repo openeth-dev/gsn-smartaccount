@@ -153,6 +153,20 @@ describe('As Guardian', async function () {
         assert.equal(eventsAfter.length, eventsBefore.length)
       })
 
+      it(`should not cancel delayed ${delayedOp} for unknown accounts`, async function () {
+        const smsCode = watchdog.smsManager.getSmsCode(
+          { phoneNumber: newAccount.phone, email: newAccount.email })
+        const url = `To cancel event ${receipt.logs[0].args.delayedOpId} on smartAccount ${newAccount.address}, enter code ${smsCode}`
+        try {
+          await watchdog.cancelByUrl(
+            { jwt: undefined, url })
+          assert.fail()
+        } catch (e) {
+          assert.equal(e.message,
+            'Unknown account: either the account was not created on the backend or no address found from smartAccountCreated event')
+        }
+      })
+
       it(`should cancel delayed ${delayedOp} for a known account`, async function () {
         watchdog.accountManager.putAccount({ account: newAccount })
         const eventsBefore = await wallet.contract.getPastEvents(delayedOp + 'Cancelled')
