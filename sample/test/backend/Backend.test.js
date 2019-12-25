@@ -27,6 +27,8 @@ describe('Backend', async function () {
   let smsCode
   const phoneNumber = '+972541234567'
   const email = 'shahaf@tabookey.com'
+  const wrongEmail = 'wrong@email.com'
+  const nonce = 'hello-world'
   const audience = '202746986880-u17rbgo95h7ja4fghikietupjknd1bln.apps.googleusercontent.com'
 
   before(async function () {
@@ -43,7 +45,6 @@ describe('Backend', async function () {
         accountManager
       })
 
-    // hooking google-api so we don't actually send jwt tot their server
     hookBackend(backend)
   })
   describe('sms code generation', async function () {
@@ -128,7 +129,6 @@ describe('Backend', async function () {
     })
 
     it('should createAccount by verifying sms code', async function () {
-      console.log('smsCode', smsCode)
       const accountCreatedResponse = await backend.createAccount({ jwt, smsCode, phoneNumber })
       const expectedSmartAccountId = abi.soliditySHA3(['string'], [email])
       assert.equal(accountCreatedResponse.smartAccountId, '0x' + expectedSmartAccountId.toString('hex'))
@@ -159,6 +159,32 @@ describe('Backend', async function () {
   })
 
   describe('addOperatorNow', async function () {
+    let account
+    before(async function () {
+      const accountId = await backend.getSmartAccountId({ email })
+      account = backend.accountManager.getAccountById({ accountId })
+    })
+    it('should throw on wrong email in signInAsNewOperator request', async function () {
+      account.email = wrongEmail
+      try {
+        await backend.signInAsNewOperator({ jwt, title: 'just throwing out the garbage' })
+        assert.fail()
+      } catch (e) {
+        assert.equal(e.message, `Invalid email. from jwt: ${email} from account: ${wrongEmail}`)
+      }
+      account.email = email
+    })
 
+    it('should send signInAsNewOperator request and receive sms message', async function () {
+      const title = 'just throwing out the garbage'
+      await backend.signInAsNewOperator({ jwt, title })
+      smsCode = await backend.smsManager.getSmsCode({ phoneNumber: account.phone, email: account.email })
+      assert.equal(SMSmock.readSms().message, `To sign-in new device as operator, enter code: ${smsCode}`)
+      assert.deepEqual(backend.unverifiedNewOperators[account.accountId], { newOperatorAddress: nonce, title })
+    })
+
+    it.skip('should send validateAddOperatorNow and receive new operator address and title', async function () {
+      // TODO
+    })
   })
 })

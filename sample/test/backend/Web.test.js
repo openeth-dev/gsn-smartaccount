@@ -116,7 +116,15 @@ describe('http layer tests', async function () {
     })
   })
 
-  describe.skip('addOperatorNow', async function () {
+  describe.skip('signInAsNewOperator', async function () {
+    it('should send valid http request and receive valid response', async function () {
+    })
+
+    it('should send invalid http request and receive error response', async function () {
+    })
+  })
+
+  describe.skip('validateAddOperatorNow', async function () {
     it('should send valid http request and receive valid response', async function () {
     })
 
