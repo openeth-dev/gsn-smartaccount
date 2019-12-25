@@ -8,6 +8,8 @@ export function hookBackend (backend) {
     } catch (e) {
       console.log('hooking google auth verifyIdToken() function')
       const rawTicket = require('./ticket')
+      rawTicket.payload = JSON.parse(Buffer.from(idToken.split('.')[1], 'base64').toString())
+
       return new LoginTicket(rawTicket.envelope, rawTicket.payload)
     }
   }

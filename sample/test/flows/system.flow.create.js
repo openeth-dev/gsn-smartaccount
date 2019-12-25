@@ -56,7 +56,7 @@ describe('System flow: Create Account', () => {
     it('after user receives SMS', async () => {
       const msg = await SMSmock.asyncReadSms()
 
-      const smsVerificationCode = msg.message.match(/verif.*?(\d+)/)[1]
+      const smsVerificationCode = msg.message.match(/(\d{3,})/)[1]
 
       wallet = await mgr.createWallet({ jwt, phoneNumber, smsVerificationCode })
 
