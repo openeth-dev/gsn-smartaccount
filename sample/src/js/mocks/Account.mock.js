@@ -10,6 +10,11 @@ export default class AccountMock extends AccountApi {
 
   async enableApp ({ appTitle, appUrl }) {
     console.log(`Get user's permission enable ${appTitle} at url ${appUrl}`)
+    this.enabled=appUrl
+  }
+
+  async isEnabled ({ appUrl }) {
+    return this.enabled === appUrl
   }
 
   async getEmail () {

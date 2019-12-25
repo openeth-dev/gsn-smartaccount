@@ -30,8 +30,7 @@ export default class Account extends AccountApi {
       throw new Error('missing Storage param')
     }
     this.storage = storageProps(storage)
-    this._approvedApps = JSON.parse(this.storage.approved ) || {}
-    console.log("approved: ",this._approvedApps)
+    this._approvedApps = JSON.parse(this.storage.approved || '{}')
   }
 
   _isApproved (url) {
@@ -41,10 +40,9 @@ export default class Account extends AccountApi {
   _setApproved (url) {
     this._approvedApps[url] = true
     this.storage.approved = JSON.stringify(this._approvedApps)
-    console.log("SET approved: ",this.storage.approved)
   }
 
-  //called by the AccountFrame, for all calls (except enableApp)
+  // called by the AccountFrame, for all calls (except enableApp)
   _verifyApproved (method, url) {
     if (!this._isApproved(url)) {
       throw new Error(method + ': App ' + url + ': not approved')
@@ -56,10 +54,11 @@ export default class Account extends AccountApi {
   }
 
   async enableApp ({ appTitle, appUrl }) {
-    if (this._isApproved(appUrl))
-      return
+    if (this._isApproved(appUrl)) { return }
 
-    if (!confirm('Approve connection to\n' + appTitle + '\n' + appUrl)) {
+    if (typeof window === 'undefined') {
+      console.log('prompt use to approve appUrl=', appUrl)
+    } else if (!window.confirm('Approve connection to\n' + appTitle + '\n' + appUrl)) {
       throw new Error('App ' + appUrl + ': not approved')
     }
     this._setApproved(appUrl)
@@ -153,8 +152,7 @@ export default class Account extends AccountApi {
 
   async signOut () {
     this.storage.email = this.storage.ownerAddress = this.storage.privKey = this.storage.approved = undefined
-    console.log("approved: ",this.storage._approvedApps)
-
+    console.log('approved: ', this.storage._approvedApps)
   }
 
   async signTransaction ({ tx }) {
