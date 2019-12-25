@@ -15,7 +15,7 @@ import Permissions from 'safechannels-contracts/src/js/Permissions'
 import scutils from 'safechannels-contracts/src/js/SafeChannelUtils'
 import sctestutils from 'safechannels-contracts/test/utils'
 import ChangeType from 'safechannels-contracts/test/etc/ChangeType'
-// import { sleep } from './testutils'
+import abiDecoder from 'abi-decoder'
 
 // const ethUtils = require('ethereumjs-util')
 // const abi = require('ethereumjs-abi')
@@ -159,12 +159,16 @@ describe('As Guardian', async function () {
         const smsCode = watchdog.smsManager.getSmsCode(
           { phoneNumber: newAccount.phone, email: newAccount.email })
         hookWatchdogFunction(watchdog._applyChanges.name, function () {})
+        watchdog.lastScannedBlock = 0
         await watchdog._worker()
         unhookWatchdogFunction(watchdog._applyChanges.name)
         const url = `To cancel event ${receipt.logs[0].args.delayedOpId} on smartAccount ${newAccount.address}, enter code ${smsCode}`
         const txhash = (await watchdog.cancelByUrl(
           { jwt: undefined, url })).transactionHash
-        receipt = await web3.eth.getTransactionReceipt(txhash)
+        const rawReceipt = await web3.eth.getTransactionReceipt(txhash)
+        const dlogs = abiDecoder.decodeLogs(rawReceipt.logs)
+        assert.equal(dlogs[0].name, delayedOp + 'Cancelled')
+        assert.equal(dlogs[0].events[0].value, receipt.logs[0].args.delayedOpId)
         const eventsAfter = await wallet.contract.getPastEvents(delayedOp + 'Cancelled')
         assert.equal(eventsAfter.length, eventsBefore.length + 1)
       })
@@ -192,7 +196,7 @@ describe('As Guardian', async function () {
     //
     // })
     it('should NOT approve addOperatorNow for unknown accounts', async function () {
-      const id = (await sctestutils.snapshot(web3)).result
+      // const id = (await sctestutils.snapshot(web3)).result
       watchdog.accountManager.removeAccount({ account: newAccount })
       const stateId = await wallet.contract.stateNonce()
       receipt = await wallet.contract.addOperatorNow(wallet.participant.permLevel, newOperatorAddress, stateId,
@@ -203,7 +207,7 @@ describe('As Guardian', async function () {
       await watchdog._worker()
       const eventsAfter = await wallet.contract.getPastEvents('ConfigApplied')
       assert.equal(eventsAfter.length, eventsBefore.length)
-      sctestutils.revert(id, web3)
+      // sctestutils.revert(id, web3)
     })
 
     it('should NOT approve addOperatorNow for unknown requests', async function () {
@@ -240,7 +244,11 @@ describe('As Guardian', async function () {
       assert.equal(receipt.logs[0].event, 'ConfigPending')
       assert.equal(receipt.logs[0].args.actions[0], ChangeType.ADD_OPERATOR_NOW.toString())
       const eventsBefore = await wallet.contract.getPastEvents('ConfigApplied')
-      await watchdog._worker()
+      const ret = await watchdog._worker()
+      const dlogs = abiDecoder.decodeLogs(ret[0].logs)
+      assert.equal(dlogs[0].name, 'ConfigApplied')
+      assert.equal(dlogs[0].events[0].value, receipt.logs[0].args.delayedOpId)
+      assert.equal(dlogs[1].name, 'ParticipantAdded')
       const eventsAfter = await wallet.contract.getPastEvents('ConfigApplied')
       assert.equal(eventsAfter.length, eventsBefore.length + 1)
     })

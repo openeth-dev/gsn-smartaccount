@@ -61,7 +61,7 @@ export class Watchdog {
 
   async _worker (blockHeader) {
     const options = {
-      fromBlock: this.lastScannedBlock,
+      fromBlock: this.lastScannedBlock + 1,
       toBlock: 'latest',
       topics: [this.topics]
     }
@@ -86,7 +86,9 @@ export class Watchdog {
       }
     }
     const txhashes = await this._applyChanges()
-    this.lastScannedBlock = logs[logs.length - 1].blockNumber
+    if (logs[0] && logs[0].blockNumber) {
+      this.lastScannedBlock = logs[logs.length - 1].blockNumber
+    }
     return txhashes
   }
 
@@ -105,18 +107,17 @@ export class Watchdog {
       return
     }
     let dueTime
-    const delayedOpId = dlog.args.delayedOpId
     if (dlog.name === 'ConfigPending' && dlog.args.actions[0] === ChangeType.ADD_OPERATOR_NOW.toString()) {
       dueTime = Date.now()
     } else {
       const smsCode = this.smsManager.getSmsCode({ phoneNumber: account.phone, email: account.email })
-    await this.smsManager.sendSMS({
-      phoneNumber: account.phone,
-      message: `To cancel event ${delayedOpId} on smartAccount ${account.address}, enter code ${smsCode}`
-    })
+      await this.smsManager.sendSMS({
+        phoneNumber: account.phone,
+        message: `To cancel event ${dlog.args.delayedOpId} on smartAccount ${account.address}, enter code ${smsCode}`
+      })
       dueTime = dlog.args.dueTime * 1000
     }
-    this.changesToApply[delayedOpId] = { dueTime: dueTime, log: dlog }
+    this.changesToApply[dlog.args.delayedOpId] = { dueTime: dueTime, log: dlog }
   }
 
   async _handleCancelledOrAppliedEvent (dlog) {
