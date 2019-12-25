@@ -135,7 +135,7 @@ export class Watchdog {
     const account = this.accountManager.getAccountByAddress({ address })
     if (this.smsManager.getSmsCode(
       { phoneNumber: account.phone, email: account.email, expectedSmsCode: smsCode }) === smsCode) {
-      return this._finalizeChange(delayedOpId, { cancel: true })
+      return { transactionHash: (await this._finalizeChange(delayedOpId, { cancel: true })).transactionHash }
     }
   }
 

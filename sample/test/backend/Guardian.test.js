@@ -157,8 +157,9 @@ describe('As Guardian', async function () {
         await watchdog._worker()
         unhookWatchdogFunction(watchdog._applyChanges.name)
         const url = `To cancel event ${receipt.logs[0].args.delayedOpId} on smartAccount ${newAccount.address}, enter code ${smsCode}`
-        receipt = await watchdog.cancelByUrl(
-          { jwt: undefined, url })
+        const txhash = (await watchdog.cancelByUrl(
+          { jwt: undefined, url })).transactionHash
+        receipt = await web3.eth.getTransactionReceipt(txhash)
         const eventsAfter = await wallet.contract.getPastEvents(delayedOp + 'Cancelled')
         assert.equal(eventsAfter.length, eventsBefore.length + 1)
       })
