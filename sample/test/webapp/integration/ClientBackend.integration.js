@@ -5,18 +5,25 @@ import { testValidationBehavior } from '../behavior/SimpleWallet.behavior'
 import { testCancelByUrlBehavior, testCreateWalletBehavior } from '../behavior/SimpleManager.behavior'
 import TestEnvironment from '../../utils/TestEnvironment'
 import { Backend } from '../../../src/js/backend/Backend'
+import SMSmock from '../../../src/js/mocks/SMS.mock'
+import { SmsManager } from '../../../src/js/backend/SmsManager'
 
 const jwt = require('../../backend/testJwt').jwt
 const phoneNumber = '+1-541-754-3010'
 
 // we use predictable SMS code generation for tests. this code predicts SMS codes.
 function calculateSmsCode () {
+  const smsProvider = new SMSmock()
+  const smsManager = new SmsManager({ smsProvider, secretSMSCodeSeed: Buffer.from('f'.repeat(64), 'hex') })
   const backendTestInstance = new Backend(
-    { audience: '202746986880-u17rbgo95h7ja4fghikietupjknd1bln.apps.googleusercontent.com' })
+    {
+      smsManager: smsManager,
+      audience: '202746986880-u17rbgo95h7ja4fghikietupjknd1bln.apps.googleusercontent.com'
+    })
   backendTestInstance.secretSMSCodeSeed = Buffer.from('f'.repeat(64), 'hex')
-  const minuteTimestamp = backendTestInstance._getMinuteTimestamp({})
+  const minuteTimestamp = backendTestInstance.smsManager.getMinuteTimestamp({})
   const phoneNumber = '+1-541-754-3010'
-  return backendTestInstance._calcSmsCode({
+  return backendTestInstance.smsManager.calcSmsCode({
     phoneNumber: backendTestInstance._formatPhoneNumber(phoneNumber),
     email: 'shahaf@tabookey.com',
     minuteTimeStamp: minuteTimestamp

@@ -111,6 +111,7 @@ export default class SimpleWallet extends SimpleWalletApi {
     const args = pending[0].args
     if (isConfig) {
       return this.contract.cancelOperation(
+        this.participant.permLevel,
         args.actions,
         args.actionsArguments1,
         args.actionsArguments2,
@@ -119,7 +120,6 @@ export default class SimpleWallet extends SimpleWalletApi {
         args.senderPermsLevel,
         args.booster,
         args.boosterPermsLevel,
-        this.participant.permLevel,
         {
           from: this.participant.address
         }

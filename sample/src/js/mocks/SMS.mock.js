@@ -2,8 +2,18 @@
 
 import SMSapi from '../api/SMS.api'
 
-const fs = require('fs')
+let fs = require('fs')
 const SMS_TMP_FILE_NAME = '/tmp/sms.txt'
+
+// ignore unknown methods (when started in browser)
+fs = new Proxy(fs, {
+  get (target, p, receiver) {
+    if (target[p]) return target[p]
+    return function () {
+      console.log('no such function: ', p)
+    }
+  }
+})
 
 export default class SMSmock extends SMSapi {
   constructor (props) {

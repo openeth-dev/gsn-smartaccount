@@ -1,52 +1,53 @@
 /*
   Run with:
-  node -r esm <path_to_script>/runServer.js <port> [<devMode>]
+  node -r esm <path_to_script>/runServer.js <port> <factoryAddress> <sponsorAddress> <ethNodeUrl> [<devMode>]
  */
 
 import Webserver from './Webserver'
 import { Backend } from './Backend'
-import Wallet from 'ethereumjs-wallet'
 import SMSmock from '../mocks/SMS.mock'
-
-function newEphemeralKeypair () {
-  const a = Wallet.generate()
-  return {
-    privateKey: a.privKey,
-    address: '0x' + a.getAddress().toString('hex')
-  }
-}
-
-function hookBackend (backend) {
-  backend._verifyJWT = async function (jwt) {
-    const parsed = JSON.parse(Buffer.from(jwt.split('.')[1], 'base64'))
-
-    return {
-      getPayload: () => parsed
-    }
-  }
-  backend.secretSMSCodeSeed = Buffer.from('f'.repeat(64), 'hex')
-}
+import { KeyManager } from './KeyManager'
+import { hookBackend } from '../../../test/backend/testutils'
+import { SmsManager } from './SmsManager'
+import { AccountManager } from './AccountManager'
+import crypto from 'crypto'
+import { Watchdog } from './Guardian'
+import Web3 from 'web3'
 
 const port = process.argv[2]
 const factoryAddress = process.argv[3]
 const sponsorAddress = process.argv[4]
+const ethNodeUrl = process.argv[5]
 const smsProvider = new SMSmock()
-const keypair = newEphemeralKeypair()
+const smsManager = new SmsManager({ smsProvider, secretSMSCodeSeed: crypto.randomBytes(32) })
+const keypair = KeyManager.newKeypair()
+const keyManager = new KeyManager({ ecdsaKeyPair: keypair })
+const accountManager = new AccountManager()
+const web3provider = new Web3.providers.WebsocketProvider(ethNodeUrl)
 const backend = new Backend(
   {
-    smsProvider,
+    smsManager,
     audience: '202746986880-u17rbgo95h7ja4fghikietupjknd1bln.apps.googleusercontent.com',
-    ecdsaKeyPair: keypair,
-    factoryAddress,
-    sponsorAddress
+    keyManager,
+    accountManager
   })
+const watchdog = new Watchdog({
+  smsManager,
+  keyManager,
+  accountManager,
+  smartAccountFactoryAddress: factoryAddress,
+  sponsorAddress: sponsorAddress,
+  web3provider: web3provider
+})
+const admin = undefined // TODO
 
-if (process.argv[5] === '--dev') {
+if (process.argv[6] === '--dev') {
   console.log('Running server in dev mode')
   hookBackend(backend)
+  smsManager.secretSMSCodeSeed = Buffer.from('f'.repeat(64), 'hex')
 }
 
-console.log('server address=' + keypair.address)
+console.log('server address=' + backend.keyManager.address())
 
-const server = new Webserver({ port, backend })
+const server = new Webserver({ port, backend, watchdog, admin })
 server.start()

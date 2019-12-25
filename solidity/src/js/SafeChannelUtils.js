@@ -10,38 +10,6 @@ module.exports = {
     return hex.replace(/^0x/, '')
   },
 
-  // Only used in tests
-  increaseTime: function (time, web3) {
-    return new Promise((resolve, reject) => {
-      web3.currentProvider.send({
-        jsonrpc: '2.0',
-        method: 'evm_increaseTime',
-        params: [time],
-        id: new Date().getSeconds()
-      }, (err) => {
-        if (err) return reject(err)
-        module.exports.evmMine(web3)
-          .then(r => resolve(r))
-          .catch(e => reject(e))
-      })
-    })
-  },
-
-  // Only used in tests
-  evmMine: function (web3) {
-    return new Promise((resolve, reject) => {
-      web3.currentProvider.send({
-        jsonrpc: '2.0',
-        method: 'evm_mine',
-        params: [],
-        id: new Date().getSeconds()
-      }, (e, r) => {
-        if (e) reject(e)
-        else resolve(r)
-      })
-    })
-  },
-
   bufferToHex: function (buffer) {
     return '0x' + buffer.toString('hex')
   },

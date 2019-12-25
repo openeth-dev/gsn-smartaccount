@@ -11,7 +11,7 @@ contract SmartAccountFactory is GsnRecipient, Ownable {
 
     uint256 constant APPROVAL_VALIDITY = 1 days;
 
-    event SmartAccountCreated(address sender, SmartAccount smartAccount, bytes32 salt);
+    event SmartAccountCreated(address sender, SmartAccount smartAccount, bytes32 smartAccountId);
 
     mapping(address => bool) public trustedSigners;
     mapping(bytes32 => address) public knownSmartAccounts;
