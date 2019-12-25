@@ -25,7 +25,7 @@ describe('http layer tests', async function () {
     mockBE.addOperatorNow = function addOperatorNow () {}
     mockBE.handleNotifications = function handleNotifications () {}
     mockWD = {}
-    mockWD.cancelChange = function cancelChange () {}
+    mockWD.cancelByUrl = function cancelByUrl () {}
   })
   it('should construct webclient, webserver and start server', async function () {
     try {
@@ -91,26 +91,27 @@ describe('http layer tests', async function () {
     })
   })
 
-  describe('cancelChange', async function () {
+  describe('cancelByUrl', async function () {
     it('should send valid http request and receive valid response', async function () {
-      mockWD.cancelChange = function cancelChange ({ smsCode, delayedOpId, address }) {
-        assert.equal(smsCode, mySmsCode)
-        assert.equal(delayedOpId, myDelayedOpId)
-        assert.equal(address, myAddress)
+      mockWD.cancelByUrl = function cancelByUrl ({ jwt, url }) {
+        assert.equal(url.smsCode, mySmsCode)
+        assert.equal(url.delayedOpId, myDelayedOpId)
+        assert.equal(url.address, myAddress)
       }
-      await client.cancelChange({ delayedOpId: myDelayedOpId, smsCode: mySmsCode, address: myAddress })
+      const url = { delayedOpId: myDelayedOpId, smsCode: mySmsCode, address: myAddress }
+      await client.cancelByUrl({ jwt: undefined, url })
     })
 
     it('should send invalid http request and throw on error response', async function () {
       const errorMessage = 'go fish'
       try {
-        mockBE.cancelChange = function cancelChange ({ smsCode, delayedOpId, address }) {
+        mockBE.cancelByUrl = function cancelByUrl ({ jwt, url }) {
           throw new Error(errorMessage)
         }
-        await client.cancelChange({ jwt: undefined, smsCode: mySmsCode, phoneNumber: myPhoneNumber })
+        await client.cancelByUrl({ jwt: undefined, url: undefined })
         assert.fail()
       } catch (e) {
-        assert.match(e.message, /Error: go fish.*\n.*cancelChange.*\n.*code: -125/)
+        assert.match(e.message, /Error: go fish.*\n.*cancelByUrl.*\n.*code: -125/)
       }
     })
   })
