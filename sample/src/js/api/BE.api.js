@@ -34,7 +34,7 @@ export default class BEapi {
     error('validate that addDeviceUrl is the one sent by addOperatorNow. save validation in memory')
   }
 
-  async cancelChange ({ smsCode, delayedOpId, address }) {
+  async cancelByUrl ({ jwt, url }) {
     error('send cancel request to watchdog as a response to sms')
   }
 
