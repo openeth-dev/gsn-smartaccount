@@ -11,7 +11,7 @@ import ClientBackend from '../js/backend/ClientBackend'
 import SmartAccountSDK from '../js/impl/SmartAccountSDK'
 import SimpleManager from '../js/impl/SimpleManager'
 
-var mgr, sms, wallet
+var mgr, sms, wallet, sdk
 const Button = ({ title, action }) => <input type="submit" onClick={action} value={title}/>
 
 function GoogleLogin ({ refresh }) {
@@ -134,13 +134,12 @@ class App extends React.Component {
 
   async readMgrState () {
     console.log('readMgrState')
-    let mgrState = {
+    const mgrState = {
       walletInfo: undefined,
       walletBalances: undefined,
       walletPending: undefined
     }
-    if (await sdk.isEnabled({appUrl:window.location.href})) {
-
+    if (await sdk.isEnabled({ appUrl: window.location.href })) {
       Object.assign(mgrState, {
         needApprove: undefined,
         ownerAddr: await mgr.getOwner(),
@@ -149,7 +148,7 @@ class App extends React.Component {
       })
       console.log('readMgrState: has some state')
     } else {
-      console.log( "not enabled", window.location.href)
+      console.log('not enabled', window.location.href)
     }
 
     // TODO: this is hack: we want to check if it already loaded, not load it.
@@ -171,7 +170,7 @@ class App extends React.Component {
 
     const verbose = true
     if (useMock) {
-      //mock SDK...
+      // mock SDK...
       sdk = new SmartAccountSDK()
       sdk.account = new AccountProxy()
 
@@ -302,6 +301,7 @@ class App extends React.Component {
     await sdk.enableApp({ appTitle: 'SampleWallet', appUrl: window.location.href })
     this.reloadState()
   }
+
   render () {
     return (
       <div style={{ margin: '10px' }}>

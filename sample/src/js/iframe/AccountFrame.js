@@ -69,7 +69,7 @@ async function handleMessage ({ source, method, id, params }) {
 
     source.postMessage({ id, response }, '*')
   } catch (e) {
-    console.log( "ex", e)
+    console.log('ex', e)
     source.postMessage({ id, error: e.toString() }, '*')
   }
 }
