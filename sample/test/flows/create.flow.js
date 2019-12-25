@@ -6,7 +6,7 @@ import SimpleManagerMock from '../../src/js/mocks/SimpleManager.mock'
 describe('Test Flows', () => {
   describe('create flow', async () => {
     const verbose = false
-    const userEmail = 'user@email.com'
+    const userEmail = 'shahaf@tabookey.com'
     let mgr, sms
     let jwt, phone
 

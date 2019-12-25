@@ -37,9 +37,10 @@ export default class SimpleWallet extends SimpleWalletApi {
    *        Note: participants should be of 'Participant' class!
    * @param knownTokens - tokens currently supported.
    */
-  constructor ({ contract, participant, knownParticipants = [], knownTokens = [] }) {
+  constructor ({ contract, participant, backend, knownParticipants = [], knownTokens = [] }) {
     super()
     this.contract = contract
+    this.backend = backend
     this.participant = participant
     this.knownTokens = knownTokens
     this.knownParticipants = [...knownParticipants, participant]
@@ -448,6 +449,7 @@ export default class SimpleWallet extends SimpleWalletApi {
     return this.backend.validateAddOperatorNow({ jwt, url })
   }
 
+  // TODO: this code is not really covered with tests! Do not trust it!
   async applyAllPendingOperations () {
     const block = await this._getWeb3().web3.eth.getBlock('latest')
     const blockchainTime = block.timestamp

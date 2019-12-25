@@ -293,6 +293,10 @@ describe('SimpleWallet', async function () {
       const applied = await testContext.wallet.applyAllPendingOperations()
       // TODO: test more precisely
       assert.strictEqual(applied.length, 2)
+      // TODO: check balance changed
+      //  check is participant
     })
+
+    it('should not try to apply addOperatorNow')
   })
 })

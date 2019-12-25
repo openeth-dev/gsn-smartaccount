@@ -1,6 +1,5 @@
 // static object in client app.
 // core API to access iframe (google email, address, sign)
-// eslint-disable-next-line no-unused-vars
 
 import validate from '../utils/XfaceValidate'
 import EventEmitter from 'events'
@@ -78,6 +77,10 @@ export default class SimpleManagerApi extends EventEmitter {
 
   async recoverWallet ({ owner, email }) {
     error('trigger recover flow')
+  }
+
+  async cancelByUrl ({ jwt, url }) {
+    error('requests backend watchdog to cancel the operation. used in case the operator key is not available')
   }
 }
 

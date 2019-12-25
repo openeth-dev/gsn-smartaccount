@@ -91,7 +91,7 @@ class FactoryContractInteractor {
       contract.link(it)
     })
     let promise
-    const gas = undefined // truffle-contract does "autoGas" by default.
+    const gas = 1e9 // truffle-contract does "autoGas" by default.
     contract.gasMultiplier = 1.0 // default 1.25 is too much...
     if (params && params.length > 0) {
       promise = contract.new(...params, { from: from, gas: gas })

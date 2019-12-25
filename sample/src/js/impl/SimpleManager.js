@@ -135,6 +135,7 @@ export default class SimpleManager extends SimpleManagerApi {
     const participants = this._getParticipants({ ownerAddress: owner, guardianAddress: this.guardianAddress })
     return new SimpleWallet({
       contract: smartAccount,
+      backend: this.backend,
       participant: participants.operator,
       knownParticipants: [participants.backendAsAdmin, participants.backendAsWatchdog]
     })
@@ -164,8 +165,14 @@ export default class SimpleManager extends SimpleManagerApi {
   }
 
   setSignInObserver ({ observer, interval }) {
+    /*
     setInterval(() => {
       console.log('how you gonna test?')
     }, interval)
+     */
+  }
+
+  async cancelByUrl ({ jwt, url }) {
+    return this.backend.cancelByUrl({ jwt, url })
   }
 }
