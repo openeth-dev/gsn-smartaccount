@@ -97,9 +97,12 @@ export class Watchdog {
       return
     }
     const smsCode = this.smsManager.getSmsCode({ phoneNumber: account.phone, email: account.email })
-    await this.smsManager.sendSMS({ phoneNumber: account.phone, message: `To cancel event, enter code ${smsCode}` })
-    const dueTime = dlog.args.dueTime * 1000
     const delayedOpId = dlog.args.delayedOpId
+    await this.smsManager.sendSMS({
+      phoneNumber: account.phone,
+      message: `To cancel event ${delayedOpId} on smartAccount ${account.address}, enter code ${smsCode}`
+    })
+    const dueTime = dlog.args.dueTime * 1000
     this.changesToApply[delayedOpId] = { dueTime: dueTime, log: dlog }
   }
 
@@ -121,7 +124,14 @@ export class Watchdog {
     }
   }
 
-  async cancelChange ({ smsCode, delayedOpId, address }) {
+  _extractCancelParamsFromUrl ({ url }) {
+    const regex = /To cancel event (0x[0-9a-fA-F]*) on smartAccount (0x[0-9a-fA-F]*), enter code ([0-9]*)/
+    const [, delayedOpId, address, smsCode] = url.match(regex)
+    return { delayedOpId, address, smsCode }
+  }
+
+  async cancelByUrl ({ jwt, url }) {
+    const { delayedOpId, address, smsCode } = this._extractCancelParamsFromUrl({ url })
     const account = this.accountManager.getAccountByAddress({ address })
     if (this.smsManager.getSmsCode(
       { phoneNumber: account.phone, email: account.email, expectedSmsCode: smsCode }) === smsCode) {

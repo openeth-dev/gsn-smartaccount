@@ -156,8 +156,9 @@ describe('As Guardian', async function () {
         hookWatchdogFunction(watchdog._applyChanges.name, function () {})
         await watchdog._worker()
         unhookWatchdogFunction(watchdog._applyChanges.name)
-        receipt = await watchdog.cancelChange(
-          { smsCode, delayedOpId: receipt.logs[0].args.delayedOpId, address: newAccount.address })
+        const url = `To cancel event ${receipt.logs[0].args.delayedOpId} on smartAccount ${newAccount.address}, enter code ${smsCode}`
+        receipt = await watchdog.cancelByUrl(
+          { jwt: undefined, url })
         const eventsAfter = await wallet.contract.getPastEvents(delayedOp + 'Cancelled')
         assert.equal(eventsAfter.length, eventsBefore.length + 1)
       })

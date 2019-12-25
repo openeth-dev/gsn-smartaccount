@@ -33,7 +33,7 @@ export function testCancelByUrlBehavior (getContext) {
 //  if this does not happen - refactor
 
 export function testValidatePhoneBehavior (getContext) {
-  it('should pass parameters to backend and handle http 200 OK code', async function () {
+  it('should pass parameters to backendx and handle http 200 OK code', async function () {
     const jwt = {}
     const phoneNumber = '0000'
     const sm = getContext().manager
@@ -45,7 +45,7 @@ export function testValidatePhoneBehavior (getContext) {
 }
 
 export function testSignInBehavior (getContext) {
-  it('should pass parameters to backend and handle http 200 OK code', async function () {
+  it('should pass parameters to backendy and handle http 200 OK code', async function () {
     const jwt = {}
     const description = '0000'
     const sm = getContext().manager
