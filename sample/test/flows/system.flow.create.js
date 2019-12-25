@@ -1,13 +1,6 @@
 /* global describe it before after */
 
 import { assert, expect } from 'chai'
-import { MockStorage } from '../mocks/MockStorage'
-import SmartAccountSDK from '../../src/js/impl/SmartAccountSDK'
-import Account from '../../src/js/impl/Account'
-import SimpleManager from '../../src/js/impl/SimpleManager'
-import ClientBackend from '../../src/js/backend/ClientBackend'
-import Web3 from 'web3'
-import FactoryContractInteractor from 'safechannels-contracts/src/js/FactoryContractInteractor'
 import SMSmock from '../../src/js/mocks/SMS.mock'
 import TestEnvironment from '../utils/TestEnvironment'
 
@@ -23,12 +16,11 @@ describe('System flow: Create Account', () => {
     }
   })
 
-    after('stop backend', async () => {
+  after('stop backend', async () => {
     if (testEnvironment) {
       await testEnvironment.stopBackendServer()
-      }
-
-      })
+    }
+  })
 
   describe('create flow with account', async () => {
     const userEmail = 'shahaf@tabookey.com'
