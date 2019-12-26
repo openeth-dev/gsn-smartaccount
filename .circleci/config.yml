@@ -17,11 +17,11 @@ jobs:
     working_directory: ~/repo
 
     steps:
+      - checkout
+
       - run:
           name: Abort if commit description contains "DRAFT"
-          command: git log HEAD~1..HEAD|grep DRAFT && exit 1
-
-      - checkout
+          command: git log HEAD~1..HEAD ; git log HEAD~1..HEAD|grep DRAFT && exit 1
 
       # Download and cache dependencies
       - restore_cache:
