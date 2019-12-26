@@ -67,7 +67,7 @@ export class Backend {
       throw new Error(`Invalid email. from jwt: ${email} from account: ${account.email}`)
     }
     if (this.smsManager.getSmsCode({ phoneNumber: account.phone, email, expectedSmsCode: smsCode }) !== smsCode) {
-      throw new Error(`invalid sms code: ${smsCode}`)
+      throw new Error(`Invalid sms code: ${smsCode}`)
     }
     const { newOperatorAddress, title } = this.unverifiedNewOperators[smartAccountId]
     this.accountManager.putOperatorToAdd({ accountId: smartAccountId, address: newOperatorAddress })
@@ -101,7 +101,7 @@ export class Backend {
   }
 
   _formatPhoneNumber (phoneNumber) {
-    const formattedPhone = phone(phoneNumber) // phone("+972 541234567") == [ '+972541234567', 'ISR' ]
+    const formattedPhone = phone(phoneNumber) // phone("+972 541234567"), phone("+972541234567") => [ '+972541234567', 'ISR' ]
     if (formattedPhone.length === 0) {
       throw new Error(`Invalid phone number: ${phoneNumber}`)
     }

@@ -160,14 +160,16 @@ describe('Backend', async function () {
 
   describe('addOperatorNow', async function () {
     let account
+    const myTitle = 'just throwing out the garbage'
     before(async function () {
       const accountId = await backend.getSmartAccountId({ email })
       account = backend.accountManager.getAccountById({ accountId })
     })
+
     it('should throw on wrong email in signInAsNewOperator request', async function () {
       account.email = wrongEmail
       try {
-        await backend.signInAsNewOperator({ jwt, title: 'just throwing out the garbage' })
+        await backend.signInAsNewOperator({ jwt, title: myTitle })
         assert.fail()
       } catch (e) {
         assert.equal(e.message, `Invalid email. from jwt: ${email} from account: ${wrongEmail}`)
@@ -176,15 +178,40 @@ describe('Backend', async function () {
     })
 
     it('should send signInAsNewOperator request and receive sms message', async function () {
-      const title = 'just throwing out the garbage'
-      await backend.signInAsNewOperator({ jwt, title })
+      await backend.signInAsNewOperator({ jwt, title: myTitle })
       smsCode = await backend.smsManager.getSmsCode({ phoneNumber: account.phone, email: account.email })
       assert.equal(SMSmock.readSms().message, `To sign-in new device as operator, enter code: ${smsCode}`)
-      assert.deepEqual(backend.unverifiedNewOperators[account.accountId], { newOperatorAddress: nonce, title })
+      assert.deepEqual(backend.unverifiedNewOperators[account.accountId], { newOperatorAddress: nonce, title: myTitle })
     })
 
-    it.skip('should send validateAddOperatorNow and receive new operator address and title', async function () {
-      // TODO
+    it('should throw on wrong email in validateAddOperatorNow request', async function () {
+      account.email = wrongEmail
+      try {
+        await backend.validateAddOperatorNow({ jwt, smsCode })
+        assert.fail()
+      } catch (e) {
+        assert.equal(e.message, `Invalid email. from jwt: ${email} from account: ${wrongEmail}`)
+      }
+      account.email = email
+    })
+
+    it('should throw on wrong smsCode in validateAddOperatorNow', async function () {
+      const wrongCode = smsCode - 1
+      try {
+        await backend.validateAddOperatorNow({ jwt, smsCode: wrongCode })
+        assert.fail()
+      } catch (e) {
+        assert.equal(e.message, `Invalid sms code: ${wrongCode}`)
+      }
+    })
+
+    it('should send validateAddOperatorNow and receive new operator address and title', async function () {
+      const { newOperatorAddress, title } = await backend.validateAddOperatorNow({ jwt, smsCode })
+      assert.deepEqual(backend.unverifiedNewOperators, {})
+      assert.equal(backend.accountManager.getOperatorToAdd({accountId: account.accountId}), nonce)
+      assert.equal(newOperatorAddress, nonce)
+      assert.equal(title, myTitle)
+
     })
   })
 })
