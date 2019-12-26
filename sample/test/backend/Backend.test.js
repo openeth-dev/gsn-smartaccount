@@ -208,10 +208,9 @@ describe('Backend', async function () {
     it('should send validateAddOperatorNow and receive new operator address and title', async function () {
       const { newOperatorAddress, title } = await backend.validateAddOperatorNow({ jwt, smsCode })
       assert.deepEqual(backend.unverifiedNewOperators, {})
-      assert.equal(backend.accountManager.getOperatorToAdd({accountId: account.accountId}), nonce)
+      assert.equal(backend.accountManager.getOperatorToAdd({ accountId: account.accountId }), nonce)
       assert.equal(newOperatorAddress, nonce)
       assert.equal(title, myTitle)
-
     })
   })
 })
