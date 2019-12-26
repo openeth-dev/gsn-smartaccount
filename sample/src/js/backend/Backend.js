@@ -46,7 +46,7 @@ export class Backend {
     }
 
     const approvalData = this._generateApproval({ smartAccountId })
-    return { approvalData: '0x' + approvalData.toString('hex'), smartAccountId: '0x' + smartAccountId }
+    return { approvalData: '0x' + approvalData.toString('hex'), smartAccountId }
   }
 
   async signInAsNewOperator ({ jwt, title }) {
@@ -68,12 +68,12 @@ export class Backend {
    * @private
    */
   async getSmartAccountId ({ email }) {
-    return abi.soliditySHA3(['string'], [email]).toString('hex')
+    return ('0x' + abi.soliditySHA3(['string'], [email]).toString('hex'))
   }
 
   _generateApproval ({ smartAccountId }) {
     const timestamp = Buffer.from(Math.floor(Date.now() / 1000).toString(16), 'hex')
-    const hash = abi.soliditySHA3(['bytes32', 'bytes4'], [Buffer.from(smartAccountId, 'hex'), timestamp])
+    const hash = abi.soliditySHA3(['bytes32', 'bytes4'], [Buffer.from(smartAccountId.slice(2), 'hex'), timestamp])
     const sig = this.keyManager.ecSignWithPrefix({ hash })
     return abi.rawEncode(['bytes4', 'bytes'], [timestamp, sig])
   }

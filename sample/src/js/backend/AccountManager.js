@@ -10,7 +10,18 @@ export class AccountManager {
     this.addressToId = {}
   }
 
+  _toLowerCase ({ account }) {
+    account.accountId = account.accountId.toLowerCase()
+    if (account.address) {
+      account.address = account.address.toLowerCase()
+    }
+  }
+
   putAccount ({ account }) {
+    if (!account) {
+      return
+    }
+    this._toLowerCase({ account })
     this.accounts[account.accountId] = account
     if (account.address) {
       this.addressToId[account.address] = account.accountId
@@ -18,14 +29,24 @@ export class AccountManager {
   }
 
   getAccountByAddress ({ address }) {
-    return this.getAccountById({ accountId: this.addressToId[address] })
+    if (!address) {
+      return
+    }
+    return this.getAccountById({ accountId: this.addressToId[address.toLowerCase()] })
   }
 
   getAccountById ({ accountId }) {
-    return this.accounts[accountId]
+    if (!accountId) {
+      return
+    }
+    return this.accounts[accountId.toLowerCase()]
   }
 
   removeAccount ({ account }) {
+    if (!account) {
+      return
+    }
+    this._toLowerCase({ account })
     if (account.address) {
       delete this.addressToId[account.address]
     }
