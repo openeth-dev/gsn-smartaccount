@@ -21,7 +21,7 @@ const _relayHub = '0xD216153c06E857cD7f72665E0aF1d7D82172F494'
 const _ethNodeUrl = 'http://localhost:8545'
 const _relayUrl = 'http://localhost:8090'
 const _serverUrl = 'http://localhost:8888/'
-const verbose = false
+const _verbose = false
 
 let ls
 
@@ -32,7 +32,8 @@ export default class TestEnvironment {
     serverUrl = _serverUrl,
     relayHub = _relayHub,
     clientBackend,
-    web3provider
+    web3provider,
+    verbose = _verbose
   }) {
     this.ethNodeUrl = ethNodeUrl
     this.relayUrl = relayUrl
@@ -40,6 +41,7 @@ export default class TestEnvironment {
     this.clientBackend = clientBackend || new ClientBackend({ serverURL: serverUrl })
     this.web3provider = web3provider || new Web3.providers.HttpProvider(ethNodeUrl)
     this.web3 = new Web3(this.web3provider)
+    this.verbose = verbose
   }
 
   static async initializeWithFakeBackendAndGSN ({
@@ -47,9 +49,10 @@ export default class TestEnvironment {
     relayUrl,
     relayHub,
     web3provider,
-    clientBackend
+    clientBackend,
+    verbose
   }) {
-    const instance = new TestEnvironment({ ethNodeUrl, relayUrl, relayHub, web3provider, clientBackend })
+    const instance = new TestEnvironment({ ethNodeUrl, relayUrl, relayHub, web3provider, clientBackend, verbose })
     instance.from = (await instance.web3.eth.getAccounts())[0]
     instance.backendAddresses = await instance.clientBackend.getAddresses()
     await instance.deployMockHub()
@@ -63,14 +66,15 @@ export default class TestEnvironment {
     relayUrl,
     relayHub,
     web3provider,
-    clientBackend
+    clientBackend,
+    verbose
   }) {
-    const instance = new TestEnvironment({ ethNodeUrl, relayUrl, relayHub, web3provider, clientBackend })
+    const instance = new TestEnvironment({ ethNodeUrl, relayUrl, relayHub, web3provider, clientBackend, verbose })
     instance.from = (await instance.web3.eth.getAccounts())[0]
 
     // bring up RelayHub, relay.
     // all parameters are optional.
-    await startGsnRelay({ from: instance.from, provider: ethNodeUrl, verbose })
+    await startGsnRelay({ from: instance.from, provider: instance.ethNodeUrl, verbose: instance.verbose })
     process.on('exit', stopGsnRelay) // its synchronous call, so its OK to call from 'exit'
 
     // await instance.fundRelayIfNeeded()
@@ -171,7 +175,7 @@ export default class TestEnvironment {
 
   async initializeSimpleManager () {
     const relayOptions = {
-      verbose,
+      verbose: this.verbose,
       sponsor: this.sponsor.address
     }
     if (this.isRelayHubMocked) {
