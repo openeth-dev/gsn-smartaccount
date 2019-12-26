@@ -178,7 +178,7 @@ describe('SimpleWallet', async function () {
 
   describe('Add Operator Now', async function () {
     // TODO: url parameters TBD
-    const url = 'http://server.com/validate?a=123&b=456'
+    const smsCode = '123456'
     const description = 'New operator device'
     const newOperator = '0x3333333333333333333333333333333333333333'
 
@@ -187,7 +187,7 @@ describe('SimpleWallet', async function () {
     before(async function () {
       testContext = await newTest()
       testContext.newOperator = newOperator
-      testContext.url = url
+      testContext.smsCode = smsCode
       testContext.description = description
       testContext.wallet.backend = {
         validateAddOperatorNow: sinon.spy(
