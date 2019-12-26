@@ -32,7 +32,7 @@ module.exports = {
       web3.currentProvider.send({
         jsonrpc: '2.0',
         method: 'evm_snapshot',
-        id: new Date().getSeconds()
+        id: Date.now()
       }, (err, snapshotId) => {
         if (err) { return reject(err) }
         return resolve(snapshotId)
@@ -46,7 +46,7 @@ module.exports = {
         jsonrpc: '2.0',
         method: 'evm_revert',
         params: [id],
-        id: new Date().getSeconds()
+        id: Date.now()
       }, (err, result) => {
         if (err) { return reject(err) }
         return resolve(result)
@@ -60,7 +60,7 @@ module.exports = {
         jsonrpc: '2.0',
         method: 'evm_increaseTime',
         params: [time],
-        id: new Date().getSeconds()
+        id: Date.now()
       }, (err) => {
         if (err) return reject(err)
         module.exports.evmMine(web3)
@@ -76,7 +76,7 @@ module.exports = {
         jsonrpc: '2.0',
         method: 'evm_mine',
         params: [],
-        id: new Date().getSeconds()
+        id: Date.now()
       }, (e, r) => {
         if (e) reject(e)
         else resolve(r)
