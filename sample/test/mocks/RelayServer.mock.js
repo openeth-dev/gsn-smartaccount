@@ -31,8 +31,8 @@ export default class RelayServerMock {
           gas: jsd.gasLimit
         })
         .then(res => {
-          if(!res.logs[0].args.success){
-            console.error('Relayed Transaction Failed',res.logs[0].args.message)
+          if (!res.logs[0].args.success) {
+            console.error('Relayed Transaction Failed', res.logs[0].args.message)
           }
           this.web3.eth.getTransactionCount(this.relayServerAddress)
             .then(nonce => {

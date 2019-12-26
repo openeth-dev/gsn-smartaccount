@@ -30,43 +30,40 @@ function calculateSmsCode () {
   })
 }
 
+async function newTest () {
+  const testContext = await TestEnvironment.initializeAndStartBackendForRealGSN({})
+  await testContext.manager.googleLogin()
+  testContext.jwt = jwt
+  testContext.smsCode = calculateSmsCode()
+  return testContext
+}
+
 describe('Client <-> Backend <-> Blockchain', async function () {
-  before('set up the ', async function () {
-    // set up test context here
-  })
-
   describe('SimpleManager', async function () {
-    let testContext
-    before(async function () {
-      testContext = await TestEnvironment.initializeAndStartBackendForRealGSN({})
-      await testContext.manager.googleLogin()
-      testContext.jwt = jwt
-      testContext.phoneNumber = phoneNumber
-      testContext.smsCode = calculateSmsCode()
-    })
-
     after('stop backend', async () => {
-      if (testContext) {
-        await testContext.stopBackendServer()
-      }
+      await TestEnvironment.stopBackendServer()
     })
 
-    describe.only('#cancelByUrl()', async function () {
+    describe('#cancelByUrl()', async function () {
       let testContext
       before(async function () {
-        this.timeout(15000)
-        testContext = await TestEnvironment.initializeAndStartBackendForRealGSN({})
-        await testContext.manager.googleLogin()
-        testContext.jwt = jwt
-        testContext.smsCode = calculateSmsCode()
+        testContext = await newTest()
       })
       testCancelByUrlBehavior(() => testContext)
     })
 
-    // testCreateWalletBehavior(() => testContext)
+    describe('#createWallet()', async function () {
+      let testContext
+      before(async function () {
+        testContext = await newTest()
+        testContext.phoneNumber = '+1-541-754-3010'
+      })
+
+      testCreateWalletBehavior(() => testContext)
+    })
   })
 
-  describe('SimpleWallet', async function () {
+  describe.skip('SimpleWallet', async function () {
     let testContext
     before(async function () {
       testContext = await TestEnvironment.initializeAndStartBackendForRealGSN({})
@@ -80,9 +77,7 @@ describe('Client <-> Backend <-> Blockchain', async function () {
     })
 
     after('stop backend', async () => {
-      if (testContext) {
-        await testContext.stopBackendServer()
-      }
+      await TestEnvironment.stopBackendServer()
     })
 
     testValidationBehavior(() => testContext)

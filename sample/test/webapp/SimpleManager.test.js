@@ -142,7 +142,7 @@ describe('SimpleManager', async function () {
       const mockBackend = {
         // eslint-disable-next-line no-unused-vars
         cancelByUrl: async function ({ jwt, url }) {
-          const { delayedOpId } = Watchdog._extractCancelParamsFromUrl({url})
+          const { delayedOpId } = Watchdog._extractCancelParamsFromUrl({ url })
           const res = await testContext.wallet.cancelPending(delayedOpId)
           return { transactionHash: res.tx }
         },

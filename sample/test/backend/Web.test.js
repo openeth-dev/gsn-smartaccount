@@ -24,7 +24,9 @@ describe('http layer tests', async function () {
     mockBE.createAccount = function createAccount () {}
     mockBE.addOperatorNow = function addOperatorNow () {}
     mockBE.handleNotifications = function handleNotifications () {}
-    mockWD = {}
+    mockWD = {
+      start: function () {}
+    }
     mockWD.cancelByUrl = function cancelByUrl () {}
   })
   it('should construct webclient, webserver and start server', async function () {

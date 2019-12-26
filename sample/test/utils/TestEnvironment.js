@@ -1,6 +1,7 @@
 import { spawn } from 'child_process'
 import Web3 from 'web3'
 import FactoryContractInteractor from 'safechannels-contracts/src/js/FactoryContractInteractor'
+import TestUtils from 'safechannels-contracts/test/utils'
 import axios from 'axios'
 import path from 'path'
 import { MockStorage } from '../mocks/MockStorage'
@@ -9,6 +10,7 @@ import Account from '../../src/js/impl/Account'
 import SimpleManager from '../../src/js/impl/SimpleManager'
 import RelayServerMock from '../mocks/RelayServer.mock'
 import ClientBackend from '../../src/js/backend/ClientBackend'
+import SimpleWallet from '../../src/js/impl/SimpleWallet'
 import { startGsnRelay, stopGsnRelay } from 'localgsn'
 
 /**
@@ -77,19 +79,24 @@ export default class TestEnvironment {
     // From this point on, there is an external process running that has to be killed if construction fails
     try {
       instance.backendAddresses = await instance.clientBackend.getAddresses()
+      await instance.web3.eth.sendTransaction({
+        from: instance.from,
+        to: instance.backendAddresses.watchdog,
+        value: 3e18
+      })
       await instance.addBackendAsTrustedSignerOnFactory()
       await instance.initializeSimpleManager()
       return instance
     } catch (e) {
-      instance.stopBackendServer()
+      TestEnvironment.stopBackendServer()
       throw e
     }
   }
 
   async startBackendServer () {
     if (ls) {
-      console.error('Server is already running, watch out!')
-      return
+      console.error('Server is already running, restarting it!!!')
+      TestEnvironment.stopBackendServer()
     }
     const port = 8888
     return new Promise((resolve, reject) => {
@@ -123,7 +130,10 @@ export default class TestEnvironment {
     })
   }
 
-  stopBackendServer () {
+  static stopBackendServer () {
+    if (!ls) {
+      return
+    }
     ls.kill(9)
     ls = null
   }
@@ -192,13 +202,15 @@ export default class TestEnvironment {
 
   async createWallet ({ jwt, phoneNumber, smsVerificationCode }) {
     this.wallet = await this.manager.createWallet({ jwt, phoneNumber, smsVerificationCode })
-    let owner = await this.manager.getOwner()
-    let config = SimpleWallet.getDefaultSampleInitialConfiguration({
-      backendAddress: this.from,
+    const owner = await this.manager.getOwner()
+    const config = SimpleWallet.getDefaultSampleInitialConfiguration({
+      backendAddress: this.backendAddresses.watchdog,
       operatorAddress: owner,
       whitelistModuleAddress: this.from
     })
     const a = await this.wallet.initialConfiguration(config)
+    await TestUtils.evmMine(this.web3)
+    // await sleep(2000)
     console.log(a)
   }
 }

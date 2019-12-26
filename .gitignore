@@ -25,3 +25,4 @@ js_client/gradlew.bat
 /.idea/$PRODUCT_WORKSPACE_FILE$
 .idea/safechannels.iml
 /solidity/src/js/generated/
+/sample/sample.iml

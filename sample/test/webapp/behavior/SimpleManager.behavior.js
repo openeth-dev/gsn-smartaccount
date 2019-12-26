@@ -1,5 +1,5 @@
 /* eslint-disable no-unused-expressions */
-/* global describe it */
+/* global before it */
 // import { expect } from 'chai'
 // import assert from 'assert'
 
@@ -42,7 +42,7 @@ export function testCancelByUrlBehavior (getContext) {
 
   it('should pass parameters to backend client and receive transaction hash in response', async function () {
     this.timeout(15000)
-    let context = getContext()
+    const context = getContext()
     const sm = context.manager
     sinon.spy(sm.backend)
     const jwt = context.jwt
