@@ -56,7 +56,7 @@ module.exports = {
       host: '127.0.0.1',
       port: 8544,
       network_id: '*'
-    },
+    }
 
 /*
     cov: { // coverage/trace provider. note that it currently can't run extrnal-process relay.

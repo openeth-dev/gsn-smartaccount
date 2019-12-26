@@ -13,6 +13,6 @@ cd $root/sample && yarn link safechannels-contracts && yarn
 
 mv $PKG.tmp $PKG
 
-cd $root
-node solidity/extract_abi.js
+# cd $root
+# node solidity/extract_abi.js
 
