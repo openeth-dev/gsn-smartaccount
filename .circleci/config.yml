@@ -21,7 +21,7 @@ jobs:
 
       - run:
           name: Abort if commit description contains "DRAFT"
-          command: git log HEAD~1..HEAD ; git log HEAD~1..HEAD|grep DRAFT && exit 1
+          command: if git log HEAD~1..HEAD|grep DRAFT; then exit 1; fi
 
       # Download and cache dependencies
       - restore_cache:
