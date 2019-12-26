@@ -1,6 +1,7 @@
 #!/bin/bash -xe
 #update yarn links it subfolders:
-root=`cd dirname $0;pwd`
+dir=`dirname $0`
+root=`cd $dir; pwd`
 
 PKG=$root/sample/package.json
 
