@@ -2,6 +2,7 @@
   "name": "safechannels-contracts",
   "description": "solidity contracts, utilities and generated ABIs for Safe Channels",
   "version": "0.0.1-beta.1",
+  "license": "MIT",
   "scripts": {
     "test": "npx truffle test | sed -l -e 's/^,//;' ",
     "ci-unlimited": "yarn run lint && npx run-with-testrpc -p 8544 -a 15 -l 80000000 --allowUnlimitedContractSize 'npx truffle --network npmtest test'",
@@ -14,12 +15,14 @@
     "trace": "MODE=trace npx truffle test --network cov",
     "coverage": "rm -rf coverage ; rm -rf .0x-artifacts ; MODE=coverage npx truffle test --network cov; istanbul report text; istanbul report html"
   },
-  "devDependencies": {
-    "@0x/contracts-utils": "3.1.6",
+  "unusedDependencies": {
     "@0x/sol-compiler": "3.1.8",
     "@0x/sol-coverage": "3.0.5",
+    "@0x/subproviders": "4.1.0"
+  },
+  "devDependencies": {
+    "@0x/contracts-utils": "3.1.6",
     "@0x/sol-trace": "2.0.13",
-    "@0x/subproviders": "4.1.0",
     "babel-eslint": "^10.0.3",
     "esm": "^3.2.25",
     "ethereum-waffle": "2.0.12",
@@ -34,6 +37,9 @@
     "ganache-cli": "6.5.0",
     "husky": "2.7.0",
     "mocha": "6.2.0",
+    "bn-chai": "1.0.1",
+    "chai": "4.2.0",
+    "chai-as-promised": "7.1.1",
     "run-with-testrpc": "0.3.1",
     "solc": "0.5.10",
     "standard": "^14.3.1",
@@ -41,9 +47,6 @@
     "web3": "1.0.0-beta.37"
   },
   "dependencies": {
-    "bn-chai": "1.0.1",
-    "chai": "4.2.0",
-    "chai-as-promised": "7.1.1",
     "ethereumjs-abi": "0.6.8",
     "ethereumjs-util": "6.1.0",
     "gsn-sponsor": "^0.0.3-beta.8",
