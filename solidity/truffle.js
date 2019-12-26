@@ -56,14 +56,15 @@ module.exports = {
       host: '127.0.0.1',
       port: 8544,
       network_id: '*'
-    },
+    }
 
+    /*
     cov: { // coverage/trace provider. note that it currently can't run extrnal-process relay.
       provider: require('./coverage-prov.js'),
       verbose: process.env.VERBOSE,
       network_id: '*'
     }
-
+    */
     // Another network with more advanced options...
     // advanced: {
     // network_id: 1342,       // Custom network

@@ -19,16 +19,20 @@ jobs:
     steps:
       - checkout
 
+      - run:
+          name: Abort if commit description contains "DRAFT"
+          command: if git log HEAD~1..HEAD|grep -C 5 DRAFT; then exit 1; fi
+
       # Download and cache dependencies
       - restore_cache:
           keys:
             - deps-{{ checksum "solidity/package.json" }} {{ checksum "sample/package.json" }}
             # fallback to using the latest cache if no exact match is found
-            - deps-
+            #- deps-
 
       - run:
           name: yarn-install
-          command: ( cd solidity && yarn install ) && (cd sample && yarn install )
+          command: ./yarnupd.sh
 
       - save_cache:
           paths:
@@ -41,9 +45,6 @@ jobs:
           name: extract_abi
           command: node solidity/extract_abi.js
 
-      - run:
-          name: yarn install solidity into sample
-          command: (cd sample && yarn add ../solidity)
       # run tests!
       - run:
           name: sample-test

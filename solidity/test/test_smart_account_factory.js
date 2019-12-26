@@ -48,6 +48,8 @@ contract('SmartAccountFactory', function (accounts) {
   })
 
   after('write coverage report', async () => {
-    await global.postCoverage()
+    if (global.postCoverage) {
+      await global.postCoverage()
+    }
   })
 })
