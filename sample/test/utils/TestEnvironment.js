@@ -9,7 +9,7 @@ import Account from '../../src/js/impl/Account'
 import SimpleManager from '../../src/js/impl/SimpleManager'
 import RelayServerMock from '../mocks/RelayServer.mock'
 import ClientBackend from '../../src/js/backend/ClientBackend'
-import SimpleWallet from '../../src/js/impl/SimpleWallet'
+import { startGsnRelay, stopGsnRelay } from 'localgsn'
 
 /**
  * AFAIK, the docker image will always deploy the hub to the same address
@@ -65,7 +65,13 @@ export default class TestEnvironment {
   }) {
     const instance = new TestEnvironment({ ethNodeUrl, relayUrl, relayHub, web3provider, clientBackend })
     instance.from = (await instance.web3.eth.getAccounts())[0]
-    await instance.fundRelayIfNeeded()
+
+    // bring up RelayHub, relay.
+    // all parameters are optional.
+    await startGsnRelay({ from: instance.from, provider: ethNodeUrl, verbose })
+    process.on('exit', stopGsnRelay) // its synchronous call, so its OK to call from 'exit'
+
+    // await instance.fundRelayIfNeeded()
     await instance.deployNewFactory()
     await instance.startBackendServer()
     // From this point on, there is an external process running that has to be killed if construction fails

@@ -1,0 +1,10 @@
+{
+  "diff": true,
+  "require": [
+    "esm"
+  ],
+  "ui": "bdd",
+  "recursive": true,
+  "timeout": 5000,
+  "slow": 500
+}
