@@ -17,6 +17,10 @@ jobs:
     working_directory: ~/repo
 
     steps:
+      - run:
+          name: Abort if commit description contains "DRAFT"
+          command: git log HEAD~1..HEAD|grep DRAFT && exit 1
+
       - checkout
 
       # Download and cache dependencies
@@ -36,10 +40,6 @@ jobs:
             - ./sample/node_modules
           # TODO: cache by all package.json files in the repo!!!
           key: deps-{{ checksum "solidity/package.json" }} {{ checksum "sample/package.json" }}
-
-      - run:
-          name: Abort if commit description contains "DRAFT"
-          command: git log HEAD~1..HEAD|grep DRAFT && exit 1
 
       - run:
           name: extract_abi
