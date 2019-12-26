@@ -24,11 +24,11 @@ jobs:
           keys:
             - deps-{{ checksum "solidity/package.json" }} {{ checksum "sample/package.json" }}
             # fallback to using the latest cache if no exact match is found
-            - deps-
+            #- deps-
 
       - run:
           name: yarn-install
-          command: ( cd solidity && yarn install ) && (cd sample && yarn install )
+          command: ./yarnupd.sh
 
       - save_cache:
           paths:
@@ -38,12 +38,13 @@ jobs:
           key: deps-{{ checksum "solidity/package.json" }} {{ checksum "sample/package.json" }}
 
       - run:
+          name: Abort if commit description contains "DRAFT"
+          command: git log HEAD~1..HEAD|grep DRAFT && exit 1
+
+      - run:
           name: extract_abi
           command: node solidity/extract_abi.js
 
-      - run:
-          name: yarn install solidity into sample
-          command: (cd sample && yarn add ../solidity)
       # run tests!
       - run:
           name: sample-test
