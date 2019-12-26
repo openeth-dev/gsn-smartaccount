@@ -55,14 +55,23 @@ export class AccountManager {
   }
 
   putOperatorToAdd ({ accountId, address }) {
-    this.operatorsToAdd[accountId] = address
+    if (!accountId || !address) {
+      return
+    }
+    this.operatorsToAdd[accountId.toLowerCase()] = address.toLowerCase()
   }
 
   getOperatorToAdd ({ accountId }) {
-    return this.operatorsToAdd[accountId]
+    if (!accountId) {
+      return
+    }
+    return this.operatorsToAdd[accountId.toLowerCase()]
   }
 
   removeOperatorToAdd ({ accountId }) {
-    delete this.operatorsToAdd[accountId]
+    if (!accountId) {
+      return
+    }
+    delete this.operatorsToAdd[accountId.toLowerCase()]
   }
 }
