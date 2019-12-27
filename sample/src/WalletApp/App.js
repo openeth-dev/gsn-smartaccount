@@ -17,9 +17,11 @@ const Button = ({ title, action }) => <input type="submit" onClick={action} valu
 function GoogleLogin ({ refresh }) {
   async function login () {
     const logininfo = await mgr.googleLogin()
-    if (!logininfo) { return }
-    const { jwt } = logininfo
-    refresh({ jwt })
+    if (!logininfo || !logininfo.email) {
+      return
+    }
+    const { jwt, email } = logininfo
+    refresh({ jwt, email })
   }
 
   return <div>
@@ -151,11 +153,12 @@ class App extends React.Component {
       walletPending: undefined
     }
     if (sdk && await sdk.isEnabled({ appUrl: window.location.href })) {
+      //read fields form wallet only once: they can't change (unless we logout)
       Object.assign(mgrState, {
         needApprove: undefined,
-        ownerAddr: await mgr.getOwner(),
-        walletAddr: await mgr.getWalletAddress(),
-        email: await mgr.getEmail()
+        ownerAddr: this.state.ownerAddress || await mgr.getOwner(),
+        walletAddr: this.state.walletAddr || await mgr.getWalletAddress(),
+        email: this.state.email || await mgr.getEmail()
       })
       console.log('readMgrState: has some state')
     } else {

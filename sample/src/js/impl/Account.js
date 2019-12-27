@@ -1,9 +1,11 @@
 /* global window */
 import AccountApi from '../api/Account.api'
 
+import { Gauth } from './Gauth'
 import ethWallet from 'ethereumjs-wallet'
 import * as ethUtils from 'ethereumjs-util'
 import { buf2hex, hex2buf } from '../utils/utils'
+import GauthMock from '../mocks/Gauth.mock'
 
 export function storageProps (storage) {
   return new Proxy(storage, {
@@ -31,6 +33,17 @@ export default class Account extends AccountApi {
     }
     this.storage = storageProps(storage)
     this._approvedApps = JSON.parse(this.storage.approved || '{}')
+
+    //must be called very early, since we init with address as nonce.
+    if (!this.storage.ownerAddress) {
+      this._createOwner()
+    }
+
+    if (typeof window === 'undefined') {
+      this.gauth = new GauthMock({ nonce: this.storage.ownerAddress })
+    } else {
+      this.gauth = new Gauth({ nonce: this.storage.ownerAddress })
+    }
   }
 
   _isApproved (url) {
@@ -72,9 +85,6 @@ export default class Account extends AccountApi {
     if (this.storage.ownerAddress) {
       throw new Error('owner already created')
     }
-    if (!this.storage.email) {
-      throw new Error('not logged in')
-    }
 
     const wallet = ethWallet.generate()
 
@@ -94,55 +104,24 @@ export default class Account extends AccountApi {
     if (this.verbose) {
       console.log('open google auth popup. prompt user for google account.\n')
     }
-    let newemail
-    if (typeof window !== 'undefined') {
-      newemail = window.prompt('Sign in to google account', this.storage.email || 'shahaf@tabookey.com')
-      if (!newemail) {
-        return null
-      }
-    } else {
-      newemail = 'shahaf@tabookey.com' // must match our 'testjwt'
-    }
-    this.storage.email = newemail
-    if (!this.storage.ownerAddress) {
-      this._createOwner()
-    }
 
-    return {
-      jwt: this._generateMockJwt({
-        email: this.storage.email,
-        nonce: this.storage.ownerAddress || 'nonce'
-      }),
-      email: this.storage.email,
+    let info = await this.gauth.signIn({ nonce: this.storage.ownerAddress })
+    this.storage.email = info.email
+    let ret = {
+      email: info.email,
+      jwt: info.jwt,
       address: this.storage.ownerAddress
     }
+    return ret
   }
 
   async googleAuthenticate () {
+    const info = this.gauth.info()
     return {
-      jwt: {
-        email: this.storage.email,
-        nonce: this.storage.ownerAddress || 'nonce'
-      },
-      email: this.storage.email,
+      email: info.email,
+      jwt: info.jwt,
       address: this.storage.ownerAddress
     }
-  }
-
-  // return a structurely-valid JWT (though signature is bogus..)
-  _generateMockJwt ({ email, nonce, iat, exp }) {
-    const part1 = Buffer.from(JSON.stringify({
-      alg: 'RS256',
-      kid: '5b5dd9be40b5e1cf121e3573c8e49f12527183d3',
-      typ: 'JWT'
-    })).toString('base64')
-    const aud = '202746986880-u17rbgo95h7ja4fghikietupjknd1bln.apps.googleusercontent.com'
-    const azp = aud
-    const iss = 'accounts.google.com'
-    const part2 = Buffer.from(JSON.stringify(
-      { aud, azp, iss, email, email_verified: true, nonce, iat, exp })).toString('base64')
-    const part3 = 'SIG'
-    return [part1, part2, part3].join('.')
   }
 
   // return the body of a jwt. signature must exist - but its ignored.
@@ -152,6 +131,7 @@ export default class Account extends AccountApi {
 
   async signOut () {
     this.storage.email = this.storage.ownerAddress = this.storage.privKey = this.storage.approved = undefined
+    await this.gauth.signOut()
     console.log('approved: ', this.storage._approvedApps)
   }
 

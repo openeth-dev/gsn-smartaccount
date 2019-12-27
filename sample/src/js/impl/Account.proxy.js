@@ -72,7 +72,12 @@ export default class AccountProxy {
     }
     return new Promise((resolve, reject) => {
       const id = this.idseq++
-      const timeoutId = setTimeout(() => reject(new Error('timed-out: ' + method)), 5000)
+      let timeoutId
+      //user may take some time to complete login..
+      if ( method!= 'googleLogin') {
+        timeoutId= setTimeout(() => reject(new Error('timed-out: ' + method)), 5000)
+      }
+
       if (verbose) { console.log('calling: ', id, method, args) }
       self.pending[id] = ({ response, error }) => {
         if (verbose) { console.log('response: ', id, method, error || response) }
