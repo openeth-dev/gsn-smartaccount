@@ -118,7 +118,7 @@ function RecoverOrNewDevice ({ email, walletAddr }) {
 }
 
 function WalletComponent (options) {
-  const { walletAddr, email, walletInfo } = options
+  const { walletAddr, email, ownerAddr, walletInfo } = options
 
   if (!email) {
     return <>noemail<GoogleLogin {...options}/></>
@@ -126,7 +126,8 @@ function WalletComponent (options) {
   if (!walletAddr) {
     return <>nowalletAddr<CreateWallet {...options} /></>
   }
-  if (!walletInfo) {
+  if (!walletInfo ||
+    !walletInfo.operators.includes(ownerAddr)) {
     return <>nowalletInfo<RecoverOrNewDevice {...options} /></>
   }
 
@@ -165,7 +166,6 @@ class App extends React.Component {
       console.log('not enabled', window.location.href)
     }
 
-    // TODO: this is hack: we want to check if it already loaded, not load it.
     if (mgrState.walletAddr) {
       if (!wallet) { wallet = await mgr.loadWallet() }
       mgrState.walletInfo = await wallet.getWalletInfo()
