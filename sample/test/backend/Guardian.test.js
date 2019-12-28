@@ -15,7 +15,7 @@ import Permissions from 'safechannels-contracts/src/js/Permissions'
 import scutils from 'safechannels-contracts/src/js/SafeChannelUtils'
 import sctestutils from 'safechannels-contracts/test/utils'
 import ChangeType from 'safechannels-contracts/test/etc/ChangeType'
-// import { sleep } from './testutils'
+import abiDecoder from 'abi-decoder'
 
 // const ethUtils = require('ethereumjs-util')
 // const abi = require('ethereumjs-abi')
@@ -40,6 +40,8 @@ describe('As Guardian', async function () {
   let wallet
   const whitelistPolicy = '0x1111111111111111111111111111111111111111'
   const transferDestination = '0x1234567891111111111111111111111111111111'
+  const newOperatorAddress = '0x1234567892222222222222222222222222222222'
+  const wrongOperatorAddress = '0x1234567892222222222222222222222222222223'
   const amount = 1e3
   let config
   let newAccount
@@ -58,6 +60,9 @@ describe('As Guardian', async function () {
   before(async function () {
     web3provider = new Web3.providers.WebsocketProvider(ethNodeUrl)
     web3 = new Web3(web3provider)
+    web3.eth.net.isListening(function (error, result) {
+      if (error) console.log('error listening', error)
+    })
     accountZero = (await web3.eth.getAccounts())[0]
     smartAccount = await FactoryContractInteractor.deploySmartAccountDirectly(accountZero, ethNodeUrl)
     walletConfig = {
@@ -148,18 +153,36 @@ describe('As Guardian', async function () {
         assert.equal(eventsAfter.length, eventsBefore.length)
       })
 
+      it(`should not cancel delayed ${delayedOp} for unknown accounts`, async function () {
+        const smsCode = watchdog.smsManager.getSmsCode(
+          { phoneNumber: newAccount.phone, email: newAccount.email })
+        const url = `To cancel event ${receipt.logs[0].args.delayedOpId} on smartAccount ${newAccount.address}, enter code ${smsCode}`
+        try {
+          await watchdog.cancelByUrl(
+            { jwt: undefined, url })
+          assert.fail()
+        } catch (e) {
+          assert.equal(e.message,
+            'Unknown account: either the account was not created on the backend or no address found from smartAccountCreated event')
+        }
+      })
+
       it(`should cancel delayed ${delayedOp} for a known account`, async function () {
         watchdog.accountManager.putAccount({ account: newAccount })
         const eventsBefore = await wallet.contract.getPastEvents(delayedOp + 'Cancelled')
         const smsCode = watchdog.smsManager.getSmsCode(
           { phoneNumber: newAccount.phone, email: newAccount.email })
         hookWatchdogFunction(watchdog._applyChanges.name, function () {})
+        watchdog.lastScannedBlock = 0
         await watchdog._worker()
         unhookWatchdogFunction(watchdog._applyChanges.name)
         const url = `To cancel event ${receipt.logs[0].args.delayedOpId} on smartAccount ${newAccount.address}, enter code ${smsCode}`
         const txhash = (await watchdog.cancelByUrl(
           { jwt: undefined, url })).transactionHash
-        receipt = await web3.eth.getTransactionReceipt(txhash)
+        const rawReceipt = await web3.eth.getTransactionReceipt(txhash)
+        const dlogs = abiDecoder.decodeLogs(rawReceipt.logs)
+        assert.equal(dlogs[0].name, delayedOp + 'Cancelled')
+        assert.equal(dlogs[0].events[0].value, receipt.logs[0].args.delayedOpId)
         const eventsAfter = await wallet.contract.getPastEvents(delayedOp + 'Cancelled')
         assert.equal(eventsAfter.length, eventsBefore.length + 1)
       })
@@ -183,12 +206,79 @@ describe('As Guardian', async function () {
       })
     })
 
+    // describe('addOperatorNow', async function () {
+    //
+    // })
+    it('should NOT approve addOperatorNow for unknown accounts', async function () {
+      // const id = (await sctestutils.snapshot(web3)).result
+      watchdog.accountManager.removeAccount({ account: newAccount })
+      const stateId = await wallet.contract.stateNonce()
+      receipt = await wallet.contract.addOperatorNow(wallet.participant.permLevel, newOperatorAddress, stateId,
+        { from: accountZero })
+      assert.equal(receipt.logs[0].event, 'ConfigPending')
+      assert.equal(receipt.logs[0].args.actions[0], ChangeType.ADD_OPERATOR_NOW.toString())
+      const eventsBefore = await wallet.contract.getPastEvents('ConfigApplied')
+      await watchdog._worker()
+      const eventsAfter = await wallet.contract.getPastEvents('ConfigApplied')
+      assert.equal(eventsAfter.length, eventsBefore.length)
+      // sctestutils.revert(id, web3)
+    })
+
+    it('should NOT approve addOperatorNow for unknown requests', async function () {
+      watchdog.accountManager.putAccount({ account: newAccount })
+      const stateId = await wallet.contract.stateNonce()
+      receipt = await wallet.contract.addOperatorNow(wallet.participant.permLevel, newOperatorAddress, stateId,
+        { from: accountZero })
+      assert.equal(receipt.logs[0].event, 'ConfigPending')
+      assert.equal(receipt.logs[0].args.actions[0], ChangeType.ADD_OPERATOR_NOW.toString())
+      const ret = await watchdog._worker()
+      assert.equal(ret[0].message, `Cannot find new operator address of accountId ${newAccount.accountId}`)
+    })
+
+    it('should NOT approve addOperatorNow on participant hash mismatch', async function () {
+      watchdog.accountManager.putOperatorToAdd({ accountId: newAccount.accountId, address: wrongOperatorAddress })
+      const stateId = await wallet.contract.stateNonce()
+      receipt = await wallet.contract.addOperatorNow(wallet.participant.permLevel, newOperatorAddress, stateId,
+        { from: accountZero })
+      assert.equal(receipt.logs[0].event, 'ConfigPending')
+      assert.equal(receipt.logs[0].args.actions[0], ChangeType.ADD_OPERATOR_NOW.toString())
+      const ret = await watchdog._worker()
+      assert.equal(ret[0].message,
+        `participant hash mismatch:\nlog ${receipt.logs[0].args.actionsArguments1[0]}\nexpected operator hash ${scutils.bufferToHex(
+          scutils.operatorHash(
+            wrongOperatorAddress))}`)
+      watchdog.accountManager.removeOperatorToAdd({ accountId: newAccount.accountId })
+    })
+
+    it('should approve addOperatorNow for known requests', async function () {
+      watchdog.accountManager.putOperatorToAdd({ accountId: newAccount.accountId, address: newOperatorAddress })
+      const stateId = await wallet.contract.stateNonce()
+      receipt = await wallet.contract.addOperatorNow(wallet.participant.permLevel, newOperatorAddress, stateId,
+        { from: accountZero })
+      assert.equal(receipt.logs[0].event, 'ConfigPending')
+      assert.equal(receipt.logs[0].args.actions[0], ChangeType.ADD_OPERATOR_NOW.toString())
+      const eventsBefore = await wallet.contract.getPastEvents('ConfigApplied')
+      const ret = await watchdog._worker()
+      const dlogs = abiDecoder.decodeLogs(ret[0].logs)
+      assert.equal(dlogs[0].name, 'ConfigApplied')
+      assert.equal(dlogs[0].events[0].value, receipt.logs[0].args.delayedOpId)
+      assert.equal(dlogs[1].name, 'ParticipantAdded')
+      const eventsAfter = await wallet.contract.getPastEvents('ConfigApplied')
+      assert.equal(eventsAfter.length, eventsBefore.length + 1)
+    })
+
     it('should not apply any operation twice', async function () {
-      hookWatchdogFunction(watchdog._applyChanges.name, function () {})
+      hookWatchdogFunction(watchdog._sendTransaction.name, function () {
+        assert.fail()
+      })
       watchdog.lastScannedBlock = 0
       await watchdog._worker()
       assert.deepEqual(watchdog.changesToApply, {})
-      unhookWatchdogFunction(watchdog._applyChanges.name)
+      watchdog.accountManager.putOperatorToAdd({ accountId: newAccount.accountId, address: wrongOperatorAddress })
+      watchdog.lastScannedBlock = 0
+      await watchdog._worker()
+      assert.deepEqual(watchdog.changesToApply, {})
+      unhookWatchdogFunction(watchdog._sendTransaction.name)
     })
 
     it('should start periodic task and subscribe to new blocks', async function () {

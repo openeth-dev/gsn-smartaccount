@@ -449,8 +449,8 @@ export default class SimpleWallet extends SimpleWalletApi {
     // TODO: Add new operator to known participants
   }
 
-  async validateAddOperatorNow ({ jwt, url }) {
-    return this.backend.validateAddOperatorNow({ jwt, url })
+  async validateAddOperatorNow ({ jwt, smsCode }) {
+    return this.backend.validateAddOperatorNow({ jwt, smsCode })
   }
 
   // TODO: this code is not really covered with tests! Do not trust it!

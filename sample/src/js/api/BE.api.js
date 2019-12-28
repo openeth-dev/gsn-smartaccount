@@ -30,15 +30,11 @@ export default class BEapi {
     error('validate jwt (contains address in nonce), return "click to add" SMS')
   }
 
-  async validateAddOperatorNow ({ jwt, url }) {
+  async validateAddOperatorNow ({ jwt, smsCode }) {
     error('validate that addDeviceUrl is the one sent by addOperatorNow. save validation in memory')
   }
 
   async cancelByUrl ({ jwt, url }) {
     error('send cancel request to watchdog as a response to sms')
-  }
-
-  handleNotifications () {
-    error('monitor pending changes. can subscribe for events, but need also to handle due events.')
   }
 }
