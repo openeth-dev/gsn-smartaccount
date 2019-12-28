@@ -208,9 +208,7 @@ export default class TestEnvironment {
       operatorAddress: owner,
       whitelistModuleAddress: this.from
     })
-    const a = await this.wallet.initialConfiguration(config)
+    await this.wallet.initialConfiguration(config)
     await TestUtils.evmMine(this.web3)
-    // await sleep(2000)
-    console.log(a)
   }
 }

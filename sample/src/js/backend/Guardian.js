@@ -33,7 +33,7 @@ export class Watchdog {
     this.changesToApply = {}
   }
 
-  async start () {
+  start () {
     console.log('Subscribing to new blocks')
     this.subscription = this.web3.eth.subscribe('newBlockHeaders', function (error, result) {
       if (error) {
