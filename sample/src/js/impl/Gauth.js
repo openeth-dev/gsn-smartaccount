@@ -1,13 +1,18 @@
 import axios from 'axios'
+import GauthApi from '../api/Gauth.api'
 
+// wsample
 const CLIENT_ID = '202746986880-u17rbgo95h7ja4fghikietupjknd1bln.apps.googleusercontent.com'
 
-export class Gauth {
+//SmartAccount app: https://console.developers.google.com/apis/credentials?highlightClient=966448872848-td59kkdbgdk4r1pngbmf71mor450upn0.apps.googleusercontent.com&project=smartaccount-263422&organizationId=208398235469
+// const CLIENT_ID = '966448872848-td59kkdbgdk4r1pngbmf71mor450upn0.apps.googleusercontent.com'
+
+export class Gauth extends GauthApi {
 
   //extra params from:
   // https://developers.google.com/identity/sign-in/web/reference#gapiauth2initparams
-  constructor (init_params) {
-    this.default_params = {
+  init (init_params) {
+    this.params = {
       ...init_params,
       client_id: CLIENT_ID
     }
@@ -15,8 +20,11 @@ export class Gauth {
 
   //extra params from:
   // https://developers.google.com/identity/sign-in/web/reference#gapiauth2initparams
-  async init (init_params) {
+  async _init () {
 
+    if (this.gauth) {
+      return // already initialized
+    }
     if (!global.gapi) {
       let script = await axios.get('https://apis.google.com/js/platform.js')
       eval(script.data)
@@ -27,41 +35,22 @@ export class Gauth {
       gapi.load('auth2', resolve)
     })
 
-    let params = {
-      ...this.default_params,
-      ...init_params
-    }
-    gapi.auth2.init(params)
-    this.params = params
-    this.gauth = await gapi.auth2.getAuthInstance()
+    gapi.auth2.init(this.params)
+    this.gauth = gapi.auth2.getAuthInstance()
   }
 
-  async _reinit (params={}) {
-    let newparams = {
-      ...this.default_params,
-      ...params
-    }
-    if (Object.entries(newparams).sort().toString() ===
-      Object.entries(this.params | {}).sort().toString()) {
-
-      //same init params. do nothing.
-      return
-    }
-    await this.init(params)
-  }
-
-  async signIn (params) {
-    await this._reinit(params)
+  async signIn () {
+    await this._init()
     await this.gauth.signIn()
     return this.info()
   }
 
-  async signOut (params) {
-    await this._reinit(params)
+  async signOut () {
     return this.gauth.signOut()
   }
 
-  info () {
+  async info () {
+    await this._init()
     if (!this.gauth)
       return { error: 'no gauth' }
     if (!this.gauth.currentUser)

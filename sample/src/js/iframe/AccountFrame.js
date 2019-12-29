@@ -2,13 +2,13 @@
 // this is the class loaded by the account.html frame.
 import Account from '../impl/Account'
 import AccountApi from '../api/Account.api'
+import { Gauth } from '../impl/Gauth'
 // https://developer.mozilla.org/en-US/docs/Web/API/Window/postMessage
 let account
 const verbose = true
 
 // const enabledSites = {}
 function initMessageHandler ({ window }) {
-  console.log('initMessageHandler')
   if (!window) {
     throw new Error('missing {window}')
   }
@@ -16,7 +16,7 @@ function initMessageHandler ({ window }) {
     throw new Error('missing {window.localStorage}')
   }
 
-  account = new Account(window.localStorage)
+  account = new Account({ storage: window.localStorage, gauth: new Gauth() })
 
   const onMessage = function onMessage ({ source, data }) {
     const { method, id, args: params } = data
@@ -41,8 +41,7 @@ function initMessageHandler ({ window }) {
   }
 
   setImmediate(() => {
-    console.log('AccountFrame initialized')
-    // window.parent.postMessage('account-iframe-initialized', '*')
+    window.parent.postMessage('account-iframe-initialized', '*')
   })
 }
 
@@ -54,7 +53,7 @@ async function handleMessage ({ source, method, id, params }) {
   }
 
   try {
-    if (verbose) { console.log('iframe: called', id, method, params) }
+    // if (verbose) { console.log('iframe: called', id, method, params) }
     // enable is the only method allowed before prompting the use to enable
     if (method !== 'enableApp' && method !== 'isEnabled') {
       account._verifyApproved(method, source.location.href)
@@ -65,7 +64,7 @@ async function handleMessage ({ source, method, id, params }) {
 
     const response = await methodToCall.apply(account, params)
 
-    if (verbose) { console.log('iframe: resp', id, response) }
+    if (verbose) { console.log('iframe: resp',response, method,params) }
 
     source.postMessage({ id, response }, '*')
   } catch (e) {

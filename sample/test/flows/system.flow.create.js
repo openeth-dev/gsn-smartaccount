@@ -8,7 +8,7 @@ import { increaseTime } from 'safechannels-contracts/test/utils'
 
 const DAY = 24 * 3600
 
-describe.only('System flow: Create Account', () => {
+describe('System flow: Create Account', () => {
   let testEnvironment, web3, toBN
 
   before('check "gsn-dock-relay" is active', async function () {

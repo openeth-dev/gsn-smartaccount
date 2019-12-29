@@ -5,7 +5,6 @@ import { Gauth } from './Gauth'
 import ethWallet from 'ethereumjs-wallet'
 import * as ethUtils from 'ethereumjs-util'
 import { buf2hex, hex2buf } from '../utils/utils'
-import GauthMock from '../mocks/Gauth.mock'
 
 export function storageProps (storage) {
   return new Proxy(storage, {
@@ -26,24 +25,25 @@ export function storageProps (storage) {
 
 export default class Account extends AccountApi {
   // storage - Storage class (setItem,getItem,removeItem - all strings)
-  constructor (storage) {
+  constructor ({ storage, gauth }) {
     super()
     if (!storage) {
       throw new Error('missing Storage param')
     }
     this.storage = storageProps(storage)
-    this._approvedApps = JSON.parse(this.storage.approved || '{}')
+    this._loadApprovedApps()
 
     //must be called very early, since we init with address as nonce.
     if (!this.storage.ownerAddress) {
       this._createOwner()
     }
 
-    if (typeof window === 'undefined') {
-      this.gauth = new GauthMock({ nonce: this.storage.ownerAddress })
-    } else {
-      this.gauth = new Gauth({ nonce: this.storage.ownerAddress })
-    }
+    this.gauth = gauth
+    gauth.init({ nonce: this.storage.ownerAddress })
+  }
+
+  _loadApprovedApps () {
+    this._approvedApps = JSON.parse(this.storage.approved || '{}')
   }
 
   _isApproved (url) {
@@ -93,6 +93,9 @@ export default class Account extends AccountApi {
   }
 
   async getOwner () {
+    //address allocated early, but returned only after login
+    if (!this.storage.email)
+      return null
     return this.storage.ownerAddress
   }
 
@@ -132,7 +135,7 @@ export default class Account extends AccountApi {
   async signOut () {
     this.storage.email = this.storage.ownerAddress = this.storage.privKey = this.storage.approved = undefined
     await this.gauth.signOut()
-    console.log('approved: ', this.storage._approvedApps)
+    this._loadApprovedApps()
   }
 
   async signTransaction ({ tx }) {
