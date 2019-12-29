@@ -14,6 +14,7 @@ import SimpleWallet from '../../src/js/impl/SimpleWallet'
 import { startGsnRelay, stopGsnRelay } from 'localgsn'
 import { sleep } from '../backend/testutils'
 import GauthMock from '../../src/js/mocks/Gauth.mock'
+import { increaseTime, snapshot, revert} from 'safechannels-contracts/test/utils'
 
 /**
  * AFAIK, the docker image will always deploy the hub to the same address
@@ -26,6 +27,7 @@ const _serverUrl = 'http://localhost:8888/'
 const _verbose = false
 
 let ls
+
 export default class TestEnvironment {
   constructor ({
     ethNodeUrl = _ethNodeUrl,
@@ -45,6 +47,13 @@ export default class TestEnvironment {
     this.verbose = verbose
   }
 
+  async snapshot () {
+    this.snapshotId = (await snapshot(this.web3)).result
+  }
+
+  async revert () {
+    return await revert(this.snapshotId, this.web3)
+  }
   static async initializeWithFakeBackendAndGSN ({
     ethNodeUrl,
     relayUrl,
@@ -145,9 +154,12 @@ export default class TestEnvironment {
   }
 
   static stopBackendServer () {
-    if (ls) {
-      ls.kill(9)
+    stopGsnRelay()
+    if (!ls) {
+      return
     }
+    ls.kill(9)
+    ls = null
   }
 
   async deployNewFactory () {

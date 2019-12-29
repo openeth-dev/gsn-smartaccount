@@ -14,13 +14,16 @@ describe('System flow: Create Account', () => {
 
   before('check "gsn-dock-relay" is active', async function () {
     this.timeout(5000)
+
     testEnvironment = await TestEnvironment.initializeAndStartBackendForRealGSN({ verbose })
+    await testEnvironment.snapshot()
     web3 = testEnvironment.web3
     toBN = web3.utils.toBN
   })
 
   after('stop backend', async () => {
     await TestEnvironment.stopBackendServer()
+    await testEnvironment.revert()
   })
 
   let wallet
