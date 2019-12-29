@@ -222,4 +222,8 @@ export default class SimpleWalletMock extends SimpleWalletApi {
   async applyAllPendingOperations () {
     super.applyAllPendingOperations()
   }
+
+  async scheduleAddOperator ({ newOperator }) {
+    super.scheduleAddOperator({ newOperator })
+  }
 }

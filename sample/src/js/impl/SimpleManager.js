@@ -1,5 +1,4 @@
 import TruffleContract from '@truffle/contract'
-/* global error */
 import SmartAccountFactoryABI from 'safechannels-contracts/src/js/generated/SmartAccountFactory'
 import FactoryContractInteractor from 'safechannels-contracts/src/js/FactoryContractInteractor'
 
@@ -65,8 +64,12 @@ export default class SimpleManager extends SimpleManagerApi {
     return this.wallet != null
   }
 
-  async recoverWallet ({ owner, email }) {
-    error('trigger recover flow')
+  async recoverWallet ({ jwt }) {
+    return this.backend.recoverWallet({ jwt })
+  }
+
+  async validateRecoverWallet ({ jwt, smsCode }) {
+    return this.backend.validateRecoverWallet({ jwt, smsCode })
   }
 
   /**

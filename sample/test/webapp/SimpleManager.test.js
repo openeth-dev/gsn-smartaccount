@@ -7,7 +7,7 @@ import chaiAsPromised from 'chai-as-promised'
 import SimpleManager from '../../src/js/impl/SimpleManager'
 import {
   testCancelByUrlBehavior,
-  testCreateWalletBehavior, testSignInBehavior,
+  testCreateWalletBehavior, testRecoverWalletBehavior, testSignInBehavior,
   testValidatePhoneBehavior
 } from './behavior/SimpleManager.behavior'
 import TestEnvironment from '../utils/TestEnvironment'
@@ -158,5 +158,28 @@ describe('SimpleManager', async function () {
   })
 
   describe('#recoverWallet()', async function () {
+    let testContext
+
+    before(async function () {
+      const mockBackend = {
+        recoverWallet: function () {
+          return { code: 200 }
+        },
+        validateRecoverWallet: async function () {
+          await testContext.wallet.getWalletInfo() // Needed for stateId
+          await testContext.wallet.scheduleAddOperator({ newOperator: '0x' + '3'.repeat(40) })
+          return { code: 200 }
+        },
+        ...mockBackendBase
+      }
+      testContext = await TestEnvironment.initializeWithFakeBackendAndGSN({
+        clientBackend: mockBackend
+      })
+      await testContext.manager.googleLogin()
+      testContext.smsCode = '1234'
+      testContext.jwt = {}
+    })
+
+    testRecoverWalletBehavior(() => testContext)
   })
 })

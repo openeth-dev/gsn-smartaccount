@@ -73,4 +73,12 @@ export default class ClientBackend extends BEapi {
     response = this._handleJSONRPCResponse(response)
     return response
   }
+
+  async recoverWallet ({ jwt }) {
+    super.recoverWallet({ jwt })
+  }
+
+  async validateRecoverWallet ({ jwt, smsCode }) {
+    super.validateRecoverWallet({ jwt, smsCode })
+  }
 }

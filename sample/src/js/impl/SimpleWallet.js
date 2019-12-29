@@ -498,4 +498,14 @@ export default class SimpleWallet extends SimpleWalletApi {
   _addKnownToken (address) {
     this.knownTokens.push(address)
   }
+
+  async scheduleAddOperator ({ newOperator }) {
+    await this.contract.scheduleAddOperator(
+      this.participant.permLevel, newOperator, this.stateId,
+      {
+        from: this.participant.address,
+        gas: 1e8
+      }
+    )
+  }
 }

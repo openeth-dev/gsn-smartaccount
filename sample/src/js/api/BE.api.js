@@ -31,10 +31,19 @@ export default class BEapi {
   }
 
   async validateAddOperatorNow ({ jwt, smsCode }) {
-    error('validate that addDeviceUrl is the one sent by addOperatorNow. save validation in memory')
+    error('validate that smsCode is the one sent by addOperatorNow. save validation in memory')
   }
 
   async cancelByUrl ({ jwt, url }) {
     error('send cancel request to watchdog as a response to sms')
+  }
+
+  async recoverWallet ({ jwt }) {
+    error('validate jwt (contains address in nonce), return "click to add" SMS\n' +
+      'the difference with signInAsNewOperator is only the method called by backend - applyAdd vs configChange')
+  }
+
+  async validateRecoverWallet ({ jwt, smsCode }) {
+    error('validate that smsCode is the one sent by recoverWallet. Execute "scheduleAddOperator" on-chain')
   }
 }

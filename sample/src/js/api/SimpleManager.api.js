@@ -75,8 +75,12 @@ export default class SimpleManagerApi extends EventEmitter {
     error('create contract via GSN. returns after wallet created on chain. must call setInitialConfiguration() to complete creation')
   }
 
-  async recoverWallet ({ owner, email }) {
+  async recoverWallet ({ jwt }) {
     error('trigger recover flow')
+  }
+
+  async validateRecoverWallet ({ jwt, smsCode }) {
+    error('schedules add operator configuration')
   }
 
   async cancelByUrl ({ jwt, url }) {

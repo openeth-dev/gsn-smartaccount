@@ -86,7 +86,43 @@ export function testSignInBehavior (getContext) {
 }
 
 export function calledWithRightArgs (method, args) {
+  assert.strictEqual(typeof method, 'function', 'This method is not defined')
   // noinspection BadExpressionStatementJS
   expect(method.calledOnce).to.be.true
   expect(method.firstCall.args[0]).to.eql(args)
+}
+
+export function testRecoverWalletBehavior (getContext) {
+  let jwt
+  let context
+  let sm
+
+  before(async function () {
+    context = getContext()
+    sm = context.manager
+    jwt = context.jwt
+    await context.createWallet({ jwt, phoneNumber, smsVerificationCode: context.smsCode })
+  })
+
+  it('should pass parameters to backend and handle response', async function () {
+    sinon.spy(sm.backend)
+    const response = await sm.recoverWallet({ jwt })
+    assert.strictEqual(response.code, 200)
+    calledWithRightArgs(sm.backend.recoverWallet, { jwt })
+  })
+
+  it('should make a confirm 2FA request that initiates a new pending config change', async function () {
+    const response = await sm.validateRecoverWallet({ jwt, smsCode: context.smsCode })
+    assert.strictEqual(response.code, 200)
+    calledWithRightArgs(sm.backend.validateRecoverWallet, { jwt, smsCode: context.smsCode })
+    const wallet = await sm.loadWallet()
+    await wallet.getWalletInfo()
+    const pending = await wallet.listPendingConfigChanges()
+    assert.strictEqual(pending.length, 1)
+    const first = pending[0]
+    assert.strictEqual(first.operations.length, 1)
+    const operation = first.operations[0]
+    assert.strictEqual(operation.type, 'add_operator')
+    assert.strictEqual(operation.args[0], '0x0000000000000000000000003333333333333333333333333333333333333333')
+  })
 }
