@@ -49,7 +49,6 @@ describe('Client <-> Backend <-> Blockchain', async function () {
       after('stop backend', async () => {
         await TestEnvironment.stopBackendServer()
       })
-
     })
 
     describe('#createWallet()', async function () {
@@ -63,7 +62,6 @@ describe('Client <-> Backend <-> Blockchain', async function () {
       after('stop backend', async () => {
         await TestEnvironment.stopBackendServer()
       })
-
     })
   })
 
