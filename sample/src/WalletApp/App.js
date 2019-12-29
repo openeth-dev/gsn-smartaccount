@@ -11,6 +11,7 @@ import ClientBackend from '../js/backend/ClientBackend'
 import SmartAccountSDK from '../js/impl/SmartAccountSDK'
 import SimpleManager from '../js/impl/SimpleManager'
 
+
 var mgr, sms, wallet, sdk
 const Button = ({ title, action }) => <input type="submit" onClick={action} value={title}/>
 
@@ -140,6 +141,9 @@ class App extends React.Component {
     // manager is initialized (async'ly) from first call to readMgrState
 
     this.state = { debug: true }
+  }
+
+  componentDidMount () {
     this.initMgr()
       .then(() => this.readMgrState().then(x => { this.setState(x) }))
       .catch(err => this.reloadState({ err: err.message || err.error }))
@@ -186,19 +190,18 @@ class App extends React.Component {
   }
 
   async _initMockSdk () {
-      // mock SDK...
-      sdk = new SmartAccountSDK()
-      sdk.account = new AccountProxy()
+    // mock SDK...
+    sdk = new SmartAccountSDK()
+    sdk.account = new AccountProxy()
 
-      mgr = new SimpleManagerMock({ accountApi: sdk.account })
-      sms = mgr.smsApi
-      sms.on('mocksms', (data) => {
-        setTimeout(() => {
-          alert('Received SMS to ' + data.phone + ':\n' + data.message)
-        }, 1000)
-      })
-      return
-    }
+    mgr = new SimpleManagerMock({ accountApi: sdk.account })
+    sms = mgr.smsApi
+    sms.on('mocksms', (data) => {
+      setTimeout(() => {
+        alert('Received SMS to ' + data.phone + ':\n' + data.message)
+      }, 1000)
+    })
+  }
 
   async _initRealSdk () {
     const verbose = true
@@ -234,6 +237,7 @@ class App extends React.Component {
       backend,
       factoryConfig
     })
+
     async function asyncDump (title, promise) {
       try {
         const res = await promise
@@ -295,7 +299,7 @@ class App extends React.Component {
   }
 
   debugReloadState() {
-    console.log( "DEBUG: reload state")
+    console.log('DEBUG: reload state')
     this.reloadState()
   }
   reloadState (extra = {}) {
@@ -364,10 +368,10 @@ class App extends React.Component {
           }
         </div>
         <div>
-        {
+          {
             !!(useMock && !(mgr && mgr.wallet)) &&
             <Button title="DEBUG: activate wallet" action={this.debugActiveWallet.bind(this)}/>
-        }
+          }
           <Button title="DEBUG: fund wallet with ETH" action={() => this.debugFundWallet()}/>
           <Button title="DEBUG: reloadState" action={() => this.debugReloadState()}/>
         </div>

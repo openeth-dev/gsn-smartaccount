@@ -13,6 +13,7 @@ import ClientBackend from '../../src/js/backend/ClientBackend'
 import SimpleWallet from '../../src/js/impl/SimpleWallet'
 import { startGsnRelay, stopGsnRelay } from 'localgsn'
 import { sleep } from '../backend/testutils'
+import GauthMock from '../../src/js/mocks/Gauth.mock'
 
 /**
  * AFAIK, the docker image will always deploy the hub to the same address
@@ -75,7 +76,6 @@ export default class TestEnvironment {
     // bring up RelayHub, relay.
     // all parameters are optional.
     await startGsnRelay({ from: instance.from, provider: instance.ethNodeUrl, verbose: instance.verbose })
-
     for (let i = 0; i <= 10; i++) {
       await sleep(500)
       const { isRelayReady, minGasPrice } = await instance.getRelayAddress()
@@ -198,9 +198,10 @@ export default class TestEnvironment {
       })
     }
     const storage = new MockStorage()
+    const gauth = new GauthMock()
     const acc = await SmartAccountSDK.init({
       network: this.web3provider,
-      account: new Account(storage), // override default proxy
+      account: new Account({ storage, gauth }), // override default proxy
       relayOptions
     })
     const factoryConfig = {

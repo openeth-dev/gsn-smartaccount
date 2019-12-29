@@ -192,6 +192,8 @@ export default class SimpleWallet extends SimpleWalletApi {
         case Permissions.AdminPermissions:
           type = 'admin'
           break
+        default:
+          type = 'unknown-' + it.permissions // not that we can do something with it..
       }
       return {
         address: it.address,

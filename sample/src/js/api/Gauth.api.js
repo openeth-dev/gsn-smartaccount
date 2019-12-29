@@ -2,14 +2,13 @@
 
 import validate from '../utils/XfaceValidate'
 
-//API for google oauth API.
+// API for google oauth API.
 export default class GauthApi {
-
   constructor () {
     validate(GauthApi, this)
   }
 
-  init (init_params) {
+  init (params) {
     error('set params to gauth (most notably: nonce). can\'t be changed later.')
   }
 

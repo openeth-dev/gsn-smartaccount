@@ -5,8 +5,8 @@ function sig (method) {
 }
 /* eslint-disable no-proto */
 export default function validate (baseClass, inst) {
-  if ( inst.constructor.name.length < 3 ) {
-    //must be obfuscated. silently ignore...
+  if (inst.constructor.name.length < 3) {
+    // must be obfuscated. silently ignore...
   }
 
   if (!baseClass.prototype) {

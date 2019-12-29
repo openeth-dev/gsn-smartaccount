@@ -8,11 +8,13 @@ import { increaseTime } from 'safechannels-contracts/test/utils'
 
 const DAY = 24 * 3600
 
+const verbose = false
 describe('System flow: Create Account', () => {
   let testEnvironment, web3, toBN
 
   before('check "gsn-dock-relay" is active', async function () {
-    testEnvironment = await TestEnvironment.initializeAndStartBackendForRealGSN({})
+    this.timeout(5000)
+    testEnvironment = await TestEnvironment.initializeAndStartBackendForRealGSN({ verbose })
     web3 = testEnvironment.web3
     toBN = web3.utils.toBN
   })
