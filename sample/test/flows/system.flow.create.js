@@ -1,5 +1,6 @@
-/* global describe it before after */
+/* global describe it before after fail */
 
+import axios from 'axios'
 import { assert, expect } from 'chai'
 import SMSmock from '../../src/js/mocks/SMS.mock'
 import TestEnvironment from '../utils/TestEnvironment'
@@ -26,15 +27,15 @@ describe('System flow: Create Account', () => {
   })
 
   after('stop backend', async () => {
-    await TestEnvironment.stopBackendServer()
-    {
-      const { number, timestamp } = await web3.eth.getBlock('latest')
-      console.log('=== latest block: ', { number, timestamp })
-    }
+    console.log('before kill', (await axios.get('http://localhost:8090/getaddr')).data)
+    TestEnvironment.stopBackendServer()
     await testEnvironment.revert()
-    {
-      const { number, timestamp } = await web3.eth.getBlock('latest')
-      console.log('=== AFTER REVERT: ', { number, timestamp })
+    try {
+      console.log('after kill relay', (await axios.get('http://localhost:8090/getaddr')).data)
+      fail('server should be down!')
+    } catch (e) {
+      // ok
+      console.log('expected after killing relay:', e.message)
     }
   })
 

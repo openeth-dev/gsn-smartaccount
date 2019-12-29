@@ -3,7 +3,7 @@
 import { sleep } from '../backend/testutils'
 import { expect } from 'chai'
 
-describe.skip('#MockDate', () => {
+describe('#MockDate', () => {
   before(() => {
     require('../../src/js/mocks/MockDate')
   })
