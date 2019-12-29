@@ -19,11 +19,23 @@ describe('System flow: Create Account', () => {
     await testEnvironment.snapshot()
     web3 = testEnvironment.web3
     toBN = web3.utils.toBN
+    {
+      const { number, timestamp } = await web3.eth.getBlock('latest')
+      console.log('=== BEFORE test: ', { number, timestamp })
+    }
   })
 
   after('stop backend', async () => {
     await TestEnvironment.stopBackendServer()
+    {
+      const { number, timestamp } = await web3.eth.getBlock('latest')
+      console.log('=== latest block: ', { number, timestamp })
+    }
     await testEnvironment.revert()
+    {
+      const { number, timestamp } = await web3.eth.getBlock('latest')
+      console.log('=== AFTER REVERT: ', { number, timestamp })
+    }
   })
 
   let wallet

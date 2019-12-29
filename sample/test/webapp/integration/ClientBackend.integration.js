@@ -31,7 +31,7 @@ function calculateSmsCode () {
 }
 
 async function newTest () {
-  const testContext = await TestEnvironment.initializeAndStartBackendForRealGSN({})
+  const testContext = await TestEnvironment.initializeAndStartBackendForRealGSN({ verbose: true })
   await testContext.manager.googleLogin()
   testContext.jwt = jwt
   testContext.smsCode = calculateSmsCode()

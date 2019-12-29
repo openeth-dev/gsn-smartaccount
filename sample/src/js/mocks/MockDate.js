@@ -24,7 +24,7 @@ global.Date = class extends Date {
   /**
    * real current time, ignoring setMockedTime forced offset.
    */
-  static realNow() {
+  static realNow () {
     return super.now()
   }
 

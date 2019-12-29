@@ -1,7 +1,6 @@
 import { spawn } from 'child_process'
 import Web3 from 'web3'
 import FactoryContractInteractor from 'safechannels-contracts/src/js/FactoryContractInteractor'
-import TestUtils from 'safechannels-contracts/test/utils'
 import axios from 'axios'
 import path from 'path'
 import { MockStorage } from '../mocks/MockStorage'
@@ -14,7 +13,7 @@ import SimpleWallet from '../../src/js/impl/SimpleWallet'
 import { startGsnRelay, stopGsnRelay } from 'localgsn'
 import { sleep } from '../backend/testutils'
 import GauthMock from '../../src/js/mocks/Gauth.mock'
-import { increaseTime, snapshot, revert} from 'safechannels-contracts/test/utils'
+import * as TestUtils from 'safechannels-contracts/test/utils'
 
 /**
  * AFAIK, the docker image will always deploy the hub to the same address
@@ -48,11 +47,11 @@ export default class TestEnvironment {
   }
 
   async snapshot () {
-    this.snapshotId = (await snapshot(this.web3)).result
+    this.snapshotId = (await TestUtils.snapshot(this.web3)).result
   }
 
   async revert () {
-    return await revert(this.snapshotId, this.web3)
+    return TestUtils.revert(this.snapshotId, this.web3)
   }
   static async initializeWithFakeBackendAndGSN ({
     ethNodeUrl,

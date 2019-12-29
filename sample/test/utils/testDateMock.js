@@ -1,15 +1,15 @@
-/* global describe it */
+/* global describe it before after */
 
 import { sleep } from '../backend/testutils'
 import { expect } from 'chai'
 
 describe.skip('#MockDate', () => {
-  before(()=>{
+  before(() => {
     require('../../src/js/mocks/MockDate')
   })
 
-  after(()=>{
-    //make sure the time behaves as normal outside this test.
+  after(() => {
+    // make sure the time behaves as normal outside this test.
     Date.setMockedTime(Date.realNow())
   })
 
