@@ -16,6 +16,7 @@ import scutils from 'safechannels-contracts/src/js/SafeChannelUtils'
 import sctestutils from 'safechannels-contracts/test/utils'
 import ChangeType from 'safechannels-contracts/test/etc/ChangeType'
 import abiDecoder from 'abi-decoder'
+import { Backend } from '../../src/js/backend/Backend'
 
 // const ethUtils = require('ethereumjs-util')
 // const abi = require('ethereumjs-abi')
@@ -24,6 +25,7 @@ import abiDecoder from 'abi-decoder'
 describe('As Guardian', async function () {
   let web3
   let watchdog
+  let backend
   let smsProvider
   const keypair = {
     privateKey: Buffer.from('20e12d5dc484a03c969d48446d897a006ebef40a806dab16d58db79ba64aa01f', 'hex'),
@@ -45,6 +47,7 @@ describe('As Guardian', async function () {
   const amount = 1e3
   let config
   let newAccount
+  const audience = '202746986880-u17rbgo95h7ja4fghikietupjknd1bln.apps.googleusercontent.com'
 
   async function fundAddress (guardianAddress) {
     const tx = {
@@ -64,6 +67,11 @@ describe('As Guardian', async function () {
       if (error) console.log('error listening', error)
     })
     accountZero = (await web3.eth.getAccounts())[0]
+    // const mockHub = await FactoryContractInteractor.deployMockHub(accountZero, ethNodeUrl)
+    // const sponsor = await FactoryContractInteractor.deploySponsor(accountZero, mockHub, ethNodeUrl)
+    // await sponsor.relayHubDeposit({ value: 2e18, from: accountZero, gas: 1e5 })
+    // const forwarderAddress = await sponsor.getGsnForwarder()
+    // const factory = await FactoryContractInteractor.deployNewSmartAccountFactory(accountZero, ethNodeUrl, forwarderAddress)
     smartAccount = await FactoryContractInteractor.deploySmartAccountDirectly(accountZero, ethNodeUrl)
     walletConfig = {
       contract: smartAccount,
@@ -86,13 +94,25 @@ describe('As Guardian', async function () {
     config.requiredApprovalsPerLevel = [0, 0]
     await wallet.initialConfiguration(config)
     await fundAddress(wallet.contract.address)
-    newAccount = new BackendAccount({
-      accountId: '123456',
-      email: '',
-      phone: '',
-      verified: true,
-      address: wallet.contract.address
-    })
+
+    smsProvider = new SMSmock()
+    smsManager = new SmsManager({ smsProvider, secretSMSCodeSeed: crypto.randomBytes(32) })
+    accountManager = new AccountManager()
+    backend = new Backend(
+      {
+        smsManager,
+        audience,
+        keyManager,
+        accountManager
+      })
+    newAccount = new BackendAccount(
+      {
+        accountId: await backend.getSmartAccountId({ email: '' }),
+        email: '',
+        phone: '',
+        verified: true,
+        address: wallet.contract.address
+      })
   })
 
   describe('As Watchdog', async function () {
@@ -119,10 +139,7 @@ describe('As Guardian', async function () {
     })
 
     it('should construct Watchdog', async function () {
-      smsProvider = new SMSmock()
-      smsManager = new SmsManager({ smsProvider, secretSMSCodeSeed: crypto.randomBytes(32) })
       keyManager = new KeyManager({ ecdsaKeyPair: keypair })
-      accountManager = new AccountManager()
       watchdog = new Watchdog(
         { smsManager, keyManager, accountManager, smartAccountFactoryAddress: accountZero, web3provider })
       assert.isTrue(await wallet.contract.isParticipant(watchdog.address,

@@ -278,7 +278,6 @@ describe('Backend', async function () {
       config.initialDelays = [0, 0]
       config.requiredApprovalsPerLevel = [0, 0]
       await wallet.initialConfiguration(config)
-      const info = await wallet.getWalletInfo()
       await fundAddress(keypair.address)
     })
 

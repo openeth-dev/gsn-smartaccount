@@ -165,25 +165,12 @@ export class Watchdog {
     }
     const change = this.changesToApply[delayedOpId]
     let method
-    let smartAccountMethod
     this.smartAccountContract.options.address = change.log.address
     // TODO we should refactor events and function args to match in naming, and just use '...Object.values(change.log.args)'
     if (change.log.name === 'BypassCallPending') {
-      if (apply) {
-        smartAccountMethod = this.smartAccountContract.methods.applyBypassCall
-      } else if (cancel) {
-        smartAccountMethod = this.smartAccountContract.methods.cancelBypassCall
-      }
-      method = smartAccountMethod(
-        this.permsLevel,
-        change.log.args.sender,
-        change.log.args.senderPermsLevel,
-        change.log.args.stateId,
-        change.log.args.target,
-        change.log.args.value,
-        change.log.args.msgdata || Buffer.alloc(0)
-      )
+      method = this._formatBypassCallMethod({ args: change.log.args, apply, cancel })
     } else if (change.log.name === 'ConfigPending') {
+      // In case this is actually an addOperatorNow request, which is handled differently
       if (change.log.args.actions.length === 1 && change.log.args.actions[0] === ChangeType.ADD_OPERATOR_NOW.toString()) {
         const account = this.accountManager.getAccountByAddress({ address: change.log.address })
         const newOperatorAddress = this.accountManager.getOperatorToAdd(
@@ -201,31 +188,9 @@ export class Watchdog {
             `participant hash mismatch:\nlog ${change.log.args.actionsArguments1[0]}\nexpected operator hash ${operatorHash}`)
         }
         this.accountManager.removeOperatorToAdd({ accountId: account.accountId })
-        smartAccountMethod = this.smartAccountContract.methods.approveAddOperatorNow
-        method = smartAccountMethod(
-          this.permsLevel,
-          newOperatorAddress,
-          change.log.args.stateId,
-          change.log.args.sender,
-          change.log.args.senderPermsLevel
-        )
-      } else {
-        if (apply) {
-          smartAccountMethod = this.smartAccountContract.methods.applyConfig
-        } else if (cancel) {
-          smartAccountMethod = this.smartAccountContract.methods.cancelOperation
-        }
-        method = smartAccountMethod(
-          this.permsLevel,
-          change.log.args.actions,
-          change.log.args.actionsArguments1,
-          change.log.args.actionsArguments2,
-          change.log.args.stateId,
-          change.log.args.sender,
-          change.log.args.senderPermsLevel,
-          change.log.args.booster,
-          change.log.args.boosterPermsLevel
-        )
+        method = this._formatApproveAddOperatorNowMethod({ args: change.log.args, newOperatorAddress })
+      } else { // All other config changes that are not addOperatorNow are handled the same
+        method = this._formatConfigMethod({ args: change.log.args, apply, cancel })
       }
     } else {
       delete this.changesToApply[delayedOpId]
@@ -239,6 +204,55 @@ export class Watchdog {
       return new Error(
         `Got error handling event ${e.message}\nevent ${change.log.name} ${JSON.stringify(change.log.args)}`)
     }
+  }
+
+  _formatBypassCallMethod ({ args, apply, cancel }) {
+    let smartAccountMethod
+    if (apply) {
+      smartAccountMethod = this.smartAccountContract.methods.applyBypassCall
+    } else if (cancel) {
+      smartAccountMethod = this.smartAccountContract.methods.cancelBypassCall
+    }
+    return smartAccountMethod(
+      this.permsLevel,
+      args.sender,
+      args.senderPermsLevel,
+      args.stateId,
+      args.target,
+      args.value,
+      args.msgdata || Buffer.alloc(0)
+    )
+  }
+
+  _formatConfigMethod ({ args, apply, cancel }) {
+    let smartAccountMethod
+    if (apply) {
+      smartAccountMethod = this.smartAccountContract.methods.applyConfig
+    } else if (cancel) {
+      smartAccountMethod = this.smartAccountContract.methods.cancelOperation
+    }
+    return smartAccountMethod(
+      this.permsLevel,
+      args.actions,
+      args.actionsArguments1,
+      args.actionsArguments2,
+      args.stateId,
+      args.sender,
+      args.senderPermsLevel,
+      args.booster,
+      args.boosterPermsLevel
+    )
+  }
+
+  _formatApproveAddOperatorNowMethod ({ args, newOperatorAddress }) {
+    const smartAccountMethod = this.smartAccountContract.methods.approveAddOperatorNow
+    return smartAccountMethod(
+      this.permsLevel,
+      newOperatorAddress,
+      args.stateId,
+      args.sender,
+      args.senderPermsLevel
+    )
   }
 
   async _sendTransaction (method, destination) {
