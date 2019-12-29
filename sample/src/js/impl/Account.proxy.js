@@ -61,34 +61,39 @@ export default class AccountProxy extends EventEmitter {
 
   _call (method, args = {}) {
     const self = this
-    return new Promise(async (resolve, reject) => {
+    return new Promise((resolve, reject) => {
       const id = this.idseq++
+      const docall = () => {
+        let timeoutId
+        // user may take some time to complete login..
+        if (method !== 'googleLogin') {
+          timeoutId = setTimeout(() => reject(new Error('timed-out: ' + method)), 5000)
+        }
+
+        if (verbose) { console.log('calling: ', id, method, args) }
+        self.pending[id] = ({ response, error }) => {
+          if (verbose) { console.log('response: ', id, method, error || response) }
+          clearTimeout(timeoutId)
+          if (error) {
+            reject(error)
+          } else {
+            resolve(response)
+          }
+        }
+        this.iframe.postMessage({ method, args, id }, '*')
+      }
+
       if (!this.initialized) {
         if (verbose) {
           console.log('iframe not initialized. ping')
         }
         // iframe not initialized yet. ping it, and wait...
         this.iframe.postMessage('account-iframe-ping', '*')
-        await new Promise(resolve1 => {this.once('initialized', resolve1)})
+        this.once('initialized', docall)
+      } else {
+        // already initialized
+        docall()
       }
-
-      let timeoutId
-      //user may take some time to complete login..
-      if (method !== 'googleLogin') {
-        timeoutId = setTimeout(() => reject(new Error('timed-out: ' + method)), 5000)
-      }
-
-      if (verbose) { console.log('calling: ', id, method, args) }
-      self.pending[id] = ({ response, error }) => {
-        if (verbose) { console.log('response: ', id, method, error || response) }
-        clearTimeout(timeoutId)
-        if (error) {
-          reject(error)
-        } else {
-          resolve(response)
-        }
-      }
-      this.iframe.postMessage({ method, args, id }, '*')
     })
   }
 }

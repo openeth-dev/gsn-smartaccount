@@ -64,7 +64,7 @@ async function handleMessage ({ source, method, id, params }) {
 
     const response = await methodToCall.apply(account, params)
 
-    if (verbose) { console.log('iframe: resp',response, method,params) }
+    if (verbose) { console.log('iframe: resp', response, method, params) }
 
     source.postMessage({ id, response }, '*')
   } catch (e) {

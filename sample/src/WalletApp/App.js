@@ -159,7 +159,7 @@ class App extends React.Component {
       walletPending: undefined
     }
     if (sdk && await sdk.isEnabled({ appUrl: window.location.href })) {
-      //read fields form wallet only once: they can't change (unless we logout)
+      // read fields form wallet only once: they can't change (unless we logout)
       Object.assign(mgrState, {
         needApprove: undefined,
         ownerAddr: this.state.ownerAddress || await mgr.getOwner(),
@@ -183,7 +183,6 @@ class App extends React.Component {
   }
 
   async initMgr () {
-
     if (useMock) {
       return this._initMockSdk()
     } else {
@@ -203,7 +202,6 @@ class App extends React.Component {
         alert('Received SMS to ' + data.phone + ':\n' + data.message)
       }, 1000)
     })
-    return
   }
 
   async _initRealSdk () {
@@ -253,7 +251,6 @@ class App extends React.Component {
 
     console.log('==== before isenabled', sdk.isEnabled)
     if (await asyncDump('sdk.isEnabled', sdk.isEnabled({ appUrl: window.location.href }))) {
-
       const info = await sdk.account.googleAuthenticate()
       if (info) {
         console.log('===', info)
@@ -262,7 +259,6 @@ class App extends React.Component {
         this.state.jwt = info.jwt
       }
       console.log('===== ENABLED. reading email=', this.state.email)
-
     }
   }
 
@@ -301,10 +297,11 @@ class App extends React.Component {
     }
   }
 
-  debugReloadState() {
-    console.log( "DEBUG: reload state")
+  debugReloadState () {
+    console.log('DEBUG: reload state')
     this.reloadState()
   }
+
   reloadState (extra = {}) {
     const self = this
     this.readMgrState().then(mgrState => {

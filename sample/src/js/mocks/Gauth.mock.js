@@ -1,14 +1,13 @@
-/* global error */
+/* global */
 
-//API for google oauth API.
+// API for google oauth API.
 import GauthApi from '../api/Gauth.api'
 
 const EMAIL = 'shahaf@tabookey.com'
 
 export default class GauthMock extends GauthApi {
-
-  init (init_params) {
-    this.params = { email: EMAIL, ...init_params }
+  init (params) {
+    this.params = { email: EMAIL, ...params }
   }
 
   // return a structurely-valid JWT (though signature is bogus..)
@@ -31,8 +30,7 @@ export default class GauthMock extends GauthApi {
     let newemail
     if (typeof window !== 'undefined') {
       newemail = window.prompt('google login email')
-      if (!newemail)
-        return
+      if (!newemail) { return }
     } else {
       newemail = 'shahaf@tabookey.com'
     }

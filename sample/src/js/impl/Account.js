@@ -1,7 +1,6 @@
 /* global window */
 import AccountApi from '../api/Account.api'
 
-import { Gauth } from './Gauth'
 import ethWallet from 'ethereumjs-wallet'
 import * as ethUtils from 'ethereumjs-util'
 import { buf2hex, hex2buf } from '../utils/utils'
@@ -33,7 +32,7 @@ export default class Account extends AccountApi {
     this.storage = storageProps(storage)
     this._loadApprovedApps()
 
-    //must be called very early, since we init with address as nonce.
+    // must be called very early, since we init with address as nonce.
     if (!this.storage.ownerAddress) {
       this._createOwner()
     }
@@ -93,9 +92,8 @@ export default class Account extends AccountApi {
   }
 
   async getOwner () {
-    //address allocated early, but returned only after login
-    if (!this.storage.email)
-      return null
+    // address allocated early, but returned only after login
+    if (!this.storage.email) { return null }
     return this.storage.ownerAddress
   }
 
@@ -108,9 +106,9 @@ export default class Account extends AccountApi {
       console.log('open google auth popup. prompt user for google account.\n')
     }
 
-    let info = await this.gauth.signIn({ nonce: this.storage.ownerAddress })
+    const info = await this.gauth.signIn({ nonce: this.storage.ownerAddress })
     this.storage.email = info.email
-    let ret = {
+    const ret = {
       email: info.email,
       jwt: info.jwt,
       address: this.storage.ownerAddress

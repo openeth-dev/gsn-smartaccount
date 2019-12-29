@@ -1,81 +1,151 @@
 <html>
-<meta name="google-signin-client_id" content="202746986880-u17rbgo95h7ja4fghikietupjknd1bln.apps.googleusercontent.com">
-<body onload="init()">
+<meta name="xx-google-signin-client_id"
+      content="xx-202746986880-u17rbgo95h7ja4fghikietupjknd1bln.apps.googleusercontent.com">
+<body>
 <!-- <script src="https://apis.google.com/js/platform.js" async defer></script> -->
-<script src="https://apis.google.com/js/platform.js?onload=init" ></script>
+<script src="https://apis.google.com/js/platform.js"></script>
 
 <script type="text/javascript">
 
+  var gauth
 
-function init() {
-      gapi.load('auth2', function() {
-        console.log( "gapi loaded")
-  });
-    // dump( "init")
-}
-async function dump(msg) {
-    console.log( "dump : ", msg)
+  function getinfo () {
+    if (!gauth)
+      return 'no gauth'
+    if (!gauth.currentUser)
+      return 'no currentUser'
+    if (!gauth.currentUser.get().getBasicProfile())
+      return 'no profile'
+    const email = gauth.currentUser.get().getBasicProfile().getEmail()
+    let jwt = gauth.currentUser.get().getAuthResponse()
+
+    let jwtinfo = {}
+    if (jwt && jwt.id_token) {
+      jwtinfo = JSON.parse(atob(jwt.id_token.split('.')[1]).toString())
+      const now = Math.floor(new Date().getTime() / 1000)
+      jwtinfo.iat1 = jwtinfo.iat - now
+      jwtinfo.exp1 = jwtinfo.exp - now
+    }
+    return 'email: ' + email + '\n' + JSON.stringify(jwtinfo, null, 2)
+  }
+
+  function dumpinfo () {
+    out.innerText = getinfo()
+  }
+
+  async function dump (msg) {
+    console.log('dump : ', msg)
     authInst = gapi.auth2.getAuthInstance()
-    if ( !authInst ) { return console.log( "no getAuthInstance")}
-    let cur = authInst.currentUser;
-    if ( !cur ) { return console.log( "no currentUser")}
+    if (!authInst) { return console.log('no getAuthInstance')}
+    let cur = authInst.currentUser
+    if (!cur) { return console.log('no currentUser')}
     let user = cur.get()
-    if ( !user ) { return console.log( "no user")}
-    let profile = user.getBasicProfile();
-    if ( !profile ) { return console.log( "no profile")}
-    console.log( "email=", profile.getEmail())
-}
+    if (!user) { return console.log('no user')}
+    let profile = user.getBasicProfile()
+    if (!profile) { return console.log('no profile')}
+    console.log('email=', profile.getEmail())
+  }
 
-function onSignIn(user) {
-    console.log( "onSignIn: ", user)
-    console.log( "token: ", user.getAuthResponse().id_token )
-    dump( "from onSignIn")
-}
-
-function oneTimeAuthorize() {
-    console.log( "onetime")
+  function oneTimeAuthorize () {
+    console.log('onetime')
     gapi.auth2.authorize({
       client_id: '202746986880-u17rbgo95h7ja4fghikietupjknd1bln.apps.googleusercontent.com',
       scope: 'email openid',
-      realm: "what realm",
-      fetch_basic_profile:false,
+      realm: 'what realm',
+      fetch_basic_profile: false,
       response_type: 'id_token',
-      nonce: "hello-world"
-    }, (resp)=>{
-        console.log( "AuthorizeResponse", resp )
-        console.log( "id_token:", resp.id_token)
-        console.log( "access:", resp.access_token)
-        setOut(resp.id_token)
+      nonce: 'hello-world'
+    }, (resp) => {
+      console.log('AuthorizeResponse', resp)
+      console.log('id_token:', resp.id_token)
+      console.log('access:', resp.access_token)
+      setOut(resp.id_token)
     })
-}
+  }
 
-function setOut(tok) {
-  str = JSON.stringify(JSON.parse(atob(tok.split('.')[1])), null,2)
-  out.innerText = str
-}
+  function setOut (tok) {
+    str = JSON.stringify(JSON.parse(atob(tok.split('.')[1])), null, 2)
+    out.innerText = str
+  }
+
+  counter = Math.floor((new Date().getTime()-1577021864324)/1000)
+
+  function init () {
+    console.log('nonce='+counter)
+    try {
+      gapi.load('auth2', async function () {
+        console.log('gapi loaded')
+        try {
+          oldid= '202746986880-u17rbgo95h7ja4fghikietupjknd1bln.apps.googleusercontent.com'
+          newid = '202746986880-urd9hh7nklchbs8la3hlthdmdikfrboc.apps.googleusercontent.com'
+          gapi.auth2.init({
+            client_id: newid,
+            scope: 'email',
+            nonce: counter,
+            fetch_basic_profile: false
+          })
+          gauth = await gapi.auth2.getAuthInstance()
+          console.log('profile:', gauth.currentUser.get().getBasicProfile())
+          console.log('current jwt:', gauth.currentUser.get().getAuthResponse())
+        }catch (e) {
+          console.log( 'init ex=',e)
+          console.log( e.details)
+        }
+      })
+    }catch (e) {
+      console.log( 'load ex=',e)
+    }
+    // dump( "init")
+  }
+
+  async function signin () {
+    try {
+      console.log('before signing')
+      await gauth.signIn({ nonce: 'asdasds' })
+      console.log('after signing')
+
+    } catch (e) {
+      console.log('signin ex', e)
+    }
+    dumpinfo()
+  }
+
+  async function signout () {
+    try {
+      console.log('before signout')
+      await gauth.signOut()
+      console.log('after signout')
+
+    } catch (e) {
+      console.log('signout ex', e)
+    }
+    dumpinfo()
+  }
+
+
 </script>
 <h1>Hello, world</h1>
 
 <p/>
-<input type=submit value="onetime" onclick="oneTimeAuthorize()" /><p>
+<input type=submit value="info" onclick="dumpinfo()"/>
+<p/>
+<input type=submit value="init" onclick="init()"/>
+<p>
+    <input type=submit value="signin" onclick="signin()"/>
+<p>
+    <input type=submit value="signout" onclick="signout()"/>
+<p>
+<p>
+    <input type=submit value="onetime" onclick="oneTimeAuthorize()"/>
+<p>
 
-<!-- <div class="g-signin2" data-onsuccess="onSignIn"></div> -->
+    <!-- <div class="g-signin2" data-onsuccess="onSignIn"></div> -->
 
 <pre>
 <div id=out>
   output here...
 </div>
 </pre>
-
-<a href="#" onclick="signOut();">Sign out</a>
-<script>
-  function signOut() {
-    var auth2 = gapi.auth2.getAuthInstance();
-    auth2.signOut().then(function () {
-      console.log('User signed out.');
-    });
-  }
-</script>
 
 </body>
 
