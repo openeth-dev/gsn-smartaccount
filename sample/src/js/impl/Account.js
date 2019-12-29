@@ -81,7 +81,7 @@ export default class Account extends AccountApi {
     }
 
     return {
-      jwt: this._generateMockJwt({
+      jwt: Account.generateMockJwt({
         email: this.storage.email,
         nonce: this.storage.ownerAddress || 'nonce'
       }),
@@ -102,7 +102,7 @@ export default class Account extends AccountApi {
   }
 
   // return a structurely-valid JWT (though signature is bogus..)
-  _generateMockJwt ({ email, nonce, iat, exp }) {
+  static generateMockJwt ({ email, nonce, iat, exp }) {
     const part1 = Buffer.from(JSON.stringify({
       alg: 'RS256',
       kid: '5b5dd9be40b5e1cf121e3573c8e49f12527183d3',
