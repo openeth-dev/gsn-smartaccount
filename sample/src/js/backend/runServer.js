@@ -56,7 +56,7 @@ function hookNodeTime () {
     if (Math.abs(diff) > 10) {
       console.log('=== time-gap: time changed by ', diff, 'seconds')
     }
-    Date.setCurrentTime(blockHeader.timestamp * 1000)
+    Date.setMockedTime(blockHeader.timestamp * 1000)
   })
 }
 

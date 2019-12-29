@@ -13,16 +13,24 @@ global.Date = class extends Date {
   }
 
   /**
-   * time-offset to shift, by 1ms resolution
-   * @param time
+   * set a new "current" time.
+   * note that from this point, the time continues forward as normal (until next call to setMockedTime.)
+   * @param time - current time, to be returned by Date.now()
    */
-  static setCurrentTime (time) {
-    Date.mockTimeOffset = time - super.now()
+  static setMockedTime (time) {
+    Date.mockedDateOffset = time - super.now()
+  }
+
+  /**
+   * real current time, ignoring setMockedTime forced offset.
+   */
+  static realNow() {
+    return super.now()
   }
 
   static now () {
-    return super.now() + Date.mockTimeOffset
+    return super.now() + Date.mockedDateOffset
   }
 }
 
-Date.mockTimeOffset = 0
+Date.mockedDateOffset = 0
