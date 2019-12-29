@@ -48,7 +48,7 @@ export default class SimpleWallet extends SimpleWalletApi {
   }
 
   async initialConfiguration (configuration) {
-    await this.contract.initialConfig(
+    return this.contract.initialConfig(
       configuration.initialParticipants,
       configuration.initialDelays,
       configuration.allowAcceleratedCalls,
@@ -58,7 +58,8 @@ export default class SimpleWallet extends SimpleWalletApi {
       configuration.bypassMethods,
       configuration.bypassModules,
       {
-        from: this.participant.address
+        from: this.participant.address,
+        gas: 1e6
       }
     )
   }
@@ -76,10 +77,11 @@ export default class SimpleWallet extends SimpleWalletApi {
       ethAmount = 0
       encodedTransaction = FactoryContractInteractor.encodeErc20Call({ destination, amount, operation: 'transfer' })
     }
-    await this.contract.scheduleBypassCall(
+    return this.contract.scheduleBypassCall(
       this.participant.permLevel, destinationAddress, ethAmount, encodedTransaction, this.stateId,
       {
-        from: this.participant.address
+        from: this.participant.address,
+        gas: 1e8
       })
   }
 
@@ -121,7 +123,8 @@ export default class SimpleWallet extends SimpleWalletApi {
         args.booster,
         args.boosterPermsLevel,
         {
-          from: this.participant.address
+          from: this.participant.address,
+          gas: 1e6
         }
       )
     } else {
@@ -135,7 +138,8 @@ export default class SimpleWallet extends SimpleWalletApi {
         args.value,
         msgdata,
         {
-          from: this.participant.address
+          from: this.participant.address,
+          gas: 1e6
         }
       )
     }

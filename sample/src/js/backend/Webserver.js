@@ -26,6 +26,7 @@ export default class Webserver {
         console.log('listening on port', this.port)
       })
     }
+    this.watchdog.start()
   }
 
   stop () {

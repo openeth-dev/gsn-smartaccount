@@ -1,10 +1,13 @@
 /* eslint-disable no-unused-expressions */
-/* global describe it */
+/* global before it */
 // import { expect } from 'chai'
 // import assert from 'assert'
 
 import assert from 'assert'
 import { expect } from 'chai'
+import sinon from 'sinon'
+
+const phoneNumber = '+1-541-754-3010'
 
 export function testCreateWalletBehavior (getContext) {
   it('should deploy a new SmartAccount using SponsorProvider', async function () {
@@ -22,10 +25,34 @@ export function testCreateWalletBehavior (getContext) {
 }
 
 export function testCancelByUrlBehavior (getContext) {
-  describe('#cancelByUrl()', async function () {
-    it.skip('should pass parameters to backend client', async function () {
-      calledWithRightArgs({})
-    })
+  let url
+  let delayedOpId
+
+  before(async function () {
+    this.timeout(15000)
+    const context = getContext()
+    await context.createWallet({ jwt: context.jwt, phoneNumber, smsVerificationCode: context.smsCode })
+    const destination = '0x' + '1'.repeat(40)
+    await context.wallet.getWalletInfo()
+    const res = await context.wallet.transfer({ destination, amount: 1e6, token: 'ETH' })
+    delayedOpId = res.logs[0].args.delayedOpId
+    const address = context.wallet.contract.address
+    url = `To cancel event ${delayedOpId} on smartAccount ${address}, enter code ${context.smsCode}`
+  })
+
+  it('should pass parameters to backend client and receive transaction hash in response', async function () {
+    this.timeout(15000)
+    const context = getContext()
+    const sm = context.manager
+    sinon.spy(sm.backend)
+    const jwt = context.jwt
+    const result = await sm.cancelByUrl({ jwt, url })
+    calledWithRightArgs(sm.backend.cancelByUrl, { jwt, url })
+    assert.strictEqual(result.transactionHash.length, 66)
+    const tx = await context.web3.eth.getTransactionReceipt(result.transactionHash)
+    const log = (await context.wallet.contract.constructor.decodeLogs(tx.logs))[0]
+    assert.strictEqual(log.event, 'BypassCallCancelled')
+    assert.strictEqual(log.args.delayedOpId, delayedOpId)
   })
 }
 
@@ -37,6 +64,7 @@ export function testValidatePhoneBehavior (getContext) {
     const jwt = {}
     const phoneNumber = '0000'
     const sm = getContext().manager
+    sinon.spy(sm.backend)
     const { success, reason } = await sm.validatePhone({ jwt, phoneNumber })
     assert.strictEqual(success, true)
     assert.strictEqual(reason, null)
@@ -49,6 +77,7 @@ export function testSignInBehavior (getContext) {
     const jwt = {}
     const description = '0000'
     const sm = getContext().manager
+    sinon.spy(sm.backend)
     const { success, reason } = await sm.signInAsNewOperator({ jwt, description })
     assert.strictEqual(success, true)
     assert.strictEqual(reason, null)

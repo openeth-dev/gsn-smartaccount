@@ -33,7 +33,7 @@ export class Watchdog {
     this.changesToApply = {}
   }
 
-  async start () {
+  start () {
     console.log('Subscribing to new blocks')
     this.subscription = this.web3.eth.subscribe('newBlockHeaders', function (error, result) {
       if (error) {
@@ -124,14 +124,14 @@ export class Watchdog {
     }
   }
 
-  _extractCancelParamsFromUrl ({ url }) {
+  static _extractCancelParamsFromUrl ({ url }) {
     const regex = /To cancel event (0x[0-9a-fA-F]*) on smartAccount (0x[0-9a-fA-F]*), enter code ([0-9]*)/
     const [, delayedOpId, address, smsCode] = url.match(regex)
     return { delayedOpId, address, smsCode }
   }
 
   async cancelByUrl ({ jwt, url }) {
-    const { delayedOpId, address, smsCode } = this._extractCancelParamsFromUrl({ url })
+    const { delayedOpId, address, smsCode } = Watchdog._extractCancelParamsFromUrl({ url })
     const account = this.accountManager.getAccountByAddress({ address })
     if (this.smsManager.getSmsCode(
       { phoneNumber: account.phone, email: account.email, expectedSmsCode: smsCode }) === smsCode) {

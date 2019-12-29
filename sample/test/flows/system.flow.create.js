@@ -17,9 +17,7 @@ describe('System flow: Create Account', () => {
   })
 
   after('stop backend', async () => {
-    if (testEnvironment) {
-      await testEnvironment.stopBackendServer()
-    }
+    await TestEnvironment.stopBackendServer()
   })
 
   describe('create flow with account', async () => {

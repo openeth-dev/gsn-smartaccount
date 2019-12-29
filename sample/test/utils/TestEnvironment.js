@@ -1,6 +1,7 @@
 import { spawn } from 'child_process'
 import Web3 from 'web3'
 import FactoryContractInteractor from 'safechannels-contracts/src/js/FactoryContractInteractor'
+import TestUtils from 'safechannels-contracts/test/utils'
 import axios from 'axios'
 import path from 'path'
 import { MockStorage } from '../mocks/MockStorage'
@@ -9,6 +10,7 @@ import Account from '../../src/js/impl/Account'
 import SimpleManager from '../../src/js/impl/SimpleManager'
 import RelayServerMock from '../mocks/RelayServer.mock'
 import ClientBackend from '../../src/js/backend/ClientBackend'
+import SimpleWallet from '../../src/js/impl/SimpleWallet'
 import { startGsnRelay, stopGsnRelay } from 'localgsn'
 
 /**
@@ -20,6 +22,8 @@ const _ethNodeUrl = 'http://localhost:8545'
 const _relayUrl = 'http://localhost:8090'
 const _serverUrl = 'http://localhost:8888/'
 const verbose = false
+
+let ls
 
 export default class TestEnvironment {
   constructor ({
@@ -75,20 +79,29 @@ export default class TestEnvironment {
     // From this point on, there is an external process running that has to be killed if construction fails
     try {
       instance.backendAddresses = await instance.clientBackend.getAddresses()
+      await instance.web3.eth.sendTransaction({
+        from: instance.from,
+        to: instance.backendAddresses.watchdog,
+        value: 3e18
+      })
       await instance.addBackendAsTrustedSignerOnFactory()
       await instance.initializeSimpleManager()
       return instance
     } catch (e) {
-      instance.stopBackendServer()
+      TestEnvironment.stopBackendServer()
       throw e
     }
   }
 
   async startBackendServer () {
+    if (ls) {
+      console.error('Server is already running, restarting it!!!')
+      TestEnvironment.stopBackendServer()
+    }
     const port = 8888
     return new Promise((resolve, reject) => {
       const runServerPath = path.resolve(__dirname, '../../../sample/src/js/backend/runServer.js')
-      this.ls = spawn('node', [
+      ls = spawn('node', [
         '-r',
         'esm',
         runServerPath,
@@ -99,7 +112,7 @@ export default class TestEnvironment {
         '--dev'
       ])
       let serverAddress
-      this.ls.stdout.on('data', (data) => {
+      ls.stdout.on('data', (data) => {
         process.stdout.write(`stdout: ${data}`)
         const m = data.toString().match(/address=(.*)/)
         if (m) { serverAddress = m[1] }
@@ -107,18 +120,22 @@ export default class TestEnvironment {
           resolve(serverAddress)
         }
       })
-      this.ls.stderr.on('data', (data) => {
+      ls.stderr.on('data', (data) => {
         console.error(`stderr: ${data}`)
       })
-      this.ls.on('close', (code) => {
+      ls.on('close', (code) => {
         console.log(`child process exited with code ${code}`)
         reject(Error('process quit'))
       })
     })
   }
 
-  stopBackendServer () {
-    this.ls.kill(9)
+  static stopBackendServer () {
+    if (!ls) {
+      return
+    }
+    ls.kill(9)
+    ls = null
   }
 
   async deployNewFactory () {
@@ -181,5 +198,17 @@ export default class TestEnvironment {
       guardianAddress: this.backendAddresses.watchdog,
       factoryConfig
     })
+  }
+
+  async createWallet ({ jwt, phoneNumber, smsVerificationCode }) {
+    this.wallet = await this.manager.createWallet({ jwt, phoneNumber, smsVerificationCode })
+    const owner = await this.manager.getOwner()
+    const config = SimpleWallet.getDefaultSampleInitialConfiguration({
+      backendAddress: this.backendAddresses.watchdog,
+      operatorAddress: owner,
+      whitelistModuleAddress: this.from
+    })
+    await this.wallet.initialConfiguration(config)
+    await TestUtils.evmMine(this.web3)
   }
 }
