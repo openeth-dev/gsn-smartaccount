@@ -1,14 +1,16 @@
 // client-side implementation of account.
 
 import AccountApi from '../api/Account.api'
+import { EventEmitter } from 'events'
 
-const verbose = false
+const verbose = true
 const ACCOUNT_FRAME_ID = 'account-frame'
 
-export default class AccountProxy {
+export default class AccountProxy extends EventEmitter {
   // storage - property access.
   // localStorage - getItem/setItem (use only if no storage..)
   constructor () {
+    super()
     const methods = Object.getOwnPropertyNames(AccountApi.prototype)
     for (const m in methods) {
       const method = methods[m]
@@ -25,7 +27,6 @@ export default class AccountProxy {
 
   // create an IFRAME in our window
   _initFrame () {
-    console.log('doc=', document)
     const frame = document.createElement('iframe')
     // todo: absolute URL, e.g.: 'https://account.safeaccount.xyz'
     frame.setAttribute('src', 'account.html')
@@ -40,13 +41,14 @@ export default class AccountProxy {
     if (('' + data.source).match(/react/)) { return }
     if (data === 'account-iframe-initialized') {
       this.initialized = true
+      this.emit('initialized')
       console.log('iframe initialized')
       return
     }
     if (!data || !data.id) {
       return
     }
-    if (verbose) { console.log('reply src=', source.location.href) }
+    // if (verbose) { console.log('reply src=', source.location.href) }
 
     const pendingResponse = this.pending[data.id]
     if (!pendingResponse) {
@@ -59,23 +61,21 @@ export default class AccountProxy {
 
   _call (method, args = {}) {
     const self = this
-    if (!this.initialized) {
-      if (verbose) {
-        console.log('iframe not initialized. ping')
-      }
-      // iframe not initialized yet. ping it, and wait...
-      this.iframe.postMessage('account-iframe-ping', '*')
-      // TODO: in case if race-condition with iframe, we always wait 500ms.
-      // might be better to "register" for the ping
-      setTimeout(() => this._call(method, args), 500)
-      return
-    }
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
       const id = this.idseq++
+      if (!this.initialized) {
+        if (verbose) {
+          console.log('iframe not initialized. ping')
+        }
+        // iframe not initialized yet. ping it, and wait...
+        this.iframe.postMessage('account-iframe-ping', '*')
+        await new Promise(resolve1 => {this.once('initialized', resolve1)})
+      }
+
       let timeoutId
       //user may take some time to complete login..
-      if ( method!= 'googleLogin') {
-        timeoutId= setTimeout(() => reject(new Error('timed-out: ' + method)), 5000)
+      if (method !== 'googleLogin') {
+        timeoutId = setTimeout(() => reject(new Error('timed-out: ' + method)), 5000)
       }
 
       if (verbose) { console.log('calling: ', id, method, args) }

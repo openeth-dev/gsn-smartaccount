@@ -9,13 +9,11 @@ export default class GauthApi {
     validate(GauthApi, this)
   }
 
-  //extra params from:
-  // https://developers.google.com/identity/sign-in/web/reference#gapiauth2initparams
-  async init (init_params) {
-    error('initialize.')
+  init (init_params) {
+    error('set params to gauth (most notably: nonce). can\'t be changed later.')
   }
 
-  async signIn (params) {
+  async signIn () {
     error('return {email,jwt}. throws on manual close (or errors)')
   }
 
@@ -23,7 +21,7 @@ export default class GauthApi {
     error('logout')
   }
 
-  info () {
-    error('return current {email,jwt}')
+  async info () {
+    error('return current {email,jwt}, or null if not signed in')
   }
 }

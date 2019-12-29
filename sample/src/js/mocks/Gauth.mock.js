@@ -7,15 +7,8 @@ const EMAIL = 'shahaf@tabookey.com'
 
 export default class GauthMock extends GauthApi {
 
-  constructor (params) {
-    super()
-    this.params = { email: EMAIL, ...params }
-  }
-
-  //extra params from:
-  // https://developers.google.com/identity/sign-in/web/reference#gapiauth2initparams
-  async init (init_params) {
-    console.log('gauth initialize.')
+  init (init_params) {
+    this.params = { email: EMAIL, ...init_params }
   }
 
   // return a structurely-valid JWT (though signature is bogus..)
@@ -34,7 +27,7 @@ export default class GauthMock extends GauthApi {
     return [part1, part2, part3].join('.')
   }
 
-  async signIn (params) {
+  async signIn () {
     let newemail
     if (typeof window !== 'undefined') {
       newemail = window.prompt('google login email')
@@ -51,7 +44,7 @@ export default class GauthMock extends GauthApi {
     console.log('logout')
   }
 
-  info () {
+  async info () {
     const { email, nonce } = { ...this.params }
     return {
       email,

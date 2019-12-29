@@ -81,7 +81,6 @@ function ActiveWallet ({ ownerAddr, walletInfo, walletBalances, walletPending, d
     }
 
     <Button title="Cancel Pending" action={doCancelPending}/>
-    <Button title="Refresh Wallet" action={reload}/>
 
     {
       !walletInfo.operators.includes(ownerAddr) &&
@@ -158,8 +157,8 @@ class App extends React.Component {
       Object.assign(mgrState, {
         needApprove: undefined,
         ownerAddr: this.state.ownerAddress || await mgr.getOwner(),
-        walletAddr: this.state.walletAddr || await mgr.getWalletAddress(),
-        email: this.state.email || await mgr.getEmail()
+        email: this.state.email || await mgr.getEmail(),
+        walletAddr: this.state.walletAddr || await mgr.getWalletAddress()
       })
       console.log('readMgrState: has some state')
     } else {
@@ -170,20 +169,23 @@ class App extends React.Component {
       if (!wallet) { wallet = await mgr.loadWallet() }
       mgrState.walletInfo = await wallet.getWalletInfo()
       mgrState.walletBalances = await wallet.listTokens()
-      mgrState.walletPending = await wallet.listPendingConfigChanges()
-      mgrState.walletPending.forEach((x, index) => { x.index = index + 1 })
+      mgrState.walletPending = await wallet.listPendingTransactions()
+      mgrState.walletPending.forEach((x, index) => { x.index = (index + 1).toString() })
     }
 
     return mgrState
   }
 
   async initMgr () {
-    console.log('initMgr')
-    // mock initialization:
-    const useMock = window.location.href.indexOf('mock') > 0
 
-    const verbose = true
     if (useMock) {
+      return this._initMockSdk()
+    } else {
+      return this._initRealSdk()
+    }
+  }
+
+  async _initMockSdk () {
       // mock SDK...
       sdk = new SmartAccountSDK()
       sdk.account = new AccountProxy()
@@ -198,14 +200,15 @@ class App extends React.Component {
       return
     }
 
-    // real init below:
+  async _initRealSdk () {
+    const verbose = true
 
     const serverURL = window.location.protocol + '//' + window.location.host.replace(/(:\d+)?$/, ':8888')
 
     // debug node runs on server's host. real node might use infura.
     const ethNodeUrl = window.location.protocol + '//' + window.location.host.replace(/(:\d+)?$/, ':8545')
 
-    console.log({ serverURL, ethNodeUrl })
+    console.log('connecting to:', { serverURL, ethNodeUrl })
     const web3provider = new Web3.providers.HttpProvider(ethNodeUrl)
     global.web3provider = web3provider
 
@@ -221,7 +224,6 @@ class App extends React.Component {
       relayOptions
     })
 
-    console.log('xx= ', global.sdk)
     const factoryConfig = {
       provider: sdk.provider,
       factoryAddress: factory
@@ -232,6 +234,29 @@ class App extends React.Component {
       backend,
       factoryConfig
     })
+    async function asyncDump (title, promise) {
+      try {
+        const res = await promise
+        console.log(title, res)
+        return res
+      } catch (e) {
+        console.log(title, e)
+      }
+    }
+
+    console.log('==== before isenabled', sdk.isEnabled)
+    if (await asyncDump('sdk.isEnabled', sdk.isEnabled({ appUrl: window.location.href }))) {
+
+      const info = await sdk.account.googleAuthenticate()
+      if (info) {
+        console.log('===', info)
+        this.state.email = info.email
+        this.state.ownerAddress = info.address
+        this.state.jwt = info.jwt
+      }
+      console.log('===== ENABLED. reading email=', this.state.email)
+
+    }
   }
 
   async doCancelPending () {
@@ -245,7 +270,8 @@ class App extends React.Component {
       return
     }
 
-    wallet.cancelPending(pending.delayedOpId)
+    await wallet.cancelPending(pending.delayedOpId)
+    this.reloadState()
   }
 
   async doTransfer ({ symbol }) {
@@ -268,6 +294,10 @@ class App extends React.Component {
     }
   }
 
+  debugReloadState() {
+    console.log( "DEBUG: reload state")
+    this.reloadState()
+  }
   reloadState (extra = {}) {
     const self = this
     this.readMgrState().then(mgrState => {
@@ -333,16 +363,19 @@ class App extends React.Component {
             <xmp>{JSON.stringify(this.state, null, 4)}</xmp>
           }
         </div>
+        <div>
         {
-          !!(mgr && mgr.wallet) ||
-          <div><Button title="debug: activate wallet" action={this.debugActiveWallet.bind(this)}/><p/></div>
+            !!(useMock && !(mgr && mgr.wallet)) &&
+            <Button title="DEBUG: activate wallet" action={this.debugActiveWallet.bind(this)}/>
         }
+          <Button title="DEBUG: fund wallet with ETH" action={() => this.debugFundWallet()}/>
+          <Button title="DEBUG: reloadState" action={() => this.debugReloadState()}/>
+        </div>
         <Button title="signout" action={this.signout.bind(this)}/><p/>
         {
           // this.state.needApprove &&
           <div><Button title="Must first connect app to iframe wallet" action={() => this.enableApp()}/></div>
         }
-        <div><Button title="DEBUG: fund wallet with ETH" action={() => this.debugFundWallet()}/></div>
         <WalletComponent
           doTransfer={params => this.doTransfer(params)}
           doCancelPending={params => this.doCancelPending(params)}
