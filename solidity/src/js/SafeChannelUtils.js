@@ -3,6 +3,7 @@ const ABI = require('ethereumjs-abi')
 const Web3Utils = require('web3-utils')
 const EthUtils = require('ethereumjs-util')
 const assert = require('chai').assert
+const Permissions = require('./Permissions')
 
 module.exports = {
 
@@ -18,6 +19,10 @@ module.exports = {
     return ABI.soliditySHA3(['address', 'uint32'], [admin, permLevel])
   },
 
+  operatorHash: function (operatorAddress) {
+    return this.participantHash(operatorAddress, this.packPermissionLevel(Permissions.OwnerPermissions, 1))
+  },
+
   // TODO: fix this mess, Alex!
   participantHashUnpacked: function (admin, perms, level) {
     return this.participantHash(admin, this.packPermissionLevel(perms, level))
@@ -26,7 +31,8 @@ module.exports = {
   bypassCallHash: function (stateNonce, sender, senderPermsLevel, target, value, msgdata) {
     assert.equal(typeof msgdata, 'string')
     const calldataBuffer = Buffer.from(this.removeHexPrefix(msgdata), 'hex')
-    return ABI.soliditySHA3(['uint256', 'address', 'uint32', 'address', 'uint256', 'bytes'], [stateNonce, sender, senderPermsLevel, target, value, calldataBuffer])
+    return ABI.soliditySHA3(['uint256', 'address', 'uint32', 'address', 'uint256', 'bytes'],
+      [stateNonce, sender, senderPermsLevel, target, value, calldataBuffer])
   },
 
   // Only used in tests
@@ -34,7 +40,8 @@ module.exports = {
     await this.asyncForEach(participants, async (participant) => {
       const adminHash = this.bufferToHex(this.participantHash(participant.address, participant.permLevel))
       const isAdmin = await gatekeeper.participants(adminHash)
-      assert.equal(participant.isParticipant, isAdmin, `admin ${participant.name} isAdmin=${isAdmin}, expected=${participant.isParticipant}`)
+      assert.equal(participant.isParticipant, isAdmin,
+        `admin ${participant.name} isAdmin=${isAdmin}, expected=${participant.isParticipant}`)
     })
   },
 
@@ -91,7 +98,8 @@ module.exports = {
 
     const signature = EthUtils.fromRpcSig(sig_)
     // noinspection UnnecessaryLocalVariableJS
-    const sig = Web3Utils.bytesToHex(signature.r) + this.removeHexPrefix(Web3Utils.bytesToHex(signature.s)) + this.removeHexPrefix(Web3Utils.toHex(signature.v))
+    const sig = Web3Utils.bytesToHex(signature.r) + this.removeHexPrefix(
+      Web3Utils.bytesToHex(signature.s)) + this.removeHexPrefix(Web3Utils.toHex(signature.v))
     return sig
   }
 }

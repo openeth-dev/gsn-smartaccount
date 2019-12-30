@@ -12,6 +12,7 @@ import RelayServerMock from '../mocks/RelayServer.mock'
 import ClientBackend from '../../src/js/backend/ClientBackend'
 import SimpleWallet from '../../src/js/impl/SimpleWallet'
 import { startGsnRelay, stopGsnRelay } from 'localgsn'
+import { sleep } from '../backend/testutils'
 
 /**
  * AFAIK, the docker image will always deploy the hub to the same address
@@ -71,6 +72,15 @@ export default class TestEnvironment {
     // bring up RelayHub, relay.
     // all parameters are optional.
     await startGsnRelay({ from: instance.from, provider: ethNodeUrl, verbose })
+    for (let i = 0; i <= 10; i++) {
+      await sleep(500)
+      const { isRelayReady, minGasPrice } = await instance.getRelayAddress()
+      if (isRelayReady && minGasPrice) {
+        break
+      } else if (i === 10) {
+        throw Error('Relay is still not ready, abort mission')
+      }
+    }
     process.on('exit', stopGsnRelay) // its synchronous call, so its OK to call from 'exit'
 
     // await instance.fundRelayIfNeeded()
@@ -158,11 +168,15 @@ export default class TestEnvironment {
 
   async getRelayAddress () {
     const res = await axios.get(this.relayUrl + '/getaddr')
-    return res.data.RelayServerAddress
+    return {
+      relayAddr: res.data.RelayServerAddress,
+      isRelayReady: res.data.Ready,
+      minGasPrice: res.data.MinGasPrice
+    }
   }
 
   async fundRelayIfNeeded () {
-    const relayAddr = await this.getRelayAddress()
+    const { relayAddr } = await this.getRelayAddress()
     if (await this.web3.eth.getBalance(relayAddr) < 3e18) {
       await this.web3.eth.sendTransaction({ from: this.from, value: 3e18, to: relayAddr })
       console.log('funded relay')

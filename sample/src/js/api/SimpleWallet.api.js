@@ -74,11 +74,15 @@ export default class SimpleWalletApi {
     error('initialize add operator flow')
   }
 
-  async validateAddOperatorNow ({ jwt, url }) {
+  async validateAddOperatorNow ({ jwt, smsCode }) {
     error('ask backend to add the new device')
   }
 
   async applyAllPendingOperations () {
     error('apply all')
+  }
+
+  async scheduleAddOperator ({ newOperator }) {
+    error('schedule add operator')
   }
 }

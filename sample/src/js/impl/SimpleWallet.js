@@ -449,8 +449,8 @@ export default class SimpleWallet extends SimpleWalletApi {
     // TODO: Add new operator to known participants
   }
 
-  async validateAddOperatorNow ({ jwt, url }) {
-    return this.backend.validateAddOperatorNow({ jwt, url })
+  async validateAddOperatorNow ({ jwt, smsCode }) {
+    return this.backend.validateAddOperatorNow({ jwt, smsCode })
   }
 
   // TODO: this code is not really covered with tests! Do not trust it!
@@ -497,5 +497,15 @@ export default class SimpleWallet extends SimpleWalletApi {
 
   _addKnownToken (address) {
     this.knownTokens.push(address)
+  }
+
+  async scheduleAddOperator ({ newOperator }) {
+    await this.contract.scheduleAddOperator(
+      this.participant.permLevel, newOperator, this.stateId,
+      {
+        from: this.participant.address,
+        gas: 1e8
+      }
+    )
   }
 }

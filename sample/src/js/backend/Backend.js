@@ -13,25 +13,20 @@ export class Backend {
       keyManager,
       accountManager
     })
+    this.unverifiedNewOperators = {}
   }
 
   async validatePhone ({ jwt, phoneNumber }) {
     const formattedPhone = this._formatPhoneNumber(phoneNumber)
-    this._validateJWTFormat(jwt)
-    const ticket = await this._verifyJWT(jwt)
-
-    const email = ticket.getPayload().email
+    const email = (await this._getTicketFromJWT(jwt)).getPayload().email
     const smsCode = this.smsManager.getSmsCode({ phoneNumber: formattedPhone, email })
     await this.smsManager.sendSMS(
-      { phoneNumber: formattedPhone, email, message: `To validate phone and create Account, enter code: ${smsCode}` })
+      { phoneNumber: formattedPhone, message: `To validate phone and create Account, enter code: ${smsCode}` })
   }
 
   async createAccount ({ jwt, smsCode, phoneNumber }) {
     const formattedPhone = this._formatPhoneNumber(phoneNumber)
-    this._validateJWTFormat(jwt)
-    const ticket = await this._verifyJWT(jwt)
-
-    const email = ticket.getPayload().email
+    const email = (await this._getTicketFromJWT(jwt)).getPayload().email
     const smartAccountId = await this.getSmartAccountId({ email })
     if (this.smsManager.getSmsCode({ phoneNumber: formattedPhone, email, expectedSmsCode: smsCode }) === smsCode) {
       const newAccount = new BackendAccount({
@@ -50,15 +45,34 @@ export class Backend {
   }
 
   async signInAsNewOperator ({ jwt, title }) {
-    throw new Error('validate jwt, return "click to add" SMS')
+    const payload = (await this._getTicketFromJWT(jwt)).getPayload()
+    const email = payload.email
+    const newOperatorAddress = payload.nonce
+    const smartAccountId = await this.getSmartAccountId({ email })
+    const account = this.accountManager.getAccountById({ accountId: smartAccountId })
+    if (email !== account.email) {
+      throw new Error(`Invalid email. from jwt: ${email} from account: ${account.email}`)
+    }
+    this.unverifiedNewOperators[smartAccountId] = { newOperatorAddress, title }
+    const smsCode = this.smsManager.getSmsCode({ phoneNumber: account.phone, email })
+    await this.smsManager.sendSMS(
+      { phoneNumber: account.phone, message: `To sign-in new device as operator, enter code: ${smsCode}` })
   }
 
-  async validateAddOperatorNow ({ jwt, url }) {
-    throw new Error('validate that addDeviceUrl is the one sent by addOperatorNow. save validation in memory')
-  }
-
-  handleNotifications () {
-    throw new Error('monitor pending changes. can subscribe for events, but need also to handle due events.')
+  async validateAddOperatorNow ({ jwt, smsCode }) {
+    const email = (await this._getTicketFromJWT(jwt)).getPayload().email
+    const smartAccountId = await this.getSmartAccountId({ email })
+    const account = this.accountManager.getAccountById({ accountId: smartAccountId })
+    if (email !== account.email) {
+      throw new Error(`Invalid email. from jwt: ${email} from account: ${account.email}`)
+    }
+    if (this.smsManager.getSmsCode({ phoneNumber: account.phone, email, expectedSmsCode: smsCode }) !== smsCode) {
+      throw new Error(`Invalid sms code: ${smsCode}`)
+    }
+    const { newOperatorAddress, title } = this.unverifiedNewOperators[smartAccountId]
+    this.accountManager.putOperatorToAdd({ accountId: smartAccountId, address: newOperatorAddress })
+    delete this.unverifiedNewOperators[smartAccountId]
+    return { newOperatorAddress, title }
   }
 
   /**
@@ -87,7 +101,7 @@ export class Backend {
   }
 
   _formatPhoneNumber (phoneNumber) {
-    const formattedPhone = phone(phoneNumber) // phone("+972 541234567") == [ '+972541234567', 'ISR' ]
+    const formattedPhone = phone(phoneNumber) // phone("+972 541234567"), phone("+972541234567") => [ '+972541234567', 'ISR' ]
     if (formattedPhone.length === 0) {
       throw new Error(`Invalid phone number: ${phoneNumber}`)
     }
@@ -108,5 +122,10 @@ export class Backend {
       throw new Error('invalid jwt: Email not verified')
     }
     return parsed
+  }
+
+  async _getTicketFromJWT (jwt) {
+    this._validateJWTFormat(jwt)
+    return this._verifyJWT(jwt)
   }
 }
