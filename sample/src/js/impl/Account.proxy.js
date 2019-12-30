@@ -3,7 +3,7 @@
 import AccountApi from '../api/Account.api'
 import { EventEmitter } from 'events'
 
-const verbose = true
+const verbose = global.window && global.window.location.href.indexOf('verbose') > 0
 const ACCOUNT_FRAME_ID = 'account-frame'
 
 export default class AccountProxy extends EventEmitter {
@@ -29,7 +29,8 @@ export default class AccountProxy extends EventEmitter {
   _initFrame () {
     const frame = document.createElement('iframe')
     // todo: absolute URL, e.g.: 'https://account.safeaccount.xyz'
-    frame.setAttribute('src', 'account.html')
+    let IFRAME_URL = 'account.html'
+    frame.setAttribute('src', IFRAME_URL + (verbose ? '#verbose' : ''))
     frame.setAttribute('id', ACCOUNT_FRAME_ID)
     frame.setAttribute('scrolling', 'no')
     frame.style.width = '30px'
@@ -38,7 +39,6 @@ export default class AccountProxy extends EventEmitter {
   }
 
   _onMessage ({ source, data }) {
-    if (('' + data.source).match(/react/)) { return }
     if (data === 'account-iframe-initialized') {
       this.initialized = true
       this.emit('initialized')

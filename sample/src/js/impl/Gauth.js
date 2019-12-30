@@ -57,6 +57,6 @@ export class Gauth extends GauthApi {
     const email = this.gauth.currentUser.get().getBasicProfile().getEmail()
     const jwt = this.gauth.currentUser.get().getAuthResponse().id_token
 
-    return { email, jwt: jwt }
+    return { email, jwt }
   }
 }
