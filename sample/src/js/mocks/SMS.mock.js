@@ -44,7 +44,10 @@ export default class SMSmock extends SMSapi {
     let count = 0
     return new Promise((resolve, reject) => {
       const sms = SMSmock.readSms()
-      if (sms) resolve(sms)
+      if (sms) {
+        resolve(sms)
+        return
+      }
       count += interval
       if (count > timeout) {
         reject(Error('timed-out waiting for sms'))

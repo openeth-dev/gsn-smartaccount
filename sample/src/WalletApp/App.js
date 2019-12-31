@@ -291,11 +291,9 @@ class App extends React.Component {
       }
     }
 
-    console.log('==== before isenabled', sdk.isEnabled)
     if (await asyncDump('sdk.isEnabled', sdk.isEnabled({ appUrl: window.location.href }))) {
       const info = await sdk.account.googleAuthenticate()
       if (info) {
-        console.log('===', info)
         this.state.email = info.email
         this.state.ownerAddress = info.address
         this.state.jwt = info.jwt

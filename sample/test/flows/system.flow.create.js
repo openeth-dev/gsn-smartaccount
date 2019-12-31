@@ -6,12 +6,14 @@ import SMSmock from '../../src/js/mocks/SMS.mock'
 import TestEnvironment from '../utils/TestEnvironment'
 
 import { increaseTime } from 'safechannels-contracts/test/utils'
+import { sleep } from '../backend/testutils'
 
 const DAY = 24 * 3600
 
 const verbose = false
 describe('System flow: Create Account', () => {
   let testEnvironment, web3, toBN
+  const userEmail = 'shahaf@tabookey.com'
 
   before('check "gsn-dock-relay" is active', async function () {
     this.timeout(5000)
@@ -20,10 +22,6 @@ describe('System flow: Create Account', () => {
     await testEnvironment.snapshot()
     web3 = testEnvironment.web3
     toBN = web3.utils.toBN
-    {
-      const { number, timestamp } = await web3.eth.getBlock('latest')
-      console.log('=== BEFORE test: ', { number, timestamp })
-    }
   })
 
   after('stop backend', async () => {
@@ -39,11 +37,9 @@ describe('System flow: Create Account', () => {
     }
   })
 
-  let wallet
+  let wallet, mgr
 
   describe('create flow with account', async () => {
-    const userEmail = 'shahaf@tabookey.com'
-    let mgr
     let jwt, phoneNumber
 
     before(async function () {
@@ -161,4 +157,83 @@ describe('System flow: Create Account', () => {
       assert.equal(val.add(toBN(finalBalance)), currentBalance)
     })
   })
+
+  describe('add device now', async () => {
+
+    let newenv, newmgr
+    let oldOperator
+    before('create env for new device', async function () {
+      this.timeout(10000)
+      try {
+        newenv = new TestEnvironment({})
+        newenv.sponsor = testEnvironment.sponsor
+        newenv.web3provider = testEnvironment.web3provider
+        newenv.web3 = testEnvironment.web3
+        newenv.verbose = testEnvironment.verbose
+        newenv.factory = testEnvironment.factory
+        newenv.backendAddresses = testEnvironment.backendAddresses
+
+        await newenv.initializeSimpleManager()
+
+        newmgr = newenv.manager
+
+        oldOperator = await mgr.getOwner()
+      } catch (e) {
+        console.log('ex', e)
+      }
+    })
+
+    let smsCode, jwt
+    const TEST_TITLE = 'title-of-new-device'
+
+    it('signin from new device should get smsCode', async () => {
+      const { jwt: _jwt, email, address } = await newmgr.googleLogin()
+      jwt = _jwt
+
+      // should have the same email as first mgr
+      expect(email).to.equal(await mgr.getEmail())
+      // but not the same owner address!
+      expect(address).to.not.equal(oldOperator)
+
+      await newmgr.signInAsNewOperator({ jwt, title: TEST_TITLE }) // TODO: use observer
+
+      const msg = await SMSmock.asyncReadSms()
+      assert.match(msg.message, /code.*?\d{3,}/)
+      console.log('sms message', msg.message)
+      smsCode = msg.message.match(/code.*?(\d{3,})/)[1]
+      console.log('smsCode: ', smsCode)
+    })
+
+    let newOperator
+    it('validateAddOperatorNow should return title and address', async () => {
+      const { newOperatorAddress, title } = await wallet.validateAddOperatorNow({ jwt, smsCode })
+      assert.equal(title, TEST_TITLE)
+      assert.equal(newOperatorAddress, await newmgr.getOwner())
+      newOperator = newOperatorAddress
+    })
+
+    let newwallet
+    it('addOperatorNow should add new operator..', async () => {
+      await wallet.getWalletInfo() //must be called before addOperatorNow
+      await wallet.addOperatorNow(newOperator)
+
+      await sleep(1000) // should be enough for guardian to complete.
+      let events = await wallet.contract.getPastEvents('allevents', {fromBlock:1, toBlock:'latest'})
+      let e = events.map(e=>({
+        _event: e.event,
+        ...fromEntries(Object.entries(e.returnValues).filter(x=>x[0].match(/^\w./)))
+      }))
+      console.log('events=',e)
+
+      let info = await wallet.getWalletInfo()
+      console.log('operators', info.operators, info.unknownGuardians)
+      assert.deepInclude(info.operators, newOperator)
+    })
+  })
 })
+
+//convert [ [key,val], [key,val] ] into {key:val, key:val}
+//like the future standard Object.fromEntries
+function fromEntries(entries) {
+  return entries.reduce((obj, [key,val])=>{obj[key]=val; return obj}, {})
+}
