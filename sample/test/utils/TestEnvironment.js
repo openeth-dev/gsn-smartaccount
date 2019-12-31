@@ -53,6 +53,7 @@ export default class TestEnvironment {
   async revert () {
     return TestUtils.revert(this.snapshotId, this.web3)
   }
+
   static async initializeWithFakeBackendAndGSN ({
     ethNodeUrl,
     relayUrl,

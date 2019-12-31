@@ -29,7 +29,7 @@ export default class AccountProxy extends EventEmitter {
   _initFrame () {
     const frame = document.createElement('iframe')
     // todo: absolute URL, e.g.: 'https://account.safeaccount.xyz'
-    let IFRAME_URL = 'account.html'
+    const IFRAME_URL = 'account.html'
     frame.setAttribute('src', IFRAME_URL + (verbose ? '#verbose' : ''))
     frame.setAttribute('id', ACCOUNT_FRAME_ID)
     frame.setAttribute('scrolling', 'no')

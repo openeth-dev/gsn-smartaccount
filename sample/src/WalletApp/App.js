@@ -31,12 +31,12 @@ function GoogleLogin ({ refresh, initMgr }) {
   async function login () {
     try {
       await initMgr()
-    const logininfo = await mgr.googleLogin()
-    if (!logininfo || !logininfo.email) {
-      return
-    }
-    const { jwt, email } = logininfo
-    refresh({ jwt, email })
+      const logininfo = await mgr.googleLogin()
+      if (!logininfo || !logininfo.email) {
+        return
+      }
+      const { jwt, email } = logininfo
+      refresh({ jwt, email })
     } catch (e) {
       refresh({ err: e.message || e.error })
     }
@@ -109,8 +109,8 @@ function ActiveWallet ({ ownerAddr, walletInfo, walletBalances, walletPending, d
     }
 
     {
-      walletPending.length ? <PendingTransactions walletPending={walletPending} doCancelPending={doCancelPending}/> :
-      <b>No Pending Transactions</b>
+      walletPending.length ? <PendingTransactions walletPending={walletPending} doCancelPending={doCancelPending}/>
+        : <b>No Pending Transactions</b>
     }
 
     {
@@ -151,7 +151,7 @@ function DebugState ({ state }) {
   return debug && <>state={state}</>
 }
 function WalletComponent (options) {
-  const { walletAddr, email, ownerAddr, walletInfo, jwt } = options
+  const { walletAddr, email, ownerAddr, walletInfo } = options
 
   if (!email || !ownerAddr) {
     return <><DebugState state="noemail"/><GoogleLogin {...options}/></>
@@ -179,10 +179,10 @@ class App extends React.Component {
     this.asyncHandler(this.initMgr())
   }
 
-  //- call promise, update UI (either with good state, or error)
+  // - call promise, update UI (either with good state, or error)
   asyncHandler (promise) {
-    return promise.then(() => this.readMgrState().then(x => { this.setState(x) })).
-      catch(err => this.reloadState({ err: err.message || err.error }))
+    return promise.then(() => this.readMgrState().then(x => { this.setState(x) }))
+      .catch(err => this.reloadState({ err: err.message || err.error }))
   }
 
   async readMgrState () {
@@ -221,7 +221,7 @@ class App extends React.Component {
 
   async initMgr () {
     if (mgr) {
-      return  // already initialized
+      return // already initialized
     }
     if (useMock) {
       return this._initMockSdk()
@@ -245,7 +245,6 @@ class App extends React.Component {
   }
 
   async _initRealSdk () {
-
     const serverURL = window.location.protocol + '//' + window.location.host.replace(/(:\d+)?$/, ':8888')
 
     // debug node runs on server's host. real node might use infura.
@@ -302,19 +301,18 @@ class App extends React.Component {
 
   async doCancelPending (delayedOpId) {
     if (!delayedOpId) {
-    const id = prompt('Enter pending index to cancel')
-    if (!id) return
-    const p = JSON.parse(JSON.stringify(this.state.walletPending))
-    console.log('looking for id', id, 'in', p)
-    const pending = p.find(x => x.index === id)
-    if (!pending) {
-      alert('No pending item with index=' + id)
-      return
-    }
+      const id = prompt('Enter pending index to cancel')
+      if (!id) return
+      const p = JSON.parse(JSON.stringify(this.state.walletPending))
+      console.log('looking for id', id, 'in', p)
+      const pending = p.find(x => x.index === id)
+      if (!pending) {
+        alert('No pending item with index=' + id)
+        return
+      }
       delayedOpId = pending.delayedOpId
     } else {
-      if (!window.confirm('Are you sure you want to cancel this operation?'))
-        return
+      if (!window.confirm('Are you sure you want to cancel this operation?')) { return }
     }
 
     await wallet.cancelPending(delayedOpId)
@@ -347,8 +345,7 @@ class App extends React.Component {
 
   debugIncreaseTime () {
     const hours = 24
-    if (!window.confirm('Perform increaseTime of ' + hours + ' hours'))
-      return
+    if (!window.confirm('Perform increaseTime of ' + hours + ' hours')) { return }
     const web3 = new Web3(global.web3provider)
     console.log('increaseTime')
     increaseTime(3600 * hours, web3).then((ret) => {
@@ -356,6 +353,7 @@ class App extends React.Component {
       this.reloadState()
     })
   }
+
   debugReloadState () {
     console.log('DEBUG: reload state')
     this.reloadState()
@@ -402,10 +400,7 @@ class App extends React.Component {
   toggleDebug () {
     let url = window.location.href
     debug = getParam('debug')
-    if (!debug)
-      url = url + '#debug'
-    else
-      url = url.replace(/#debug/, '')
+    if (!debug) { url = url + '#debug' } else { url = url.replace(/#debug/, '') }
     window.location.replace(url)
     this.reloadState()
   }
@@ -413,8 +408,8 @@ class App extends React.Component {
   async enableApp () {
     try {
       await this.initMgr()
-    await sdk.enableApp({ appTitle: 'SampleWallet', appUrl: window.location.href })
-    this.reloadState()
+      await sdk.enableApp({ appTitle: 'SampleWallet', appUrl: window.location.href })
+      this.reloadState()
     } catch (e) {
       this.reloadState({ err: e.message || e.error })
     }

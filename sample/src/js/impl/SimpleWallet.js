@@ -336,7 +336,7 @@ export default class SimpleWallet extends SimpleWalletApi {
           const common = {
             txHash: it.transactionHash,
             delayedOpId: it.args.delayedOpId,
-            dueTime: parseInt(it.args.dueTime,16),
+            dueTime: parseInt(it.args.dueTime, 16),
             state: 'mined'
           }
           if (isEtherValuePassed && !isDataPassed) {

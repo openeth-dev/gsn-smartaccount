@@ -45,11 +45,12 @@ export default class Account extends AccountApi {
     this._approvedApps = JSON.parse(this.storage.approved || '{}')
   }
 
-  _cleanUrl(url) {
+  _cleanUrl (url) {
     // remove local suffix of URL
     // TODO: do we also remove query params ?
-    return url.replace(/#.*/,'')
+    return url.replace(/#.*/, '')
   }
+
   _isApproved (url) {
     return this._approvedApps[this._cleanUrl(url)]
   }

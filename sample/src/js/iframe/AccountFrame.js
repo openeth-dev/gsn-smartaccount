@@ -15,7 +15,7 @@ function initMessageHandler ({ window }) {
   if (!window.localStorage) {
     throw new Error('missing {window.localStorage}')
   }
-  verbose = window.location.href.indexOf('verbose')>0
+  verbose = window.location.href.indexOf('verbose') > 0
 
   account = new Account({ storage: window.localStorage, gauth: new Gauth() })
 
@@ -56,7 +56,7 @@ async function handleMessage ({ source, method, id, params }) {
   try {
     // if (verbose) { console.log('iframe: called', id, method, params) }
     // enable is the only method allowed before prompting the use to enable
-    if (method !== 'enableApp' && method !== 'isEnabled' && method != 'signOut') {
+    if (method !== 'enableApp' && method !== 'isEnabled' && method !== 'signOut') {
       account._verifyApproved(method, source.location.href)
     }
 
