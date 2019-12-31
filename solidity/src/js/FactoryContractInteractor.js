@@ -162,6 +162,12 @@ class FactoryContractInteractor {
     return smartAccountFactory
   }
 
+  static async deployNewWhitelistFactory (from, ethNodeUrl, forwarder) {
+    const { instance: smartAccountFactory } = await this.deployContract('generated/BypassModules/WhitelistFactory',
+      'WhitelistFactory', [], [forwarder], from, ethNodeUrl)
+    return smartAccountFactory
+  }
+
   // TODO: there is no reason anymore to depend on a library as instance. All methods must be 'inline'
   static async deployUtilitiesLibrary (from, ethNodeUrl) {
     const utilitiesLibraryPlaceholder = '\\$' + Web3.utils.keccak256('Utilities.sol:Utilities').substr(2, 34) + '\\$'

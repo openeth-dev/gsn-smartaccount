@@ -7,10 +7,12 @@ import Permissions from 'safechannels-contracts/src/js/Permissions'
 import Participant from 'safechannels-contracts/src/js/Participant'
 import scTestUtils from 'safechannels-contracts/test/utils'
 
+import BaseBackendMock from '../mocks/BaseBackend.mock'
 import SimpleWallet from '../../src/js/impl/SimpleWallet'
 import ConfigEntry from '../../src/js/etc/ConfigEntry'
 import sinon from 'sinon'
 import { testValidationBehavior } from './behavior/SimpleWallet.behavior'
+import TestEnvironment from '../utils/TestEnvironment'
 
 before(async function () {
 // TODO: get accounts
@@ -56,7 +58,14 @@ describe('SimpleWallet', async function () {
 
   async function newTest (operator = null) {
     const smartAccount = await FactoryContractInteractor.deploySmartAccountDirectly(from, ethNodeUrl)
-    const wallet = new SimpleWallet({ ...walletSharedConfig, contract: smartAccount, knownTokens: [] })
+    // TODO: duplicate code, testenv does same work as the rest of the code here!!!
+    const testEnvironment = await TestEnvironment.initializeWithFakeBackendAndGSN({clientBackend: BaseBackendMock})
+    const whitelistFactory = await testEnvironment.deployWhitelistFactory()
+    const wallet = new SimpleWallet(
+      { ...walletSharedConfig,
+        whitelistFactory,
+        contract: smartAccount,
+        knownTokens: [] })
     if (operator !== null) {
       const config = SimpleWallet.getDefaultSampleInitialConfiguration({
         backendAddress: backend,
@@ -299,4 +308,18 @@ describe('SimpleWallet', async function () {
 
     it('should not try to apply addOperatorNow')
   })
+
+  describe.only('#deployWhitelistModule()', async function () {
+    let testContext
+    before(async function () {
+      testContext = await newTest(from)
+    })
+
+    it('should deploy a whitelist module with preconfigured list', async function () {
+      const whitelistPreconfigured = [backend, operator]
+      const receipt = await testContext.wallet.deployWhitelistModule({whitelistPreconfigured})
+      assert.strictEqual(receipt.logs[0].event, "WhitelistModuleCreated")
+    })
+  })
+
 })

@@ -33,15 +33,25 @@ export default class SimpleWallet extends SimpleWalletApi {
    *
    * @param contract - TruffleContract instance of the Gatekeeper
    * @param participant - the participant to be used as the 'from' of all operations
+   * @param backend - implementation of {@link ClientBackend}
+   * @param whitelistFactory - instance ow Truffle Contract for whitelist deployment
    * @param knownParticipants - all other possible participants known to the wallet. Not necessarily activated on vault.
    *        Note: participants should be of 'Participant' class!
    * @param knownTokens - tokens currently supported.
    */
-  constructor ({ contract, participant, backend, knownParticipants = [], knownTokens = [] }) {
+  constructor ({
+    contract,
+    participant,
+    backend,
+    whitelistFactory,
+    knownParticipants = [],
+    knownTokens = []
+  }) {
     super()
     this.contract = contract
     this.backend = backend
     this.participant = participant
+    this.whitelistFactory = whitelistFactory
     this.knownTokens = knownTokens
     this.knownParticipants = [...knownParticipants, participant]
     // TODO: make sure no duplicates
@@ -509,5 +519,12 @@ export default class SimpleWallet extends SimpleWalletApi {
         gas: 1e8
       }
     )
+  }
+
+  async deployWhitelistModule ({ whitelistPreconfigured }) {
+    return this.whitelistFactory.newWhitelist(this.contract.address, whitelistPreconfigured,
+      {
+        from: this.participant.address
+      })
   }
 }

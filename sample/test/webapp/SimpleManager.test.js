@@ -12,25 +12,10 @@ import {
 } from './behavior/SimpleManager.behavior'
 import TestEnvironment from '../utils/TestEnvironment'
 import { Watchdog } from '../../src/js/backend/Guardian'
+import BaseBackendMock from '../mocks/BaseBackend.mock'
 
 chai.use(chaiAsPromised)
 chai.should()
-const mockBackendBase = {
-  getSmartAccountId: async function () {
-    return '0x' + '1'.repeat(64)
-  },
-  createAccount: async function () {
-    return {
-      approvalData: '0x' + 'f'.repeat(64),
-      smartAccountId: '0x' + '1'.repeat(64)
-    }
-  },
-  getAddresses: async function () {
-    return {
-      watchdog: '0x' + '1'.repeat(40)
-    }
-  }
-}
 
 async function newTest (backend) {
   const testEnvironment = await TestEnvironment.initializeWithFakeBackendAndGSN({
@@ -170,7 +155,7 @@ describe('SimpleManager', async function () {
           await testContext.wallet.scheduleAddOperator({ newOperator: '0x' + '3'.repeat(40) })
           return { code: 200 }
         },
-        ...mockBackendBase
+        ...BaseBackendMock
       }
       testContext = await TestEnvironment.initializeWithFakeBackendAndGSN({
         clientBackend: mockBackend
