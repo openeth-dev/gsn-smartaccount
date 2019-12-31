@@ -8,14 +8,14 @@ export function testValidationBehavior (getContext) {
     // TODO: client backend does not support this yet
     it('should pass parameters to backend and handle http 200 OK code', async function () {
       const context = getContext()
-      const { error, newOperator: newOperatorResp, description: descrResp } = await context.wallet.validateAddOperatorNow({
+      const { error, newOperator: newOperatorResp, title: titleResp } = await context.wallet.validateAddOperatorNow({
         jwt: context.jwt,
         smsCode: context.smsCode
       })
       calledWithRightArgs(context.wallet.backend.validateAddOperatorNow, { jwt: context.jwt, smsCode: context.smsCode })
       assert.strictEqual(error, null)
       assert.strictEqual(newOperatorResp, context.newOperator)
-      assert.strictEqual(descrResp, context.description)
+      assert.strictEqual(titleResp, context.title)
     })
   })
 }

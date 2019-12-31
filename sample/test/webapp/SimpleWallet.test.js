@@ -179,7 +179,7 @@ describe('SimpleWallet', async function () {
   describe('Add Operator Now', async function () {
     // TODO: url parameters TBD
     const smsCode = '123456'
-    const description = 'New operator device'
+    const title = 'New operator device'
     const newOperator = '0x3333333333333333333333333333333333333333'
 
     let testContext
@@ -188,11 +188,11 @@ describe('SimpleWallet', async function () {
       testContext = await newTest()
       testContext.newOperator = newOperator
       testContext.smsCode = smsCode
-      testContext.description = description
+      testContext.title = title
       testContext.wallet.backend = {
         validateAddOperatorNow: sinon.spy(
           () => {
-            return { code: 200, error: null, newOperator, description }
+            return { code: 200, error: null, newOperator, title}
           })
       }
     })

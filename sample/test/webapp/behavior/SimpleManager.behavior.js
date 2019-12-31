@@ -75,13 +75,13 @@ export function testValidatePhoneBehavior (getContext) {
 export function testSignInBehavior (getContext) {
   it('should pass parameters to backend and handle http 200 OK code', async function () {
     const jwt = {}
-    const description = '0000'
+    const title = '0000'
     const sm = getContext().manager
     sinon.spy(sm.backend)
-    const { success, reason } = await sm.signInAsNewOperator({ jwt, description })
+    const { success, reason } = await sm.signInAsNewOperator({ jwt, title })
     assert.strictEqual(success, true)
     assert.strictEqual(reason, null)
-    calledWithRightArgs(sm.backend.signInAsNewOperator, { jwt, description })
+    calledWithRightArgs(sm.backend.signInAsNewOperator, { jwt, title })
   })
 }
 
