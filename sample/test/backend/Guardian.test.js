@@ -17,7 +17,7 @@ import sctestutils from 'safechannels-contracts/test/utils'
 import ChangeType from 'safechannels-contracts/test/etc/ChangeType'
 import abiDecoder from 'abi-decoder'
 import { Backend } from '../../src/js/backend/Backend'
-import { generateMockJwt } from './testutils'
+import { generateMockJwt, sleep, hookFunction, unhookFunction } from './testutils'
 
 // const ethUtils = require('ethereumjs-util')
 // const abi = require('ethereumjs-abi')
@@ -121,8 +121,8 @@ describe('As Guardian', async function () {
       operatorAddress: accountZero,
       whitelistModuleAddress: whitelistPolicy
     })
-    // config.initialDelays = [1, 1]
-    config.initialDelays = [0, 0]
+    config.initialDelays = [1, 1]
+    // config.initialDelays = [0, 0]
     config.requiredApprovalsPerLevel = [0, 0]
     await wallet.initialConfiguration(config)
     await fundAddress(wallet.contract.address)
@@ -133,20 +133,6 @@ describe('As Guardian', async function () {
     let receipt
     let actions
     let args
-
-    function hookWatchdogFunction (funcName, newFunc) {
-      Object.defineProperty(newFunc, 'name', {
-        writable: true,
-        value: funcName
-      })
-      watchdog[funcName + 'Orig'] = watchdog[funcName]
-      watchdog[funcName] = newFunc
-    }
-
-    function unhookWatchdogFunction (funcName) {
-      watchdog[funcName] = watchdog[funcName + 'Orig']
-      delete watchdog[funcName + 'Orig']
-    }
 
     before(async function () {
       await fundAddress(keypair.address)
@@ -225,10 +211,10 @@ describe('As Guardian', async function () {
         const eventsBefore = await wallet.contract.getPastEvents(delayedOp + 'Cancelled')
         const smsCode = watchdog.smsManager.getSmsCode(
           { phoneNumber: newAccount.phone, email: newAccount.email })
-        hookWatchdogFunction(watchdog._applyChanges.name, function () {})
+        hookFunction(watchdog, watchdog._applyChanges.name, function () {})
         watchdog.lastScannedBlock = 0
         await watchdog._worker()
-        unhookWatchdogFunction(watchdog._applyChanges.name)
+        unhookFunction(watchdog, watchdog._applyChanges.name)
         const url = `To cancel event ${receipt.logs[0].args.delayedOpId} on smartAccount ${newAccount.address}, enter code ${smsCode}`
         const txhash = (await watchdog.cancelByUrl(
           { jwt: undefined, url })).transactionHash
@@ -252,6 +238,13 @@ describe('As Guardian', async function () {
         }
 
         const eventsBefore = await wallet.contract.getPastEvents(delayedOp + 'Applied')
+        let gotSms = false
+        watchdog.smsManager.smsProvider.once('mocksms', () => { gotSms = true })
+        await watchdog._worker()
+        const eventsDuring = await wallet.contract.getPastEvents(delayedOp + 'Applied')
+        assert.equal(eventsDuring.length, eventsBefore.length)
+        assert.isTrue(gotSms)
+        await sleep(1000)
         await watchdog._worker()
         const eventsAfter = await wallet.contract.getPastEvents(delayedOp + 'Applied')
         assert.equal(eventsAfter.length, eventsBefore.length + 1)
@@ -321,22 +314,26 @@ describe('As Guardian', async function () {
     })
 
     it('should not apply any operation twice', async function () {
-      hookWatchdogFunction(watchdog._sendTransaction.name, function () {
+      hookFunction(watchdog, watchdog._sendTransaction.name, function () {
         assert.fail()
       })
       watchdog.lastScannedBlock = 0
+      watchdog.smsManager.smsProvider.once('mocksms', function (sms) {
+        console.log('GOT SMS', sms)
+        assert.fail()
+      })
       await watchdog._worker()
       assert.deepEqual(watchdog.changesToApply, {})
       watchdog.accountManager.putOperatorToAdd({ accountId: newAccount.accountId, address: wrongOperatorAddress })
       watchdog.lastScannedBlock = 0
       await watchdog._worker()
       assert.deepEqual(watchdog.changesToApply, {})
-      unhookWatchdogFunction(watchdog._sendTransaction.name)
+      unhookFunction(watchdog, watchdog._sendTransaction.name)
     })
 
     it('should start periodic task and subscribe to new blocks', async function () {
       let blockHeader = {}
-      hookWatchdogFunction(watchdog._worker.name, function (bh) {
+      hookFunction(watchdog, watchdog._worker.name, function (bh) {
         blockHeader = bh
       })
       await watchdog.start()
@@ -361,7 +358,7 @@ describe('As Guardian', async function () {
         size: undefined
       }
       assert.deepEqual(Object.keys(blockHeader).sort(), Object.keys(exampleHeader).sort())
-      unhookWatchdogFunction(watchdog._worker.name)
+      unhookFunction(watchdog, watchdog._worker.name)
     })
     it('should stop periodic task and unsubscribe from new blocks', async function () {
       await watchdog.stop()

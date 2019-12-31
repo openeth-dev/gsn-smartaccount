@@ -40,3 +40,17 @@ export function generateMockJwt ({ email, nonce, iat, exp }) {
   const part3 = 'SIG'
   return [part1, part2, part3].join('.')
 }
+
+export function hookFunction (obj, funcName, newFunc) {
+  Object.defineProperty(newFunc, 'name', {
+    writable: true,
+    value: funcName
+  })
+  obj[funcName + 'Orig'] = obj[funcName]
+  obj[funcName] = newFunc
+}
+
+export function unhookFunction (obj, funcName) {
+  obj[funcName] = obj[funcName + 'Orig']
+  delete obj[funcName + 'Orig']
+}
