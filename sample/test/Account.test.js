@@ -7,6 +7,7 @@ import { getTransactionSignatureWithKey } from 'tabookey-gasless/src/js/relaycli
 import { keccak } from 'ethereumjs-util'
 import { buf2hex, hex2buf } from '../src/js/utils/utils'
 import Account from '../src/js/impl/Account'
+import GauthMock from '../src/js/mocks/Gauth.mock'
 
 chai.use(chaiAsPromised)
 
@@ -14,9 +15,10 @@ describe('Account', () => {
   // created using https://signin.ddns.tabookey.com.s3.eu-west-2.amazonaws.com/index.html#
   const JWT = 'eyJhbGciOiJSUzI1NiIsImtpZCI6IjViNWRkOWJlNDBiNWUxY2YxMjFlMzU3M2M4ZTQ5ZjEyNTI3MTgzZDMiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJhY2NvdW50cy5nb29nbGUuY29tIiwiYXpwIjoiMjAyNzQ2OTg2ODgwLXUxN3JiZ285NWg3amE0ZmdoaWtpZXR1cGprbmQxYmxuLmFwcHMuZ29vZ2xldXNlcmNvbnRlbnQuY29tIiwiYXVkIjoiMjAyNzQ2OTg2ODgwLXUxN3JiZ285NWg3amE0ZmdoaWtpZXR1cGprbmQxYmxuLmFwcHMuZ29vZ2xldXNlcmNvbnRlbnQuY29tIiwic3ViIjoiMTAwNzI5NzUzMTg0NTEzNjQ3MTE1IiwiaGQiOiJ0YWJvb2tleS5jb20iLCJlbWFpbCI6ImRyb3JAdGFib29rZXkuY29tIiwiZW1haWxfdmVyaWZpZWQiOnRydWUsIm5vbmNlIjoiaGVsbG8td29ybGQiLCJpYXQiOjE1NzU4MDY4OTQsImV4cCI6MTU3NTgxMDQ5NCwianRpIjoiNTRhOWNkNDNmNDNhM2I2MjExNGZlNTJiMWY1OGJkMjc1MjQ1MmZiOSJ9.hoyJbGiLwn66wWg_X7-R2XIJip-JzVfs0qRn-V99Z3ffzFlijtECa7Egp4Ganv7nf6Udm_VCUhD3jwUDx2mTZHi-yo0JqFNyhGVbakGIaty9TJIfo9kijFlakzpHtfYyYxnyrKWSiqoULKtvu_NEjKb6QJqSRKZ8ngHholByjyn7cxiIOGJomhGPo7AUSUnPDB5qwzyKz7RuwX3RdccSu2jufCI3_-HWF9yWQOEneJjVwXK3DgOzc_vtJmzuhbJuSIagguvx8TbJVuAnJcBROktEzOoVYcImb-Op5Sshyrt4lIM30WBKgdwGc4LElJJf9tui_FqvBikZRQRUreUpOw'
   let acct, mockStorage
+  const mockGauth = new GauthMock()
   beforeEach('test account', () => {
     mockStorage = new MockStorage()
-    acct = new Account(mockStorage)
+    acct = new Account({ storage: mockStorage, gauth: mockGauth })
   })
 
   describe('#getEmail()', async () => {
@@ -45,14 +47,14 @@ describe('Account', () => {
     })
 
     it('should return the same value for a new storage', async () => {
-      const newacct = new Account(mockStorage)
+      const newacct = new Account({ storage: mockStorage, gauth: new GauthMock() })
       assert.equal(await newacct.getOwner(), await acct.getOwner())
       // of course, no API to get privkey...
       assert.equal(newacct.storage.privKey, mockStorage.getItem('privKey'))
     })
 
     it('should retain the value after re-signin', async () => {
-      const newacct = new Account(mockStorage)
+      const newacct = new Account({ storage: mockStorage, gauth: mockGauth })
       assert.equal(await newacct.getEmail(), null)
       await newacct.googleLogin()
       // just validate it logged in.

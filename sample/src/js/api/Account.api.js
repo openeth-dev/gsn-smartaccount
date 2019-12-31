@@ -9,6 +9,10 @@ export default class AccountApi {
     validate(AccountApi, this)
   }
 
+  async isEnabled ({ appUrl }) {
+    error('check if given app is enabled. should not call any API except "enableApp".')
+  }
+
   async enableApp ({ appTitle, appUrl }) {
     error('ask the user to enable the given app/url. once enabled, returns immediately')
   }
