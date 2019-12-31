@@ -40,16 +40,15 @@ async function newTest () {
 
 describe('Client <-> Backend <-> Blockchain', async function () {
   describe('SimpleManager', async function () {
-    after('stop backend', async () => {
-      await TestEnvironment.stopBackendServer()
-    })
-
     describe('#cancelByUrl()', async function () {
       let testContext
       before(async function () {
         testContext = await newTest()
       })
       testCancelByUrlBehavior(() => testContext)
+      after('stop backend', async () => {
+        await TestEnvironment.stopBackendServer()
+      })
     })
 
     describe('#createWallet()', async function () {
@@ -60,6 +59,9 @@ describe('Client <-> Backend <-> Blockchain', async function () {
       })
 
       testCreateWalletBehavior(() => testContext)
+      after('stop backend', async () => {
+        await TestEnvironment.stopBackendServer()
+      })
     })
   })
 

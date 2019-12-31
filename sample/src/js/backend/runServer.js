@@ -41,9 +41,29 @@ const watchdog = new Watchdog({
 })
 const admin = undefined // TODO
 
+// update Date.now() on every ETH-block timestamp.
+function hookNodeTime () {
+  // hook nodejs global Date class
+  require('../mocks/MockDate')
+
+  const web3 = new Web3(web3provider)
+  web3.eth.subscribe('newBlockHeaders', function (error, blockHeader) {
+    if (error) {
+      console.error(error)
+    }
+  }).on('data', blockHeader => {
+    const diff = Math.floor(blockHeader.timestamp - Date.now() / 1000)
+    if (Math.abs(diff) > 10) {
+      console.log('=== time-gap: time changed by ', diff, 'seconds')
+    }
+    Date.setMockedTime(blockHeader.timestamp * 1000)
+  })
+}
+
 if (process.argv[6] === '--dev') {
   console.log('Running server in dev mode')
   hookBackend(backend)
+  hookNodeTime()
   smsManager.secretSMSCodeSeed = Buffer.from('f'.repeat(64), 'hex')
 }
 

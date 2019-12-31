@@ -192,6 +192,8 @@ export default class SimpleWallet extends SimpleWalletApi {
         case Permissions.AdminPermissions:
           type = 'admin'
           break
+        default:
+          type = 'unknown-' + it.permissions // not that we can do something with it..
       }
       return {
         address: it.address,
@@ -334,7 +336,7 @@ export default class SimpleWallet extends SimpleWalletApi {
           const common = {
             txHash: it.transactionHash,
             delayedOpId: it.args.delayedOpId,
-            dueTime: it.args.dueTime,
+            dueTime: parseInt(it.args.dueTime, 16),
             state: 'mined'
           }
           if (isEtherValuePassed && !isDataPassed) {

@@ -82,7 +82,11 @@ export default class SmartAccountSDK {
    * - account API is active only after enabling.
    * @param appTitle
    s   */
-  async enable (appTitle) {
-    return this.account.enable(appTitle)
+  async enableApp ({ appTitle, appUrl }) {
+    return this.account.enableApp({ appTitle, appUrl })
+  }
+
+  async isEnabled ({ appUrl }) {
+    return this.account.isEnabled({ appUrl })
   }
 }

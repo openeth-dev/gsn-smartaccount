@@ -2,21 +2,22 @@
 // this is the class loaded by the account.html frame.
 import Account from '../impl/Account'
 import AccountApi from '../api/Account.api'
+import { Gauth } from '../impl/Gauth'
 // https://developer.mozilla.org/en-US/docs/Web/API/Window/postMessage
 let account
-const verbose = false
+let verbose = false
 
 // const enabledSites = {}
 function initMessageHandler ({ window }) {
-  console.log('initMessageHandler')
   if (!window) {
     throw new Error('missing {window}')
   }
   if (!window.localStorage) {
     throw new Error('missing {window.localStorage}')
   }
+  verbose = window.location.href.indexOf('verbose') > 0
 
-  account = new Account(window.localStorage)
+  account = new Account({ storage: window.localStorage, gauth: new Gauth() })
 
   const onMessage = function onMessage ({ source, data }) {
     const { method, id, args: params } = data
@@ -41,8 +42,7 @@ function initMessageHandler ({ window }) {
   }
 
   setImmediate(() => {
-    console.log('AccountFrame initialized')
-    // window.parent.postMessage('account-iframe-initialized', '*')
+    window.parent.postMessage('account-iframe-initialized', '*')
   })
 }
 
@@ -53,28 +53,25 @@ async function handleMessage ({ source, method, id, params }) {
     return
   }
 
-  // enable is the only method allowed before prompting the use to enable
-  // if ( method !== 'enable' ) {
-  //   if ( enabledSites)
-  // }
-
-  // console.log("src=",source.location.href)
-  const methodToCall = account[method]
-  let response, error
-  if (verbose) { console.log('iframe: called', id, method, params) }
   try {
-    response = await methodToCall.apply(account, params)
+    // if (verbose) { console.log('iframe: called', id, method, params) }
+    // enable is the only method allowed before prompting the use to enable
+    if (method !== 'enableApp' && method !== 'isEnabled' && method !== 'signOut') {
+      account._verifyApproved(method, source.location.href)
+    }
+
+    // console.log("src=",source.location.href)
+    const methodToCall = account[method]
+
+    const response = await methodToCall.apply(account, params)
+
+    if (verbose) { console.log('iframe: resp', response, method, params) }
+
+    source.postMessage({ id, response }, '*')
   } catch (e) {
-    error = e
+    console.log('ex', e)
+    source.postMessage({ id, error: e.toString() }, '*')
   }
-  if (verbose) { console.log('iframe: resp', id, error || response) }
-
-  const val = (await account.getEmail() ? 'E' : ' ') +
-    (await account.getOwner() ? 'O' : ' ')
-  console.log('iframe value', val)
-  document.getElementById('valueDiv').innerText = val
-
-  source.postMessage({ id, response, error }, '*')
 }
 
 global.initMessageHandler = initMessageHandler

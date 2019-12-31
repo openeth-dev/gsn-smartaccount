@@ -1,7 +1,6 @@
 import { spawn } from 'child_process'
 import Web3 from 'web3'
 import FactoryContractInteractor from 'safechannels-contracts/src/js/FactoryContractInteractor'
-import TestUtils from 'safechannels-contracts/test/utils'
 import axios from 'axios'
 import path from 'path'
 import { MockStorage } from '../mocks/MockStorage'
@@ -13,6 +12,8 @@ import ClientBackend from '../../src/js/backend/ClientBackend'
 import SimpleWallet from '../../src/js/impl/SimpleWallet'
 import { startGsnRelay, stopGsnRelay } from 'localgsn'
 import { sleep } from '../backend/testutils'
+import GauthMock from '../../src/js/mocks/Gauth.mock'
+import * as TestUtils from 'safechannels-contracts/test/utils'
 
 /**
  * AFAIK, the docker image will always deploy the hub to the same address
@@ -22,7 +23,7 @@ const _relayHub = '0xD216153c06E857cD7f72665E0aF1d7D82172F494'
 const _ethNodeUrl = 'http://localhost:8545'
 const _relayUrl = 'http://localhost:8090'
 const _serverUrl = 'http://localhost:8888/'
-const verbose = false
+const _verbose = false
 
 let ls
 
@@ -33,7 +34,8 @@ export default class TestEnvironment {
     serverUrl = _serverUrl,
     relayHub = _relayHub,
     clientBackend,
-    web3provider
+    web3provider,
+    verbose = _verbose
   }) {
     this.ethNodeUrl = ethNodeUrl
     this.relayUrl = relayUrl
@@ -41,6 +43,15 @@ export default class TestEnvironment {
     this.clientBackend = clientBackend || new ClientBackend({ serverURL: serverUrl })
     this.web3provider = web3provider || new Web3.providers.HttpProvider(ethNodeUrl)
     this.web3 = new Web3(this.web3provider)
+    this.verbose = verbose
+  }
+
+  async snapshot () {
+    this.snapshotId = (await TestUtils.snapshot(this.web3)).result
+  }
+
+  async revert () {
+    return TestUtils.revert(this.snapshotId, this.web3)
   }
 
   static async initializeWithFakeBackendAndGSN ({
@@ -48,9 +59,10 @@ export default class TestEnvironment {
     relayUrl,
     relayHub,
     web3provider,
-    clientBackend
+    clientBackend,
+    verbose
   }) {
-    const instance = new TestEnvironment({ ethNodeUrl, relayUrl, relayHub, web3provider, clientBackend })
+    const instance = new TestEnvironment({ ethNodeUrl, relayUrl, relayHub, web3provider, clientBackend, verbose })
     instance.from = (await instance.web3.eth.getAccounts())[0]
     instance.backendAddresses = await instance.clientBackend.getAddresses()
     await instance.deployMockHub()
@@ -64,14 +76,15 @@ export default class TestEnvironment {
     relayUrl,
     relayHub,
     web3provider,
-    clientBackend
+    clientBackend,
+    verbose
   }) {
-    const instance = new TestEnvironment({ ethNodeUrl, relayUrl, relayHub, web3provider, clientBackend })
+    const instance = new TestEnvironment({ ethNodeUrl, relayUrl, relayHub, web3provider, clientBackend, verbose })
     instance.from = (await instance.web3.eth.getAccounts())[0]
 
     // bring up RelayHub, relay.
     // all parameters are optional.
-    await startGsnRelay({ from: instance.from, provider: ethNodeUrl, verbose })
+    await startGsnRelay({ from: instance.from, provider: instance.ethNodeUrl, verbose: instance.verbose })
     for (let i = 0; i <= 10; i++) {
       await sleep(500)
       const { isRelayReady, minGasPrice } = await instance.getRelayAddress()
@@ -141,6 +154,7 @@ export default class TestEnvironment {
   }
 
   static stopBackendServer () {
+    stopGsnRelay()
     if (!ls) {
       return
     }
@@ -185,7 +199,7 @@ export default class TestEnvironment {
 
   async initializeSimpleManager () {
     const relayOptions = {
-      verbose,
+      verbose: this.verbose,
       sponsor: this.sponsor.address
     }
     if (this.isRelayHubMocked) {
@@ -196,9 +210,10 @@ export default class TestEnvironment {
       })
     }
     const storage = new MockStorage()
+    const gauth = new GauthMock()
     const acc = await SmartAccountSDK.init({
       network: this.web3provider,
-      account: new Account(storage), // override default proxy
+      account: new Account({ storage, gauth }), // override default proxy
       relayOptions
     })
     const factoryConfig = {

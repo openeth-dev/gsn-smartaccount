@@ -10,16 +10,36 @@ import Web3 from 'web3'
 import ClientBackend from '../js/backend/ClientBackend'
 import SmartAccountSDK from '../js/impl/SmartAccountSDK'
 import SimpleManager from '../js/impl/SimpleManager'
+import { increaseTime } from './GanacheIncreaseTime'
+import { toBN } from 'web3-utils'
 
-var mgr, sms, wallet
+let debug = getParam('debug')
+
+function getParam (name) {
+  const params = window.location.href.replace(/^.*#/, '')
+  return params.indexOf(name) >= 0
+}
+
+// mock initialization:
+const useMock = window.location.href.indexOf('#mock') > 0
+const verbose = window.location.href.indexOf('#verbose') > 0
+
+var mgr, sms, wallet, sdk
 const Button = ({ title, action }) => <input type="submit" onClick={action} value={title}/>
 
-function GoogleLogin ({ refresh }) {
+function GoogleLogin ({ refresh, initMgr }) {
   async function login () {
-    const logininfo = await mgr.googleLogin()
-    if (!logininfo) { return }
-    const { jwt } = logininfo
-    refresh({ jwt })
+    try {
+      await initMgr()
+      const logininfo = await mgr.googleLogin()
+      if (!logininfo || !logininfo.email) {
+        return
+      }
+      const { jwt, email } = logininfo
+      refresh({ jwt, email })
+    } catch (e) {
+      refresh({ err: e.message || e.error })
+    }
   }
 
   return <div>
@@ -64,27 +84,49 @@ function CreateWallet ({ refresh, jwt, email }) {
 }
 
 function TokenWidget ({ symbol, balance, decimals, doTransfer }) {
-  const div = '1e' + (decimals || 1)
+  const div = '1' + '0'.repeat(decimals || 0)
   return <pre>{symbol}: {balance / div} <Button title={'send ' + symbol} action={() => doTransfer({ symbol })}/></pre>
 }
 
-function ActiveWallet ({ walletInfo, walletBalances, walletPending, doTransfer, doCancelPending }) {
+const PendingTransactions = ({ walletPending, doCancelPending }) =>
+  <div>
+    <b>Pending</b>
+    {walletPending.map(p =>
+      <div key={p.delayedOpId}>
+        {p.operation} {p.tokenSymbol} {p.value / 1e18} {p.destination}
+        <Button title="Cancel" action={() => doCancelPending(p.delayedOpId)}/>
+      </div>)
+    }
+  </div>
+function ActiveWallet ({ ownerAddr, walletInfo, walletBalances, walletPending, doTransfer, doCancelPending, reload }) {
   const info = JSON.stringify(walletInfo, null, 2)
   const pending = JSON.stringify(walletPending, null, 2)
 
   return <>
-    Balances<br/>
+    <b>Balances</b><br/>
     {
       walletBalances.map(token => <TokenWidget key={token.symbol} {...token} doTransfer={doTransfer}/>)
     }
 
-    <Button title="Cancel Pending" action={doCancelPending}/>
+    {
+      walletPending.length ? <PendingTransactions walletPending={walletPending} doCancelPending={doCancelPending}/>
+        : <b>No Pending Transactions</b>
+    }
 
+    {
+      !walletInfo.operators.includes(ownerAddr) &&
+      <div style={{ color: 'orange' }}>Warning: You are not an owner<br/>
+        (probably did &quot;Signout&quot; to forget the privkey, and then re-logged in. But don&apos;t worry: you can do
+        recover)
+      </div>
+
+    }
     <xmp>
       Pending: {pending}
     </xmp>
     <xmp>
-      Wallet Info: {info}
+      Wallet Info:
+      {info}
     </xmp>
   </>
 }
@@ -105,21 +147,24 @@ function RecoverOrNewDevice ({ email, walletAddr }) {
   </div>
 }
 
+function DebugState ({ state }) {
+  return debug && <>state={state}</>
+}
 function WalletComponent (options) {
-  const { walletAddr, email, walletInfo } = options
+  const { walletAddr, email, ownerAddr, walletInfo } = options
 
-  if (!email) {
-    return <>noemail<GoogleLogin {...options}/></>
+  if (!email || !ownerAddr) {
+    return <><DebugState state="noemail"/><GoogleLogin {...options}/></>
   }
   if (!walletAddr) {
-    return <>nowalletAddr<CreateWallet {...options} /></>
+    return <><DebugState state="nowalletAddr"/><CreateWallet {...options} /></>
   }
-  if (!walletInfo) {
-    return <>nowalletInfo<RecoverOrNewDevice {...options} /></>
+  if (!walletInfo ||
+    !walletInfo.operators.includes(ownerAddr)) {
+    return <><DebugState state="nowalletInfo"/><RecoverOrNewDevice {...options} /></>
   }
 
   return <ActiveWallet {...options} />
-  // return <RecoverOrNewDevice />
 }
 
 class App extends React.Component {
@@ -127,66 +172,96 @@ class App extends React.Component {
     super(props)
     // manager is initialized (async'ly) from first call to readMgrState
 
-    this.state = {}
-    this.initMgr().then(() =>
-      this.readMgrState().then(x => { this.state = x }))
+    this.state = { debug }
+  }
+
+  componentDidMount () {
+    this.asyncHandler(this.initMgr())
+  }
+
+  // - call promise, update UI (either with good state, or error)
+  asyncHandler (promise) {
+    return promise.then(() => this.readMgrState().then(x => { this.setState(x) }))
+      .catch(err => this.reloadState({ err: err.message || err.error }))
   }
 
   async readMgrState () {
+    console.log('readMgrState')
     const mgrState = {
-      ownerAddr: await mgr.getOwner(),
-      walletAddr: await mgr.getWalletAddress(),
-      email: await mgr.getEmail(),
       walletInfo: undefined,
       walletBalances: undefined,
       walletPending: undefined
     }
-    // TODO: this is hack: we want to check if it already loaded, not load it.
+    if (sdk && await sdk.isEnabled({ appUrl: window.location.href })) {
+      // read fields form wallet only once: they can't change (unless we logout)
+      Object.assign(mgrState, {
+        needApprove: undefined,
+        ownerAddr: this.state.ownerAddress || await mgr.getOwner(),
+        email: this.state.email || await mgr.getEmail(),
+        walletAddr: this.state.walletAddr || await mgr.getWalletAddress()
+      })
+      console.log('readMgrState: has some state')
+    } else {
+      mgrState.needApprove = true
+      console.log('not enabled', window.location.href)
+    }
+
     if (mgrState.walletAddr) {
       if (!wallet) { wallet = await mgr.loadWallet() }
       mgrState.walletInfo = await wallet.getWalletInfo()
       mgrState.walletBalances = await wallet.listTokens()
-      mgrState.walletPending = await wallet.listPendingConfigChanges()
-      mgrState.walletPending.forEach((x, index) => { x.index = index + 1 })
+      mgrState.walletPending = await wallet.listPendingTransactions()
+      mgrState.walletPending.forEach((x, index) => { x.index = (index + 1).toString() })
+      const web3 = new Web3(global.web3provider)
+      mgrState.currentTime = new Date((await web3.eth.getBlock('latest')).timestamp * 1000).toString()
     }
+
     return mgrState
   }
 
   async initMgr () {
-    // mock initialization:
-    const useMock = window.location.href.indexOf('mock') > 0
-
-    const verbose = true
-    if (useMock) {
-      mgr = new SimpleManagerMock({ accountApi: new AccountProxy() })
-      sms = mgr.smsApi
-      sms.on('mocksms', (data) => {
-        setTimeout(() => {
-          alert('Received SMS to ' + data.phone + ':\n' + data.message)
-        }, 1000)
-      })
-      return
+    if (mgr) {
+      return // already initialized
     }
+    if (useMock) {
+      return this._initMockSdk()
+    } else {
+      return this._initRealSdk()
+    }
+  }
 
-    // real init below:
+  async _initMockSdk () {
+    // mock SDK...
+    sdk = new SmartAccountSDK()
+    sdk.account = new AccountProxy()
 
-    const serverURL = window.location.protocol + '//' + window.location.host.replace(/(:\d+)?$/, ':8887')
+    mgr = new SimpleManagerMock({ accountApi: sdk.account })
+    sms = mgr.smsApi
+    sms.on('mocksms', (data) => {
+      setTimeout(() => {
+        alert('Received SMS to ' + data.phone + ':\n' + data.message)
+      }, 1000)
+    })
+  }
+
+  async _initRealSdk () {
+    const serverURL = window.location.protocol + '//' + window.location.host.replace(/(:\d+)?$/, ':8888')
 
     // debug node runs on server's host. real node might use infura.
     const ethNodeUrl = window.location.protocol + '//' + window.location.host.replace(/(:\d+)?$/, ':8545')
 
-    console.log({ serverURL, ethNodeUrl })
+    console.log('connecting to:', { serverURL, ethNodeUrl })
     const web3provider = new Web3.providers.HttpProvider(ethNodeUrl)
+    global.web3provider = web3provider
 
     const backend = new ClientBackend({ serverURL })
-
     const { sponsor, factory } = (await backend.getAddresses())
 
     const relayOptions = {
       verbose,
       sponsor
     }
-    const sdk = await SmartAccountSDK.init({
+    sdk = await SmartAccountSDK.init({
       network: web3provider,
       relayOptions
     })
@@ -201,20 +276,47 @@ class App extends React.Component {
       backend,
       factoryConfig
     })
-  }
 
-  async doCancelPending () {
-    const id = prompt('Enter pending index to cancel')
-    if (!id) return
-    const p = JSON.parse(JSON.stringify(this.state.walletPending))
-    console.log('looking for id', id, 'in', p)
-    const pending = p.find(x => x.index === id)
-    if (!pending) {
-      alert('No pending item with index=' + id)
-      return
+    async function asyncDump (title, promise) {
+      try {
+        const res = await promise
+        console.log(title, res)
+        return res
+      } catch (e) {
+        console.log(title, e)
+      }
     }
 
-    wallet.cancelPending(pending.delayedOpId)
+    console.log('==== before isenabled', sdk.isEnabled)
+    if (await asyncDump('sdk.isEnabled', sdk.isEnabled({ appUrl: window.location.href }))) {
+      const info = await sdk.account.googleAuthenticate()
+      if (info) {
+        console.log('===', info)
+        this.state.email = info.email
+        this.state.ownerAddress = info.address
+        this.state.jwt = info.jwt
+      }
+    }
+  }
+
+  async doCancelPending (delayedOpId) {
+    if (!delayedOpId) {
+      const id = prompt('Enter pending index to cancel')
+      if (!id) return
+      const p = JSON.parse(JSON.stringify(this.state.walletPending))
+      console.log('looking for id', id, 'in', p)
+      const pending = p.find(x => x.index === id)
+      if (!pending) {
+        alert('No pending item with index=' + id)
+        return
+      }
+      delayedOpId = pending.delayedOpId
+    } else {
+      if (!window.confirm('Are you sure you want to cancel this operation?')) { return }
+    }
+
+    await wallet.cancelPending(delayedOpId)
+    this.reloadState()
   }
 
   async doTransfer ({ symbol }) {
@@ -222,12 +324,16 @@ class App extends React.Component {
     try {
       const destination = prompt('Transfer ' + symbol + ' destination:')
       if (!destination) return
-      const amount = prompt('Transfer ' + symbol + ' amount:')
-      if (!(amount > 0)) return
-      if (amount > this.state.walletBalances) {
-        alert('you don\'t have that much.')
-        return
-      }
+      const val = prompt('Transfer ' + symbol + ' amount:')
+      if (!(val > 0)) return
+      const tokinfo = this.state.walletBalances.find(b => b.symbol === symbol)
+      const factor = '1' + '0'.repeat(tokinfo.decimals || 0)
+      const amount = toBN(val * factor)
+
+      // if (amount > this.state.walletBalances) {
+      //   alert('you don\'t have that much.')
+      //   return
+      // }
 
       await wallet.transfer({ destination, amount, token: symbol })
     } catch (e) {
@@ -237,22 +343,36 @@ class App extends React.Component {
     }
   }
 
-  reloadState (extra) {
+  debugIncreaseTime () {
+    const hours = 24
+    if (!window.confirm('Perform increaseTime of ' + hours + ' hours')) { return }
+    const web3 = new Web3(global.web3provider)
+    console.log('increaseTime')
+    increaseTime(3600 * hours, web3).then((ret) => {
+      console.log('increaseTime ret=', ret)
+      this.reloadState()
+    })
+  }
+
+  debugReloadState () {
+    console.log('DEBUG: reload state')
+    this.reloadState()
+  }
+
+  reloadState (extra = {}) {
     const self = this
     this.readMgrState().then(mgrState => {
-      const newState = { ...mgrState, ...extra }
+      debug = getParam('debug')
+      const newState = { ...mgrState, ...extra, debug }
       console.log('newState', newState)
       self.setState(newState)
     })
   }
 
-  async login () {
-    const { jwt, email } = await mgr.googleLogin()
-    this.reloadState({ jwt, email })
-  }
-
-  signout () {
-    mgr.signOut()
+  async signout () {
+    // TODO: currently, we initmgr means its online, though not strictly required for singout..
+    await this.initMgr()
+    await mgr.signOut()
 
     // clear entire react state:
     const keys = Object.keys(this.state)
@@ -265,6 +385,7 @@ class App extends React.Component {
   }
 
   async debugActiveWallet () {
+    await this.initMgr()
     const { jwt } = await mgr.googleLogin()
     // await mgr.validatePhone({jwt, phone:123})
     if (!await mgr.hasWallet()) {
@@ -277,7 +398,31 @@ class App extends React.Component {
   }
 
   toggleDebug () {
-    this.setState({ debug: !this.state.debug })
+    let url = window.location.href
+    debug = getParam('debug')
+    if (!debug) { url = url + '#debug' } else { url = url.replace(/#debug/, '') }
+    window.location.replace(url)
+    this.reloadState()
+  }
+
+  async enableApp () {
+    try {
+      await this.initMgr()
+      await sdk.enableApp({ appTitle: 'SampleWallet', appUrl: window.location.href })
+      this.reloadState()
+    } catch (e) {
+      this.reloadState({ err: e.message || e.error })
+    }
+  }
+
+  async debugFundWallet () {
+    const val = prompt('DEBUG: fund wallet with ETH')
+    if (!val) return
+    const walletAddr = this.state.walletInfo.address
+    const web3 = new Web3(global.web3provider)
+    const accounts = await web3.eth.getAccounts()
+    await web3.eth.sendTransaction({ from: accounts[0], to: walletAddr, value: web3.utils.toBN(val * 1e18) })
+    this.reloadState() // to see if wallet reads balance..
   }
 
   render () {
@@ -285,26 +430,38 @@ class App extends React.Component {
       <div style={{ margin: '10px' }}>
         <h1>SampleWallet app</h1>
         <div style={{ fontSize: '10px' }}>
-          <input type="checkbox" value={this.state.debug} onClick={() => this.toggleDebug()}/>
-          Debug state
+          <input type="checkbox" checked={this.state.debug} onClick={() => this.toggleDebug()}/>
+          Debug state = {debug}
           {
-            this.state.debug && <xmp>{JSON.stringify(this.state, null, 4)}</xmp>
+            this.state.debug &&
+            <xmp>{JSON.stringify(this.state, null, 4)}</xmp>
           }
         </div>
-        {
-          !!(mgr && mgr.wallet) ||
-          <div><Button title="debug: activate wallet" action={this.debugActiveWallet.bind(this)}/><p/></div>
-        }
+        <div>
+          {
+            !!(useMock && !(mgr && mgr.wallet)) &&
+            <Button title="DEBUG: activate wallet" action={this.debugActiveWallet.bind(this)}/>
+          }
+          <Button title="DEBUG: fund wallet with ETH" action={() => this.debugFundWallet()}/>
+          <Button title="DEBUG: reloadState" action={() => this.debugReloadState()}/>
+          <Button title="DEBUG: increaseTime" action={() => this.debugIncreaseTime()}/>
+        </div>
         <Button title="signout" action={this.signout.bind(this)}/><p/>
-        <WalletComponent
-          doTransfer={params => this.doTransfer(params)}
-          doCancelPending={params => this.doCancelPending(params)}
-          refresh={(extra) => this.reloadState(extra)} {...this.state} />
         {
-          this.state && this.state.err && <div style={{ color: 'red' }} onClick={() => this.reloadState({ err: undefined })}>
+          this.state.needApprove &&
+          <div><Button title="Must first connect app to iframe wallet" action={() => this.enableApp()}/></div>
+        }
+        {
+          this.state.err &&
+          <div style={{ color: 'red' }} onClick={() => this.setState({ err: undefined })}>
             <h2>Error: {this.state.err} </h2>
           </div>
         }
+        <WalletComponent
+          initMgr={() => this.initMgr()}
+          doTransfer={params => this.doTransfer(params)}
+          doCancelPending={params => this.doCancelPending(params)}
+          refresh={(extra) => this.reloadState(extra)} {...this.state} />
 
       </div>
     )

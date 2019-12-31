@@ -24,16 +24,62 @@ export function storageProps (storage) {
 
 export default class Account extends AccountApi {
   // storage - Storage class (setItem,getItem,removeItem - all strings)
-  constructor (storage) {
+  constructor ({ storage, gauth }) {
     super()
     if (!storage) {
       throw new Error('missing Storage param')
     }
     this.storage = storageProps(storage)
+    this._loadApprovedApps()
+
+    // must be called very early, since we init with address as nonce.
+    if (!this.storage.ownerAddress) {
+      this._createOwner()
+    }
+
+    this.gauth = gauth
+    gauth.init({ nonce: this.storage.ownerAddress })
+  }
+
+  _loadApprovedApps () {
+    this._approvedApps = JSON.parse(this.storage.approved || '{}')
+  }
+
+  _cleanUrl (url) {
+    // remove local suffix of URL
+    // TODO: do we also remove query params ?
+    return url.replace(/#.*/, '')
+  }
+
+  _isApproved (url) {
+    return this._approvedApps[this._cleanUrl(url)]
+  }
+
+  _setApproved (url) {
+    this._approvedApps[this._cleanUrl(url)] = true
+    this.storage.approved = JSON.stringify(this._approvedApps)
+  }
+
+  // called by the AccountFrame, for all calls (except enableApp)
+  _verifyApproved (method, url) {
+    if (!this._isApproved(url)) {
+      throw new Error(method + ': App ' + url + ': not approved')
+    }
+  }
+
+  async isEnabled ({ appUrl }) {
+    return this._isApproved(appUrl)
   }
 
   async enableApp ({ appTitle, appUrl }) {
-    throw new Error('ask the user to enable the given app/url. once enabled, returns immediately')
+    if (this._isApproved(appUrl)) { return }
+
+    if (typeof window === 'undefined') {
+      console.log('prompt use to approve appUrl=', appUrl)
+    } else if (!window.confirm('Approve connection to\n' + appTitle + '\n' + appUrl)) {
+      throw new Error('App ' + appUrl + ': not approved')
+    }
+    this._setApproved(appUrl)
   }
 
   async getEmail () {
@@ -44,9 +90,6 @@ export default class Account extends AccountApi {
     if (this.storage.ownerAddress) {
       throw new Error('owner already created')
     }
-    if (!this.storage.email) {
-      throw new Error('not logged in')
-    }
 
     const wallet = ethWallet.generate()
 
@@ -55,6 +98,8 @@ export default class Account extends AccountApi {
   }
 
   async getOwner () {
+    // address allocated early, but returned only after login
+    if (!this.storage.email) { return null }
     return this.storage.ownerAddress
   }
 
@@ -66,55 +111,24 @@ export default class Account extends AccountApi {
     if (this.verbose) {
       console.log('open google auth popup. prompt user for google account.\n')
     }
-    let newemail
-    if (typeof window !== 'undefined') {
-      newemail = window.prompt('Sign in to google account', this.storage.email || 'shahaf@tabookey.com')
-      if (!newemail) {
-        return null
-      }
-    } else {
-      newemail = 'shahaf@tabookey.com' // must match our 'testjwt'
-    }
-    this.storage.email = newemail
-    if (!this.storage.ownerAddress) {
-      this._createOwner()
-    }
 
-    return {
-      jwt: this._generateMockJwt({
-        email: this.storage.email,
-        nonce: this.storage.ownerAddress || 'nonce'
-      }),
-      email: this.storage.email,
+    const info = await this.gauth.signIn({ nonce: this.storage.ownerAddress })
+    this.storage.email = info.email
+    const ret = {
+      email: info.email,
+      jwt: info.jwt,
       address: this.storage.ownerAddress
     }
+    return ret
   }
 
   async googleAuthenticate () {
+    const info = this.gauth.info()
     return {
-      jwt: {
-        email: this.storage.email,
-        nonce: this.storage.ownerAddress || 'nonce'
-      },
-      email: this.storage.email,
+      email: info.email,
+      jwt: info.jwt,
       address: this.storage.ownerAddress
     }
-  }
-
-  // return a structurely-valid JWT (though signature is bogus..)
-  _generateMockJwt ({ email, nonce, iat, exp }) {
-    const part1 = Buffer.from(JSON.stringify({
-      alg: 'RS256',
-      kid: '5b5dd9be40b5e1cf121e3573c8e49f12527183d3',
-      typ: 'JWT'
-    })).toString('base64')
-    const aud = '202746986880-u17rbgo95h7ja4fghikietupjknd1bln.apps.googleusercontent.com'
-    const azp = aud
-    const iss = 'accounts.google.com'
-    const part2 = Buffer.from(JSON.stringify(
-      { aud, azp, iss, email, email_verified: true, nonce, iat, exp })).toString('base64')
-    const part3 = 'SIG'
-    return [part1, part2, part3].join('.')
   }
 
   // return the body of a jwt. signature must exist - but its ignored.
@@ -123,7 +137,9 @@ export default class Account extends AccountApi {
   }
 
   async signOut () {
-    this.storage.email = this.storage.ownerAddress = this.storage.privKey = undefined
+    this.storage.email = this.storage.ownerAddress = this.storage.privKey = this.storage.approved = undefined
+    await this.gauth.signOut()
+    this._loadApprovedApps()
   }
 
   async signTransaction ({ tx }) {
