@@ -6,7 +6,7 @@ import SMSmock from '../../src/js/mocks/SMS.mock'
 import { Watchdog } from '../../src/js/backend/Guardian'
 import { KeyManager } from '../../src/js/backend/KeyManager'
 import FactoryContractInteractor from 'safechannels-contracts/src/js/FactoryContractInteractor'
-import { BackendAccount, AccountManager } from '../../src/js/backend/AccountManager'
+import { AccountManager } from '../../src/js/backend/AccountManager'
 import { SmsManager } from '../../src/js/backend/SmsManager'
 import crypto from 'crypto'
 import SimpleWallet from '../../src/js/impl/SimpleWallet'
@@ -17,6 +17,7 @@ import sctestutils from 'safechannels-contracts/test/utils'
 import ChangeType from 'safechannels-contracts/test/etc/ChangeType'
 import abiDecoder from 'abi-decoder'
 import { Backend } from '../../src/js/backend/Backend'
+import { generateMockJwt } from './testutils'
 
 // const ethUtils = require('ethereumjs-util')
 // const abi = require('ethereumjs-abi')
@@ -35,9 +36,11 @@ describe('As Guardian', async function () {
   let smsManager
   let accountManager
   const ethNodeUrl = 'http://localhost:8545'
+  let accounts
   let accountZero //= '0x90f8bf6a479f320ead074411a4b0e7944ea8c9c1'
   let web3provider
   let smartAccount
+  let smartAccountFactory
   let walletConfig
   let wallet
   const whitelistPolicy = '0x1111111111111111111111111111111111111111'
@@ -48,6 +51,10 @@ describe('As Guardian', async function () {
   let config
   let newAccount
   const audience = '202746986880-u17rbgo95h7ja4fghikietupjknd1bln.apps.googleusercontent.com'
+  const email = 'someone@somewhere.com'
+  let nonce
+  const phoneNumber = '+972541234567'
+  let newSmartAccountReceipt
 
   async function fundAddress (guardianAddress) {
     const tx = {
@@ -66,13 +73,38 @@ describe('As Guardian', async function () {
     web3.eth.net.isListening(function (error, result) {
       if (error) console.log('error listening', error)
     })
-    accountZero = (await web3.eth.getAccounts())[0]
-    // const mockHub = await FactoryContractInteractor.deployMockHub(accountZero, ethNodeUrl)
-    // const sponsor = await FactoryContractInteractor.deploySponsor(accountZero, mockHub, ethNodeUrl)
-    // await sponsor.relayHubDeposit({ value: 2e18, from: accountZero, gas: 1e5 })
-    // const forwarderAddress = await sponsor.getGsnForwarder()
-    // const factory = await FactoryContractInteractor.deployNewSmartAccountFactory(accountZero, ethNodeUrl, forwarderAddress)
-    smartAccount = await FactoryContractInteractor.deploySmartAccountDirectly(accountZero, ethNodeUrl)
+    accounts = await web3.eth.getAccounts()
+    accountZero = accounts[0]
+    const mockHub = await FactoryContractInteractor.deployMockHub(accountZero, ethNodeUrl)
+    const sponsor = await FactoryContractInteractor.deploySponsor(accountZero, mockHub.address, ethNodeUrl)
+    await sponsor.relayHubDeposit({ value: 2e18, from: accountZero, gas: 1e5 })
+    const forwarderAddress = await sponsor.getGsnForwarder()
+    smartAccountFactory = await FactoryContractInteractor.deployNewSmartAccountFactory(accountZero, ethNodeUrl,
+      forwarderAddress)
+
+    smsProvider = new SMSmock()
+    smsManager = new SmsManager({ smsProvider, secretSMSCodeSeed: crypto.randomBytes(32) })
+    accountManager = new AccountManager()
+    const backendKM = new KeyManager({ ecdsaKeyPair: KeyManager.newKeypair() })
+    backend = new Backend(
+      {
+        smsManager,
+        audience,
+        keyManager: backendKM,
+        accountManager
+      })
+    await smartAccountFactory.addTrustedSigners([backend.keyManager.address()], { from: accountZero })
+    const jwt = generateMockJwt({ email, nonce })
+    const smsCode = await backend.smsManager.getSmsCode({ phoneNumber: backend._formatPhoneNumber(phoneNumber), email })
+    backend._getTicketFromJWT = () => {
+      return { getPayload: () => { return { email } } }
+    }
+    const { approvalData, smartAccountId } = await backend.createAccount({ jwt, smsCode, phoneNumber })
+    newAccount = backend.accountManager.getAccountById({ accountId: smartAccountId })
+    newSmartAccountReceipt = await smartAccountFactory.newSmartAccount(smartAccountId, approvalData,
+      { from: accountZero })
+    smartAccount = await FactoryContractInteractor.getCreatedSmartAccountAt(
+      { address: newSmartAccountReceipt.logs[0].args.smartAccount, provider: web3provider })
     walletConfig = {
       contract: smartAccount,
       participant:
@@ -94,25 +126,7 @@ describe('As Guardian', async function () {
     config.requiredApprovalsPerLevel = [0, 0]
     await wallet.initialConfiguration(config)
     await fundAddress(wallet.contract.address)
-
-    smsProvider = new SMSmock()
-    smsManager = new SmsManager({ smsProvider, secretSMSCodeSeed: crypto.randomBytes(32) })
-    accountManager = new AccountManager()
-    backend = new Backend(
-      {
-        smsManager,
-        audience,
-        keyManager,
-        accountManager
-      })
-    newAccount = new BackendAccount(
-      {
-        accountId: await backend.getSmartAccountId({ email: '' }),
-        email: '',
-        phone: '',
-        verified: true,
-        address: wallet.contract.address
-      })
+    // newAccount.address = wallet.contract.address
   })
 
   describe('As Watchdog', async function () {
@@ -141,11 +155,33 @@ describe('As Guardian', async function () {
     it('should construct Watchdog', async function () {
       keyManager = new KeyManager({ ecdsaKeyPair: keypair })
       watchdog = new Watchdog(
-        { smsManager, keyManager, accountManager, smartAccountFactoryAddress: accountZero, web3provider })
+        {
+          smsManager,
+          keyManager,
+          accountManager,
+          smartAccountFactoryAddress: smartAccountFactory.address,
+          web3provider
+        })
       assert.isTrue(await wallet.contract.isParticipant(watchdog.address,
         watchdog.permsLevel))
       actions = [ChangeType.ADD_PARTICIPANT]
       args = [scutils.participantHash(watchdog.address, watchdog.permsLevel)]
+    })
+
+    it('should NOT add address to known account after smartAccountCreated from unknown factory', async function () {
+      assert.equal(undefined, watchdog.accountManager.getAccountById({ accountId: newAccount.accountId }).address)
+      watchdog.smartAccountFactoryAddress = accountZero
+      await watchdog._worker()
+      watchdog.lastScannedBlock = 0
+      watchdog.smartAccountFactoryAddress = smartAccountFactory.address
+      assert.equal(undefined, watchdog.accountManager.getAccountById({ accountId: newAccount.accountId }).address)
+    })
+
+    it('should add address to known account after smartAccountCreated event', async function () {
+      assert.equal(undefined, watchdog.accountManager.getAccountById({ accountId: newAccount.accountId }).address)
+      await watchdog._worker()
+      assert.equal(wallet.contract.address.toLowerCase(),
+        watchdog.accountManager.getAccountById({ accountId: newAccount.accountId }).address)
     })
 
     const delayedOps = ['BypassCall', 'Config']
