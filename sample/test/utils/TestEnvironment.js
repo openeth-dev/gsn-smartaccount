@@ -224,7 +224,6 @@ export default class TestEnvironment {
     this.manager = new SimpleManager({
       accountApi: acc.account,
       backend: this.clientBackend,
-      guardianAddress: this.backendAddresses.watchdog,
       factoryConfig
     })
   }

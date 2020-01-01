@@ -151,8 +151,11 @@ function DebugState ({ state }) {
   return debug && <>state={state}</>
 }
 function WalletComponent (options) {
-  const { walletAddr, email, ownerAddr, walletInfo } = options
+  const { walletAddr, email, ownerAddr, walletInfo, loading } = options
 
+  if (loading) {
+    return <h2>Loading, please wait.</h2>
+  }
   if (!email || !ownerAddr) {
     return <><DebugState state="noemail"/><GoogleLogin {...options}/></>
   }
@@ -172,7 +175,7 @@ class App extends React.Component {
     super(props)
     // manager is initialized (async'ly) from first call to readMgrState
 
-    this.state = { debug }
+    this.state = { debug, loading: true }
   }
 
   componentDidMount () {
@@ -188,6 +191,7 @@ class App extends React.Component {
   async readMgrState () {
     console.log('readMgrState')
     const mgrState = {
+      loading: undefined,
       walletInfo: undefined,
       walletBalances: undefined,
       walletPending: undefined
@@ -430,7 +434,7 @@ class App extends React.Component {
       <div style={{ margin: '10px' }}>
         <h1>SampleWallet app</h1>
         <div style={{ fontSize: '10px' }}>
-          <input type="checkbox" checked={this.state.debug} onClick={() => this.toggleDebug()}/>
+          <input type="checkbox" checked={this.state.debug} onChange={() => this.toggleDebug()}/>
           Debug state = {debug}
           {
             this.state.debug &&

@@ -7,16 +7,23 @@ import SimpleManagerApi from '../api/SimpleManager.api.js'
 
 import Participant from 'safechannels-contracts/src/js/Participant'
 import Permissions from 'safechannels-contracts/src/js/Permissions'
-import { hex2buf } from '../utils/utils'
+import { hex2buf, nonNull } from '../utils/utils'
 
 // API of the main factory object.
 export default class SimpleManager extends SimpleManagerApi {
   constructor ({ accountApi, backend, guardianAddress, factoryConfig }) {
     super()
+    nonNull({ accountApi, backend, factoryConfig })
     this.accountApi = accountApi
     this.backend = backend
-    this.guardianAddress = guardianAddress
     this.factoryConfig = this._validateConfig(factoryConfig)
+  }
+
+  async _init () {
+    if (!this.guardianAddress) {
+      const { watchdog } = (await this.backend.getAddresses())
+      this.guardianAddress = watchdog
+    }
   }
 
   async getEmail () {
@@ -113,11 +120,11 @@ export default class SimpleManager extends SimpleManagerApi {
   }
 
   async setInitialConfiguration () {
+    await this._init()
     const wallet = await this.loadWallet()
-    const { watchdog } = (await this.backend.getAddresses())
 
     const config = SimpleWallet.getDefaultSampleInitialConfiguration({
-      backendAddress: watchdog,
+      backendAddress: this.guardianAddress,
       operatorAddress: await this.getOwner(),
       whitelistModuleAddress: '0x' + '1'.repeat(40) // whitelistPolicy
     })
@@ -125,6 +132,8 @@ export default class SimpleManager extends SimpleManagerApi {
   }
 
   async loadWallet () {
+    await this._init()
+
     const owner = await this.getOwner()
     // TODO: read wallet with address, not from event!
     const address = await this.getWalletAddress()
