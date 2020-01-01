@@ -33,8 +33,9 @@ export default class AccountProxy extends EventEmitter {
     frame.setAttribute('src', IFRAME_URL + (verbose ? '#verbose' : ''))
     frame.setAttribute('id', ACCOUNT_FRAME_ID)
     frame.setAttribute('scrolling', 'no')
-    frame.style.width = '30px'
-    frame.style.height = '30px'
+    frame.style.width = '0px'
+    frame.style.height = '0px'
+    frame.style.border = 0
     document.body.appendChild(frame)
   }
 
@@ -75,7 +76,7 @@ export default class AccountProxy extends EventEmitter {
           if (verbose) { console.log('response: ', id, method, error || response) }
           clearTimeout(timeoutId)
           if (error) {
-            reject(error)
+            reject(new Error(error))
           } else {
             resolve(response)
           }
