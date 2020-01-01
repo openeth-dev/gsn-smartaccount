@@ -65,8 +65,8 @@ contract SmartAccountFactory is GsnRecipient, Ownable {
     * @param smartAccountId - generated through keccak256(<userEmail>) by backend service
     */
     function newSmartAccount(bytes32 smartAccountId, bytes memory approvalData) public {
-        require(msg.sender == getHubAddr() || msg.sender == this.getGsnForwarder() || validateNewSmartAccountRequest(smartAccountId, approvalData),
-            "Must be called through GSN or have valid approvalData");
+        require(validateNewSmartAccountRequest(smartAccountId, approvalData),
+            "Must have a valid approvalData");
         require(knownSmartAccounts[smartAccountId] == address(0), "SmartAccount already created for this id");
         SmartAccount smartAccount = new SmartAccount(this.getGsnForwarder(), getSender());
         knownSmartAccounts[smartAccountId] = address(smartAccount);

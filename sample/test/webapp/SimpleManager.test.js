@@ -12,9 +12,11 @@ import {
 } from './behavior/SimpleManager.behavior'
 import TestEnvironment from '../utils/TestEnvironment'
 import { Watchdog } from '../../src/js/backend/Guardian'
+import { forgeApprovalData } from 'safechannels-contracts/test/utils'
 
 chai.use(chaiAsPromised)
 chai.should()
+const smartAccountId = '0x' + '1'.repeat(64)
 const mockBackendBase = {
   getSmartAccountId: async function () {
     return '0x' + '1'.repeat(64)
@@ -22,7 +24,7 @@ const mockBackendBase = {
   createAccount: async function () {
     return {
       approvalData: '0x' + 'f'.repeat(64),
-      smartAccountId: '0x' + '1'.repeat(64)
+      smartAccountId
     }
   },
   getAddresses: async function () {
@@ -38,6 +40,15 @@ async function newTest (backend) {
   })
   await testEnvironment.manager.accountApi.googleLogin()
   return testEnvironment
+}
+
+async function setCreateAccount (backend, smartAccountId, testContext) {
+  backend.createAccount = async function createAccount () {
+    return {
+      approvalData: await forgeApprovalData(smartAccountId, testContext.factory, testContext.from),
+      smartAccountId
+    }
+  }
 }
 
 describe('SimpleManager', async function () {
@@ -114,6 +125,7 @@ describe('SimpleManager', async function () {
 
     before(async function () {
       testContext = await newTest(mockBackendBase)
+      await setCreateAccount(mockBackendBase, smartAccountId, testContext)
       testContext.jwt = {}
       testContext.phoneNumber = '1'
       testContext.smsCode = '1234'
@@ -150,6 +162,7 @@ describe('SimpleManager', async function () {
       }
 
       testContext = await newTest(mockBackend)
+      await setCreateAccount(mockBackend, smartAccountId, testContext)
       testContext.jwt = {}
       testContext.smsCode = '1234'
     })
@@ -175,6 +188,7 @@ describe('SimpleManager', async function () {
       testContext = await TestEnvironment.initializeWithFakeBackendAndGSN({
         clientBackend: mockBackend
       })
+      await setCreateAccount(mockBackend, smartAccountId, testContext)
       await testContext.manager.googleLogin()
       testContext.smsCode = '1234'
       testContext.jwt = {}
