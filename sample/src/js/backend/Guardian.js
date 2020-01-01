@@ -106,9 +106,6 @@ export class Watchdog {
     if (!account) {
       return
     }
-    if (this.changesToApply[dlog.args.delayedOpId]) {
-      return
-    }
     let dueTime
     if (dlog.name === 'ConfigPending' && dlog.args.actions[0] === ChangeType.ADD_OPERATOR_NOW.toString()) {
       dueTime = Date.now()
