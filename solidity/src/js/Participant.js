@@ -1,8 +1,8 @@
-import { nonNull } from '../../../sample/src/js/utils/utils'
+const { nonNull } = require('../../../sample/src/js/utils/utils')
 
 const truffleUtils = require('./SafeChannelUtils')
 
-export default class Participant {
+class Participant {
   constructor (address, permissions, level, name) {
     nonNull({ address, permissions, level })
     this.address = address
@@ -25,3 +25,5 @@ export default class Participant {
     return clone
   }
 }
+
+module.exports = Participant
