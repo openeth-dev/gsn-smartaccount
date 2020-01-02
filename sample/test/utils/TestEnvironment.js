@@ -239,7 +239,7 @@ export default class TestEnvironment {
   }
 
   async createWallet ({ jwt, phoneNumber, smsVerificationCode, whitelist }) {
-    let module = '0x0000000000000000000000000000000000000000'
+    const module = '0x0000000000000000000000000000000000000000'
     if (whitelist && whitelist.length) {
       await this.deployWhitelistFactory()
     }

@@ -15,6 +15,7 @@ const contractsToExtract = [
   'SmartAccountFactory',
 
   'BypassModules/WhitelistFactory',
+  'BypassModules/WhitelistBypassPolicy',
 
   'tests/DAI',
   'tests/MockHub',

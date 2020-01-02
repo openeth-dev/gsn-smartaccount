@@ -7,6 +7,7 @@ const Utils = require('./Utils')
 
 const SmartAccountCreatedEvent = require('./events/SmartAccountCreatedEvent')
 const FreeRecipientSponsorABI = require('./generated/tests/MockGsnForwarder')
+const WhitelistBypassPolicyABI = require('./generated/BypassModules/WhitelistBypassPolicy')
 const SmartAccountFactoryABI = require('./generated/SmartAccountFactory')
 const SmartAccountABI = require('./generated/SmartAccount')
 const ERC20ABI = require('./generated/tests/DAI')
@@ -29,6 +30,11 @@ const FreeRecipientSponsorContract = TruffleContract({
 const ERC20Contract = TruffleContract({
   contractName: 'ERC20',
   abi: ERC20ABI
+})
+
+const WhitelistBypassPolicy = TruffleContract({
+  contractName: 'WhitelistBypassPolicy',
+  abi: WhitelistBypassPolicyABI
 })
 
 const smartAccountCreatedEvent = 'SmartAccountCreated'
@@ -190,6 +196,11 @@ class FactoryContractInteractor {
   static async getErc20ContractAt ({ address, provider }) {
     ERC20Contract.setProvider(provider)
     return ERC20Contract.at(address)
+  }
+
+  static whitelistAt ({ address, provider  }) {
+    WhitelistBypassPolicy.setProvider(provider)
+    return WhitelistBypassPolicy.at(address)
   }
 
   static encodeErc20Call ({ destination, amount, operation }) {

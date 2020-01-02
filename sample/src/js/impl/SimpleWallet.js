@@ -78,7 +78,9 @@ export default class SimpleWallet extends SimpleWalletApi {
     let destinationAddress
     let ethAmount
     let encodedTransaction
+    let whitelisted = false
     if (token === 'ETH') {
+      whitelisted = await this._isDestinationWhitelisted({ target: destination, value: amount, encodedFunction: '0x' })
       destinationAddress = destination
       ethAmount = amount
       encodedTransaction = []
@@ -87,7 +89,14 @@ export default class SimpleWallet extends SimpleWalletApi {
       ethAmount = 0
       encodedTransaction = FactoryContractInteractor.encodeErc20Call({ destination, amount, operation: 'transfer' })
     }
-    return this.contract.scheduleBypassCall(
+    let method
+    if (whitelisted) {
+      // uint32 senderPermsLevel, address target, uint256 value, bytes memory encodedFunction, uint256 targetStateNonce
+      method = this.contract.executeBypassCall
+    } else {
+      method = this.contract.scheduleBypassCall
+    }
+    return method(
       this.participant.permLevel, destinationAddress, ethAmount, encodedTransaction, this.stateId,
       {
         from: this.participant.address,
@@ -423,22 +432,27 @@ export default class SimpleWallet extends SimpleWalletApi {
     return []
   }
 
-  static getDefaultSampleInitialConfiguration ({ backendAddress, operatorAddress, whitelistModuleAddress }) {
+  static getDefaultSampleInitialConfiguration ({ backendAddress, operatorAddress, whitelistModuleAddress, whitelistedEthDestinations = [] }) {
     const backendAsWatchdog = '0x' +
       SafeChannelUtils.participantHashUnpacked(backendAddress, Permissions.WatchdogPermissions, 1).toString('hex')
     const backendAsAdmin = '0x' +
       SafeChannelUtils.participantHashUnpacked(backendAddress, Permissions.AdminPermissions, 1).toString('hex')
     const operator = '0x' +
       SafeChannelUtils.participantHashUnpacked(operatorAddress, Permissions.OwnerPermissions, 1).toString('hex')
+    const bypassModules = []
+    // This looks dumb, but I need the same module for each destination and each erc20 method
+    for (let i = 0; i < whitelistedEthDestinations.length + 2; i++) {
+      bypassModules.push(whitelistModuleAddress)
+    }
     return {
       initialParticipants: [operator, backendAsWatchdog, backendAsAdmin],
       initialDelays: [86400, 172800],
       allowAcceleratedCalls: true,
       allowAddOperatorNow: true,
       requiredApprovalsPerLevel: [1, 0],
-      bypassTargets: [],
+      bypassTargets: whitelistedEthDestinations,
       bypassMethods: ['0xa9059cbb', '0x095ea7b3'],
-      bypassModules: [whitelistModuleAddress, whitelistModuleAddress]
+      bypassModules
     }
   }
 
@@ -526,5 +540,16 @@ export default class SimpleWallet extends SimpleWalletApi {
       {
         from: this.participant.address
       })
+  }
+
+  async _isDestinationWhitelisted ({ target, value, encodedFunction }) {
+    const moduleByTarget = await this.contract.bypassPoliciesByTarget(target)
+    if (moduleByTarget === '0x0000000000000000000000000000000000000000') {
+      return false
+    }
+    const { provider } = this._getWeb3()
+    const module = await FactoryContractInteractor.whitelistAt({ address: moduleByTarget, provider })
+    const policy = await module.getBypassPolicy(target, value, encodedFunction)
+    return policy[0].toString() === '0' && policy[1].toString() === '0'
   }
 }

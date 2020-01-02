@@ -23,7 +23,7 @@ describe('SimpleWallet', async function () {
   let id
   let web3
   let web3provider
-  const whitelistPolicy = '0x1111111111111111111111111111111111111111'
+  const fakeWhitelistPolicy = '0x1111111111111111111111111111111111111111'
   const backend = '0x2222222222222222222222222222222222222222'
   const operator = '0x3333333333333333333333333333333333333333'
   const ethNodeUrl = 'http://localhost:8545'
@@ -56,21 +56,29 @@ describe('SimpleWallet', async function () {
     await scTestUtils.revert(id, web3)
   })
 
-  async function newTest (operator = null) {
+  async function newTest (operator = null, whitelistPreconfigured = []) {
     const smartAccount = await FactoryContractInteractor.deploySmartAccountDirectly(from, ethNodeUrl)
     // TODO: duplicate code, testenv does same work as the rest of the code here!!!
-    const testEnvironment = await TestEnvironment.initializeWithFakeBackendAndGSN({clientBackend: BaseBackendMock})
+    const testEnvironment = await TestEnvironment.initializeWithFakeBackendAndGSN({ clientBackend: BaseBackendMock })
     const whitelistFactory = await testEnvironment.deployWhitelistFactory()
     const wallet = new SimpleWallet(
-      { ...walletSharedConfig,
+      {
+        ...walletSharedConfig,
         whitelistFactory,
         contract: smartAccount,
-        knownTokens: [] })
+        knownTokens: []
+      })
+    let whitelistModuleAddress = fakeWhitelistPolicy
+    if (whitelistPreconfigured.length > 0) {
+      const receipt = await wallet.deployWhitelistModule({ whitelistPreconfigured })
+      whitelistModuleAddress = receipt.logs[0].args.module
+    }
     if (operator !== null) {
       const config = SimpleWallet.getDefaultSampleInitialConfiguration({
         backendAddress: backend,
         operatorAddress: operator,
-        whitelistModuleAddress: whitelistPolicy
+        whitelistedEthDestinations: whitelistPreconfigured,
+        whitelistModuleAddress
       })
       await wallet.initialConfiguration(config)
     }
@@ -82,7 +90,7 @@ describe('SimpleWallet', async function () {
       const config = SimpleWallet.getDefaultSampleInitialConfiguration({
         backendAddress: backend,
         operatorAddress: operator,
-        whitelistModuleAddress: whitelistPolicy
+        whitelistModuleAddress: fakeWhitelistPolicy
       })
       assert.deepStrictEqual(config, expectedInitialConfig)
     })
@@ -99,7 +107,7 @@ describe('SimpleWallet', async function () {
       const config = SimpleWallet.getDefaultSampleInitialConfiguration({
         backendAddress: backend,
         operatorAddress: operator,
-        whitelistModuleAddress: whitelistPolicy
+        whitelistModuleAddress: fakeWhitelistPolicy
       })
       await testContext.wallet.initialConfiguration(config)
       const walletInfo = await testContext.wallet.getWalletInfo()
@@ -158,17 +166,40 @@ describe('SimpleWallet', async function () {
     })
   })
 
+  describe('#deployWhitelistModule()', async function () {
+    let testContext
+    before(async function () {
+      testContext = await newTest(from)
+    })
+
+    it('should deploy a whitelist module with preconfigured list', async function () {
+      const whitelistPreconfigured = [backend, operator]
+      const receipt = await testContext.wallet.deployWhitelistModule({ whitelistPreconfigured })
+      assert.strictEqual(receipt.logs[0].event, 'WhitelistModuleCreated')
+    })
+  })
+
   describe('#transfer()', async function () {
+    const destination = backend
+    const whitelistedDestination = operator
     let testContext
 
     before(async function () {
-      testContext = await newTest(from)
+      const whitelistPreconfigured = [whitelistedDestination]
+      testContext = await newTest(from, whitelistPreconfigured)
+      const accountZero = (await web3.eth.getAccounts())[0]
+      const tx = {
+        from: accountZero,
+        value: 1e18,
+        to: testContext.wallet.contract.address,
+        gasPrice: 1
+      }
+      await web3.eth.sendTransaction(tx)
     })
 
     it('should initiate delayed ETH transfer', async function () {
       // refresh info to set the stateId. This is used to prevent UI-blockchain race condition (ask Dror)
       await testContext.wallet.getWalletInfo()
-      const destination = backend
       const amount = 1e5
       await testContext.wallet.transfer({ destination, amount, token: 'ETH' })
       const pending = await testContext.wallet.listPendingTransactions()
@@ -176,11 +207,27 @@ describe('SimpleWallet', async function () {
       assert.strictEqual(pending[0].destination, destination)
       assert.strictEqual(pending[0].value, amount.toString())
       assert.strictEqual(pending[0].tokenSymbol, 'ETH')
+      // local cleanup
+      await testContext.wallet.cancelPending(pending[0].delayedOpId)
     })
 
     it('should initiate delayed ERC transfer')
 
-    it('should transfer ETH immediately to a whitelisted destination')
+    it('should transfer ETH immediately to a whitelisted destination', async function () {
+      await testContext.wallet.getWalletInfo()
+      const amount = 1e5
+      const srcBalanceBefore = await web3.eth.getBalance(testContext.wallet.contract.address)
+      const destBalanceBefore = await web3.eth.getBalance(whitelistedDestination)
+      await testContext.wallet.transfer({ destination: whitelistedDestination, amount, token: 'ETH' })
+      const srcBalanceAfter = await web3.eth.getBalance(testContext.wallet.contract.address)
+      const destBalanceAfter = await web3.eth.getBalance(whitelistedDestination)
+      const pending = await testContext.wallet.listPendingTransactions()
+      assert.strictEqual(pending.length, 0)
+      assert.strictEqual(srcBalanceBefore, '1000000000000000000')
+      assert.strictEqual(srcBalanceAfter, '999999999999900000')
+      assert.strictEqual(destBalanceBefore, '0')
+      assert.strictEqual(destBalanceAfter, '100000')
+    })
 
     it('should transfer ERC immediately to a whitelisted destination')
   })
@@ -308,18 +355,4 @@ describe('SimpleWallet', async function () {
 
     it('should not try to apply addOperatorNow')
   })
-
-  describe.only('#deployWhitelistModule()', async function () {
-    let testContext
-    before(async function () {
-      testContext = await newTest(from)
-    })
-
-    it('should deploy a whitelist module with preconfigured list', async function () {
-      const whitelistPreconfigured = [backend, operator]
-      const receipt = await testContext.wallet.deployWhitelistModule({whitelistPreconfigured})
-      assert.strictEqual(receipt.logs[0].event, "WhitelistModuleCreated")
-    })
-  })
-
 })

@@ -71,7 +71,7 @@ describe('SimpleManager', async function () {
     before(async function () {
       const mockBackend = {
         validatePhone: () => { return { code: 200 } },
-        ...mockBackendBase
+        ...BaseBackendMock
       }
       testContext = await newTest(mockBackend)
     })
@@ -83,7 +83,7 @@ describe('SimpleManager', async function () {
     before(async function () {
       const mockBackend = {
         signInAsNewOperator: () => { return { code: 200 } },
-        ...mockBackendBase
+        ...BaseBackendMock
       }
       testContext = await newTest(mockBackend)
     })
@@ -98,7 +98,7 @@ describe('SimpleManager', async function () {
     let testContext
 
     before(async function () {
-      testContext = await newTest(mockBackendBase)
+      testContext = await newTest(BaseBackendMock)
       testContext.jwt = {}
       testContext.phoneNumber = '1'
       testContext.smsCode = '1234'
@@ -131,7 +131,7 @@ describe('SimpleManager', async function () {
           const res = await testContext.wallet.cancelPending(delayedOpId)
           return { transactionHash: res.tx }
         },
-        ...mockBackendBase
+        ...BaseBackendMock
       }
 
       testContext = await newTest(mockBackend)
