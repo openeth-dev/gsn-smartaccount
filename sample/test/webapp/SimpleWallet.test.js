@@ -192,7 +192,7 @@ describe('SimpleWallet', async function () {
       testContext.wallet.backend = {
         validateAddOperatorNow: sinon.spy(
           () => {
-            return { code: 200, error: null, newOperator, title}
+            return { code: 200, error: null, newOperator, title }
           })
       }
     })

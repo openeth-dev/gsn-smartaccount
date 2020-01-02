@@ -35,7 +35,7 @@ export class Gauth extends GauthApi {
       gapi.load('auth2', resolve)
     })
 
-    //ugly syntax, but that's what google specifies:
+    // ugly syntax, but that's what google specifies:
     await gapi.auth2.init(this.params).then()
     this.gauth = gapi.auth2.getAuthInstance()
   }

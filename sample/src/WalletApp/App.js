@@ -42,7 +42,7 @@ class DebugGauth extends React.Component {
     try {
       alert('info:' + JSON.stringify(await this.gauth.info()))
     } catch (e) {
-      console.log('ex',e)
+      console.log('ex', e)
       alert(e.message)
     }
   }
@@ -51,7 +51,7 @@ class DebugGauth extends React.Component {
     try {
       alert('signin:' + JSON.stringify(await this.gauth.signIn()))
     } catch (e) {
-      console.log('ex',e)
+      console.log('ex', e)
       alert(e.message)
     }
   }
@@ -60,13 +60,12 @@ class DebugGauth extends React.Component {
     try {
       alert('signout:' + JSON.stringify(await this.gauth.signOut()))
     } catch (e) {
-      console.log('ex',e)
+      console.log('ex', e)
       alert(e.message)
     }
   }
 
-
-  render() {
+  render () {
     return <div>
       <Button title="info" action={this.doInfo}/>
       <Button title="signin" action={this.doSignIn}/>
@@ -75,15 +74,14 @@ class DebugGauth extends React.Component {
   }
 }
 
-//not directly belongs to the UI - but extract device name from userAgent..
+// not directly belongs to the UI - but extract device name from userAgent..
 function getDeviceName () {
   const userAgent = global.navigator && (navigator.userAgent || 'unknown')
   const deviceMatch = userAgent.match(/\((.*?)\)/)
-  if (!deviceMatch)
-    return userAgent
+  if (!deviceMatch) { return userAgent }
 
   const names = deviceMatch[1].split(';')
-  //TODO: Android is 2nd best: should return specific device type - if known.
+  // TODO: Android is 2nd best: should return specific device type - if known.
   names.forEach(name => {
     if (name.match(/Window|Mac|iP|Android|Pixel|SM-|Nexus/)) {
       return name
@@ -221,7 +219,7 @@ function WalletComponent (options) {
     return <h2>Loading, please wait.</h2>
   }
 
-  if ( pendingAddOperatorNow ) {
+  if (pendingAddOperatorNow) {
     return <>
       Sent an SMS to owner device. Once approved, this device will also become operator.
     </>
@@ -372,12 +370,13 @@ class App extends React.Component {
     }
   }
 
-  async doAddNewOperator() {
-    if ( window.confirm('Request to add this device as new operator?')) {
+  async doAddNewOperator () {
+    if (window.confirm('Request to add this device as new operator?')) {
       await mgr.signInAsNewOperator({ jwt: this.state.jwt, title: getDeviceName() })
-      this.reloadState({pendingAddOperatorNow:true})
+      this.reloadState({ pendingAddOperatorNow: true })
     }
   }
+
   async doCancelPending (delayedOpId) {
     if (!delayedOpId) {
       const id = prompt('Enter pending index to cancel')
@@ -540,7 +539,7 @@ class App extends React.Component {
           initMgr={() => this.initMgr()}
           doTransfer={params => this.doTransfer(params)}
           doCancelPending={params => this.doCancelPending(params)}
-          doAddNewOperator={()=>this.doAddNewOperator()}
+          doAddNewOperator={() => this.doAddNewOperator()}
           refresh={(extra) => this.reloadState(extra)} {...this.state} />
 
       </div>

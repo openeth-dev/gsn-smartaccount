@@ -159,7 +159,6 @@ describe('System flow: Create Account', () => {
   })
 
   describe('add device now', async () => {
-
     let newenv, newmgr
     let oldOperator
     before('create env for new device', async function () {
@@ -214,26 +213,26 @@ describe('System flow: Create Account', () => {
 
     let newwallet
     it('addOperatorNow should add new operator..', async () => {
-      await wallet.getWalletInfo() //must be called before addOperatorNow
+      await wallet.getWalletInfo() // must be called before addOperatorNow
       await wallet.addOperatorNow(newOperator)
 
       await sleep(1000) // should be enough for guardian to complete.
-      let events = await wallet.contract.getPastEvents('allevents', {fromBlock:1, toBlock:'latest'})
-      let e = events.map(e=>({
+      const events = await wallet.contract.getPastEvents('allevents', { fromBlock: 1, toBlock: 'latest' })
+      const e = events.map(e => ({
         _event: e.event,
-        ...fromEntries(Object.entries(e.returnValues).filter(x=>x[0].match(/^\w./)))
+        ...fromEntries(Object.entries(e.returnValues).filter(x => x[0].match(/^\w./)))
       }))
-      console.log('events=',e)
+      console.log('events=', e)
 
-      let info = await wallet.getWalletInfo()
+      const info = await wallet.getWalletInfo()
       console.log('operators', info.operators, info.unknownGuardians)
       assert.deepInclude(info.operators, newOperator)
     })
   })
 })
 
-//convert [ [key,val], [key,val] ] into {key:val, key:val}
-//like the future standard Object.fromEntries
-function fromEntries(entries) {
-  return entries.reduce((obj, [key,val])=>{obj[key]=val; return obj}, {})
+// convert [ [key,val], [key,val] ] into {key:val, key:val}
+// like the future standard Object.fromEntries
+function fromEntries (entries) {
+  return entries.reduce((obj, [key, val]) => { obj[key] = val; return obj }, {})
 }
