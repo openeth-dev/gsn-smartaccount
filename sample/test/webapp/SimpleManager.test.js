@@ -46,7 +46,7 @@ describe('SimpleManager', async function () {
   let sm
 
   beforeEach(async function () {
-    //TODO: put in proper values (these only satisfy the "nonNull" check)
+    // TODO: put in proper values (these only satisfy the "nonNull" check)
     sm = new SimpleManager({ accountApi: false, factoryConfig: false, backend: false })
   })
 
