@@ -40,7 +40,7 @@ export default class SimpleWallet extends SimpleWalletApi {
    */
   constructor ({ contract, participant, backend, knownParticipants = [], knownTokens = [] }) {
     super()
-    nonNull({ contract, participant, backend })
+    nonNull({ contract, participant })
     this.contract = contract
     this.backend = backend
     this.participant = participant

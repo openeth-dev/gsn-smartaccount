@@ -13,7 +13,7 @@ import { hex2buf, nonNull } from '../utils/utils'
 export default class SimpleManager extends SimpleManagerApi {
   constructor ({ accountApi, backend, guardianAddress, factoryConfig }) {
     super()
-    nonNull({ accountApi, backend, factoryConfig })
+    nonNull({ accountApi, factoryConfig, backend })
     this.accountApi = accountApi
     this.backend = backend
     this.factoryConfig = this._validateConfig(factoryConfig)
