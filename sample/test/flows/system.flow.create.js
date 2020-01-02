@@ -10,7 +10,7 @@ import { sleep } from '../backend/testutils'
 
 const DAY = 24 * 3600
 
-const verbose = false
+const verbose = true
 describe('System flow: Create Account', () => {
   let testEnvironment, web3, toBN
   const userEmail = 'shahaf@tabookey.com'
@@ -211,7 +211,6 @@ describe('System flow: Create Account', () => {
       newOperator = newOperatorAddress
     })
 
-    let newwallet
     it('addOperatorNow should add new operator..', async () => {
       await wallet.getWalletInfo() // must be called before addOperatorNow
       await wallet.addOperatorNow(newOperator)

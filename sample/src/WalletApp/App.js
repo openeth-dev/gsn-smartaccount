@@ -12,7 +12,6 @@ import SmartAccountSDK from '../js/impl/SmartAccountSDK'
 import SimpleManager from '../js/impl/SimpleManager'
 import { increaseTime } from './GanacheIncreaseTime'
 import { toBN } from 'web3-utils'
-import { Gauth } from '../js/impl/Gauth'
 
 let debug = getParam('debug')
 
@@ -27,52 +26,6 @@ const verbose = window.location.href.indexOf('#verbose') > 0
 
 var mgr, sms, wallet, sdk
 const Button = ({ title, action }) => <input type="submit" onClick={action} value={title}/>
-
-class DebugGauth extends React.Component {
-  constructor (props) {
-    super(props)
-    this.gauth = new Gauth()
-    this.gauth.init()
-    this.doInfo = this.doInfo.bind(this)
-    this.doSignIn = this.doSignIn.bind(this)
-    this.doSignOut = this.doSignOut.bind(this)
-  }
-
-  async doInfo () {
-    try {
-      alert('info:' + JSON.stringify(await this.gauth.info()))
-    } catch (e) {
-      console.log('ex', e)
-      alert(e.message)
-    }
-  }
-
-  async doSignIn () {
-    try {
-      alert('signin:' + JSON.stringify(await this.gauth.signIn()))
-    } catch (e) {
-      console.log('ex', e)
-      alert(e.message)
-    }
-  }
-
-  async doSignOut () {
-    try {
-      alert('signout:' + JSON.stringify(await this.gauth.signOut()))
-    } catch (e) {
-      console.log('ex', e)
-      alert(e.message)
-    }
-  }
-
-  render () {
-    return <div>
-      <Button title="info" action={this.doInfo}/>
-      <Button title="signin" action={this.doSignIn}/>
-      <Button title="signout" action={this.doSignOut}/>
-    </div>
-  }
-}
 
 // not directly belongs to the UI - but extract device name from userAgent..
 function getDeviceName () {
@@ -213,7 +166,7 @@ function DebugState ({ state }) {
   return debug && <>state={state}</>
 }
 function WalletComponent (options) {
-  const { walletAddr, email, ownerAddr, walletInfo } = options
+  const { walletAddr, email, ownerAddr, walletInfo, loading, pendingAddOperatorNow } = options
 
   if (loading) {
     return <h2>Loading, please wait.</h2>
