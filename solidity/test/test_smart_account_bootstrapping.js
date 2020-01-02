@@ -1,9 +1,6 @@
 /* global artifacts web3 contract before it assert */
 
 /* npm modules */
-const ethUtils = require('ethereumjs-util')
-const ethWallet = require('ethereumjs-wallet')
-const ABI = require('ethereumjs-abi')
 const Chai = require('chai')
 const GsnUtils = require('tabookey-gasless/src/js/relayclient/utils')
 const RelayClient = require('tabookey-gasless/src/js/relayclient/RelayClient')
@@ -20,7 +17,7 @@ const FreeRecipientSponsor = artifacts.require('FreeRecipientSponsor')
 const WhitelistBypassPolicy = artifacts.require('WhitelistBypassPolicy')
 
 const expect = Chai.expect
-
+const forgeApprovalData = require('./utils').forgeApprovalData
 Chai.use(require('ethereum-waffle').solidity)
 Chai.use(require('bn-chai')(web3.utils.toBN))
 
@@ -52,14 +49,6 @@ contract('SmartAccount Bootstrapping', async function (accounts) {
   let erc20
   let smartAccount
   let bypassModule
-
-  function newEphemeralKeypair () {
-    const a = ethWallet.generate()
-    return {
-      privateKey: a.privKey,
-      address: '0x' + a.getAddress().toString('hex')
-    }
-  }
 
   async function callViaRelayHub (encodedFunctionCall, nonce, approvalData = []) {
     const from = ephemeralOperator.address
@@ -106,21 +95,11 @@ contract('SmartAccount Bootstrapping', async function (accounts) {
   it('should sponsor creation of a smartAccount', async function () {
     // Create a double-meta-transaction (clients should use a Web3.js provider from gsn-sponsor package instead)
     const smartAccountId = Buffer.from('a3a6839853586edc9133e9c71d4ccfac678b4fc3f5475fd3014845ad5287870f', 'hex') // crypto.randomBytes(32)
-    const newSmartAccountCallData = smartAccountFactory.contract.methods.newSmartAccount(smartAccountId).encodeABI()
-    const encodedFunctionCall =
-            gsnForwarder.contract.methods.callRecipient(smartAccountFactory.address, newSmartAccountCallData).encodeABI()
-
-    const timestamp = Buffer.from(Math.floor(Date.now() / 1000).toString(16), 'hex')// 1575229433
-    const keyPair = newEphemeralKeypair()
     // Mocking backend signature
-    let hash = ABI.soliditySHA3(['bytes32', 'bytes4'], [smartAccountId, timestamp])
-    hash = ABI.soliditySHA3(['string', 'bytes32'], ['\x19Ethereum Signed Message:\n32', hash])
-    const sig = ethUtils.ecsign(hash, keyPair.privateKey)
-    const backendSignature = Buffer.concat([sig.r, sig.s, Buffer.from(sig.v.toString(16), 'hex')])
-    // Adding mocked signer as trusted caller i.e. backend ethereum address
-    const signer = keyPair.address
-    await smartAccountFactory.addTrustedSigners([signer], { from: vfOwner })
-    const approvalData = ABI.rawEncode(['bytes4', 'bytes'], [timestamp, backendSignature])
+    const approvalData = await forgeApprovalData(smartAccountId, smartAccountFactory, vfOwner)
+    const newSmartAccountCallData = smartAccountFactory.contract.methods.newSmartAccount(smartAccountId, approvalData).encodeABI()
+    const encodedFunctionCall =
+      gsnForwarder.contract.methods.callRecipient(smartAccountFactory.address, newSmartAccountCallData).encodeABI()
 
     const receipt = await callViaRelayHub(encodedFunctionCall, 0, approvalData)
     const createdEvent = receipt.logs[0]

@@ -41,21 +41,32 @@ contract SmartAccountFactory is GsnRecipient, Ownable {
         bytes4 methodSig = encodedFunction.getMethodSig();
         require(methodSig == this.newSmartAccount.selector, "Call must be only newSmartAccount()");
         bytes32 smartAccountId = bytes32(encodedFunction.getParam(0));
+        //        require(knownSmartAccounts[smartAccountId] == address(0), "SmartAccount already created for this id");
+        //        (bytes4 timestamp, bytes memory sig) = abi.decode(approvalData,(bytes4, bytes));
+        //        require(uint32(timestamp) + APPROVAL_VALIDITY > now, "Outdated request");
+        //        bytes32 hash = keccak256(abi.encodePacked(smartAccountId, timestamp)).toEthSignedMessageHash();
+        //        require(isApprovedSigner(hash, sig), "Not signed by approved signer");
+        validateNewSmartAccountRequest(smartAccountId, approvalData);
+        return (0, "");
+    }
+
+    function _acceptCall(address from, bytes memory encodedFunction) view internal returns (uint256 res, bytes memory data){}
+
+    function validateNewSmartAccountRequest(bytes32 smartAccountId, bytes memory approvalData) private view returns (bool) {
         require(knownSmartAccounts[smartAccountId] == address(0), "SmartAccount already created for this id");
-        (bytes4 timestamp, bytes memory sig) = abi.decode(approvalData,(bytes4, bytes));
+        (bytes4 timestamp, bytes memory sig) = abi.decode(approvalData, (bytes4, bytes));
         require(uint32(timestamp) + APPROVAL_VALIDITY > now, "Outdated request");
         bytes32 hash = keccak256(abi.encodePacked(smartAccountId, timestamp)).toEthSignedMessageHash();
         require(isApprovedSigner(hash, sig), "Not signed by approved signer");
-
-        return (0, "");
+        return true;
     }
-    function _acceptCall( address from, bytes memory encodedFunction) view internal returns (uint256 res, bytes memory data){}
 
     /**
     * @param smartAccountId - generated through keccak256(<userEmail>) by backend service
     */
-    function newSmartAccount(bytes32 smartAccountId) public {
-        require(msg.sender == getHubAddr() || msg.sender == this.getGsnForwarder(), "Must be called through GSN");
+    function newSmartAccount(bytes32 smartAccountId, bytes memory approvalData) public {
+        require(validateNewSmartAccountRequest(smartAccountId, approvalData),
+            "Must have a valid approvalData");
         require(knownSmartAccounts[smartAccountId] == address(0), "SmartAccount already created for this id");
         SmartAccount smartAccount = new SmartAccount(this.getGsnForwarder(), getSender());
         knownSmartAccounts[smartAccountId] = address(smartAccount);
