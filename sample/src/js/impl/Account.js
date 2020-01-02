@@ -123,7 +123,7 @@ export default class Account extends AccountApi {
   }
 
   async googleAuthenticate () {
-    const info = this.gauth.info()
+    const info = await this.gauth.info()
     return {
       email: info.email,
       jwt: info.jwt,
