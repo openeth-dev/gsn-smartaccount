@@ -10,7 +10,7 @@ export default class SMStwilio extends SMSapi {
 
     this.config = JSON.parse(fs.readFileSync('twilio.json').toString())
     this.client = twilio(this.config.accountSid, this.config.authToken)
-    console.log( "using twilio account", this.config.accountSid)
+    console.log('using twilio account', this.config.accountSid)
   }
 
   async sendSms ({ phone, message }) {
