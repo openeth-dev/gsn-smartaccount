@@ -57,7 +57,8 @@ describe('SimpleManager', async function () {
   let sm
 
   beforeEach(async function () {
-    sm = new SimpleManager({})
+    // TODO: put in proper values (these only satisfy the "nonNull" check)
+    sm = new SimpleManager({ accountApi: false, factoryConfig: false, backend: false })
   })
 
   describe('#googleLogin()', async function () {
