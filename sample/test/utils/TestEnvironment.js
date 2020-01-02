@@ -35,6 +35,8 @@ export default class TestEnvironment {
     relayHub = _relayHub,
     clientBackend,
     web3provider,
+    useTwilio,
+    useDev = true,
     verbose = _verbose
   }) {
     this.ethNodeUrl = ethNodeUrl
@@ -43,6 +45,8 @@ export default class TestEnvironment {
     this.clientBackend = clientBackend || new ClientBackend({ serverURL: serverUrl })
     this.web3provider = web3provider || new Web3.providers.HttpProvider(ethNodeUrl)
     this.web3 = new Web3(this.web3provider)
+    this.useTwilio = useTwilio
+    this.useDev = useDev
     this.verbose = verbose
   }
 
@@ -77,9 +81,11 @@ export default class TestEnvironment {
     relayHub,
     web3provider,
     clientBackend,
+    useTwilio,
+    useDev,
     verbose
   }) {
-    const instance = new TestEnvironment({ ethNodeUrl, relayUrl, relayHub, web3provider, clientBackend, verbose })
+    const instance = new TestEnvironment({ ethNodeUrl, relayUrl, relayHub, web3provider, clientBackend, useTwilio, useDev, verbose })
     instance.from = (await instance.web3.eth.getAccounts())[0]
 
     // bring up RelayHub, relay.
@@ -128,11 +134,12 @@ export default class TestEnvironment {
         '-r',
         'esm',
         runServerPath,
-        port,
-        this.factory.address,
-        this.sponsor.address,
-        this.ethNodeUrl,
-        '--dev'
+        '-p', port,
+        '-f', this.factory.address,
+        '-s', this.sponsor.address,
+        '-u', this.ethNodeUrl,
+        '--sms', this.useTwilio ? 'twilio' : 'mock', // anything except 'twilio' is a mock...
+        '--dev', this.useDev
       ])
       let serverAddress
       ls.stdout.on('data', (data) => {

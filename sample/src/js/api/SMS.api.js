@@ -10,7 +10,7 @@ export default class SMSapi extends EventEmitter {
     validate(SMSapi, this)
   }
 
-  sendSms ({ phone, message }) {
+  async sendSms ({ phone, message }) {
     error('send sms to client')
   }
 }
