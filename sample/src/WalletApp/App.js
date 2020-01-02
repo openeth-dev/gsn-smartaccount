@@ -12,6 +12,7 @@ import SmartAccountSDK from '../js/impl/SmartAccountSDK'
 import SimpleManager from '../js/impl/SimpleManager'
 import { increaseTime } from './GanacheIncreaseTime'
 import { toBN } from 'web3-utils'
+import { Gauth } from '../js/impl/Gauth'
 
 let debug = getParam('debug')
 
@@ -26,6 +27,69 @@ const verbose = window.location.href.indexOf('#verbose') > 0
 
 var mgr, sms, wallet, sdk
 const Button = ({ title, action }) => <input type="submit" onClick={action} value={title}/>
+
+class DebugGauth extends React.Component {
+  constructor (props) {
+    super(props)
+    this.gauth = new Gauth()
+    this.gauth.init()
+    this.doInfo = this.doInfo.bind(this)
+    this.doSignIn = this.doSignIn.bind(this)
+    this.doSignOut = this.doSignOut.bind(this)
+  }
+
+  async doInfo () {
+    try {
+      alert('info:' + JSON.stringify(await this.gauth.info()))
+    } catch (e) {
+      console.log('ex',e)
+      alert(e.message)
+    }
+  }
+
+  async doSignIn () {
+    try {
+      alert('signin:' + JSON.stringify(await this.gauth.signIn()))
+    } catch (e) {
+      console.log('ex',e)
+      alert(e.message)
+    }
+  }
+
+  async doSignOut () {
+    try {
+      alert('signout:' + JSON.stringify(await this.gauth.signOut()))
+    } catch (e) {
+      console.log('ex',e)
+      alert(e.message)
+    }
+  }
+
+
+  render() {
+    return <div>
+      <Button title="info" action={this.doInfo}/>
+      <Button title="signin" action={this.doSignIn}/>
+      <Button title="signout" action={this.doSignOut}/>
+    </div>
+  }
+}
+
+//not directly belongs to the UI - but extract device name from userAgent..
+function getDeviceName () {
+  const userAgent = global.navigator && (navigator.userAgent || 'unknown')
+  const deviceMatch = userAgent.match(/\((.*?)\)/)
+  if (!deviceMatch)
+    return userAgent
+
+  const names = deviceMatch[1].split(';')
+  //TODO: Android is 2nd best: should return specific device type - if known.
+  names.forEach(name => {
+    if (name.match(/Window|Mac|iP|Android|Pixel|SM-|Nexus/)) {
+      return name
+    }
+  })
+}
 
 function GoogleLogin ({ refresh, initMgr }) {
   async function login () {
@@ -131,13 +195,13 @@ function ActiveWallet ({ ownerAddr, walletInfo, walletBalances, walletPending, d
   </>
 }
 
-function RecoverOrNewDevice ({ email, walletAddr }) {
+function RecoverOrNewDevice ({ email, doAddNewOperator }) {
   return <div>
     Hello <b>{email}</b>,
     You have wallet on-chain, but this device is not its operator.<br/>
     You can either<br/>
     <ul>
-      <li><Button title="add new operator"/> (requires approval on your old
+      <li><Button title="add new operator" action={doAddNewOperator}/> (requires approval on your old
         device) or,
       </li>
       <li><Button title="Recover your vault"/> (You dont need your old device,
@@ -151,11 +215,18 @@ function DebugState ({ state }) {
   return debug && <>state={state}</>
 }
 function WalletComponent (options) {
-  const { walletAddr, email, ownerAddr, walletInfo, loading } = options
+  const { walletAddr, email, ownerAddr, walletInfo } = options
 
   if (loading) {
     return <h2>Loading, please wait.</h2>
   }
+
+  if ( pendingAddOperatorNow ) {
+    return <>
+      Sent an SMS to owner device. Once approved, this device will also become operator.
+    </>
+  }
+
   if (!email || !ownerAddr) {
     return <><DebugState state="noemail"/><GoogleLogin {...options}/></>
   }
@@ -301,6 +372,12 @@ class App extends React.Component {
     }
   }
 
+  async doAddNewOperator() {
+    if ( window.confirm('Request to add this device as new operator?')) {
+      await mgr.signInAsNewOperator({ jwt: this.state.jwt, title: getDeviceName() })
+      this.reloadState({pendingAddOperatorNow:true})
+    }
+  }
   async doCancelPending (delayedOpId) {
     if (!delayedOpId) {
       const id = prompt('Enter pending index to cancel')
@@ -463,6 +540,7 @@ class App extends React.Component {
           initMgr={() => this.initMgr()}
           doTransfer={params => this.doTransfer(params)}
           doCancelPending={params => this.doCancelPending(params)}
+          doAddNewOperator={()=>this.doAddNewOperator()}
           refresh={(extra) => this.reloadState(extra)} {...this.state} />
 
       </div>
