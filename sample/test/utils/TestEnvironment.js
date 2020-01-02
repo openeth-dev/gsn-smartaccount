@@ -190,7 +190,7 @@ export default class TestEnvironment {
   }
 
   async fundRelayIfNeeded () {
-    const relayAddr = await this.getRelayAddress()
+    const { relayAddr } = await this.getRelayAddress()
     if (await this.web3.eth.getBalance(relayAddr) < 3e18) {
       await this.web3.eth.sendTransaction({ from: this.from, value: 3e18, to: relayAddr })
       console.log('funded relay')

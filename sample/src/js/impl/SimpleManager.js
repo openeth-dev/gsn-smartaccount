@@ -110,7 +110,7 @@ export default class SimpleManager extends SimpleManagerApi {
     // TODO: next commit: make 'FactoryContractInteractor.deployNewSmartAccount' do this job
     const smartAccountId = response.smartAccountId
     const approvalData = response.approvalData
-    await this.smartAccountFactory.newSmartAccount(smartAccountId, {
+    await this.smartAccountFactory.newSmartAccount(smartAccountId, approvalData, {
       from: sender,
       gas: 1e8,
       approvalData: approvalData
