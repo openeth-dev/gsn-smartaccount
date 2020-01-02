@@ -19,6 +19,8 @@ import abiDecoder from 'abi-decoder'
 import { Backend } from '../../src/js/backend/Backend'
 import { generateMockJwt, hookFunction, unhookFunction } from './testutils'
 
+require('../../src/js/mocks/MockDate')
+
 describe('As Guardian', async function () {
   let web3
   let watchdog
@@ -238,18 +240,10 @@ describe('As Guardian', async function () {
         const eventsDuring = await wallet.contract.getPastEvents(delayedOp + 'Applied')
         assert.equal(eventsDuring.length, eventsBefore.length)
         assert.isTrue(gotSms)
-        if (!Date.nowOrig) {
-          Date.nowOrig = Date.now
-          Date.now = function () {
-            return Date.nowOrig() + 1e6
-          }
-        }
+        Date.setMockedTime(Date.realNow() + 1e6)
         await sctestutils.increaseTime(1e2, web3)
         await watchdog._worker()
-        if (Date.nowOrig) {
-          Date.now = Date.nowOrig
-          delete Date.nowOrig
-        }
+        Date.mockedDateOffset = 0
         const eventsAfter = await wallet.contract.getPastEvents(delayedOp + 'Applied')
         assert.equal(eventsAfter.length, eventsBefore.length + 1)
         assert.deepEqual(watchdog.changesToApply, {})
