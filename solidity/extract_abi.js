@@ -20,7 +20,7 @@ const contractsToExtract = [
   'tests/DAI',
   'tests/MockHub',
   'tests/FreeRecipientSponsor',
-  'tests/MockGsnForwarder',
+  'tests/MockGsnForwarder'
 ]
 
 function compileFile (contractFile, c) {
