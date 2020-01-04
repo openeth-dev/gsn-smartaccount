@@ -207,10 +207,10 @@ describe('SimpleWallet', async function () {
       name: 'ETH',
       contract: () => null
     },
-      {
-        name: 'DAI',
-        contract: () => dai
-      }
+    {
+      name: 'DAI',
+      contract: () => dai
+    }
     ]
     tokens.forEach(token => {
       it(`should initiate delayed ${token.name} transfer`, async function () {
