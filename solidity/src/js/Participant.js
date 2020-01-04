@@ -1,7 +1,10 @@
+const { nonNull } = require('../../../sample/src/js/utils/utils')
+
 const truffleUtils = require('./SafeChannelUtils')
 
 class Participant {
   constructor (address, permissions, level, name) {
+    nonNull({ address, permissions, level })
     this.address = address
     this.permissions = permissions
     this.level = level

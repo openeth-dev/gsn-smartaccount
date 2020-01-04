@@ -14,8 +14,27 @@ import TestEnvironment from '../utils/TestEnvironment'
 import { Watchdog } from '../../src/js/backend/Guardian'
 import BaseBackendMock from '../mocks/BaseBackend.mock'
 
+import { forgeApprovalData } from 'safechannels-contracts/test/utils'
+
 chai.use(chaiAsPromised)
 chai.should()
+const smartAccountId = '0x' + '1'.repeat(64)
+const mockBackendBase = {
+  getSmartAccountId: async function () {
+    return '0x' + '1'.repeat(64)
+  },
+  createAccount: async function () {
+    return {
+      approvalData: '0x' + 'f'.repeat(64),
+      smartAccountId
+    }
+  },
+  getAddresses: async function () {
+    return {
+      watchdog: '0x' + '1'.repeat(40)
+    }
+  }
+}
 
 async function newTest (backend) {
   const testEnvironment = await TestEnvironment.initializeWithFakeBackendAndGSN({
@@ -25,13 +44,23 @@ async function newTest (backend) {
   return testEnvironment
 }
 
+async function setCreateAccount (backend, smartAccountId, testContext) {
+  backend.createAccount = async function createAccount () {
+    return {
+      approvalData: await forgeApprovalData(smartAccountId, testContext.factory, testContext.from),
+      smartAccountId
+    }
+  }
+}
+
 describe('SimpleManager', async function () {
   const email = 'shahaf@tabookey.com'
 
   let sm
 
   beforeEach(async function () {
-    sm = new SimpleManager({})
+    // TODO: put in proper values (these only satisfy the "nonNull" check)
+    sm = new SimpleManager({ accountApi: false, factoryConfig: false, backend: false })
   })
 
   describe('#googleLogin()', async function () {
@@ -99,6 +128,7 @@ describe('SimpleManager', async function () {
 
     before(async function () {
       testContext = await newTest(BaseBackendMock)
+      await setCreateAccount(BaseBackendMock, smartAccountId, testContext)
       testContext.jwt = {}
       testContext.phoneNumber = '1'
       testContext.smsCode = '1234'
@@ -135,6 +165,7 @@ describe('SimpleManager', async function () {
       }
 
       testContext = await newTest(mockBackend)
+      await setCreateAccount(mockBackend, smartAccountId, testContext)
       testContext.jwt = {}
       testContext.smsCode = '1234'
     })
@@ -160,6 +191,7 @@ describe('SimpleManager', async function () {
       testContext = await TestEnvironment.initializeWithFakeBackendAndGSN({
         clientBackend: mockBackend
       })
+      await setCreateAccount(mockBackend, smartAccountId, testContext)
       await testContext.manager.googleLogin()
       testContext.smsCode = '1234'
       testContext.jwt = {}

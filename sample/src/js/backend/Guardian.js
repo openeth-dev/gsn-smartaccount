@@ -110,11 +110,6 @@ export class Watchdog {
     if (dlog.name === 'ConfigPending' && dlog.args.actions[0] === ChangeType.ADD_OPERATOR_NOW.toString()) {
       dueTime = Date.now()
     } else {
-      const smsCode = this.smsManager.getSmsCode({ phoneNumber: account.phone, email: account.email })
-      await this.smsManager.sendSMS({
-        phoneNumber: account.phone,
-        message: `To cancel event ${dlog.args.delayedOpId} on smartAccount ${account.address}, enter code ${smsCode}`
-      })
       dueTime = dlog.args.dueTime * 1000
     }
     this.changesToApply[dlog.args.delayedOpId] = { dueTime: dueTime, log: dlog }
@@ -135,6 +130,14 @@ export class Watchdog {
       const change = this.changesToApply[delayedOpId]
       if (change.dueTime <= Date.now()) {
         txhashes.push(await this._finalizeChange(delayedOpId, { apply: true }))
+      } else if (!change.smsSent) {
+        const account = this.accountManager.getAccountByAddress({ address: change.log.address })
+        const smsCode = this.smsManager.getSmsCode({ phoneNumber: account.phone, email: account.email })
+        await this.smsManager.sendSMS({
+          phoneNumber: account.phone,
+          message: `To cancel event ${change.log.args.delayedOpId} on smartAccount ${account.address}, enter code ${smsCode}`
+        })
+        change.smsSent = true
       }
     }
     return txhashes

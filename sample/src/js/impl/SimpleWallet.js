@@ -12,6 +12,7 @@ import DelayedContractCall from '../etc/DelayedContractCall'
 import DelayedConfigChange from '../etc/DelayedConfigChange'
 import ConfigEntry from '../etc/ConfigEntry'
 import { changeTypeToString } from '../etc/ChangeType'
+import { nonNull } from '../utils/utils'
 
 const erc20Methods = ['0xa9059cbb', '0x095ea7b3']
 const BypassEventNames = {
@@ -49,6 +50,7 @@ export default class SimpleWallet extends SimpleWalletApi {
     knownTokens = []
   }) {
     super()
+    nonNull({ contract, participant })
     this.contract = contract
     this.backend = backend
     this.participant = participant

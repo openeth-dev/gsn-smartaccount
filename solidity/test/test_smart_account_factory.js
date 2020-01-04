@@ -6,6 +6,7 @@ const MockGsnForwarder = artifacts.require('./tests/MockGsnForwarder.sol')
 const crypto = require('crypto')
 const Chai = require('chai')
 const expect = Chai.expect
+const forgeApprovalData = require('./utils').forgeApprovalData
 
 contract('SmartAccountFactory', function (accounts) {
   let mockForwarder
@@ -14,19 +15,16 @@ contract('SmartAccountFactory', function (accounts) {
   let callData
   let smartAccountId
   const zeroAddress = '0x0000000000000000000000000000000000000000'
+  const vfOwner = accounts[1]
 
   before(async function () {
     smartAccountId = crypto.randomBytes(32)
     mockHub = await RelayHub.new({ gas: 9e6 })
     mockForwarder = await MockGsnForwarder.new(mockHub.address, { gas: 9e6 })
-    smartAccountFactory = await SmartAccountFactory.new(mockForwarder.address, { gas: 9e6 })
-    callData = smartAccountFactory.contract.methods.newSmartAccount(smartAccountId).encodeABI()
-  })
-
-  it('should revert on calling without GSN', async function () {
-    await expect(
-      smartAccountFactory.newSmartAccount(smartAccountId)
-    ).to.be.revertedWith('Must be called through GSN')
+    smartAccountFactory = await SmartAccountFactory.new(mockForwarder.address, { gas: 9e6, from: vfOwner })
+    // Mocking backend signature
+    const approvalData = await forgeApprovalData(smartAccountId, smartAccountFactory, vfOwner)
+    callData = smartAccountFactory.contract.methods.newSmartAccount(smartAccountId, approvalData).encodeABI()
   })
 
   it('should deploy SmartAccount', async function () {
