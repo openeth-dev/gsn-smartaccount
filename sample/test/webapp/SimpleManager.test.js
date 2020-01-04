@@ -19,22 +19,6 @@ import { forgeApprovalData } from 'safechannels-contracts/test/utils'
 chai.use(chaiAsPromised)
 chai.should()
 const smartAccountId = '0x' + '1'.repeat(64)
-const mockBackendBase = {
-  getSmartAccountId: async function () {
-    return '0x' + '1'.repeat(64)
-  },
-  createAccount: async function () {
-    return {
-      approvalData: '0x' + 'f'.repeat(64),
-      smartAccountId
-    }
-  },
-  getAddresses: async function () {
-    return {
-      watchdog: '0x' + '1'.repeat(40)
-    }
-  }
-}
 
 async function newTest (backend) {
   const testEnvironment = await TestEnvironment.initializeWithFakeBackendAndGSN({
