@@ -5,7 +5,7 @@ import Web3 from 'web3'
 import FactoryContractInteractor from 'safechannels-contracts/src/js/FactoryContractInteractor'
 import Permissions from 'safechannels-contracts/src/js/Permissions'
 import Participant from 'safechannels-contracts/src/js/Participant'
-import scTestUtils from 'safechannels-contracts/test/utils'
+import scTestUtils, { getBalance } from 'safechannels-contracts/test/utils'
 
 import BaseBackendMock from '../mocks/BaseBackend.mock'
 import SimpleWallet from '../../src/js/impl/SimpleWallet'
@@ -56,7 +56,7 @@ describe('SimpleWallet', async function () {
     await scTestUtils.revert(id, web3)
   })
 
-  async function newTest (operator = null, whitelistPreconfigured = []) {
+  async function newTest (operator = null, whitelistPreconfigured = [], knownTokens = []) {
     const smartAccount = await FactoryContractInteractor.deploySmartAccountDirectly(from, ethNodeUrl)
     // TODO: duplicate code, testenv does same work as the rest of the code here!!!
     const testEnvironment = await TestEnvironment.initializeWithFakeBackendAndGSN({ clientBackend: BaseBackendMock })
@@ -66,7 +66,7 @@ describe('SimpleWallet', async function () {
         ...walletSharedConfig,
         whitelistFactory,
         contract: smartAccount,
-        knownTokens: []
+        knownTokens
       })
     let whitelistModuleAddress = fakeWhitelistPolicy
     if (whitelistPreconfigured.length > 0) {
@@ -183,53 +183,67 @@ describe('SimpleWallet', async function () {
     const destination = backend
     const whitelistedDestination = operator
     let testContext
+    let dai
 
     before(async function () {
+      dai = await FactoryContractInteractor.deployERC20(from, ethNodeUrl)
       const whitelistPreconfigured = [whitelistedDestination]
-      testContext = await newTest(from, whitelistPreconfigured)
+      testContext = await newTest(from, whitelistPreconfigured,
+        [{ name: 'DAI', address: dai.address }]
+      )
       const accountZero = (await web3.eth.getAccounts())[0]
+      const accountAddress = testContext.wallet.contract.address
       const tx = {
         from: accountZero,
-        value: 1e18,
-        to: testContext.wallet.contract.address,
+        value: 1e6,
+        to: accountAddress,
         gasPrice: 1
       }
       await web3.eth.sendTransaction(tx)
+      await dai.transfer(accountAddress, 1e6.toString(), { from: accountZero })
     })
 
-    it('should initiate delayed ETH transfer', async function () {
-      // refresh info to set the stateId. This is used to prevent UI-blockchain race condition (ask Dror)
-      await testContext.wallet.getWalletInfo()
-      const amount = 1e5
-      await testContext.wallet.transfer({ destination, amount, token: 'ETH' })
-      const pending = await testContext.wallet.listPendingTransactions()
-      assert.strictEqual(pending.length, 1)
-      assert.strictEqual(pending[0].destination, destination)
-      assert.strictEqual(pending[0].value, amount.toString())
-      assert.strictEqual(pending[0].tokenSymbol, 'ETH')
-      // local cleanup
-      await testContext.wallet.cancelPending(pending[0].delayedOpId)
+    const tokens = [{
+      name: 'ETH',
+      contract: () => null
+    },
+      {
+        name: 'DAI',
+        contract: () => dai
+      }
+    ]
+    tokens.forEach(token => {
+      it(`should initiate delayed ${token.name} transfer`, async function () {
+        // refresh info to set the stateId. This is used to prevent UI-blockchain race condition (ask Dror)
+        await testContext.wallet.getWalletInfo()
+        const amount = 1e5
+        await testContext.wallet.transfer({ destination, amount, token: token.name })
+        const pending = await testContext.wallet.listPendingTransactions()
+        assert.strictEqual(pending.length, 1)
+        assert.strictEqual(pending[0].destination, destination)
+        assert.strictEqual(pending[0].value, amount.toString())
+        assert.strictEqual(pending[0].tokenSymbol, token.name)
+        // local cleanup
+        await testContext.wallet.cancelPending(pending[0].delayedOpId)
+      })
+
+      it(`should transfer ${token.name} immediately to a whitelisted destination`, async function () {
+        await testContext.wallet.getWalletInfo()
+        const amount = 1e5
+
+        const srcBalanceBefore = await getBalance(web3, token.contract(), testContext.wallet.contract.address)
+        const destBalanceBefore = await getBalance(web3, token.contract(), whitelistedDestination)
+        await testContext.wallet.transfer({ destination: whitelistedDestination, amount, token: token.name })
+        const srcBalanceAfter = await getBalance(web3, token.contract(), testContext.wallet.contract.address)
+        const destBalanceAfter = await getBalance(web3, token.contract(), whitelistedDestination)
+        const pending = await testContext.wallet.listPendingTransactions()
+        assert.strictEqual(pending.length, 0)
+        assert.strictEqual(srcBalanceBefore.toString(), '1000000')
+        assert.strictEqual(srcBalanceAfter.toString(), '900000')
+        assert.strictEqual(destBalanceBefore.toString(), '0')
+        assert.strictEqual(destBalanceAfter.toString(), '100000')
+      })
     })
-
-    it('should initiate delayed ERC transfer')
-
-    it('should transfer ETH immediately to a whitelisted destination', async function () {
-      await testContext.wallet.getWalletInfo()
-      const amount = 1e5
-      const srcBalanceBefore = await web3.eth.getBalance(testContext.wallet.contract.address)
-      const destBalanceBefore = await web3.eth.getBalance(whitelistedDestination)
-      await testContext.wallet.transfer({ destination: whitelistedDestination, amount, token: 'ETH' })
-      const srcBalanceAfter = await web3.eth.getBalance(testContext.wallet.contract.address)
-      const destBalanceAfter = await web3.eth.getBalance(whitelistedDestination)
-      const pending = await testContext.wallet.listPendingTransactions()
-      assert.strictEqual(pending.length, 0)
-      assert.strictEqual(srcBalanceBefore, '1000000000000000000')
-      assert.strictEqual(srcBalanceAfter, '999999999999900000')
-      assert.strictEqual(destBalanceBefore, '0')
-      assert.strictEqual(destBalanceAfter, '100000')
-    })
-
-    it('should transfer ERC immediately to a whitelisted destination')
   })
 
   describe('Add Operator Now', async function () {

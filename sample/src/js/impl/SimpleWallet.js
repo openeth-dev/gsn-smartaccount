@@ -1,3 +1,4 @@
+import abiDecoder from 'abi-decoder'
 import asyncForEach from 'async-await-foreach'
 import Web3 from 'web3'
 
@@ -54,6 +55,7 @@ export default class SimpleWallet extends SimpleWalletApi {
     this.whitelistFactory = whitelistFactory
     this.knownTokens = knownTokens
     this.knownParticipants = [...knownParticipants, participant]
+    abiDecoder.addABI(FactoryContractInteractor.getErc20ABI())
     // TODO: make sure no duplicates
   }
 
@@ -88,6 +90,11 @@ export default class SimpleWallet extends SimpleWalletApi {
       destinationAddress = this._getTokenAddress(token)
       ethAmount = 0
       encodedTransaction = FactoryContractInteractor.encodeErc20Call({ destination, amount, operation: 'transfer' })
+      whitelisted = await this._isDestinationWhitelisted({
+        target: destinationAddress,
+        value: ethAmount,
+        encodedFunction: encodedTransaction
+      })
     }
     let method
     if (whitelisted) {
@@ -348,9 +355,9 @@ export default class SimpleWallet extends SimpleWalletApi {
       })
       .map(
         (it) => {
-          const isEtherValuePassed = it.value !== 0
-          const isDataPassed = it.args.data !== undefined && it.args.data.length > 0
-          const isErc20Method = isDataPassed && erc20Methods.includes(it.args.data.substr(0, 10))
+          const isEtherValuePassed = it.args.value.toString() !== '0'
+          const isDataPassed = it.args.msgdata && it.args.msgdata.length > 0
+          const isErc20Method = isDataPassed && erc20Methods.includes(it.args.msgdata.substr(0, 10))
           // TODO: get all data from events, save roundtrips here
           const common = {
             txHash: it.transactionHash,
@@ -380,7 +387,7 @@ export default class SimpleWallet extends SimpleWalletApi {
               ...common,
               value: it.args.value,
               destination: it.args.target,
-              data: it.args.data
+              data: it.args.msgdata
             })
           }
         }
@@ -456,7 +463,16 @@ export default class SimpleWallet extends SimpleWalletApi {
     }
   }
 
-  _parseErc20Transaction () {
+  _parseErc20Transaction ({ target, data }) {
+    const token = this.knownTokens.find(it => it.address === target)
+    const symbol = token ? token.name : 'N/A'
+    const dec = abiDecoder.decodeMethod(data)
+    return {
+      operation: dec.name,
+      tokenSymbol: symbol,
+      value: dec.params[1].value,
+      destination: dec.params[0].value
+    }
   }
 
   // _parseErc20Transaction ({ target, data }) {
@@ -464,7 +480,7 @@ export default class SimpleWallet extends SimpleWalletApi {
   // }
 
   _getTokenAddress (token) {
-    return undefined
+    return this.knownTokens.find(it => it.name === token).address
   }
 
   async addOperatorNow (newOperator) {
@@ -543,12 +559,17 @@ export default class SimpleWallet extends SimpleWalletApi {
   }
 
   async _isDestinationWhitelisted ({ target, value, encodedFunction }) {
-    const moduleByTarget = await this.contract.bypassPoliciesByTarget(target)
-    if (moduleByTarget === '0x0000000000000000000000000000000000000000') {
-      return false
+    let moduleAddress = await this.contract.bypassPoliciesByTarget(target)
+    if (moduleAddress === '0x0000000000000000000000000000000000000000') {
+      if (encodedFunction.length < 10) {
+        return false
+      } else {
+        const method = encodedFunction.substr(0, 10)
+        moduleAddress = await this.contract.bypassPoliciesByMethod(method)
+      }
     }
     const { provider } = this._getWeb3()
-    const module = await FactoryContractInteractor.whitelistAt({ address: moduleByTarget, provider })
+    const module = await FactoryContractInteractor.whitelistAt({ address: moduleAddress, provider })
     const policy = await module.getBypassPolicy(target, value, encodedFunction)
     return policy[0].toString() === '0' && policy[1].toString() === '0'
   }

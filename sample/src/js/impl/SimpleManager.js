@@ -151,7 +151,8 @@ export default class SimpleManager extends SimpleManagerApi {
       backend: this.backend,
       whitelistFactory: this.whitelistFactory,
       participant: participants.operator,
-      knownParticipants: [participants.backendAsAdmin, participants.backendAsWatchdog]
+      knownParticipants: [participants.backendAsAdmin, participants.backendAsWatchdog],
+      knownTokens: this.factoryConfig.knownTokens
     })
   }
 
