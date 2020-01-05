@@ -15,16 +15,21 @@ import { AccountManager } from './AccountManager'
 import crypto from 'crypto'
 import { Watchdog } from './Guardian'
 import Web3 from 'web3'
+
 function error (err) { throw new Error(err) }
 
-const argv = parseArgs(process.argv.slice(2), { string: ['s', 'f'] })
+const argv = parseArgs(process.argv.slice(2), {
+  string: ['s', 'f', 'url'],
+  alias: { D: 'dev', S: 'sms', u: 'url' }
+})
+
 if (argv._.length) error('unknown extra params: ' + argv._)
 
 const port = argv.p || error('missing -p [port]')
 const factoryAddress = argv.f || error('missing -f [factoryAddress]')
 const sponsorAddress = argv.s || error('missing -s [sponsotAddress]')
-const ethNodeUrl = argv.u || error('missing -u [ethNodeUrl]')
-const smsProvider = (argv.S || argv.sms) === 'twilio' ? new SMStwilio() : new SMSmock()
+const ethNodeUrl = argv.url || error('missing -u [ethNodeUrl]')
+const smsProvider = argv.sms === 'twilio' ? new SMStwilio() : new SMSmock()
 
 console.log('Using sms provider: ', smsProvider.constructor.name)
 
