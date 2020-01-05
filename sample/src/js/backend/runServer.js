@@ -11,7 +11,7 @@ import { hookBackend } from '../../../test/backend/testutils'
 import { SmsManager } from './SmsManager'
 import { AccountManager } from './AccountManager'
 import crypto from 'crypto'
-import { Watchdog } from './Guardian'
+import { Watchdog, Admin } from './Guardian'
 import Web3 from 'web3'
 
 const port = process.argv[2]
@@ -32,15 +32,22 @@ const watchdog = new Watchdog({
   sponsorAddress: sponsorAddress,
   web3provider: web3provider
 })
+const admin = new Admin({
+  smsManager,
+  keyManager,
+  accountManager,
+  smartAccountFactoryAddress: factoryAddress,
+  sponsorAddress: sponsorAddress,
+  web3provider: web3provider
+})
 const backend = new Backend(
   {
     smsManager,
     audience: '202746986880-u17rbgo95h7ja4fghikietupjknd1bln.apps.googleusercontent.com',
     keyManager,
     accountManager,
-    guardian: watchdog
+    admin: admin
   })
-const admin = undefined // TODO
 
 // update Date.now() on every ETH-block timestamp.
 function hookNodeTime () {

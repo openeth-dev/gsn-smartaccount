@@ -10,7 +10,7 @@ import { ChangeType } from '../etc/ChangeType'
 abiDecoder.addABI(SmartAccountFactoryABI)
 abiDecoder.addABI(SmartAccountABI)
 
-export class Watchdog {
+class Guardian {
   constructor ({ smsManager, keyManager, accountManager, smartAccountFactoryAddress, sponsorAddress, web3provider }) {
     Object.assign(this, {
       smsManager,
@@ -22,10 +22,36 @@ export class Watchdog {
       web3: new Web3(web3provider),
       secretSMSCodeSeed: crypto.randomBytes(32)
     })
-    this.permsLevel = scutils.packPermissionLevel(Permissions.WatchdogPermissions, 1)
     this.address = keyManager.address()
     this.smartAccountContract = new this.web3.eth.Contract(SmartAccountABI, '')
     this.smartAccountFactoryContract = new this.web3.eth.Contract(SmartAccountFactoryABI, smartAccountFactoryAddress)
+  }
+
+  async _sendTransaction (method, destination) {
+    const encodedCall = method.encodeABI()
+    let gasPrice = await this.web3.eth.getGasPrice()
+    gasPrice = parseInt(gasPrice)
+    const gas = await method.estimateGas({ from: this.keyManager.address() })
+    const nonce = await this.web3.eth.getTransactionCount(this.keyManager.address())
+    const txToSign = {
+      to: destination,
+      value: 0,
+      gasPrice: gasPrice || 1e9,
+      gas: gas,
+      data: encodedCall ? Buffer.from(encodedCall.slice(2), 'hex') : Buffer.alloc(0),
+      nonce
+    }
+    const signedTx = this.keyManager.signTransaction(txToSign)
+    const receipt = await this.web3.eth.sendSignedTransaction(signedTx)
+    console.log('\ntxhash is', receipt.transactionHash)
+    return receipt
+  }
+}
+
+export class Watchdog extends Guardian {
+  constructor ({ smsManager, keyManager, accountManager, smartAccountFactoryAddress, sponsorAddress, web3provider }) {
+    super({ smsManager, keyManager, accountManager, smartAccountFactoryAddress, sponsorAddress, web3provider })
+    this.permsLevel = scutils.packPermissionLevel(Permissions.WatchdogPermissions, 1)
     const smartAccountTopics = Object.keys(this.smartAccountContract.events).filter(x => (x.includes('0x')))
     const smartAccountFactoryTopics = Object.keys(this.smartAccountFactoryContract.events).filter(
       x => (x.includes('0x')))
@@ -253,26 +279,6 @@ export class Watchdog {
     )
   }
 
-  async _sendTransaction (method, destination) {
-    const encodedCall = method.encodeABI()
-    let gasPrice = await this.web3.eth.getGasPrice()
-    gasPrice = parseInt(gasPrice)
-    const gas = await method.estimateGas({ from: this.keyManager.address() })
-    const nonce = await this.web3.eth.getTransactionCount(this.keyManager.address())
-    const txToSign = {
-      to: destination,
-      value: 0,
-      gasPrice: gasPrice || 1e9,
-      gas: gas,
-      data: encodedCall ? Buffer.from(encodedCall.slice(2), 'hex') : Buffer.alloc(0),
-      nonce
-    }
-    const signedTx = this.keyManager.signTransaction(txToSign)
-    const receipt = await this.web3.eth.sendSignedTransaction(signedTx)
-    console.log('\ntxhash is', receipt.transactionHash)
-    return receipt
-  }
-
   _parseEvent (event) {
     if (!event || !event.events) {
       return 'not event: ' + event
@@ -297,6 +303,13 @@ export class Watchdog {
       sponsor: this.sponsorAddress
     }
   }
+}
+
+export class Admin extends Guardian {
+  constructor ({ smsManager, keyManager, accountManager, smartAccountFactoryAddress, sponsorAddress, web3provider }) {
+    super({ smsManager, keyManager, accountManager, smartAccountFactoryAddress, sponsorAddress, web3provider })
+    this.permsLevel = scutils.packPermissionLevel(Permissions.AdminPermissions, 1)
+  }
 
   async scheduleAddOperator ({ accountId, newOperatorAddress }) {
     const account = this.accountManager.getAccountById({ accountId })
@@ -310,7 +323,7 @@ export class Watchdog {
     const stateId = await this.smartAccountContract.methods.stateNonce().call()
     const method = this.smartAccountContract.methods.scheduleAddOperator(
       // TODO: use permission selection logic!!!
-      scutils.packPermissionLevel(Permissions.AdminPermissions, 1),
+      this.permsLevel,
       newOperatorAddress,
       stateId)
 

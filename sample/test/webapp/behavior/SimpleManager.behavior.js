@@ -119,7 +119,7 @@ export function testRecoverWalletBehavior (getContext) {
   it('should make a confirm 2FA request that initiates a new pending config change', async function () {
     this.timeout(15000)
     const response = await sm.validateRecoverWallet({ jwt, smsCode })
-    assert.strictEqual(response.code, 200)
+    assert.strictEqual(true, context.web3.utils.isHexStrict(response.transactionHash))
     calledWithRightArgs(sm.backend.validateRecoverWallet, { jwt, smsCode })
     const wallet = await sm.loadWallet()
     await wallet.getWalletInfo()

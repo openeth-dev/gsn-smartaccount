@@ -41,11 +41,11 @@ export default class Webserver {
       let res
       let func
       if ((func = this.backend[req.body.method])) {
-        res = await func.apply(this.backend, [req.body.params]) || {}
+        res = await func.apply(this.backend, [req.body.params]) || { code: 200 }
       } else if ((func = this.watchdog[req.body.method])) {
-        res = await func.apply(this.watchdog, [req.body.params]) || {}
+        res = await func.apply(this.watchdog, [req.body.params]) || { code: 200 }
       } else if ((func = this.admin[req.body.method])) {
-        res = await func.apply(this.admin, [req.body.params]) || {}
+        res = await func.apply(this.admin, [req.body.params]) || { code: 200 }
       } else {
         throw Error(`Implementation of method ${req.body.params} not found on backend!`)
       }

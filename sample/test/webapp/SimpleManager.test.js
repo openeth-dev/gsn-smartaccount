@@ -184,10 +184,7 @@ describe('SimpleManager', async function () {
           await testContext.wallet.getWalletInfo() // Needed for stateId
           await testContext.wallet.scheduleAddOperator({ newOperator })
           return {
-            log: {
-              name: 'ConfigPending'
-            },
-            code: 200
+            transactionHash: '0xdeadface'
           }
         },
         ...mockBackendBase

@@ -8,7 +8,7 @@ import { KeyManager } from '../../src/js/backend/KeyManager'
 import { SmsManager } from '../../src/js/backend/SmsManager'
 import crypto from 'crypto'
 import { BackendAccount, AccountManager } from '../../src/js/backend/AccountManager'
-import { Watchdog } from '../../src/js/backend/Guardian'
+import { Admin } from '../../src/js/backend/Guardian'
 import Web3 from 'web3'
 import * as FactoryContractInteractor from 'safechannels-contracts/src/js/FactoryContractInteractor'
 import SimpleWallet from '../../src/js/impl/SimpleWallet'
@@ -49,7 +49,7 @@ describe('Backend', async function () {
     const web3provider = new Web3.providers.WebsocketProvider(ethNodeUrl)
     web3 = new Web3(web3provider)
     accountZero = (await web3.eth.getAccounts())[0]
-    const guardian = new Watchdog(
+    const admin = new Admin(
       { smsManager, keyManager, accountManager, smartAccountFactoryAddress: accountZero, web3provider })
 
     backend = new Backend(
@@ -57,7 +57,7 @@ describe('Backend', async function () {
         smsManager,
         audience,
         keyManager,
-        guardian,
+        admin,
         accountManager
       })
 

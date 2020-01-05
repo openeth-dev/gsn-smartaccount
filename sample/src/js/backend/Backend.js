@@ -5,14 +5,14 @@ const gauth = require('google-auth-library')
 const abi = require('ethereumjs-abi')
 
 export class Backend {
-  constructor ({ smsManager, audience, keyManager, accountManager, guardian }) {
+  constructor ({ smsManager, audience, keyManager, accountManager, admin }) {
     Object.assign(this, {
       smsManager,
       audience,
       gclient: new gauth.OAuth2Client(audience),
       keyManager,
       accountManager,
-      guardian
+      admin
     })
     this.unverifiedNewOperators = {}
   }
@@ -84,7 +84,7 @@ export class Backend {
   async validateRecoverWallet ({ jwt, smsCode }) {
     const { accountId, newOperatorAddress } = await this._authenticateClient({ jwt, smsCode })
     // TODO: schedule add operator config change
-    return this.guardian.scheduleAddOperator({ accountId, newOperatorAddress })
+    return this.admin.scheduleAddOperator({ accountId, newOperatorAddress })
   }
 
   async recoverWallet ({ jwt, title }) {
