@@ -33,13 +33,11 @@ function getDeviceName () {
   const deviceMatch = userAgent.match(/\((.*?)\)/)
   if (!deviceMatch) { return userAgent }
 
-  const names = deviceMatch[1].split(';')
+  console.log('== useragent:', userAgent)
+  const names = deviceMatch[1].split(/\s*;\s*/)
   // TODO: Android is 2nd best: should return specific device type - if known.
-  names.forEach(name => {
-    if (name.match(/Window|Mac|iP|Android|Pixel|SM-|Nexus/)) {
-      return name
-    }
-  })
+  const ret = names.find(name => /Window|Mac|iP|Android|Pixel|SM-|Nexus/.test(name))
+  return ret || deviceMatch
 }
 
 function GoogleLogin ({ refresh, initMgr }) {
@@ -113,11 +111,13 @@ const PendingTransactions = ({ walletPending, doCancelPending }) =>
       </div>)
     }
   </div>
-function ActiveWallet ({ ownerAddr, walletInfo, walletBalances, walletPending, doTransfer, doCancelPending, reload }) {
+
+function ActiveWallet ({ ownerAddr, walletInfo, walletBalances, walletPending, doTransfer, doCancelPending, doOldDeviceApproveOperator, reload }) {
   const info = JSON.stringify(walletInfo, null, 2)
   const pending = JSON.stringify(walletPending, null, 2)
 
   return <>
+    <Button title="Add operator with code" action={doOldDeviceApproveOperator}/><br/>
     <b>Balances</b><br/>
     {
       walletBalances.map(token => <TokenWidget key={token.symbol} {...token} doTransfer={doTransfer}/>)
@@ -146,13 +146,13 @@ function ActiveWallet ({ ownerAddr, walletInfo, walletBalances, walletPending, d
   </>
 }
 
-function RecoverOrNewDevice ({ email, doAddNewOperator }) {
+function RecoverOrNewDevice ({ email, doNewDeviceAddOperator }) {
   return <div>
     Hello <b>{email}</b>,
     You have wallet on-chain, but this device is not its operator.<br/>
     You can either<br/>
     <ul>
-      <li><Button title="add new operator" action={doAddNewOperator}/> (requires approval on your old
+      <li><Button title="add new operator" action={doNewDeviceAddOperator}/> (requires approval on your old
         device) or,
       </li>
       <li><Button title="Recover your vault"/> (You dont need your old device,
@@ -165,6 +165,7 @@ function RecoverOrNewDevice ({ email, doAddNewOperator }) {
 function DebugState ({ state }) {
   return debug && <>state={state}</>
 }
+
 function WalletComponent (options) {
   const { walletAddr, email, ownerAddr, walletInfo, loading, pendingAddOperatorNow } = options
 
@@ -323,11 +324,24 @@ class App extends React.Component {
     }
   }
 
-  async doAddNewOperator () {
-    if (window.confirm('Request to add this device as new operator?')) {
+  async doNewDeviceAddOperator () {
+    if (window.confirm('Request to add this device as new operator?' + '\n' + getDeviceName())) {
       await mgr.signInAsNewOperator({ jwt: this.state.jwt, title: getDeviceName() })
       this.reloadState({ pendingAddOperatorNow: true })
     }
+  }
+
+  async doOldDeviceApproveOperator () {
+    const smsCode = prompt('Enter code received by SMS')
+    if (!smsCode) {
+      return
+    }
+
+    const { newOperatorAddress, title } = await wallet.validateAddOperatorNow({ jwt: this.state.jwt, smsCode })
+    if (!window.confirm('Add as new operator:\nDevice:' + title + '\naddr:' + newOperatorAddress)) {
+      return
+    }
+    await wallet.addOperatorNow(newOperatorAddress)
   }
 
   async doCancelPending (delayedOpId) {
@@ -492,7 +506,8 @@ class App extends React.Component {
           initMgr={() => this.initMgr()}
           doTransfer={params => this.doTransfer(params)}
           doCancelPending={params => this.doCancelPending(params)}
-          doAddNewOperator={() => this.doAddNewOperator()}
+          doNewDeviceAddOperator={() => this.doNewDeviceAddOperator()}
+          doOldDeviceApproveOperator={() => this.asyncHandler(this.doOldDeviceApproveOperator())}
           refresh={(extra) => this.reloadState(extra)} {...this.state} />
 
       </div>

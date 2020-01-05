@@ -67,7 +67,8 @@ export default class AccountProxy extends EventEmitter {
       const docall = () => {
         let timeoutId
         // user may take some time to complete login..
-        if (method !== 'googleLogin') {
+        // TODO: googleAuthenticate sometimes takes long time to refresh
+        if (method !== 'googleLogin' && method !== 'googleAuthenticate') {
           timeoutId = setTimeout(() => reject(new Error('timed-out: ' + method)), 5000)
         }
 
