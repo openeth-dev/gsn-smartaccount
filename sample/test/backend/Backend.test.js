@@ -237,17 +237,6 @@ describe('Backend', async function () {
     let smsCode
     let jwt
 
-    async function fundAddress (guardianAddress) {
-      const tx = {
-        from: accountZero,
-        value: 1e18,
-        to: guardianAddress,
-        gasPrice: 1
-      }
-      const receipt = await web3.eth.sendTransaction(tx)
-      console.log(`Funded address ${guardianAddress}, txhash ${receipt.transactionHash}\n`)
-    }
-
     before(async function () {
       jwt = generateMockJwt({ email, nonce: newOperatorAddress })
       const accountId = await backend.getSmartAccountId({ email })
@@ -277,7 +266,12 @@ describe('Backend', async function () {
       config.initialDelays = [0, 0]
       config.requiredApprovalsPerLevel = [0, 0]
       await wallet.initialConfiguration(config)
-      await fundAddress(keypair.address)
+      await web3.eth.sendTransaction({
+        from: accountZero,
+        value: 1e18,
+        to: keypair.address,
+        gasPrice: 1
+      })
     })
 
     it('should handle signInAsNewOperator request and receive sms message', async function () {
