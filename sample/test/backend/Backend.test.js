@@ -12,7 +12,7 @@ import { Watchdog } from '../../src/js/backend/Guardian'
 import Web3 from 'web3'
 import * as FactoryContractInteractor from 'safechannels-contracts/src/js/FactoryContractInteractor'
 import SimpleWallet from '../../src/js/impl/SimpleWallet'
-
+import abiDecoder from 'abi-decoder'
 import Permissions from 'safechannels-contracts/src/js/Permissions'
 import Participant from 'safechannels-contracts/src/js/Participant'
 
@@ -289,7 +289,9 @@ describe('Backend', async function () {
 
     // TODO: make this test readable as well
     it('should handle validateRecoverWallet and schedule operation on chain', async function () {
-      const { log } = await backend.validateRecoverWallet({ jwt, smsCode })
+      const ret = await backend.validateRecoverWallet({ jwt, smsCode })
+      const receipt = await web3.eth.getTransactionReceipt(ret.transactionHash)
+      const log = abiDecoder.decodeLogs(receipt.logs)[0]
       assert.equal(log.name, 'ConfigPending')
       assert.equal(log.events[7].value.length, 1)
       assert.equal(log.events[7].value[0].replace(/0{24}/, ''), newOperatorAddress)

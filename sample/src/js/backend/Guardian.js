@@ -7,11 +7,8 @@ import SmartAccountFactoryABI from 'safechannels-contracts/src/js/generated/Smar
 import SmartAccountABI from 'safechannels-contracts/src/js/generated/SmartAccount'
 import { ChangeType } from '../etc/ChangeType'
 
-// const Action = {
-//   CANCEL: 1,
-//   APPLY: 2,
-//   APPROVE: 3
-// }
+abiDecoder.addABI(SmartAccountFactoryABI)
+abiDecoder.addABI(SmartAccountABI)
 
 export class Watchdog {
   constructor ({ smsManager, keyManager, accountManager, smartAccountFactoryAddress, sponsorAddress, web3provider }) {
@@ -25,8 +22,6 @@ export class Watchdog {
       web3: new Web3(web3provider),
       secretSMSCodeSeed: crypto.randomBytes(32)
     })
-    abiDecoder.addABI(SmartAccountFactoryABI)
-    abiDecoder.addABI(SmartAccountABI)
     this.permsLevel = scutils.packPermissionLevel(Permissions.WatchdogPermissions, 1)
     this.address = keyManager.address()
     this.smartAccountContract = new this.web3.eth.Contract(SmartAccountABI, '')
@@ -319,7 +314,7 @@ export class Watchdog {
       newOperatorAddress,
       stateId)
 
-    const txReceipt = await this._sendTransaction(method, account.address)
-    return abiDecoder.decodeLogs(txReceipt.logs)
+    const receipt = await this._sendTransaction(method, account.address)
+    return { transactionHash: receipt.transactionHash }
   }
 }
