@@ -5,13 +5,14 @@ const gauth = require('google-auth-library')
 const abi = require('ethereumjs-abi')
 
 export class Backend {
-  constructor ({ smsManager, audience, keyManager, accountManager }) {
+  constructor ({ smsManager, audience, keyManager, accountManager, guardian }) {
     Object.assign(this, {
       smsManager,
       audience,
       gclient: new gauth.OAuth2Client(audience),
       keyManager,
-      accountManager
+      accountManager,
+      guardian
     })
     this.unverifiedNewOperators = {}
   }
@@ -57,22 +58,43 @@ export class Backend {
     const smsCode = this.smsManager.getSmsCode({ phoneNumber: account.phone, email })
     await this.smsManager.sendSMS(
       { phoneNumber: account.phone, message: `To sign-in new device as operator, enter code: ${smsCode}` })
+    // TODO: alexf: I'd like there to be some protocol in place about expected return values.
+    //  It is not enough to get a '{}' in JSON-RPC, I want an actual message telling me what happend
+    //  HTTP 200-OK is great example
+    return { code: 200 }
   }
 
-  async validateAddOperatorNow ({ jwt, smsCode }) {
+  async validateRecoverWallet ({ jwt, smsCode }) {
+    const { accountId, newOperatorAddress } = await this._validateAddOperatorNow({ jwt, smsCode })
+    // TODO: schedule add operator config change
+    const scheduleAddOperator = await this.guardian.scheduleAddOperator({ accountId, newOperatorAddress })
+    return { log: scheduleAddOperator[0], code: 200 }
+  }
+
+  async _validateAddOperatorNow ({ jwt, smsCode }) {
     const email = (await this._getTicketFromJWT(jwt)).getPayload().email
-    const smartAccountId = await this.getSmartAccountId({ email })
-    const account = this.accountManager.getAccountById({ accountId: smartAccountId })
+    const accountId = await this.getSmartAccountId({ email })
+    const account = this.accountManager.getAccountById({ accountId })
     if (email !== account.email) {
       throw new Error(`Invalid email. from jwt: ${email} from account: ${account.email}`)
     }
     if (this.smsManager.getSmsCode({ phoneNumber: account.phone, email, expectedSmsCode: smsCode }) !== smsCode) {
       throw new Error(`Invalid sms code: ${smsCode}`)
     }
-    const { newOperatorAddress, title } = this.unverifiedNewOperators[smartAccountId]
-    this.accountManager.putOperatorToAdd({ accountId: smartAccountId, address: newOperatorAddress })
-    delete this.unverifiedNewOperators[smartAccountId]
+    const { newOperatorAddress, title } = this.unverifiedNewOperators[accountId]
+    return { accountId, newOperatorAddress, title }
+  }
+
+  async validateAddOperatorNow ({ jwt, smsCode }) {
+    const { accountId, newOperatorAddress, title } = await this._validateAddOperatorNow({ jwt, smsCode })
+    this.accountManager.putOperatorToAdd({ accountId, address: newOperatorAddress })
+    delete this.unverifiedNewOperators[accountId]
     return { newOperatorAddress, title }
+  }
+
+  async recoverWallet ({ jwt, title }) {
+    // TODO: there should be a difference here
+    return this.signInAsNewOperator({ jwt, title })
   }
 
   /**

@@ -1,6 +1,5 @@
 import Web3 from 'web3'
 import crypto from 'crypto'
-// import FactoryContractInteractor from 'safechannels-contracts/src/js/FactoryContractInteractor'
 import Permissions from 'safechannels-contracts/src/js/Permissions'
 import scutils from 'safechannels-contracts/src/js/SafeChannelUtils'
 import abiDecoder from 'abi-decoder'
@@ -201,7 +200,7 @@ export class Watchdog {
       return new Error('Unsupported event' + change.log.name)
     }
     try {
-      const receipt = await this._sendTransaction(method, change)
+      const receipt = await this._sendTransaction(method, change.log.address)
       delete this.changesToApply[delayedOpId]
       return receipt
     } catch (e) {
@@ -259,14 +258,14 @@ export class Watchdog {
     )
   }
 
-  async _sendTransaction (method, change) {
+  async _sendTransaction (method, destination) {
     const encodedCall = method.encodeABI()
     let gasPrice = await this.web3.eth.getGasPrice()
     gasPrice = parseInt(gasPrice)
     const gas = await method.estimateGas({ from: this.keyManager.address() })
     const nonce = await this.web3.eth.getTransactionCount(this.keyManager.address())
     const txToSign = {
-      to: change.log.address,
+      to: destination,
       value: 0,
       gasPrice: gasPrice || 1e9,
       gas: gas,
@@ -302,5 +301,25 @@ export class Watchdog {
       factory: this.smartAccountFactoryAddress,
       sponsor: this.sponsorAddress
     }
+  }
+
+  async scheduleAddOperator ({ accountId, newOperatorAddress }) {
+    const account = this.accountManager.getAccountById({ accountId })
+    if (!account) {
+      throw Error('Account not found')
+    }
+    if (!account.address) {
+      throw Error('Account address is notset yet')
+    }
+    this.smartAccountContract.options.address = account.address
+    const stateId = await this.smartAccountContract.methods.stateNonce().call()
+    const method = this.smartAccountContract.methods.scheduleAddOperator(
+      // TODO: use permission selection logic!!!
+      scutils.packPermissionLevel(Permissions.AdminPermissions, 1),
+      newOperatorAddress,
+      stateId)
+
+    const txReceipt = await this._sendTransaction(method, account.address)
+    return abiDecoder.decodeLogs(txReceipt.logs)
   }
 }

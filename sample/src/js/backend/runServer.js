@@ -24,13 +24,6 @@ const keypair = KeyManager.newKeypair()
 const keyManager = new KeyManager({ ecdsaKeyPair: keypair })
 const accountManager = new AccountManager()
 const web3provider = new Web3.providers.WebsocketProvider(ethNodeUrl)
-const backend = new Backend(
-  {
-    smsManager,
-    audience: '202746986880-u17rbgo95h7ja4fghikietupjknd1bln.apps.googleusercontent.com',
-    keyManager,
-    accountManager
-  })
 const watchdog = new Watchdog({
   smsManager,
   keyManager,
@@ -39,6 +32,14 @@ const watchdog = new Watchdog({
   sponsorAddress: sponsorAddress,
   web3provider: web3provider
 })
+const backend = new Backend(
+  {
+    smsManager,
+    audience: '202746986880-u17rbgo95h7ja4fghikietupjknd1bln.apps.googleusercontent.com',
+    keyManager,
+    accountManager,
+    guardian: watchdog
+  })
 const admin = undefined // TODO
 
 // update Date.now() on every ETH-block timestamp.

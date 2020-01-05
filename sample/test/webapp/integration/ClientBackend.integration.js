@@ -2,11 +2,16 @@
 /* global describe before after */
 
 import { testValidationBehavior } from '../behavior/SimpleWallet.behavior'
-import { testCancelByUrlBehavior, testCreateWalletBehavior } from '../behavior/SimpleManager.behavior'
+import {
+  testCancelByUrlBehavior,
+  testCreateWalletBehavior,
+  testRecoverWalletBehavior
+} from '../behavior/SimpleManager.behavior'
 import TestEnvironment from '../../utils/TestEnvironment'
 import { Backend } from '../../../src/js/backend/Backend'
 import SMSmock from '../../../src/js/mocks/SMS.mock'
 import { SmsManager } from '../../../src/js/backend/SmsManager'
+import { generateMockJwt } from '../../backend/testutils'
 
 const jwt = require('../../backend/testJwt').jwt
 const phoneNumber = '+1-541-754-3010'
@@ -62,6 +67,20 @@ describe('Client <-> Backend <-> Blockchain', async function () {
       after('stop backend', async () => {
         await TestEnvironment.stopBackendServer()
       })
+    })
+
+    describe('#recoverWallet()', async function () {
+      let testContext
+      const newOperatorAddress = '0x' + '7'.repeat(40)
+      before(async function () {
+        testContext = await newTest()
+        const email = await testContext.manager.getEmail()
+        testContext.jwt = generateMockJwt({ email, nonce: newOperatorAddress })
+        testContext.smsCode = calculateSmsCode()
+        testContext.newOperatorAddress = newOperatorAddress
+      })
+
+      testRecoverWalletBehavior(() => testContext)
     })
   })
 

@@ -46,6 +46,8 @@ export default class Webserver {
         res = await func.apply(this.watchdog, [req.body.params]) || {}
       } else if ((func = this.admin[req.body.method])) {
         res = await func.apply(this.admin, [req.body.params]) || {}
+      } else {
+        throw Error(`Implementation of method ${req.body.params} not found on backend!`)
       }
 
       status = jsonrpc.success(req.body.id, res)
