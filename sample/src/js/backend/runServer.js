@@ -13,7 +13,7 @@ import { hookBackend } from '../../../test/backend/testutils'
 import { SmsManager } from './SmsManager'
 import { AccountManager } from './AccountManager'
 import crypto from 'crypto'
-import { Watchdog } from './Guardian'
+import { Watchdog, Admin } from './Guardian'
 import Web3 from 'web3'
 
 function error (err) { throw new Error(err) }
@@ -40,13 +40,6 @@ const keypair = KeyManager.newKeypair()
 const keyManager = new KeyManager({ ecdsaKeyPair: keypair })
 const accountManager = new AccountManager()
 const web3provider = new Web3.providers.WebsocketProvider(ethNodeUrl)
-const backend = new Backend(
-  {
-    smsManager,
-    audience: '202746986880-u17rbgo95h7ja4fghikietupjknd1bln.apps.googleusercontent.com',
-    keyManager,
-    accountManager
-  })
 const watchdog = new Watchdog({
   smsManager,
   keyManager,
@@ -55,7 +48,22 @@ const watchdog = new Watchdog({
   sponsorAddress: sponsorAddress,
   web3provider: web3provider
 })
-const admin = undefined // TODO
+const admin = new Admin({
+  smsManager,
+  keyManager,
+  accountManager,
+  smartAccountFactoryAddress: factoryAddress,
+  sponsorAddress: sponsorAddress,
+  web3provider: web3provider
+})
+const backend = new Backend(
+  {
+    smsManager,
+    audience: '202746986880-u17rbgo95h7ja4fghikietupjknd1bln.apps.googleusercontent.com',
+    keyManager,
+    accountManager,
+    admin: admin
+  })
 
 // update Date.now() on every ETH-block timestamp.
 function hookNodeTime () {

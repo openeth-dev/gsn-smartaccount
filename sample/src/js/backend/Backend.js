@@ -5,13 +5,14 @@ const gauth = require('google-auth-library')
 const abi = require('ethereumjs-abi')
 
 export class Backend {
-  constructor ({ smsManager, audience, keyManager, accountManager }) {
+  constructor ({ smsManager, audience, keyManager, accountManager, admin }) {
     Object.assign(this, {
       smsManager,
       audience,
       gclient: new gauth.OAuth2Client(audience),
       keyManager,
-      accountManager
+      accountManager,
+      admin
     })
     this.unverifiedNewOperators = {}
   }
@@ -59,20 +60,39 @@ export class Backend {
       { phoneNumber: account.phone, message: `To sign-in new device as operator, enter code: ${smsCode}` })
   }
 
-  async validateAddOperatorNow ({ jwt, smsCode }) {
+  async _authenticateClient ({ jwt, smsCode }) {
     const email = (await this._getTicketFromJWT(jwt)).getPayload().email
-    const smartAccountId = await this.getSmartAccountId({ email })
-    const account = this.accountManager.getAccountById({ accountId: smartAccountId })
+    const accountId = await this.getSmartAccountId({ email })
+    const account = this.accountManager.getAccountById({ accountId })
     if (email !== account.email) {
       throw new Error(`Invalid email. from jwt: ${email} from account: ${account.email}`)
     }
     if (this.smsManager.getSmsCode({ phoneNumber: account.phone, email, expectedSmsCode: smsCode }) !== smsCode) {
       throw new Error(`Invalid sms code: ${smsCode}`)
     }
-    const { newOperatorAddress, title } = this.unverifiedNewOperators[smartAccountId]
-    this.accountManager.putOperatorToAdd({ accountId: smartAccountId, address: newOperatorAddress })
-    delete this.unverifiedNewOperators[smartAccountId]
+    if (!this.unverifiedNewOperators[accountId]) {
+      throw new Error('New operator to add not found')
+    }
+    const { newOperatorAddress, title } = this.unverifiedNewOperators[accountId]
+    return { accountId, newOperatorAddress, title }
+  }
+
+  async validateAddOperatorNow ({ jwt, smsCode }) {
+    const { accountId, newOperatorAddress, title } = await this._authenticateClient({ jwt, smsCode })
+    this.accountManager.putOperatorToAdd({ accountId, address: newOperatorAddress })
+    delete this.unverifiedNewOperators[accountId]
     return { newOperatorAddress, title }
+  }
+
+  async validateRecoverWallet ({ jwt, smsCode }) {
+    const { accountId, newOperatorAddress } = await this._authenticateClient({ jwt, smsCode })
+    const txhash = this.admin.scheduleAddOperator({ accountId, newOperatorAddress })
+    delete this.unverifiedNewOperators[accountId]
+    return txhash
+  }
+
+  async recoverWallet ({ jwt, title }) {
+    await this.signInAsNewOperator({ jwt, title })
   }
 
   /**

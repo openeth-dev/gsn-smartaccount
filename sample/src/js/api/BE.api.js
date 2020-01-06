@@ -38,7 +38,7 @@ export default class BEapi {
     error('send cancel request to watchdog as a response to sms')
   }
 
-  async recoverWallet ({ jwt }) {
+  async recoverWallet ({ jwt, title }) {
     error('validate jwt (contains address in nonce), return "click to add" SMS\n' +
       'the difference with signInAsNewOperator is only the method called by backend - applyAdd vs configChange')
   }

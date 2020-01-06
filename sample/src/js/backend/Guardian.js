@@ -1,6 +1,5 @@
 import Web3 from 'web3'
 import crypto from 'crypto'
-// import FactoryContractInteractor from 'safechannels-contracts/src/js/FactoryContractInteractor'
 import Permissions from 'safechannels-contracts/src/js/Permissions'
 import scutils from 'safechannels-contracts/src/js/SafeChannelUtils'
 import abiDecoder from 'abi-decoder'
@@ -8,13 +7,10 @@ import SmartAccountFactoryABI from 'safechannels-contracts/src/js/generated/Smar
 import SmartAccountABI from 'safechannels-contracts/src/js/generated/SmartAccount'
 import { ChangeType } from '../etc/ChangeType'
 
-// const Action = {
-//   CANCEL: 1,
-//   APPLY: 2,
-//   APPROVE: 3
-// }
+abiDecoder.addABI(SmartAccountFactoryABI)
+abiDecoder.addABI(SmartAccountABI)
 
-export class Watchdog {
+class Guardian {
   constructor ({ smsManager, keyManager, accountManager, smartAccountFactoryAddress, sponsorAddress, web3provider }) {
     Object.assign(this, {
       smsManager,
@@ -26,12 +22,36 @@ export class Watchdog {
       web3: new Web3(web3provider),
       secretSMSCodeSeed: crypto.randomBytes(32)
     })
-    abiDecoder.addABI(SmartAccountFactoryABI)
-    abiDecoder.addABI(SmartAccountABI)
-    this.permsLevel = scutils.packPermissionLevel(Permissions.WatchdogPermissions, 1)
     this.address = keyManager.address()
     this.smartAccountContract = new this.web3.eth.Contract(SmartAccountABI, '')
     this.smartAccountFactoryContract = new this.web3.eth.Contract(SmartAccountFactoryABI, smartAccountFactoryAddress)
+  }
+
+  async _sendTransaction (method, destination) {
+    const encodedCall = method.encodeABI()
+    let gasPrice = await this.web3.eth.getGasPrice()
+    gasPrice = parseInt(gasPrice)
+    const gas = await method.estimateGas({ from: this.keyManager.address() })
+    const nonce = await this.web3.eth.getTransactionCount(this.keyManager.address())
+    const txToSign = {
+      to: destination,
+      value: 0,
+      gasPrice: gasPrice || 1e9,
+      gas: gas,
+      data: encodedCall ? Buffer.from(encodedCall.slice(2), 'hex') : Buffer.alloc(0),
+      nonce
+    }
+    const signedTx = this.keyManager.signTransaction(txToSign)
+    const receipt = await this.web3.eth.sendSignedTransaction(signedTx)
+    console.log('\ntxhash is', receipt.transactionHash)
+    return receipt
+  }
+}
+
+export class Watchdog extends Guardian {
+  constructor ({ smsManager, keyManager, accountManager, smartAccountFactoryAddress, sponsorAddress, web3provider }) {
+    super({ smsManager, keyManager, accountManager, smartAccountFactoryAddress, sponsorAddress, web3provider })
+    this.permsLevel = scutils.packPermissionLevel(Permissions.WatchdogPermissions, 1)
     const smartAccountTopics = Object.keys(this.smartAccountContract.events).filter(x => (x.includes('0x')))
     const smartAccountFactoryTopics = Object.keys(this.smartAccountFactoryContract.events).filter(
       x => (x.includes('0x')))
@@ -201,7 +221,7 @@ export class Watchdog {
       return new Error('Unsupported event' + change.log.name)
     }
     try {
-      const receipt = await this._sendTransaction(method, change)
+      const receipt = await this._sendTransaction(method, change.log.address)
       delete this.changesToApply[delayedOpId]
       return receipt
     } catch (e) {
@@ -259,26 +279,6 @@ export class Watchdog {
     )
   }
 
-  async _sendTransaction (method, change) {
-    const encodedCall = method.encodeABI()
-    let gasPrice = await this.web3.eth.getGasPrice()
-    gasPrice = parseInt(gasPrice)
-    const gas = await method.estimateGas({ from: this.keyManager.address() })
-    const nonce = await this.web3.eth.getTransactionCount(this.keyManager.address())
-    const txToSign = {
-      to: change.log.address,
-      value: 0,
-      gasPrice: gasPrice || 1e9,
-      gas: gas,
-      data: encodedCall ? Buffer.from(encodedCall.slice(2), 'hex') : Buffer.alloc(0),
-      nonce
-    }
-    const signedTx = this.keyManager.signTransaction(txToSign)
-    const receipt = await this.web3.eth.sendSignedTransaction(signedTx)
-    console.log('\ntxhash is', receipt.transactionHash)
-    return receipt
-  }
-
   _parseEvent (event) {
     if (!event || !event.events) {
       return 'not event: ' + event
@@ -302,5 +302,32 @@ export class Watchdog {
       factory: this.smartAccountFactoryAddress,
       sponsor: this.sponsorAddress
     }
+  }
+}
+
+export class Admin extends Guardian {
+  constructor ({ smsManager, keyManager, accountManager, smartAccountFactoryAddress, sponsorAddress, web3provider }) {
+    super({ smsManager, keyManager, accountManager, smartAccountFactoryAddress, sponsorAddress, web3provider })
+    this.permsLevel = scutils.packPermissionLevel(Permissions.AdminPermissions, 1)
+  }
+
+  async scheduleAddOperator ({ accountId, newOperatorAddress }) {
+    const account = this.accountManager.getAccountById({ accountId })
+    if (!account) {
+      throw Error('Account not found')
+    }
+    if (!account.address) {
+      throw Error('Account address is notset yet')
+    }
+    this.smartAccountContract.options.address = account.address
+    const stateId = await this.smartAccountContract.methods.stateNonce().call()
+    const method = this.smartAccountContract.methods.scheduleAddOperator(
+      // TODO: use permission selection logic!!!
+      this.permsLevel,
+      newOperatorAddress,
+      stateId)
+
+    const receipt = await this._sendTransaction(method, account.address)
+    return { transactionHash: receipt.transactionHash }
   }
 }

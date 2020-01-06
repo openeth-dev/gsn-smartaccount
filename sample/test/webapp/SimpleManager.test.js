@@ -158,6 +158,7 @@ describe('SimpleManager', async function () {
   })
 
   describe('#recoverWallet()', async function () {
+    const newOperator = '0x' + '3'.repeat(40)
     let testContext
 
     before(async function () {
@@ -167,8 +168,10 @@ describe('SimpleManager', async function () {
         },
         validateRecoverWallet: async function () {
           await testContext.wallet.getWalletInfo() // Needed for stateId
-          await testContext.wallet.scheduleAddOperator({ newOperator: '0x' + '3'.repeat(40) })
-          return { code: 200 }
+          await testContext.wallet.scheduleAddOperator({ newOperator })
+          return {
+            transactionHash: '0xdeadface'
+          }
         },
         ...BaseBackendMock
       }
@@ -179,6 +182,7 @@ describe('SimpleManager', async function () {
       await testContext.manager.googleLogin()
       testContext.smsCode = '1234'
       testContext.jwt = {}
+      testContext.newOperatorAddress = newOperator
     })
 
     testRecoverWalletBehavior(() => testContext)
