@@ -35,7 +35,8 @@ contract('GSN and Sponsor integration', async function (accounts) {
   before(async function () {
     hub = await RelayHub.new()
     gsnForwarder = await MockGsnForwarder.new(hub.address)
-    gatekeeper = await Gatekeeper.new(gsnForwarder.address, accounts[0], { gas: 8e6 })
+    gatekeeper = await Gatekeeper.new({ gas: 8e6 })
+    await gatekeeper.ctr2(gsnForwarder.address, accounts[0])
     web3 = new Web3(gatekeeper.contract.currentProvider)
     ownerPermissions = utils.bufferToHex(await gatekeeper.ownerPermissions())
     operatorA = new Participant(accounts[0], ownerPermissions, 1, 'operatorA')

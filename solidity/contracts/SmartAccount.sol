@@ -92,12 +92,14 @@ contract SmartAccount is PermissionsLevel, GsnRecipient {
 
     address public creator;
 
-    constructor(address _forwarder, address _creator) public {
+    //constructor-method.must be called immediately after construction
+    // (or after proxy creation)
+    function ctr2(address _forwarder, address _creator) public {
+        require(creator==address(0), "ctr2: can only be called once");
         setGsnForwarder(_forwarder);
         deployedBlock = block.number;
         creator = _creator;
     }
-
 
     // ********** Access control modifiers below this point
 
