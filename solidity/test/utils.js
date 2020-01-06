@@ -109,5 +109,13 @@ module.exports = {
         else resolve(r)
       })
     })
+  },
+
+  getBalance: async function (web3, token, address) {
+    if (!token) {
+      return web3.eth.getBalance(address)
+    } else {
+      return token.balanceOf(address)
+    }
   }
 }

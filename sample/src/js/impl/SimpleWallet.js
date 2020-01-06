@@ -1,3 +1,4 @@
+import abiDecoder from 'abi-decoder'
 import asyncForEach from 'async-await-foreach'
 import Web3 from 'web3'
 
@@ -34,18 +35,29 @@ export default class SimpleWallet extends SimpleWalletApi {
    *
    * @param contract - TruffleContract instance of the Gatekeeper
    * @param participant - the participant to be used as the 'from' of all operations
+   * @param backend - implementation of {@link ClientBackend}
+   * @param whitelistFactory - instance ow Truffle Contract for whitelist deployment
    * @param knownParticipants - all other possible participants known to the wallet. Not necessarily activated on vault.
    *        Note: participants should be of 'Participant' class!
    * @param knownTokens - tokens currently supported.
    */
-  constructor ({ contract, participant, backend, knownParticipants = [], knownTokens = [] }) {
+  constructor ({
+    contract,
+    participant,
+    backend,
+    whitelistFactory,
+    knownParticipants = [],
+    knownTokens = []
+  }) {
     super()
     nonNull({ contract, participant })
     this.contract = contract
     this.backend = backend
     this.participant = participant
+    this.whitelistFactory = whitelistFactory
     this.knownTokens = knownTokens
     this.knownParticipants = [...knownParticipants, participant]
+    abiDecoder.addABI(FactoryContractInteractor.getErc20ABI())
     // TODO: make sure no duplicates
   }
 
@@ -70,7 +82,9 @@ export default class SimpleWallet extends SimpleWalletApi {
     let destinationAddress
     let ethAmount
     let encodedTransaction
+    let whitelisted = false
     if (token === 'ETH') {
+      whitelisted = await this._isBypassActivated({ target: destination, value: amount, encodedFunction: '0x' })
       destinationAddress = destination
       ethAmount = amount
       encodedTransaction = []
@@ -78,8 +92,20 @@ export default class SimpleWallet extends SimpleWalletApi {
       destinationAddress = this._getTokenAddress(token)
       ethAmount = 0
       encodedTransaction = FactoryContractInteractor.encodeErc20Call({ destination, amount, operation: 'transfer' })
+      whitelisted = await this._isBypassActivated({
+        target: destinationAddress,
+        value: ethAmount,
+        encodedFunction: encodedTransaction
+      })
     }
-    return this.contract.scheduleBypassCall(
+    let method
+    if (whitelisted) {
+      // uint32 senderPermsLevel, address target, uint256 value, bytes memory encodedFunction, uint256 targetStateNonce
+      method = this.contract.executeBypassCall
+    } else {
+      method = this.contract.scheduleBypassCall
+    }
+    return method(
       this.participant.permLevel, destinationAddress, ethAmount, encodedTransaction, this.stateId,
       {
         from: this.participant.address,
@@ -331,9 +357,9 @@ export default class SimpleWallet extends SimpleWalletApi {
       })
       .map(
         (it) => {
-          const isEtherValuePassed = it.value !== 0
-          const isDataPassed = it.args.data !== undefined && it.args.data.length > 0
-          const isErc20Method = isDataPassed && erc20Methods.includes(it.args.data.substr(0, 10))
+          const isEtherValuePassed = it.args.value.toString() !== '0'
+          const isDataPassed = it.args.msgdata && it.args.msgdata.length > 0
+          const isErc20Method = isDataPassed && erc20Methods.includes(it.args.msgdata.substr(0, 10))
           // TODO: get all data from events, save roundtrips here
           const common = {
             txHash: it.transactionHash,
@@ -363,7 +389,7 @@ export default class SimpleWallet extends SimpleWalletApi {
               ...common,
               value: it.args.value,
               destination: it.args.target,
-              data: it.args.data
+              data: it.args.msgdata
             })
           }
         }
@@ -415,26 +441,40 @@ export default class SimpleWallet extends SimpleWalletApi {
     return []
   }
 
-  static getDefaultSampleInitialConfiguration ({ backendAddress, operatorAddress, whitelistModuleAddress }) {
+  static getDefaultSampleInitialConfiguration ({ backendAddress, operatorAddress, whitelistModuleAddress, whitelistedEthDestinations = [] }) {
     const backendAsWatchdog = '0x' +
       SafeChannelUtils.participantHashUnpacked(backendAddress, Permissions.WatchdogPermissions, 1).toString('hex')
     const backendAsAdmin = '0x' +
       SafeChannelUtils.participantHashUnpacked(backendAddress, Permissions.AdminPermissions, 1).toString('hex')
     const operator = '0x' +
       SafeChannelUtils.participantHashUnpacked(operatorAddress, Permissions.OwnerPermissions, 1).toString('hex')
+    const bypassModules = []
+    // This looks dumb, but I need the same module for each destination and each erc20 method
+    for (let i = 0; i < whitelistedEthDestinations.length + 2; i++) {
+      bypassModules.push(whitelistModuleAddress)
+    }
     return {
       initialParticipants: [operator, backendAsWatchdog, backendAsAdmin],
       initialDelays: [86400, 172800],
       allowAcceleratedCalls: true,
       allowAddOperatorNow: true,
       requiredApprovalsPerLevel: [1, 0],
-      bypassTargets: [],
+      bypassTargets: whitelistedEthDestinations,
       bypassMethods: ['0xa9059cbb', '0x095ea7b3'],
-      bypassModules: [whitelistModuleAddress, whitelistModuleAddress]
+      bypassModules
     }
   }
 
-  _parseErc20Transaction () {
+  _parseErc20Transaction ({ target, data }) {
+    const token = this.knownTokens.find(it => it.address === target)
+    const symbol = token ? token.name : 'N/A'
+    const dec = abiDecoder.decodeMethod(data)
+    return {
+      operation: dec.name,
+      tokenSymbol: symbol,
+      value: dec.params[1].value,
+      destination: dec.params[0].value
+    }
   }
 
   // _parseErc20Transaction ({ target, data }) {
@@ -442,7 +482,7 @@ export default class SimpleWallet extends SimpleWalletApi {
   // }
 
   _getTokenAddress (token) {
-    return undefined
+    return this.knownTokens.find(it => it.name === token).address
   }
 
   async addOperatorNow (newOperator) {
@@ -511,5 +551,17 @@ export default class SimpleWallet extends SimpleWalletApi {
         gas: 1e8
       }
     )
+  }
+
+  async deployWhitelistModule ({ whitelistPreconfigured }) {
+    return this.whitelistFactory.newWhitelist(this.contract.address, whitelistPreconfigured,
+      {
+        from: this.participant.address
+      })
+  }
+
+  async _isBypassActivated ({ target, value, encodedFunction }) {
+    const policy = await this.contract.getBypassPolicy(target, value, encodedFunction)
+    return policy[0].toString() === '0' && policy[1].toString() === '0'
   }
 }

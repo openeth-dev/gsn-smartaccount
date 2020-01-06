@@ -614,11 +614,12 @@ contract SmartAccount is PermissionsLevel, GsnRecipient {
         stateNonce++;
     }
 
-    function executeBypassCall(uint32 senderPermsLevel, address target, uint256 value, bytes memory encodedFunction) public {
+    function executeBypassCall(uint32 senderPermsLevel, address target, uint256 value, bytes memory encodedFunction, uint256 targetStateNonce) public {
         address sender = getSender();
         requirePermissions(sender, canExecuteBypassCall, senderPermsLevel);
         requireNotFrozen(senderPermsLevel);
         require(allowAcceleratedCalls, "Accelerated calls blocked");
+        requireCorrectState(targetStateNonce);
 
         (uint256 delay, uint256 requiredApprovals,) = getBypassPolicy(target, value, encodedFunction);
         require(delay == 0 && requiredApprovals == 0, "Call cannot be executed immediately");
