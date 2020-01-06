@@ -88,7 +88,7 @@ export default class SimpleWallet extends SimpleWalletApi {
     let encodedTransaction
     let whitelisted = false
     if (token === 'ETH') {
-      whitelisted = await this._isDestinationWhitelisted({ target: destination, value: amount, encodedFunction: '0x' })
+      whitelisted = await this._isBypassActivated({ target: destination, value: amount, encodedFunction: '0x' })
       destinationAddress = destination
       ethAmount = amount
       encodedTransaction = []
@@ -96,7 +96,7 @@ export default class SimpleWallet extends SimpleWalletApi {
       destinationAddress = this._getTokenAddress(token)
       ethAmount = 0
       encodedTransaction = FactoryContractInteractor.encodeErc20Call({ destination, amount, operation: 'transfer' })
-      whitelisted = await this._isDestinationWhitelisted({
+      whitelisted = await this._isBypassActivated({
         target: destinationAddress,
         value: ethAmount,
         encodedFunction: encodedTransaction
@@ -603,19 +603,8 @@ export default class SimpleWallet extends SimpleWalletApi {
       })
   }
 
-  async _isDestinationWhitelisted ({ target, value, encodedFunction }) {
-    let moduleAddress = await this.contract.bypassPoliciesByTarget(target)
-    if (moduleAddress === '0x0000000000000000000000000000000000000000') {
-      if (encodedFunction.length < 10) {
-        return false
-      } else {
-        const method = encodedFunction.substr(0, 10)
-        moduleAddress = await this.contract.bypassPoliciesByMethod(method)
-      }
-    }
-    const { provider } = this._getWeb3()
-    const module = await FactoryContractInteractor.whitelistAt({ address: moduleAddress, provider })
-    const policy = await module.getBypassPolicy(target, value, encodedFunction)
+  async _isBypassActivated ({ target, value, encodedFunction }) {
+    const policy = await this.contract.getBypassPolicy(target, value, encodedFunction)
     return policy[0].toString() === '0' && policy[1].toString() === '0'
   }
 }
