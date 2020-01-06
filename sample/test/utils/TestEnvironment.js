@@ -26,6 +26,7 @@ const _serverUrl = 'http://localhost:8888/'
 const _verbose = false
 
 let ls
+let whitelistFactory
 
 export default class TestEnvironment {
   constructor ({
@@ -172,8 +173,8 @@ export default class TestEnvironment {
   async deployNewFactory () {
     this.sponsor = await FactoryContractInteractor.deploySponsor(this.from, this.relayHub, this.ethNodeUrl)
     await this.sponsor.relayHubDeposit({ value: 2e18, from: this.from, gas: 1e5 })
-    const forwarderAddress = await this.sponsor.getGsnForwarder()
-    this.factory = await FactoryContractInteractor.deployNewSmartAccountFactory(this.from, this.ethNodeUrl, forwarderAddress)
+    this.forwarderAddress = await this.sponsor.getGsnForwarder()
+    this.factory = await FactoryContractInteractor.deployNewSmartAccountFactory(this.from, this.ethNodeUrl, this.forwarderAddress)
   }
 
   async deployMockHub () {
@@ -235,13 +236,25 @@ export default class TestEnvironment {
     })
   }
 
-  async createWallet ({ jwt, phoneNumber, smsVerificationCode }) {
+  async deployWhitelistFactory () {
+    if (!whitelistFactory) {
+      whitelistFactory =
+        await FactoryContractInteractor.deployNewWhitelistFactory(this.from, this.ethNodeUrl, this.forwarderAddress)
+    }
+    return whitelistFactory
+  }
+
+  async createWallet ({ jwt, phoneNumber, smsVerificationCode, whitelist }) {
+    const module = '0x0000000000000000000000000000000000000000'
+    if (whitelist && whitelist.length) {
+      await this.deployWhitelistFactory()
+    }
     this.wallet = await this.manager.createWallet({ jwt, phoneNumber, smsVerificationCode })
     const owner = await this.manager.getOwner()
     const config = SimpleWallet.getDefaultSampleInitialConfiguration({
       backendAddress: this.backendAddresses.watchdog,
       operatorAddress: owner,
-      whitelistModuleAddress: this.from
+      whitelistModuleAddress: module
     })
     await this.wallet.initialConfiguration(config)
     await TestUtils.evmMine(this.web3)

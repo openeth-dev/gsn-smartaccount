@@ -354,11 +354,12 @@ contract('SmartAccount', async function (accounts) {
     // });
 
     it('should disable accelerated calls', async function () {
+      let stateId = await smartAccount.stateNonce()
       await expect(
-        smartAccount.executeBypassCall(operatorA.permLevel, destinationAddress, amount, [])
+        smartAccount.executeBypassCall(operatorA.permLevel, destinationAddress, amount, [], stateId)
       ).to.be.revertedWith('Call cannot be executed immediately')
       assert.equal(true, await smartAccount.allowAcceleratedCalls())
-      const stateId = await smartAccount.stateNonce()
+      stateId = await smartAccount.stateNonce()
       const actions = [ChangeType.SET_ACCELERATED_CALLS]
       // bool to bytes32 basically...
       const args = [Buffer.from('0'.repeat(64), 'hex')]
@@ -374,14 +375,15 @@ contract('SmartAccount', async function (accounts) {
     })
 
     it('should revert accelerated calls when disabled', async function () {
+      const stateId = await smartAccount.stateNonce()
       await expect(
-        smartAccount.executeBypassCall(operatorA.permLevel, destinationAddress, amount, [])
+        smartAccount.executeBypassCall(operatorA.permLevel, destinationAddress, amount, [], stateId)
       ).to.be.revertedWith('Accelerated calls blocked')
     })
 
     it('should re-enable accelerated calls', async function () {
       assert.equal(false, await smartAccount.allowAcceleratedCalls())
-      const stateId = await smartAccount.stateNonce()
+      let stateId = await smartAccount.stateNonce()
       const actions = [ChangeType.SET_ACCELERATED_CALLS]
       // bool to bytes32 basically...
       const args = [Buffer.from('1'.repeat(64), 'hex')]
@@ -394,8 +396,9 @@ contract('SmartAccount', async function (accounts) {
       await testUtils.increaseTime(timeGap, web3)
       applyDelayed({ res }, operatorA, smartAccount)
       assert.equal(true, await smartAccount.allowAcceleratedCalls())
+      stateId = await smartAccount.stateNonce()
       await expect(
-        smartAccount.executeBypassCall(operatorA.permLevel, destinationAddress, amount, [])
+        smartAccount.executeBypassCall(operatorA.permLevel, destinationAddress, amount, [], stateId)
       ).to.be.revertedWith('Call cannot be executed immediately')
     })
   })
@@ -572,10 +575,11 @@ contract('SmartAccount', async function (accounts) {
 
     it('should use default level settings if no module configured', async function () {
       const calldata = erc20.contract.methods.transfer(whitelistedDestination, 1000000).encodeABI()
+      let stateId = await smartAccount.stateNonce()
       await expect(
-        smartAccount.executeBypassCall(operatorA.permLevel, differentErc20.address, 0, calldata)
+        smartAccount.executeBypassCall(operatorA.permLevel, differentErc20.address, 0, calldata, stateId)
       ).to.be.revertedWith('Call cannot be executed immediately')
-      const stateId = await smartAccount.stateNonce()
+      stateId = await smartAccount.stateNonce()
       const res = await smartAccount.scheduleBypassCall(operatorA.permLevel, differentErc20.address, 0, calldata,
         stateId)
       await testUtils.increaseTime(timeGap, web3)
@@ -586,13 +590,15 @@ contract('SmartAccount', async function (accounts) {
 
     it('should bypass a call by target first', async function () {
       const calldata = erc20.contract.methods.increaseAllowance(whitelistedDestination, 1000000).encodeABI()
-      const res = await smartAccount.executeBypassCall(operatorA.permLevel, targetThatCanDoAll, 0, calldata)
+      const stateId = await smartAccount.stateNonce()
+      const res = await smartAccount.executeBypassCall(operatorA.permLevel, targetThatCanDoAll, 0, calldata, stateId)
       assert.equal(res.logs[0].event, 'Approval')
     })
 
     it('should bypass a call by method if no module-by-target is set', async function () {
       const calldata = erc20.contract.methods.approve(whitelistedDestination, 1000000).encodeABI()
-      const res = await smartAccount.executeBypassCall(operatorA.permLevel, differentErc20.address, 0, calldata)
+      const stateId = await smartAccount.stateNonce()
+      const res = await smartAccount.executeBypassCall(operatorA.permLevel, differentErc20.address, 0, calldata, stateId)
       assert.equal(res.logs[0].event, 'Approval')
     })
 
