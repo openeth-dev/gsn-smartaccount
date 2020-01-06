@@ -29,14 +29,14 @@ contract PermissionsLevel {
     uint32 constant public canSetAddOperatorNow = 1 << 14;
     uint32 constant public canAddOperatorNow = 1 << 15;
 
-    uint32 public canChangeConfig = canUnfreeze | canChangeParticipants | canAddOperator | canAddOperatorNow | canChangeBypass | canSetAcceleratedCalls | canSetAddOperatorNow/*| canChangeOwner*/ /* | canChangeDelays */;
-    uint32 public canCancel = canCancelSpend | canCancelConfigChanges | canCancelBypassCall;
+    uint32 constant public canChangeConfig = canUnfreeze | canChangeParticipants | canAddOperator | canAddOperatorNow | canChangeBypass | canSetAcceleratedCalls | canSetAddOperatorNow/*| canChangeOwner*/ /* | canChangeDelays */;
+    uint32 constant public canCancel = canCancelSpend | canCancelConfigChanges | canCancelBypassCall;
 
-    uint32 public ownerPermissions = canSpend | canCancel | canFreeze | canChangeConfig | canSignBoosts | canExecuteBypassCall;
-    uint32 public adminPermissions = /*canChangeOwner |*/ canExecuteBoosts | canAddOperator;
-    uint32 public watchdogPermissions = canCancel | canFreeze | canApprove;
+    uint32 constant public ownerPermissions = canSpend | canCancel | canFreeze | canChangeConfig | canSignBoosts | canExecuteBypassCall;
+    uint32 constant public adminPermissions = /*canChangeOwner |*/ canExecuteBoosts | canAddOperator;
+    uint32 constant public watchdogPermissions = canCancel | canFreeze | canApprove;
 
-    function comparePermissions(uint32 neededPermissions, uint32 senderPermissions) view internal {
+    function comparePermissions(uint32 neededPermissions, uint32 senderPermissions) pure internal {
         uint32 missingPermissions = neededPermissions & (senderPermissions ^ uint32(- 1));
         string memory error = Assert.concat("permissions missing: ", missingPermissions);
         require(missingPermissions == 0, error);

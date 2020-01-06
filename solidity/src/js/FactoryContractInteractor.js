@@ -50,6 +50,7 @@ class FactoryContractInteractor {
     SmartAccountFactory.setProvider(provider)
     const instance = new FactoryContractInteractor(credentials, smartAccountFactoryAddress)
     instance.smartAccountFactory = await SmartAccountFactory.at(instance.smartAccountFactoryAddress)
+    instance.smartAccountFactory.createAccountTemplate()
     return instance
   }
 
@@ -151,8 +152,9 @@ class FactoryContractInteractor {
     const { instance } = await this.deployContract(
       'generated/SmartAccount',
       'SmartAccount',
-      [utilitiesContract], [zeroAddress(), from], from, ethNodeUrl
+      [utilitiesContract], [], from, ethNodeUrl
     )
+    await instance.ctr2(zeroAddress(), from, { from })
     return instance
   }
 
@@ -165,6 +167,7 @@ class FactoryContractInteractor {
     const utilitiesContract = await this.deployUtilitiesLibrary(from, ethNodeUrl)
     const { instance: smartAccountFactory } = await this.deployContract('generated/SmartAccountFactory',
       'SmartAccountFactory', [utilitiesContract], [forwarder], from, ethNodeUrl)
+    await smartAccountFactory.createAccountTemplate({ from })
     return smartAccountFactory
   }
 

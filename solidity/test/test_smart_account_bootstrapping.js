@@ -60,6 +60,7 @@ contract('SmartAccount Bootstrapping', async function (accounts) {
       from, recipient, encodedFunctionCall, transactionFee,
       gasPrice, gasLimit, nonce, relayHub.address, relay)
     const signature = GsnUtils.getTransactionSignatureWithKey(ephemeralOperator.privateKey, hash)
+
     return relayHub.relayCall(
       from, recipient, encodedFunctionCall, transactionFee, gasPrice, gasLimit, nonce, signature, approvalData,
       {
@@ -74,7 +75,9 @@ contract('SmartAccount Bootstrapping', async function (accounts) {
     gsnSponsor = await FreeRecipientSponsor.new()
     gsnForwarder = await GsnForwarder.new(relayHub.address, gsnSponsor.address)
     await gsnSponsor.setForwarder(gsnForwarder.address)
-    smartAccountFactory = await SmartAccountFactory.new(gsnForwarder.address, { gas: 9e6, from: vfOwner })
+    smartAccountFactory = await SmartAccountFactory.new(gsnForwarder.address, { gas: 9e7, from: vfOwner })
+    await smartAccountFactory.createAccountTemplate({ from: vfOwner })
+
     whitelistFactory = await WhitelistFactory.new(gsnForwarder.address)
     ephemeralOperator = RelayClient.newEphemeralKeypair()
     await relayHub.stake(relay, 1231231, { from: accounts[2], value: 1e18 })

@@ -10,10 +10,11 @@ module.exports = async function (deployer) {
   await deployer.deploy(RelayHub)
   deployer.link(Utilities, Gatekeeper)
   const zeroAddress = '0x0000000000000000000000000000000000000000'
-  await deployer.deploy(SmartAccountFactory, zeroAddress, { gas: 9e6 })
+  await deployer.deploy(SmartAccountFactory, zeroAddress, { gas: 9e7 }).then(factory => factory.createAccountTemplate())
+
   // I think there is a bug in truffle, trying to deploy Gatekeeper first causes an error for no reason
   // console.log("Deploying Gatekeeper");
   // const gatekeeper =
-  await deployer.deploy(Gatekeeper, zeroAddress, zeroAddress, { gas: 8e6 })
+  await deployer.deploy(Gatekeeper, { gas: 8e6 })
   // console.log("Gatekeeper ", Gatekeeper.address);
 }
