@@ -79,7 +79,9 @@ describe('Client <-> Backend <-> Blockchain', async function () {
         testContext.smsCode = calculateSmsCode()
         testContext.newOperatorAddress = newOperatorAddress
       })
-
+      after('stop backend', async () => {
+        await TestEnvironment.stopBackendServer()
+      })
       testRecoverWalletBehavior(() => testContext)
     })
   })
