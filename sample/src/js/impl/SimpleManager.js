@@ -1,5 +1,6 @@
 import TruffleContract from '@truffle/contract'
 import SmartAccountFactoryABI from 'safechannels-contracts/src/js/generated/SmartAccountFactory'
+import WhitelistFactoryABI from 'safechannels-contracts/src/js/generated/BypassModules/WhitelistFactory'
 import FactoryContractInteractor from 'safechannels-contracts/src/js/FactoryContractInteractor'
 
 import SimpleWallet from './SimpleWallet'
@@ -82,7 +83,7 @@ export default class SimpleManager extends SimpleManagerApi {
   /**
    * Actual blockchain communication will be moved to the interaction layer later
    */
-  async _initializeFactory ({ factoryAddress, provider }) {
+  async _initializeFactory ({ factoryAddress, whitelistFactoryAddress, provider }) {
     if (this.smartAccountFactory) {
       return
     }
@@ -92,6 +93,15 @@ export default class SimpleManager extends SimpleManagerApi {
     })
     SmartAccountFactoryContract.setProvider(provider)
     this.smartAccountFactory = await SmartAccountFactoryContract.at(factoryAddress)
+
+    if (whitelistFactoryAddress) {
+      const WhitelistFactoryContract = TruffleContract({
+        contractName: 'WhitelistFactory',
+        abi: WhitelistFactoryABI
+      })
+      WhitelistFactoryContract.setProvider(provider)
+      this.whitelistFactory = await WhitelistFactoryContract.at(whitelistFactoryAddress)
+    }
   }
 
   async createWallet ({ jwt, phoneNumber, smsVerificationCode }) {
@@ -148,8 +158,10 @@ export default class SimpleManager extends SimpleManagerApi {
     return new SimpleWallet({
       contract: smartAccount,
       backend: this.backend,
+      whitelistFactory: this.whitelistFactory,
       participant: participants.operator,
-      knownParticipants: [participants.backendAsAdmin, participants.backendAsWatchdog]
+      knownParticipants: [participants.backendAsAdmin, participants.backendAsWatchdog],
+      knownTokens: this.factoryConfig.knownTokens
     })
   }
 

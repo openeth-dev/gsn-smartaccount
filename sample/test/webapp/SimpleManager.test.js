@@ -12,27 +12,13 @@ import {
 } from './behavior/SimpleManager.behavior'
 import TestEnvironment from '../utils/TestEnvironment'
 import { Watchdog } from '../../src/js/backend/Guardian'
+import BaseBackendMock from '../mocks/BaseBackend.mock'
+
 import { forgeApprovalData } from 'safechannels-contracts/test/utils'
 
 chai.use(chaiAsPromised)
 chai.should()
 const smartAccountId = '0x' + '1'.repeat(64)
-const mockBackendBase = {
-  getSmartAccountId: async function () {
-    return '0x' + '1'.repeat(64)
-  },
-  createAccount: async function () {
-    return {
-      approvalData: '0x' + 'f'.repeat(64),
-      smartAccountId
-    }
-  },
-  getAddresses: async function () {
-    return {
-      watchdog: '0x' + '1'.repeat(40)
-    }
-  }
-}
 
 async function newTest (backend) {
   const testEnvironment = await TestEnvironment.initializeWithFakeBackendAndGSN({
@@ -98,7 +84,7 @@ describe('SimpleManager', async function () {
     before(async function () {
       const mockBackend = {
         validatePhone: () => { return { code: 200 } },
-        ...mockBackendBase
+        ...BaseBackendMock
       }
       testContext = await newTest(mockBackend)
     })
@@ -110,7 +96,7 @@ describe('SimpleManager', async function () {
     before(async function () {
       const mockBackend = {
         signInAsNewOperator: () => { return { code: 200 } },
-        ...mockBackendBase
+        ...BaseBackendMock
       }
       testContext = await newTest(mockBackend)
     })
@@ -125,8 +111,8 @@ describe('SimpleManager', async function () {
     let testContext
 
     before(async function () {
-      testContext = await newTest(mockBackendBase)
-      await setCreateAccount(mockBackendBase, smartAccountId, testContext)
+      testContext = await newTest(BaseBackendMock)
+      await setCreateAccount(BaseBackendMock, smartAccountId, testContext)
       testContext.jwt = {}
       testContext.phoneNumber = '1'
       testContext.smsCode = '1234'
@@ -159,7 +145,7 @@ describe('SimpleManager', async function () {
           const res = await testContext.wallet.cancelPending(delayedOpId)
           return { transactionHash: res.tx }
         },
-        ...mockBackendBase
+        ...BaseBackendMock
       }
 
       testContext = await newTest(mockBackend)
@@ -187,7 +173,7 @@ describe('SimpleManager', async function () {
             transactionHash: '0xdeadface'
           }
         },
-        ...mockBackendBase
+        ...BaseBackendMock
       }
       testContext = await TestEnvironment.initializeWithFakeBackendAndGSN({
         clientBackend: mockBackend
