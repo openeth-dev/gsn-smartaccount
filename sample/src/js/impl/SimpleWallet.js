@@ -124,7 +124,9 @@ export default class SimpleWallet extends SimpleWalletApi {
     let isConfig = true
     let pending = await this.contract.getPastEvents('ConfigPending',
       {
-        topic: delayedOpId,
+        filter: {
+          delayedOpId
+        },
         fromBlock: this.deployedBlock,
         toBlock: 'latest'
       }
@@ -133,7 +135,9 @@ export default class SimpleWallet extends SimpleWalletApi {
       isConfig = false
       pending = await this.contract.getPastEvents('BypassCallPending',
         {
-          topic: delayedOpId,
+          filter: {
+            delayedOpId
+          },
           fromBlock: this.deployedBlock,
           toBlock: 'latest'
         }
