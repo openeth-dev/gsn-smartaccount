@@ -198,7 +198,7 @@ class FactoryContractInteractor {
     return ERC20Contract.at(address)
   }
 
-  static whitelistAt ({ address, provider }) {
+  async static whitelistAt ({ address, provider }) {
     WhitelistBypassPolicy.setProvider(provider)
     return WhitelistBypassPolicy.at(address)
   }
