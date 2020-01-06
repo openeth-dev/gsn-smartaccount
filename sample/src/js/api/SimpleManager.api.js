@@ -50,7 +50,7 @@ export default class SimpleManagerApi extends EventEmitter {
    * @param observer: function(newState){ ... }
    * @param interval: how often should the manager query the blockchain (TBD)
    */
-  setSignInObserver ({ observer, interval }) {
+  async setSignInObserver ({ observer, interval }) {
     error('callback should be called when sign in events happen')
   }
 

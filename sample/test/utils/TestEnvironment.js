@@ -19,10 +19,10 @@ import * as TestUtils from 'safechannels-contracts/test/utils'
  * AFAIK, the docker image will always deploy the hub to the same address
  * @type {string}
  */
-const _relayHub = '0xD216153c06E857cD7f72665E0aF1d7D82172F494'
-const _ethNodeUrl = 'http://localhost:8545'
-const _relayUrl = 'http://localhost:8090'
-const _serverUrl = 'http://localhost:8888/'
+export const _relayHub = '0xD216153c06E857cD7f72665E0aF1d7D82172F494'
+export const _ethNodeUrl = 'http://localhost:8545'
+export const _relayUrl = 'http://localhost:8090'
+export const _serverUrl = 'http://localhost:8888/'
 const _verbose = false
 
 let ls
@@ -68,7 +68,7 @@ export default class TestEnvironment {
     instance.backendAddresses = await instance.clientBackend.getAddresses()
     await instance.deployMockHub()
     await instance.deployNewFactory()
-    await instance.initializeSimpleManager()
+    await instance._initializeSimpleManager()
     return instance
   }
 
@@ -109,7 +109,7 @@ export default class TestEnvironment {
         value: 3e18
       })
       await instance.addBackendAsTrustedSignerOnFactory()
-      await instance.initializeSimpleManager()
+      await instance._initializeSimpleManager()
       return instance
     } catch (e) {
       TestEnvironment.stopBackendServer()
@@ -198,7 +198,7 @@ export default class TestEnvironment {
     }
   }
 
-  async initializeSimpleManager () {
+  async newSimpleManager () {
     const relayOptions = {
       verbose: this.verbose,
       sponsor: this.sponsor.address
@@ -222,11 +222,16 @@ export default class TestEnvironment {
       factoryAddress: this.factory.address
     }
 
-    this.manager = new SimpleManager({
+    return new SimpleManager({
+      web3: this.web3,
       accountApi: acc.account,
       backend: this.clientBackend,
       factoryConfig
     })
+  }
+
+  async _initializeSimpleManager () {
+    this.manager = await this.newSimpleManager()
   }
 
   async deployWhitelistFactory () {

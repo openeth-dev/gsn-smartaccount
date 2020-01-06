@@ -30,6 +30,10 @@ const dueFilter = function (blockchainTime) {
   return (it) => it.args.dueTime.toNumber() < blockchainTime
 }
 
+function hash (participant) {
+  return '0x' + SafeChannelUtils.participantHash(participant.address, participant.permLevel).toString('hex')
+}
+
 export default class SimpleWallet extends SimpleWalletApi {
   /**
    *
@@ -194,24 +198,13 @@ export default class SimpleWallet extends SimpleWalletApi {
   // TODO: add some caching mechanism then to avoid re-scanning entire history on every call
   async getWalletInfo () {
     this.stateId = await this.contract.stateNonce()
-    const allowAcceleratedCalls = await this.contract.allowAcceleratedCalls()
-    const allowAddOperatorNow = await this.contract.allowAddOperatorNow()
-    const deployedBlock = 1 // await this._getDeployedBlock()
+    const { allowAcceleratedCalls, allowAddOperatorNow } = await this._getAllowedFlags()
     console.log('address', this.contract.address)
-    const initEvent = (await this.contract.getPastEvents('SmartAccountInitialized', {
-      fromBlock: deployedBlock,
-      toBlock: 'latest'
-    }))[0]
+    const { initEvent, participantAddedEvents } = await this._getCompletedConfigurationEvents()
     const args = initEvent.args
-    const foundParticipants = this.knownParticipants.filter((it) => {
-      const hash = '0x' + SafeChannelUtils.participantHash(it.address, it.permLevel).toString('hex')
-      return args.participants.includes(hash)
-    })
-    const operators = foundParticipants.filter(it => it.permissions === Permissions.OwnerPermissions).map(it => {
-      return it.address
-    })
+    const { foundParticipants, unknownParticipants } = this._findParticipants({ initEvent, participantAddedEvents })
 
-    const guardians = foundParticipants.filter(it => it.permissions !== Permissions.OwnerPermissions).map(it => {
+    const participants = foundParticipants.map(it => {
       let type // TODO: move to participant class
       switch (it.permissions) {
         case Permissions.WatchdogPermissions:
@@ -220,34 +213,83 @@ export default class SimpleWallet extends SimpleWalletApi {
         case Permissions.AdminPermissions:
           type = 'admin'
           break
+        case Permissions.OwnerPermissions:
+          type = 'operator'
+          break
         default:
           type = 'unknown-' + it.permissions // not that we can do something with it..
       }
       return {
         address: it.address,
         level: it.level,
-        type: type
+        type: type,
+        hash: hash(it)
       }
     })
+    participants.push(...unknownParticipants.map(it => {
+      return {
+        address: 'n/a',
+        level: 'n/a',
+        type: 'n/a',
+        hash: it
+      }
+    }))
     const levels = []
     for (let i = 0; i < args.delays.length; i++) {
       levels[i] = {
         delay: args.delays[i].toString(),
-        requiredApprovals: args.requiredApprovalsPerLevel[i].toNumber()
+        requiredApprovals: args.requiredApprovalsPerLevel[i].toString()
       }
     }
-    const unknownParticipantsCount = args.participants.length - foundParticipants.length
     return {
       address: initEvent.address,
       options: {
         allowAcceleratedCalls,
         allowAddOperatorNow
       },
-      operators: operators,
-      guardians: guardians,
-      unknownGuardians: unknownParticipantsCount,
+      participants,
       levels: levels
     }
+  }
+
+  /**
+   *  TODO: add support for removing participant
+   *  TODO: add support for unknown participants
+   */
+  _findParticipants ({ initEvent, participantAddedEvents }) {
+    const participants = initEvent.args.participants
+    participantAddedEvents.forEach(event => {
+      participants.push(event.args.participant)
+    })
+    // This is ok, we will never have > 10 participants.
+    const foundParticipants = this.knownParticipants.filter((it) => {
+      return participants.includes(hash(it))
+    })
+    const unknownParticipants = participants.filter(it => {
+      return !foundParticipants.map(it => hash(it)).includes(it)
+    })
+    return { foundParticipants, unknownParticipants }
+  }
+
+  async _getAllowedFlags () {
+    const allowAcceleratedCalls = await this.contract.allowAcceleratedCalls()
+    const allowAddOperatorNow = await this.contract.allowAddOperatorNow()
+    return { allowAcceleratedCalls, allowAddOperatorNow }
+  }
+
+  async _getCompletedConfigurationEvents () {
+    const deployedBlock = await this._getDeployedBlock()
+    const _fromBlock = this.deployedBlock || 0
+    const _toBlock = 'latest'
+    const participantAddedEvents = await this.contract.getPastEvents('ParticipantAdded', {
+      fromBlock: _fromBlock,
+      toBlock: _toBlock
+    })
+    const initEvent = (await this.contract.getPastEvents('SmartAccountInitialized', {
+      fromBlock: deployedBlock,
+      toBlock: 'latest'
+    }))[0]
+    return { participantAddedEvents, initEvent }
   }
 
   async listTokens () {
@@ -488,7 +530,8 @@ export default class SimpleWallet extends SimpleWalletApi {
   async addOperatorNow (newOperator) {
     return this.contract.addOperatorNow(this.participant.permLevel, newOperator, this.stateId,
       {
-        from: this.participant.address
+        from: this.participant.address,
+        gas: 1e6
       })
     // TODO: Add new operator to known participants
   }
