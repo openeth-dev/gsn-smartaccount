@@ -194,6 +194,15 @@ describe('Backend', async function () {
       account.email = email
     })
 
+    it('should throw if no new operator to add was found', async function () {
+      try {
+        await backend.validateAddOperatorNow({ jwt, smsCode })
+        assert.fail()
+      } catch (e) {
+        assert.equal(e.message, 'New operator to add not found')
+      }
+    })
+
     it('should handle signInAsNewOperator request and receive sms message', async function () {
       await backend.signInAsNewOperator({ jwt, title: myTitle })
       smsCode = await backend.smsManager.getSmsCode({ phoneNumber: account.phone, email: account.email })

@@ -70,6 +70,9 @@ export class Backend {
     if (this.smsManager.getSmsCode({ phoneNumber: account.phone, email, expectedSmsCode: smsCode }) !== smsCode) {
       throw new Error(`Invalid sms code: ${smsCode}`)
     }
+    if (!this.unverifiedNewOperators[accountId]) {
+      throw new Error('New operator to add not found')
+    }
     const { newOperatorAddress, title } = this.unverifiedNewOperators[accountId]
     return { accountId, newOperatorAddress, title }
   }
