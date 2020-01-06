@@ -14,7 +14,7 @@ describe('System flow: Create Account', () => {
   let testEnvironment, web3, toBN
 
   before('check "gsn-dock-relay" is active', async function () {
-    this.timeout(5000)
+    this.timeout(7000)
 
     testEnvironment = await TestEnvironment.initializeAndStartBackendForRealGSN({ verbose })
     await testEnvironment.snapshot()
