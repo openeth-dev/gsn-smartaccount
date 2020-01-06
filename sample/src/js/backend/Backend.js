@@ -83,13 +83,13 @@ export class Backend {
 
   async validateRecoverWallet ({ jwt, smsCode }) {
     const { accountId, newOperatorAddress } = await this._authenticateClient({ jwt, smsCode })
-    // TODO: schedule add operator config change
-    return this.admin.scheduleAddOperator({ accountId, newOperatorAddress })
+    const txhash = this.admin.scheduleAddOperator({ accountId, newOperatorAddress })
+    delete this.unverifiedNewOperators[accountId]
+    return txhash
   }
 
   async recoverWallet ({ jwt, title }) {
-    // TODO: there should be a difference here
-    return this.signInAsNewOperator({ jwt, title })
+    await this.signInAsNewOperator({ jwt, title })
   }
 
   /**

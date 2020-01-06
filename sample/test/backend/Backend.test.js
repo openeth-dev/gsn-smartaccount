@@ -175,7 +175,7 @@ describe('Backend', async function () {
     })
   })
 
-  describe('#signInAsNewOperator()', async function () {
+  describe('signInAsNewOperator', async function () {
     let account
     const myTitle = 'just throwing out the garbage'
     before(async function () {
@@ -231,7 +231,7 @@ describe('Backend', async function () {
     })
   })
 
-  describe('#recoverWallet()', async function () {
+  describe('recoverWallet', async function () {
     const newOperatorAddress = '0x' + '7'.repeat(40)
     let account
     let smsCode
@@ -245,7 +245,6 @@ describe('Backend', async function () {
       account.address = smartAccount.address
       backend.accountManager.putAccount({ account })
 
-      // TODO: do not commit, make use of test env-t
       const walletConfig = {
         contract: smartAccount,
         participant:
@@ -262,7 +261,6 @@ describe('Backend', async function () {
         operatorAddress: accountZero,
         whitelistModuleAddress: accountZero
       })
-      // config.initialDelays = [1, 1]
       config.initialDelays = [0, 0]
       config.requiredApprovalsPerLevel = [0, 0]
       await wallet.initialConfiguration(config)
@@ -281,7 +279,6 @@ describe('Backend', async function () {
       assert.deepEqual(backend.unverifiedNewOperators[account.accountId], { newOperatorAddress, title: myTitle })
     })
 
-    // TODO: make this test readable as well
     it('should handle validateRecoverWallet and schedule operation on chain', async function () {
       const ret = await backend.validateRecoverWallet({ jwt, smsCode })
       const receipt = await web3.eth.getTransactionReceipt(ret.transactionHash)
@@ -290,6 +287,7 @@ describe('Backend', async function () {
       assert.equal(log.events[7].value.length, 1)
       assert.equal(log.events[7].value[0].replace(/0{24}/, ''), newOperatorAddress)
       assert.equal(log.events[6].value, '7')
+      assert.deepEqual(backend.unverifiedNewOperators, {})
     })
   })
 })
