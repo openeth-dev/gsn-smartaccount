@@ -21,7 +21,8 @@ contract('SmartAccountFactory', function (accounts) {
     smartAccountId = crypto.randomBytes(32)
     mockHub = await RelayHub.new({ gas: 9e6 })
     mockForwarder = await MockGsnForwarder.new(mockHub.address, { gas: 9e6 })
-    smartAccountFactory = await SmartAccountFactory.new(mockForwarder.address, { gas: 9e6, from: vfOwner })
+    smartAccountFactory = await SmartAccountFactory.new(mockForwarder.address, { gas: 9e7, from: vfOwner })
+    await smartAccountFactory.createAccountTemplate({ from: vfOwner })
     // Mocking backend signature
     const approvalData = await forgeApprovalData(smartAccountId, smartAccountFactory, vfOwner)
     callData = smartAccountFactory.contract.methods.newSmartAccount(smartAccountId, approvalData).encodeABI()
