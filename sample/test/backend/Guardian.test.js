@@ -17,11 +17,9 @@ import sctestutils from 'safechannels-contracts/test/utils'
 import ChangeType from 'safechannels-contracts/test/etc/ChangeType'
 import abiDecoder from 'abi-decoder'
 import { Backend } from '../../src/js/backend/Backend'
-import { generateMockJwt, sleep, hookFunction, unhookFunction } from './testutils'
+import { generateMockJwt, hookFunction, unhookFunction } from './testutils'
 
-// const ethUtils = require('ethereumjs-util')
-// const abi = require('ethereumjs-abi')
-// const phone = require('phone')
+require('../../src/js/mocks/MockDate')
 
 describe('As Guardian', async function () {
   let web3
@@ -122,11 +120,9 @@ describe('As Guardian', async function () {
       whitelistModuleAddress: whitelistPolicy
     })
     config.initialDelays = [1, 1]
-    // config.initialDelays = [0, 0]
     config.requiredApprovalsPerLevel = [0, 0]
     await wallet.initialConfiguration(config)
     await fundAddress(wallet.contract.address)
-    // newAccount.address = wallet.contract.address
   })
 
   describe('As Watchdog', async function () {
@@ -244,17 +240,16 @@ describe('As Guardian', async function () {
         const eventsDuring = await wallet.contract.getPastEvents(delayedOp + 'Applied')
         assert.equal(eventsDuring.length, eventsBefore.length)
         assert.isTrue(gotSms)
-        await sleep(1000)
+        Date.setMockedTime(Date.realNow() + 1e6)
+        await sctestutils.increaseTime(1e2, web3)
         await watchdog._worker()
+        Date.mockedDateOffset = 0
         const eventsAfter = await wallet.contract.getPastEvents(delayedOp + 'Applied')
         assert.equal(eventsAfter.length, eventsBefore.length + 1)
         assert.deepEqual(watchdog.changesToApply, {})
       })
     })
 
-    // describe('addOperatorNow', async function () {
-    //
-    // })
     it('should NOT approve addOperatorNow for unknown accounts', async function () {
       // const id = (await sctestutils.snapshot(web3)).result
       watchdog.accountManager.removeAccount({ account: newAccount })
