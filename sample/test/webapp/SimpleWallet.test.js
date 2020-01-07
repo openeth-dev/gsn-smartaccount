@@ -24,7 +24,6 @@ describe('SimpleWallet', async function () {
   let id
   let web3
   let web3provider
-  const fakeWhitelistPolicy = '0x1111111111111111111111111111111111111111'
   const backend = '0x2222222222222222222222222222222222222222'
   const operator = '0x3333333333333333333333333333333333333333'
   const ethNodeUrl = 'http://localhost:8545'
@@ -69,7 +68,7 @@ describe('SimpleWallet', async function () {
         contract: smartAccount,
         knownTokens
       })
-    let whitelistModuleAddress = fakeWhitelistPolicy
+    let whitelistModuleAddress
     if (whitelistPreconfigured.length > 0) {
       const receipt = await wallet.deployWhitelistModule({ whitelistPreconfigured })
       whitelistModuleAddress = receipt.logs[0].args.module
@@ -78,7 +77,6 @@ describe('SimpleWallet', async function () {
       const config = SimpleWallet.getDefaultSampleInitialConfiguration({
         backendAddress: backend,
         operatorAddress: operator,
-        whitelistedEthDestinations: whitelistPreconfigured,
         whitelistModuleAddress
       })
       await wallet.initialConfiguration(config)
@@ -88,10 +86,11 @@ describe('SimpleWallet', async function () {
 
   describe('#_getDefaultSampleInitialConfiguration()', async function () {
     it('should return valid config given backend and whitelist addresses', async function () {
+      const whitelistModuleAddress = '0x1111111111111111111111111111111111111111'
       const config = SimpleWallet.getDefaultSampleInitialConfiguration({
         backendAddress: backend,
         operatorAddress: operator,
-        whitelistModuleAddress: fakeWhitelistPolicy
+        whitelistModuleAddress
       })
       assert.deepStrictEqual(config, expectedInitialConfig)
     })
@@ -115,8 +114,7 @@ describe('SimpleWallet', async function () {
     it('should accept valid configuration and apply it on-chain', async function () {
       const config = SimpleWallet.getDefaultSampleInitialConfiguration({
         backendAddress: backend,
-        operatorAddress: operator,
-        whitelistModuleAddress: fakeWhitelistPolicy
+        operatorAddress: operator
       })
       await testContext.wallet.initialConfiguration(config)
       const walletInfo = await testContext.wallet.getWalletInfo()

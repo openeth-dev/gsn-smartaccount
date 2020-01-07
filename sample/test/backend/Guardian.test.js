@@ -41,7 +41,6 @@ describe('As Guardian', async function () {
   let smartAccountFactory
   let walletConfig
   let wallet
-  const whitelistPolicy = '0x1111111111111111111111111111111111111111'
   const transferDestination = '0x1234567891111111111111111111111111111111'
   const newOperatorAddress = '0x1234567892222222222222222222222222222222'
   const wrongOperatorAddress = '0x1234567892222222222222222222222222222223'
@@ -105,8 +104,7 @@ describe('As Guardian', async function () {
     wallet = new SimpleWallet(walletConfig)
     config = SimpleWallet.getDefaultSampleInitialConfiguration({
       backendAddress: keypair.address,
-      operatorAddress: accountZero,
-      whitelistModuleAddress: whitelistPolicy
+      operatorAddress: accountZero
     })
     config.initialDelays = [1, 1]
     config.requiredApprovalsPerLevel = [0, 0]
