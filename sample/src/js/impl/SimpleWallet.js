@@ -198,7 +198,7 @@ export default class SimpleWallet extends SimpleWalletApi {
   }
 
   async isOperator (address) {
-    if ( (await this.getWalletInfo()).participants.find(it=>it.address===address) ) {
+    if ((await this.getWalletInfo()).participants.find(it => it.address === address)) {
       return true
     }
     return false
@@ -241,7 +241,7 @@ export default class SimpleWallet extends SimpleWalletApi {
       return {
         address: 'n/a',
         level: '1',
-        type: 'operator', //on current scenarios, unknown is operator..
+        type: 'operator', // on current scenarios, unknown is operator..
         hash: it
       }
     }))

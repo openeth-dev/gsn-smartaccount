@@ -57,7 +57,7 @@ export default class SimpleWalletMock extends SimpleWalletApi {
     return true
   }
 
-    async getWalletInfo () {
+  async getWalletInfo () {
     let addr
     return {
       address: this.address,

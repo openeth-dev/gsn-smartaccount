@@ -237,7 +237,7 @@ describe('System flow: Create Account', () => {
 
       const newwallet = await newmgr.loadWallet()
       const newinfo = await newwallet.getWalletInfo()
-      console.log( 'new participants', newinfo.participants)
+      console.log('new participants', newinfo.participants)
 
       assert.ok(await newwallet.isOperator(newOperator))
     })
