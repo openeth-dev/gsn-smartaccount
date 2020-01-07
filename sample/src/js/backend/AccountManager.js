@@ -34,10 +34,6 @@ export class AccountManager {
     } else {
       await this.accounts.asyncInsert(account)
     }
-    // this.accounts[account.accountId] = account
-    // if (account.address) {
-    //   this.addressToId[account.address] = account.accountId
-    // }
   }
 
   async getAccountByAddress ({ address }) {
@@ -45,7 +41,6 @@ export class AccountManager {
       throw new Error('must supply address')
     }
     return this.accounts.asyncFindOne({ address: address.toLowerCase() }, { _id: 0 })
-    // return this.getAccountById({ accountId: this.addressToId[address.toLowerCase()] })
   }
 
   async getAccountById ({ accountId }) {
@@ -53,7 +48,6 @@ export class AccountManager {
       throw new Error('must supply accountId')
     }
     return this.accounts.asyncFindOne({ accountId: accountId.toLowerCase() }, { _id: 0 })
-    // return this.accounts[accountId.toLowerCase()]
   }
 
   async removeAccount ({ account }) {
@@ -62,10 +56,6 @@ export class AccountManager {
     }
     this._toLowerCase({ account })
     return this.accounts.asyncRemove(account, { multi: true })
-    // if (account.address) {
-    //   delete this.addressToId[account.address]
-    // }
-    // delete this.accounts[account.accountId]
   }
 
   async putOperatorToAdd ({ accountId, address }) {
@@ -73,7 +63,6 @@ export class AccountManager {
       throw new Error('must supply accountId and address')
     }
     return this.operatorsToAdd.asyncInsert({ accountId: accountId.toLowerCase(), address: address.toLowerCase() })
-    // this.operatorsToAdd[accountId.toLowerCase()] = address.toLowerCase()
   }
 
   async getOperatorToAdd ({ accountId }) {
@@ -84,7 +73,6 @@ export class AccountManager {
     if (opToAdd && opToAdd.address) {
       return opToAdd.address
     }
-    // return this.operatorsToAdd[accountId.toLowerCase()]
   }
 
   async removeOperatorToAdd ({ accountId }) {
@@ -92,7 +80,6 @@ export class AccountManager {
       throw new Error('must supply accountId')
     }
     return this.operatorsToAdd.asyncRemove({ accountId: accountId.toLowerCase() })
-    // delete this.operatorsToAdd[accountId.toLowerCase()]
   }
 
   async clearAll () {
