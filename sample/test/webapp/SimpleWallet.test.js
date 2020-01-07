@@ -13,6 +13,7 @@ import ConfigEntry from '../../src/js/etc/ConfigEntry'
 import sinon from 'sinon'
 import { testValidationBehavior } from './behavior/SimpleWallet.behavior'
 import TestEnvironment from '../utils/TestEnvironment'
+import { testGetWalletInfoBehavior } from './behavior/GetWalletInfo.behavior'
 
 before(async function () {
 // TODO: get accounts
@@ -93,6 +94,14 @@ describe('SimpleWallet', async function () {
       })
       assert.deepStrictEqual(config, expectedInitialConfig)
     })
+  })
+
+  describe('#getWalletInfo', async function () {
+    let testContext
+    before(async function () {
+      testContext = await newTest()
+    })
+    testGetWalletInfoBehavior(() => testContext)
   })
 
   describe('#initialConfiguration()', async function () {

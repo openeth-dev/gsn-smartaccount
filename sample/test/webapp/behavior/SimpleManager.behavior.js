@@ -6,6 +6,7 @@
 import assert from 'assert'
 import { expect } from 'chai'
 import sinon from 'sinon'
+import { sleep } from '../../backend/testutils'
 
 const phoneNumber = '+1-541-754-3010'
 
@@ -72,16 +73,52 @@ export function testValidatePhoneBehavior (getContext) {
   })
 }
 
+/**
+ * From the point of view of the 'new device'
+ * Note: The instance of an initialized wallet is delivered in a callback
+ */
 export function testSignInBehavior (getContext) {
+  let jwt
+  let description
+  // This test is dumb now, but I expect it to get more advanced in the future if manager gets more inner logic
   it('should pass parameters to backend and handle http 200 OK code', async function () {
-    const jwt = {}
-    const description = '0000'
-    const sm = getContext().manager
-    sinon.spy(sm.backend)
-    const { success, reason } = await sm.signInAsNewOperator({ jwt, description })
-    assert.strictEqual(success, true)
-    assert.strictEqual(reason, null)
+    const context = getContext()
+    jwt = context.jwt
+    description = context.description
+    const sm = context.manager
+    const signInAsNewOperatorOrig = sm.backend.signInAsNewOperator
+    sm.backend.signInAsNewOperator = sinon.spy()
+    await sm.signInAsNewOperator({ jwt, description })
     calledWithRightArgs(sm.backend.signInAsNewOperator, { jwt, description })
+    sm.backend.signInAsNewOperator = signInAsNewOperatorOrig
+  })
+
+  it('should notify an observer when backend guardian adds a new operator', async function () {
+    const sm = getContext().manager
+    let wasCalled = false
+    const observer = sinon.spy(function () {
+      wasCalled = true
+    })
+
+    await sm.setSignInObserver({ observer, interval: 100 })
+    await sm.signInAsNewOperator({ jwt, description })
+
+    for (let i = 0; i < 10; i++) {
+      if (wasCalled) {
+        break
+      }
+      await sleep(100)
+    }
+    // noinspection BadExpressionStatementJS
+    expect(observer.calledOnce).to.be.true
+    const wallet = observer.firstCall.args[0]
+    const info = await wallet.getWalletInfo()
+    // Manager Owner account is now owner of the wallet with the 3 initial participants
+    assert.strictEqual(info.participants.length, 4)
+    assert.strictEqual(info.participants[2].address, await sm.getOwner())
+    assert.strictEqual(info.participants[2].type, 'operator')
+    // TODO: Old operator is not known to the new wallet yet
+    assert.strictEqual(info.participants[3].address, 'n/a')
   })
 }
 

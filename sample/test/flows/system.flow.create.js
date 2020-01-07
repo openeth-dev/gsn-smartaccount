@@ -93,8 +93,9 @@ describe('System flow: Create Account', () => {
       const wallet = await mgr.loadWallet()
 
       const info = await wallet.getWalletInfo()
-      assert.deepEqual(info.operators, [await mgr.getOwner()])
-      assert.equal(info.unknownGuardians, 0)
+      const operators = info.participants.filter(it => it.type === 'operator')
+      assert.deepEqual(operators.length, 1)
+      assert.deepEqual(operators[0].address, await mgr.getOwner())
     })
   })
 
