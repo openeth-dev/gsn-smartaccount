@@ -10,7 +10,7 @@ import { sleep } from '../backend/testutils'
 
 const DAY = 24 * 3600
 
-const verbose = true
+const verbose = false
 describe('System flow: Create Account', () => {
   let testEnvironment, web3, toBN
   const userEmail = 'shahaf@tabookey.com'
@@ -81,8 +81,6 @@ describe('System flow: Create Account', () => {
 
     it('initialConfiguration', async () => {
       await mgr.setInitialConfiguration()
-
-      console.log('wallet=', await wallet.getWalletInfo())
     })
 
     it('after wallet creation', async function () {
@@ -128,7 +126,6 @@ describe('System flow: Create Account', () => {
       const pendings = await wallet.listPendingTransactions()
       assert.equal(pendings.length, 1)
       pending = pendings[0]
-      console.log('pending=', pending)
     })
 
     it('should remove pending request with cancelPending()', async () => {
@@ -221,34 +218,13 @@ describe('System flow: Create Account', () => {
       await wallet.addOperatorNow(newOperator)
 
       await sleep(1000) // should be enough for guardian to complete.
-      const events = await wallet.contract.getPastEvents('allevents', { fromBlock: 1, toBlock: 'latest' })
-      const e = events.map(e => ({
-        _event: e.event,
-        ...fromEntries(Object.entries(e.returnValues).filter(x => x[0].match(/^\w./)))
-      }))
-      console.log('events=', e)
-
-      // find "added" event (until Wallet will process it
-      expect(events.filter(e => e.event === 'ParticipantAdded').length).to.equal(1)
 
       info = await wallet.getWalletInfo()
-      console.log('participants:', info.participants)
       assert.equal(info.participants.filter(p => p.type === 'operator').length, 2)
 
       const newwallet = await newmgr.loadWallet()
-      const newinfo = await newwallet.getWalletInfo()
-      console.log('new participants', newinfo.participants)
 
       assert.ok(await newwallet.isOperator(newOperator))
     })
   })
 })
-
-// convert [ [key,val], [key,val] ] into {key:val, key:val}
-// like the future standard Object.fromEntries
-function fromEntries (entries) {
-  return entries.reduce((obj, [key, val]) => {
-    obj[key] = val
-    return obj
-  }, {})
-}

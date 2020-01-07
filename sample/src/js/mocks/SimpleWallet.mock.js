@@ -57,6 +57,14 @@ export default class SimpleWalletMock extends SimpleWalletApi {
     return true
   }
 
+  async subscribe (observer) {
+    error('call observer on a change to wallet')
+  }
+
+  async unsubscribe (observer) {
+    error('remove observer from wallet')
+  }
+
   async getWalletInfo () {
     let addr
     return {

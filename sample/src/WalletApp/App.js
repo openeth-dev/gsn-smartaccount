@@ -114,7 +114,7 @@ const PendingTransactions = ({ walletPending, doCancelPending }) =>
     }
   </div>
 
-function ActiveWallet ({ ownerAddr, walletInfo, walletBalances, walletPending, doTransfer, doCancelPending, doOldDeviceApproveOperator, reload }) {
+function ActiveWallet ({ ownerAddr, walletInfo, walletBalances, walletPending, doTransfer, doCancelPending, doOldDeviceApproveOperator, pendingAddOperatorNow }) {
   const info = JSON.stringify(walletInfo, null, 2)
   const pending = JSON.stringify(walletPending, null, 2)
 
@@ -131,7 +131,14 @@ function ActiveWallet ({ ownerAddr, walletInfo, walletBalances, walletPending, d
     }
 
     {
-      !walletInfo.operators.includes(ownerAddr) &&
+      pendingAddOperatorNow && <div>
+        Sent an SMS to owner device. Once approved, this device will also become operator.<br/>
+        Until then, you can only view this wallet.
+      </div>
+    }
+
+    {
+      !walletInfo.isOperator &&
       <div style={{ color: 'orange' }}>Warning: You are not an owner<br/>
         (probably did &quot;Signout&quot; to forget the privkey, and then re-logged in. But don&apos;t worry: you can do
         recover)
@@ -175,20 +182,15 @@ function WalletComponent (options) {
     return <h2>Loading, please wait.</h2>
   }
 
-  if (pendingAddOperatorNow) {
-    return <>
-      Sent an SMS to owner device. Once approved, this device will also become operator.
-    </>
-  }
-
   if (!email || !ownerAddr) {
     return <><DebugState state="noemail"/><GoogleLogin {...options}/></>
   }
   if (!walletAddr) {
     return <><DebugState state="nowalletAddr"/><CreateWallet {...options} /></>
   }
-  if (!walletInfo ||
-    !walletInfo.operators.includes(ownerAddr)) {
+  // pendingAddOperatorNow is a local flag set after we've sent a request
+  // to add this device.
+  if (!pendingAddOperatorNow && (!walletInfo || !walletInfo.isOperator)) {
     return <><DebugState state="nowalletInfo"/><RecoverOrNewDevice {...options} /></>
   }
 
@@ -208,6 +210,8 @@ class App extends React.Component {
   }
 
   // - call promise, update UI (either with good state, or error)
+  // TODO: we have subscribe to update on any blockchain change.
+  //  is it redundant? (not on error, anyway)
   asyncHandler (promise) {
     return promise.then(() => this.readMgrState().then(x => { this.setState(x) }))
       .catch(err => this.reloadState({ err: err.message || err.error }))
@@ -236,8 +240,15 @@ class App extends React.Component {
     }
 
     if (mgrState.walletAddr) {
-      if (!wallet) { wallet = await mgr.loadWallet() }
+      if (!wallet) {
+        wallet = await mgr.loadWallet()
+        await wallet.subscribe(() => this.eventSubscriber())
+      }
       mgrState.walletInfo = await wallet.getWalletInfo()
+      mgrState.walletInfo.isOperator = await wallet.isOperator(mgrState.ownerAddr)
+      if (mgrState.walletInfo.isOperator) {
+        mgrState.pendingAddOperatorNow = undefined
+      }
       mgrState.walletBalances = await wallet.listTokens()
       mgrState.walletPending = await wallet.listPendingTransactions()
       mgrState.walletPending.forEach((x, index) => { x.index = (index + 1).toString() })
@@ -246,6 +257,11 @@ class App extends React.Component {
     }
 
     return mgrState
+  }
+
+  eventSubscriber () {
+    console.log('== event subscriber')
+    this.reloadState()
   }
 
   async initMgr () {
@@ -327,8 +343,10 @@ class App extends React.Component {
   }
 
   async doNewDeviceAddOperator () {
-    if (window.confirm('Request to add this device as new operator?' + '\n' + getDeviceName())) {
+    if (window.confirm('Request to add this device as new operator?\n' + getDeviceName())) {
       await mgr.signInAsNewOperator({ jwt: this.state.jwt, title: getDeviceName() })
+      // TODO: do we want to re-read "pendingAddOperatorNow" from server?
+      // (can't from blockchain, since its not there..)
       this.reloadState({ pendingAddOperatorNow: true })
     }
   }
@@ -363,11 +381,9 @@ class App extends React.Component {
     }
 
     await wallet.cancelPending(delayedOpId)
-    this.reloadState()
   }
 
   async doTransfer ({ symbol }) {
-    let err
     try {
       const destination = prompt('Transfer ' + symbol + ' destination:')
       if (!destination) return
@@ -384,9 +400,7 @@ class App extends React.Component {
 
       await wallet.transfer({ destination, amount, token: symbol })
     } catch (e) {
-      err = e.message
-    } finally {
-      this.reloadState({ err: err })
+      this.reloadState({ err: e.message })
     }
   }
 
@@ -469,7 +483,7 @@ class App extends React.Component {
     const web3 = new Web3(global.web3provider)
     const accounts = await web3.eth.getAccounts()
     await web3.eth.sendTransaction({ from: accounts[0], to: walletAddr, value: web3.utils.toBN(val * 1e18) })
-    this.reloadState() // to see if wallet reads balance..
+    // this.reloadState() // to see if wallet reads balance..
   }
 
   render () {
