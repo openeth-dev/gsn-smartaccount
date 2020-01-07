@@ -1,5 +1,6 @@
 import TruffleContract from '@truffle/contract'
 import SmartAccountFactoryABI from 'safechannels-contracts/src/js/generated/SmartAccountFactory'
+import WhitelistFactoryABI from 'safechannels-contracts/src/js/generated/BypassModules/WhitelistFactory'
 import FactoryContractInteractor from 'safechannels-contracts/src/js/FactoryContractInteractor'
 
 import SimpleWallet from './SimpleWallet'
@@ -11,12 +12,13 @@ import { hex2buf, nonNull } from '../utils/utils'
 
 // API of the main factory object.
 export default class SimpleManager extends SimpleManagerApi {
-  constructor ({ accountApi, backend, guardianAddress, factoryConfig }) {
+  constructor ({ accountApi, backend, guardianAddress, factoryConfig, web3 }) {
     super()
     nonNull({ accountApi, factoryConfig, backend })
     this.accountApi = accountApi
     this.backend = backend
     this.factoryConfig = this._validateConfig(factoryConfig)
+    this.web3 = web3
   }
 
   async _init () {
@@ -71,8 +73,8 @@ export default class SimpleManager extends SimpleManagerApi {
     return this.wallet != null
   }
 
-  async recoverWallet ({ jwt }) {
-    return this.backend.recoverWallet({ jwt })
+  async recoverWallet ({ jwt, title }) {
+    return this.backend.recoverWallet({ jwt, title })
   }
 
   async validateRecoverWallet ({ jwt, smsCode }) {
@@ -82,7 +84,7 @@ export default class SimpleManager extends SimpleManagerApi {
   /**
    * Actual blockchain communication will be moved to the interaction layer later
    */
-  async _initializeFactory ({ factoryAddress, provider }) {
+  async _initializeFactory ({ factoryAddress, whitelistFactoryAddress, provider }) {
     if (this.smartAccountFactory) {
       return
     }
@@ -92,6 +94,14 @@ export default class SimpleManager extends SimpleManagerApi {
     })
     SmartAccountFactoryContract.setProvider(provider)
     this.smartAccountFactory = await SmartAccountFactoryContract.at(factoryAddress)
+    if (whitelistFactoryAddress) {
+      const WhitelistFactoryContract = TruffleContract({
+        contractName: 'WhitelistFactory',
+        abi: WhitelistFactoryABI
+      })
+      WhitelistFactoryContract.setProvider(provider)
+      this.whitelistFactory = await WhitelistFactoryContract.at(whitelistFactoryAddress)
+    }
   }
 
   async createWallet ({ jwt, phoneNumber, smsVerificationCode }) {
@@ -110,11 +120,14 @@ export default class SimpleManager extends SimpleManagerApi {
     // TODO: next commit: make 'FactoryContractInteractor.deployNewSmartAccount' do this job
     const smartAccountId = response.smartAccountId
     const approvalData = response.approvalData
-    await this.smartAccountFactory.newSmartAccount(smartAccountId, approvalData, {
+    const res = await this.smartAccountFactory.newSmartAccount(smartAccountId, approvalData, {
       from: sender,
       gas: 1e8,
       approvalData: approvalData
     })
+    if (!res.receipt.logs.length) {
+      throw Error('New Smart Account seems to fail. Please verify.')
+    }
 
     return this.loadWallet()
   }
@@ -125,8 +138,7 @@ export default class SimpleManager extends SimpleManagerApi {
 
     const config = SimpleWallet.getDefaultSampleInitialConfiguration({
       backendAddress: this.guardianAddress,
-      operatorAddress: await this.getOwner(),
-      whitelistModuleAddress: '0x' + '1'.repeat(40) // whitelistPolicy
+      operatorAddress: await this.getOwner()
     })
     await wallet.initialConfiguration(config)
   }
@@ -135,21 +147,27 @@ export default class SimpleManager extends SimpleManagerApi {
     await this._init()
 
     const owner = await this.getOwner()
-    // TODO: read wallet with address, not from event!
-    const address = await this.getWalletAddress()
-
-    console.log('load wallet address=', address)
-    const smartAccount = await FactoryContractInteractor.getCreatedSmartAccountAt({
-      address,
-      provider: this.factoryConfig.provider
-    })
+    const smartAccount = await this._getSmartAccountContract()
 
     const participants = this._getParticipants({ ownerAddress: owner, guardianAddress: this.guardianAddress })
     return new SimpleWallet({
       contract: smartAccount,
       backend: this.backend,
+      whitelistFactory: this.whitelistFactory,
       participant: participants.operator,
-      knownParticipants: [participants.backendAsAdmin, participants.backendAsWatchdog]
+      knownParticipants: [participants.backendAsAdmin, participants.backendAsWatchdog],
+      knownTokens: this.factoryConfig.knownTokens
+    })
+  }
+
+  async _getSmartAccountContract () {
+    // TODO: read wallet with address, not from event!
+    const address = await this.getWalletAddress()
+
+    console.log('load wallet address=', address)
+    return FactoryContractInteractor.getCreatedSmartAccountAt({
+      address,
+      provider: this.factoryConfig.provider
     })
   }
 
@@ -167,21 +185,33 @@ export default class SimpleManager extends SimpleManagerApi {
   }
 
   async signInAsNewOperator ({ jwt, title, observer }) {
-    this.setSignInObserver({ observer, interval: 2000 })
-    const response = await this.backend.signInAsNewOperator({ jwt, title })
-    if (response.code === 200) {
-      return { success: true, reason: null }
-    } else {
-      return { success: false, reason: response.error }
+    if (observer) {
+      await this.setSignInObserver({ observer, interval: 2000 })
     }
+    return this.backend.signInAsNewOperator({ jwt, title })
   }
 
-  setSignInObserver ({ observer, interval }) {
-    /*
-    setInterval(() => {
-      console.log('how you gonna test?')
-    }, interval)
-     */
+  // I could use the websocket provider, but it seems to be a little overkill for a single event
+  async setSignInObserver ({ observer, interval }) {
+    const self = this
+    const block = await this.web3.eth.getBlock('latest')
+    const fromBlock = block.number
+    const handle = setInterval(getEvent, interval)
+    const smartAccount = await this._getSmartAccountContract()
+
+    async function getEvent () {
+      console.log('getEvent')
+      const participantAddedEvents = await smartAccount.getPastEvents('ParticipantAdded', {
+        fromBlock,
+        toBlock: 'latest'
+      })
+      if (participantAddedEvents.length) {
+        clearInterval(handle)
+        const wallet = await self.loadWallet()
+        console.log('observer called')
+        observer(wallet)
+      }
+    }
   }
 
   async cancelByUrl ({ jwt, url }) {

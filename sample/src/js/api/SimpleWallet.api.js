@@ -85,4 +85,8 @@ export default class SimpleWalletApi {
   async scheduleAddOperator ({ newOperator }) {
     error('schedule add operator')
   }
+
+  async deployWhitelistModule ({ whitelistPreconfigured }) {
+    error('deploy a new whitelist module')
+  }
 }

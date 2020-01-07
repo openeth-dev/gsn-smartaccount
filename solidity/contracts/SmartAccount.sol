@@ -510,8 +510,12 @@ contract SmartAccount is PermissionsLevel, GsnRecipient {
 
     function getBypassPolicy(address target, uint256 value, bytes memory encodedFunction) public view returns (uint256 delay, uint256 requiredApprovals, bool requireBothDelayAndApprovals) {
         BypassPolicy bypass = bypassPoliciesByTarget[target];
-        if (address(bypass) == address(0) && encodedFunction.length > 4) {
-            bypass = bypassPoliciesByMethod[encodedFunction.readBytes4(0)];
+        if (address(bypass) == address(0)) {
+            bytes4 method = '';
+            if (encodedFunction.length >= 4) {
+                method = encodedFunction.readBytes4(0);
+            }
+            bypass = bypassPoliciesByMethod[method];
         }
         if (address(bypass) == address(0)) {
             return (USE_DEFAULT, USE_DEFAULT, true);
@@ -614,11 +618,12 @@ contract SmartAccount is PermissionsLevel, GsnRecipient {
         stateNonce++;
     }
 
-    function executeBypassCall(uint32 senderPermsLevel, address target, uint256 value, bytes memory encodedFunction) public {
+    function executeBypassCall(uint32 senderPermsLevel, address target, uint256 value, bytes memory encodedFunction, uint256 targetStateNonce) public {
         address sender = getSender();
         requirePermissions(sender, canExecuteBypassCall, senderPermsLevel);
         requireNotFrozen(senderPermsLevel);
         require(allowAcceleratedCalls, "Accelerated calls blocked");
+        requireCorrectState(targetStateNonce);
 
         (uint256 delay, uint256 requiredApprovals,) = getBypassPolicy(target, value, encodedFunction);
         require(delay == 0 && requiredApprovals == 0, "Call cannot be executed immediately");

@@ -226,4 +226,8 @@ export default class SimpleWalletMock extends SimpleWalletApi {
   async scheduleAddOperator ({ newOperator }) {
     super.scheduleAddOperator({ newOperator })
   }
+
+  async deployWhitelistModule ({ whitelistPreconfigured }) {
+    super.deployWhitelistModule({ whitelistPreconfigured })
+  }
 }

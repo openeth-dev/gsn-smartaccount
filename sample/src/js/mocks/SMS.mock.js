@@ -25,7 +25,7 @@ export default class SMSmock extends SMSapi {
     }
   }
 
-  sendSms ({ phone, message }) {
+  async sendSms ({ phone, message }) {
     this.emit('mocksms', { phone, message })
     console.log('sending SMS', phone, message)
     fs.writeFileSync(SMS_TMP_FILE_NAME, JSON.stringify({ phone, message }))

@@ -1,3 +1,4 @@
+import abiDecoder from 'abi-decoder'
 import asyncForEach from 'async-await-foreach'
 import Web3 from 'web3'
 
@@ -29,23 +30,38 @@ const dueFilter = function (blockchainTime) {
   return (it) => it.args.dueTime.toNumber() < blockchainTime
 }
 
+function hash (participant) {
+  return '0x' + SafeChannelUtils.participantHash(participant.address, participant.permLevel).toString('hex')
+}
+
 export default class SimpleWallet extends SimpleWalletApi {
   /**
    *
    * @param contract - TruffleContract instance of the Gatekeeper
    * @param participant - the participant to be used as the 'from' of all operations
+   * @param backend - implementation of {@link ClientBackend}
+   * @param whitelistFactory - instance ow Truffle Contract for whitelist deployment
    * @param knownParticipants - all other possible participants known to the wallet. Not necessarily activated on vault.
    *        Note: participants should be of 'Participant' class!
    * @param knownTokens - tokens currently supported.
    */
-  constructor ({ contract, participant, backend, knownParticipants = [], knownTokens = [] }) {
+  constructor ({
+    contract,
+    participant,
+    backend,
+    whitelistFactory,
+    knownParticipants = [],
+    knownTokens = []
+  }) {
     super()
     nonNull({ contract, participant })
     this.contract = contract
     this.backend = backend
     this.participant = participant
+    this.whitelistFactory = whitelistFactory
     this.knownTokens = knownTokens
     this.knownParticipants = [...knownParticipants, participant]
+    abiDecoder.addABI(FactoryContractInteractor.getErc20ABI())
     // TODO: make sure no duplicates
   }
 
@@ -70,7 +86,9 @@ export default class SimpleWallet extends SimpleWalletApi {
     let destinationAddress
     let ethAmount
     let encodedTransaction
+    let whitelisted = false
     if (token === 'ETH') {
+      whitelisted = await this._isBypassActivated({ target: destination, value: amount, encodedFunction: '0x' })
       destinationAddress = destination
       ethAmount = amount
       encodedTransaction = []
@@ -78,8 +96,20 @@ export default class SimpleWallet extends SimpleWalletApi {
       destinationAddress = this._getTokenAddress(token)
       ethAmount = 0
       encodedTransaction = FactoryContractInteractor.encodeErc20Call({ destination, amount, operation: 'transfer' })
+      whitelisted = await this._isBypassActivated({
+        target: destinationAddress,
+        value: ethAmount,
+        encodedFunction: encodedTransaction
+      })
     }
-    return this.contract.scheduleBypassCall(
+    let method
+    if (whitelisted) {
+      // uint32 senderPermsLevel, address target, uint256 value, bytes memory encodedFunction, uint256 targetStateNonce
+      method = this.contract.executeBypassCall
+    } else {
+      method = this.contract.scheduleBypassCall
+    }
+    return method(
       this.participant.permLevel, destinationAddress, ethAmount, encodedTransaction, this.stateId,
       {
         from: this.participant.address,
@@ -94,7 +124,9 @@ export default class SimpleWallet extends SimpleWalletApi {
     let isConfig = true
     let pending = await this.contract.getPastEvents('ConfigPending',
       {
-        topic: delayedOpId,
+        filter: {
+          delayedOpId
+        },
         fromBlock: this.deployedBlock,
         toBlock: 'latest'
       }
@@ -103,7 +135,9 @@ export default class SimpleWallet extends SimpleWalletApi {
       isConfig = false
       pending = await this.contract.getPastEvents('BypassCallPending',
         {
-          topic: delayedOpId,
+          filter: {
+            delayedOpId
+          },
           fromBlock: this.deployedBlock,
           toBlock: 'latest'
         }
@@ -168,24 +202,13 @@ export default class SimpleWallet extends SimpleWalletApi {
   // TODO: add some caching mechanism then to avoid re-scanning entire history on every call
   async getWalletInfo () {
     this.stateId = await this.contract.stateNonce()
-    const allowAcceleratedCalls = await this.contract.allowAcceleratedCalls()
-    const allowAddOperatorNow = await this.contract.allowAddOperatorNow()
-    const deployedBlock = 1 // await this._getDeployedBlock()
+    const { allowAcceleratedCalls, allowAddOperatorNow } = await this._getAllowedFlags()
     console.log('address', this.contract.address)
-    const initEvent = (await this.contract.getPastEvents('SmartAccountInitialized', {
-      fromBlock: deployedBlock,
-      toBlock: 'latest'
-    }))[0]
+    const { initEvent, participantAddedEvents } = await this._getCompletedConfigurationEvents()
     const args = initEvent.args
-    const foundParticipants = this.knownParticipants.filter((it) => {
-      const hash = '0x' + SafeChannelUtils.participantHash(it.address, it.permLevel).toString('hex')
-      return args.participants.includes(hash)
-    })
-    const operators = foundParticipants.filter(it => it.permissions === Permissions.OwnerPermissions).map(it => {
-      return it.address
-    })
+    const { foundParticipants, unknownParticipants } = this._findParticipants({ initEvent, participantAddedEvents })
 
-    const guardians = foundParticipants.filter(it => it.permissions !== Permissions.OwnerPermissions).map(it => {
+    const participants = foundParticipants.map(it => {
       let type // TODO: move to participant class
       switch (it.permissions) {
         case Permissions.WatchdogPermissions:
@@ -194,34 +217,83 @@ export default class SimpleWallet extends SimpleWalletApi {
         case Permissions.AdminPermissions:
           type = 'admin'
           break
+        case Permissions.OwnerPermissions:
+          type = 'operator'
+          break
         default:
           type = 'unknown-' + it.permissions // not that we can do something with it..
       }
       return {
         address: it.address,
         level: it.level,
-        type: type
+        type: type,
+        hash: hash(it)
       }
     })
+    participants.push(...unknownParticipants.map(it => {
+      return {
+        address: 'n/a',
+        level: 'n/a',
+        type: 'n/a',
+        hash: it
+      }
+    }))
     const levels = []
     for (let i = 0; i < args.delays.length; i++) {
       levels[i] = {
         delay: args.delays[i].toString(),
-        requiredApprovals: args.requiredApprovalsPerLevel[i].toNumber()
+        requiredApprovals: args.requiredApprovalsPerLevel[i].toString()
       }
     }
-    const unknownParticipantsCount = args.participants.length - foundParticipants.length
     return {
       address: initEvent.address,
       options: {
         allowAcceleratedCalls,
         allowAddOperatorNow
       },
-      operators: operators,
-      guardians: guardians,
-      unknownGuardians: unknownParticipantsCount,
+      participants,
       levels: levels
     }
+  }
+
+  /**
+   *  TODO: add support for removing participant
+   *  TODO: add support for unknown participants
+   */
+  _findParticipants ({ initEvent, participantAddedEvents }) {
+    const participants = initEvent.args.participants
+    participantAddedEvents.forEach(event => {
+      participants.push(event.args.participant)
+    })
+    // This is ok, we will never have > 10 participants.
+    const foundParticipants = this.knownParticipants.filter((it) => {
+      return participants.includes(hash(it))
+    })
+    const unknownParticipants = participants.filter(it => {
+      return !foundParticipants.map(it => hash(it)).includes(it)
+    })
+    return { foundParticipants, unknownParticipants }
+  }
+
+  async _getAllowedFlags () {
+    const allowAcceleratedCalls = await this.contract.allowAcceleratedCalls()
+    const allowAddOperatorNow = await this.contract.allowAddOperatorNow()
+    return { allowAcceleratedCalls, allowAddOperatorNow }
+  }
+
+  async _getCompletedConfigurationEvents () {
+    const deployedBlock = await this._getDeployedBlock()
+    const _fromBlock = this.deployedBlock || 0
+    const _toBlock = 'latest'
+    const participantAddedEvents = await this.contract.getPastEvents('ParticipantAdded', {
+      fromBlock: _fromBlock,
+      toBlock: _toBlock
+    })
+    const initEvent = (await this.contract.getPastEvents('SmartAccountInitialized', {
+      fromBlock: deployedBlock,
+      toBlock: 'latest'
+    }))[0]
+    return { participantAddedEvents, initEvent }
   }
 
   async listTokens () {
@@ -331,9 +403,9 @@ export default class SimpleWallet extends SimpleWalletApi {
       })
       .map(
         (it) => {
-          const isEtherValuePassed = it.value !== 0
-          const isDataPassed = it.args.data !== undefined && it.args.data.length > 0
-          const isErc20Method = isDataPassed && erc20Methods.includes(it.args.data.substr(0, 10))
+          const isEtherValuePassed = it.args.value.toString() !== '0'
+          const isDataPassed = it.args.msgdata && it.args.msgdata.length > 0
+          const isErc20Method = isDataPassed && erc20Methods.includes(it.args.msgdata.substr(0, 10))
           // TODO: get all data from events, save roundtrips here
           const common = {
             txHash: it.transactionHash,
@@ -363,7 +435,7 @@ export default class SimpleWallet extends SimpleWalletApi {
               ...common,
               value: it.args.value,
               destination: it.args.target,
-              data: it.args.data
+              data: it.args.msgdata
             })
           }
         }
@@ -422,6 +494,16 @@ export default class SimpleWallet extends SimpleWalletApi {
       SafeChannelUtils.participantHashUnpacked(backendAddress, Permissions.AdminPermissions, 1).toString('hex')
     const operator = '0x' +
       SafeChannelUtils.participantHashUnpacked(operatorAddress, Permissions.OwnerPermissions, 1).toString('hex')
+    const bypassModules = []
+    const bypassMethods = []
+    if (whitelistModuleAddress) {
+      // We need the same module defined for no msgData and each erc20 method
+      const erc20methods = ['0x00000000', '0xa9059cbb', '0x095ea7b3']
+      bypassMethods.push(...erc20methods)
+      for (let i = 0; i < bypassMethods.length; i++) {
+        bypassModules.push(whitelistModuleAddress)
+      }
+    }
     return {
       initialParticipants: [operator, backendAsWatchdog, backendAsAdmin],
       initialDelays: [86400, 172800],
@@ -429,12 +511,21 @@ export default class SimpleWallet extends SimpleWalletApi {
       allowAddOperatorNow: true,
       requiredApprovalsPerLevel: [1, 0],
       bypassTargets: [],
-      bypassMethods: ['0xa9059cbb', '0x095ea7b3'],
-      bypassModules: [whitelistModuleAddress, whitelistModuleAddress]
+      bypassMethods,
+      bypassModules
     }
   }
 
-  _parseErc20Transaction () {
+  _parseErc20Transaction ({ target, data }) {
+    const token = this.knownTokens.find(it => it.address === target)
+    const symbol = token ? token.name : 'N/A'
+    const dec = abiDecoder.decodeMethod(data)
+    return {
+      operation: dec.name,
+      tokenSymbol: symbol,
+      value: dec.params[1].value,
+      destination: dec.params[0].value
+    }
   }
 
   // _parseErc20Transaction ({ target, data }) {
@@ -442,13 +533,14 @@ export default class SimpleWallet extends SimpleWalletApi {
   // }
 
   _getTokenAddress (token) {
-    return undefined
+    return this.knownTokens.find(it => it.name === token).address
   }
 
   async addOperatorNow (newOperator) {
     return this.contract.addOperatorNow(this.participant.permLevel, newOperator, this.stateId,
       {
-        from: this.participant.address
+        from: this.participant.address,
+        gas: 1e6
       })
     // TODO: Add new operator to known participants
   }
@@ -511,5 +603,17 @@ export default class SimpleWallet extends SimpleWalletApi {
         gas: 1e8
       }
     )
+  }
+
+  async deployWhitelistModule ({ whitelistPreconfigured }) {
+    return this.whitelistFactory.newWhitelist(this.contract.address, whitelistPreconfigured,
+      {
+        from: this.participant.address
+      })
+  }
+
+  async _isBypassActivated ({ target, value, encodedFunction }) {
+    const policy = await this.contract.getBypassPolicy(target, value, encodedFunction)
+    return policy[0].toString() === '0' && policy[1].toString() === '0'
   }
 }

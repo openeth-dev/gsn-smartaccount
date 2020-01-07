@@ -68,6 +68,8 @@ function CreateWallet ({ refresh, jwt, email }) {
     if (!phoneNumber) {
       return
     }
+    // local israeli phones...
+    phoneNumber = phoneNumber.replace(/^0/, '+97254')
     if (phoneNumber === '1') {
       phoneNumber = '+972541234567'
     }

@@ -16,7 +16,7 @@ describe('System flow: Create Account', () => {
   const userEmail = 'shahaf@tabookey.com'
 
   before('check "gsn-dock-relay" is active', async function () {
-    this.timeout(5000)
+    this.timeout(7000)
 
     testEnvironment = await TestEnvironment.initializeAndStartBackendForRealGSN({ verbose })
     await testEnvironment.snapshot()
@@ -27,7 +27,7 @@ describe('System flow: Create Account', () => {
   after('stop backend', async () => {
     console.log('before kill', (await axios.get('http://localhost:8090/getaddr')).data)
     TestEnvironment.stopBackendServer()
-    // await testEnvironment.revert()
+    await testEnvironment.revert()
     try {
       console.log('after kill relay', (await axios.get('http://localhost:8090/getaddr')).data)
       fail('server should be down!')
@@ -89,8 +89,9 @@ describe('System flow: Create Account', () => {
       const wallet = await mgr.loadWallet()
 
       const info = await wallet.getWalletInfo()
-      assert.deepEqual(info.operators, [await mgr.getOwner()])
-      assert.equal(info.unknownGuardians, 0)
+      const operators = info.participants.filter(it => it.type === 'operator')
+      assert.deepEqual(operators.length, 1)
+      assert.deepEqual(operators[0].address, await mgr.getOwner())
     })
   })
 
@@ -172,13 +173,14 @@ describe('System flow: Create Account', () => {
         newenv.factory = testEnvironment.factory
         newenv.backendAddresses = testEnvironment.backendAddresses
 
-        await newenv.initializeSimpleManager()
+        await newenv._initializeSimpleManager()
 
         newmgr = newenv.manager
 
         oldOperator = await mgr.getOwner()
       } catch (e) {
         console.log('ex', e)
+        throw e
       }
     })
 

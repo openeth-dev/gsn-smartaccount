@@ -41,7 +41,6 @@ describe('As Guardian', async function () {
   let smartAccountFactory
   let walletConfig
   let wallet
-  const whitelistPolicy = '0x1111111111111111111111111111111111111111'
   const transferDestination = '0x1234567891111111111111111111111111111111'
   const newOperatorAddress = '0x1234567892222222222222222222222222222222'
   const wrongOperatorAddress = '0x1234567892222222222222222222222222222223'
@@ -53,17 +52,6 @@ describe('As Guardian', async function () {
   let nonce
   const phoneNumber = '+972541234567'
   let newSmartAccountReceipt
-
-  async function fundAddress (guardianAddress) {
-    const tx = {
-      from: accountZero,
-      value: 1e18,
-      to: guardianAddress,
-      gasPrice: 1
-    }
-    const receipt = await web3.eth.sendTransaction(tx)
-    console.log(`Funded address ${guardianAddress}, txhash ${receipt.transactionHash}\n`)
-  }
 
   before(async function () {
     web3provider = new Web3.providers.WebsocketProvider(ethNodeUrl)
@@ -116,13 +104,17 @@ describe('As Guardian', async function () {
     wallet = new SimpleWallet(walletConfig)
     config = SimpleWallet.getDefaultSampleInitialConfiguration({
       backendAddress: keypair.address,
-      operatorAddress: accountZero,
-      whitelistModuleAddress: whitelistPolicy
+      operatorAddress: accountZero
     })
     config.initialDelays = [1, 1]
     config.requiredApprovalsPerLevel = [0, 0]
     await wallet.initialConfiguration(config)
-    await fundAddress(wallet.contract.address)
+    await web3.eth.sendTransaction({
+      from: accountZero,
+      value: 1e18,
+      to: wallet.contract.address,
+      gasPrice: 1
+    })
   })
 
   describe('As Watchdog', async function () {
@@ -131,7 +123,12 @@ describe('As Guardian', async function () {
     let args
 
     before(async function () {
-      await fundAddress(keypair.address)
+      await web3.eth.sendTransaction({
+        from: accountZero,
+        value: 1e18,
+        to: keypair.address,
+        gasPrice: 1
+      })
     })
 
     it('should construct Watchdog', async function () {

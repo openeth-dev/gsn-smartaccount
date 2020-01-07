@@ -9,7 +9,19 @@ const projectFolder = 'solidity/'
 const contractsFolder = projectFolder + 'contracts'
 const outAbiFolder = 'solidity/src/js/generated'
 
-const contractsToExtract = ['SmartAccount', 'SmartAccountFactory', 'Utilities', 'tests/FreeRecipientSponsor', 'tests/MockHub', 'tests/MockGsnForwarder', 'tests/DAI']
+const contractsToExtract = [
+  'Utilities',
+  'SmartAccount',
+  'SmartAccountFactory',
+
+  'BypassModules/WhitelistFactory',
+  'BypassModules/WhitelistBypassPolicy',
+
+  'tests/DAI',
+  'tests/MockHub',
+  'tests/FreeRecipientSponsor',
+  'tests/MockGsnForwarder'
+]
 
 function compileFile (contractFile, c) {
   console.log('compiling ' + contractFile)

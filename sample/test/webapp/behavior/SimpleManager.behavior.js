@@ -6,6 +6,7 @@
 import assert from 'assert'
 import { expect } from 'chai'
 import sinon from 'sinon'
+import { sleep } from '../../backend/testutils'
 
 const phoneNumber = '+1-541-754-3010'
 
@@ -72,16 +73,52 @@ export function testValidatePhoneBehavior (getContext) {
   })
 }
 
+/**
+ * From the point of view of the 'new device'
+ * Note: The instance of an initialized wallet is delivered in a callback
+ */
 export function testSignInBehavior (getContext) {
+  let jwt
+  let title
+  // This test is dumb now, but I expect it to get more advanced in the future if manager gets more inner logic
   it('should pass parameters to backend and handle http 200 OK code', async function () {
-    const jwt = {}
-    const title = '0000'
-    const sm = getContext().manager
-    sinon.spy(sm.backend)
-    const { success, reason } = await sm.signInAsNewOperator({ jwt, title })
-    assert.strictEqual(success, true)
-    assert.strictEqual(reason, null)
+    const context = getContext()
+    jwt = context.jwt
+    title = context.title
+    const sm = context.manager
+    const signInAsNewOperatorOrig = sm.backend.signInAsNewOperator
+    sm.backend.signInAsNewOperator = sinon.spy()
+    await sm.signInAsNewOperator({ jwt, title })
     calledWithRightArgs(sm.backend.signInAsNewOperator, { jwt, title })
+    sm.backend.signInAsNewOperator = signInAsNewOperatorOrig
+  })
+
+  it('should notify an observer when backend guardian adds a new operator', async function () {
+    const sm = getContext().manager
+    let wasCalled = false
+    const observer = sinon.spy(function () {
+      wasCalled = true
+    })
+
+    await sm.setSignInObserver({ observer, interval: 100 })
+    await sm.signInAsNewOperator({ jwt, title })
+
+    for (let i = 0; i < 10; i++) {
+      if (wasCalled) {
+        break
+      }
+      await sleep(100)
+    }
+    // noinspection BadExpressionStatementJS
+    expect(observer.calledOnce).to.be.true
+    const wallet = observer.firstCall.args[0]
+    const info = await wallet.getWalletInfo()
+    // Manager Owner account is now owner of the wallet with the 3 initial participants
+    assert.strictEqual(info.participants.length, 4)
+    assert.strictEqual(info.participants[2].address, await sm.getOwner())
+    assert.strictEqual(info.participants[2].type, 'operator')
+    // TODO: Old operator is not known to the new wallet yet
+    assert.strictEqual(info.participants[3].address, 'n/a')
   })
 }
 
@@ -95,26 +132,32 @@ export function calledWithRightArgs (method, args) {
 export function testRecoverWalletBehavior (getContext) {
   let jwt
   let context
+  let smsCode
   let sm
 
   before(async function () {
+    this.timeout(15000)
     context = getContext()
     sm = context.manager
     jwt = context.jwt
-    await context.createWallet({ jwt, phoneNumber, smsVerificationCode: context.smsCode })
+    smsCode = context.smsCode
+    await context.createWallet({ jwt, phoneNumber, smsVerificationCode: smsCode })
   })
 
   it('should pass parameters to backend and handle response', async function () {
+    this.timeout(15000)
     sinon.spy(sm.backend)
-    const response = await sm.recoverWallet({ jwt })
+    const title = 'hello!'
+    const response = await sm.recoverWallet({ jwt, title })
     assert.strictEqual(response.code, 200)
-    calledWithRightArgs(sm.backend.recoverWallet, { jwt })
+    calledWithRightArgs(sm.backend.recoverWallet, { jwt, title })
   })
 
   it('should make a confirm 2FA request that initiates a new pending config change', async function () {
-    const response = await sm.validateRecoverWallet({ jwt, smsCode: context.smsCode })
-    assert.strictEqual(response.code, 200)
-    calledWithRightArgs(sm.backend.validateRecoverWallet, { jwt, smsCode: context.smsCode })
+    this.timeout(15000)
+    const response = await sm.validateRecoverWallet({ jwt, smsCode })
+    assert.strictEqual(true, context.web3.utils.isHexStrict(response.transactionHash))
+    calledWithRightArgs(sm.backend.validateRecoverWallet, { jwt, smsCode })
     const wallet = await sm.loadWallet()
     await wallet.getWalletInfo()
     const pending = await wallet.listPendingConfigChanges()
@@ -123,6 +166,6 @@ export function testRecoverWalletBehavior (getContext) {
     assert.strictEqual(first.operations.length, 1)
     const operation = first.operations[0]
     assert.strictEqual(operation.type, 'add_operator')
-    assert.strictEqual(operation.args[0], '0x0000000000000000000000003333333333333333333333333333333333333333')
+    assert.strictEqual(operation.args[0].replace(/0{24}/, ''), context.newOperatorAddress)
   })
 }

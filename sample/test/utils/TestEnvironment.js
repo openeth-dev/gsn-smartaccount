@@ -19,13 +19,14 @@ import * as TestUtils from 'safechannels-contracts/test/utils'
  * AFAIK, the docker image will always deploy the hub to the same address
  * @type {string}
  */
-const _relayHub = '0xD216153c06E857cD7f72665E0aF1d7D82172F494'
-const _ethNodeUrl = 'http://localhost:8545'
-const _relayUrl = 'http://localhost:8090'
-const _serverUrl = 'http://localhost:8888/'
+export const _relayHub = '0xD216153c06E857cD7f72665E0aF1d7D82172F494'
+export const _ethNodeUrl = 'http://localhost:8545'
+export const _relayUrl = 'http://localhost:8090'
+export const _serverUrl = 'http://localhost:8888/'
 const _verbose = false
 
 let ls
+let whitelistFactory
 
 export default class TestEnvironment {
   constructor ({
@@ -35,6 +36,8 @@ export default class TestEnvironment {
     relayHub = _relayHub,
     clientBackend,
     web3provider,
+    useTwilio,
+    useDev = true,
     verbose = _verbose
   }) {
     this.ethNodeUrl = ethNodeUrl
@@ -43,6 +46,8 @@ export default class TestEnvironment {
     this.clientBackend = clientBackend || new ClientBackend({ serverURL: serverUrl })
     this.web3provider = web3provider || new Web3.providers.HttpProvider(ethNodeUrl)
     this.web3 = new Web3(this.web3provider)
+    this.useTwilio = useTwilio
+    this.useDev = useDev
     this.verbose = verbose
   }
 
@@ -67,7 +72,7 @@ export default class TestEnvironment {
     instance.backendAddresses = await instance.clientBackend.getAddresses()
     await instance.deployMockHub()
     await instance.deployNewFactory()
-    await instance.initializeSimpleManager()
+    await instance._initializeSimpleManager()
     return instance
   }
 
@@ -77,9 +82,11 @@ export default class TestEnvironment {
     relayHub,
     web3provider,
     clientBackend,
+    useTwilio,
+    useDev,
     verbose
   }) {
-    const instance = new TestEnvironment({ ethNodeUrl, relayUrl, relayHub, web3provider, clientBackend, verbose })
+    const instance = new TestEnvironment({ ethNodeUrl, relayUrl, relayHub, web3provider, clientBackend, useTwilio, useDev, verbose })
     instance.from = (await instance.web3.eth.getAccounts())[0]
 
     // bring up RelayHub, relay.
@@ -108,7 +115,7 @@ export default class TestEnvironment {
         value: 3e18
       })
       await instance.addBackendAsTrustedSignerOnFactory()
-      await instance.initializeSimpleManager()
+      await instance._initializeSimpleManager()
       return instance
     } catch (e) {
       TestEnvironment.stopBackendServer()
@@ -128,11 +135,12 @@ export default class TestEnvironment {
         '-r',
         'esm',
         runServerPath,
-        port,
-        this.factory.address,
-        this.sponsor.address,
-        this.ethNodeUrl,
-        '--dev'
+        '-p', port,
+        '-f', this.factory.address,
+        '-s', this.sponsor.address,
+        '-u', this.ethNodeUrl,
+        '--sms', this.useTwilio ? 'twilio' : 'mock', // anything except 'twilio' is a mock...
+        '--dev', this.useDev
       ])
       let serverAddress
       ls.stdout.on('data', (data) => {
@@ -165,8 +173,8 @@ export default class TestEnvironment {
   async deployNewFactory () {
     this.sponsor = await FactoryContractInteractor.deploySponsor(this.from, this.relayHub, this.ethNodeUrl)
     await this.sponsor.relayHubDeposit({ value: 2e18, from: this.from, gas: 1e5 })
-    const forwarderAddress = await this.sponsor.getGsnForwarder()
-    this.factory = await FactoryContractInteractor.deployNewSmartAccountFactory(this.from, this.ethNodeUrl, forwarderAddress)
+    this.forwarderAddress = await this.sponsor.getGsnForwarder()
+    this.factory = await FactoryContractInteractor.deployNewSmartAccountFactory(this.from, this.ethNodeUrl, this.forwarderAddress)
   }
 
   async deployMockHub () {
@@ -197,7 +205,7 @@ export default class TestEnvironment {
     }
   }
 
-  async initializeSimpleManager () {
+  async newSimpleManager () {
     const relayOptions = {
       verbose: this.verbose,
       sponsor: this.sponsor.address
@@ -221,20 +229,35 @@ export default class TestEnvironment {
       factoryAddress: this.factory.address
     }
 
-    this.manager = new SimpleManager({
+    return new SimpleManager({
+      web3: this.web3,
       accountApi: acc.account,
       backend: this.clientBackend,
       factoryConfig
     })
   }
 
-  async createWallet ({ jwt, phoneNumber, smsVerificationCode }) {
+  async _initializeSimpleManager () {
+    this.manager = await this.newSimpleManager()
+  }
+
+  async deployWhitelistFactory () {
+    if (!whitelistFactory) {
+      whitelistFactory =
+        await FactoryContractInteractor.deployNewWhitelistFactory(this.from, this.ethNodeUrl, this.forwarderAddress)
+    }
+    return whitelistFactory
+  }
+
+  async createWallet ({ jwt, phoneNumber, smsVerificationCode, whitelist }) {
+    if (whitelist && whitelist.length) {
+      await this.deployWhitelistFactory()
+    }
     this.wallet = await this.manager.createWallet({ jwt, phoneNumber, smsVerificationCode })
     const owner = await this.manager.getOwner()
     const config = SimpleWallet.getDefaultSampleInitialConfiguration({
       backendAddress: this.backendAddresses.watchdog,
-      operatorAddress: owner,
-      whitelistModuleAddress: this.from
+      operatorAddress: owner
     })
     await this.wallet.initialConfiguration(config)
     await TestUtils.evmMine(this.web3)

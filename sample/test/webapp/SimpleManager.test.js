@@ -10,33 +10,24 @@ import {
   testCreateWalletBehavior, testRecoverWalletBehavior, testSignInBehavior,
   testValidatePhoneBehavior
 } from './behavior/SimpleManager.behavior'
-import TestEnvironment from '../utils/TestEnvironment'
+
+import Permissions from 'safechannels-contracts/src/js/Permissions'
+import TestEnvironment, { _ethNodeUrl } from '../utils/TestEnvironment'
 import { Watchdog } from '../../src/js/backend/Guardian'
+import BaseBackendMock from '../mocks/BaseBackend.mock'
+
 import { forgeApprovalData } from 'safechannels-contracts/test/utils'
+import * as scutils from 'safechannels-contracts/src/js/SafeChannelUtils'
+import Web3 from 'web3'
 
 chai.use(chaiAsPromised)
 chai.should()
 const smartAccountId = '0x' + '1'.repeat(64)
-const mockBackendBase = {
-  getSmartAccountId: async function () {
-    return '0x' + '1'.repeat(64)
-  },
-  createAccount: async function () {
-    return {
-      approvalData: '0x' + 'f'.repeat(64),
-      smartAccountId
-    }
-  },
-  getAddresses: async function () {
-    return {
-      watchdog: '0x' + '1'.repeat(40)
-    }
-  }
-}
 
-async function newTest (backend) {
+async function newTest (backend, from) {
   const testEnvironment = await TestEnvironment.initializeWithFakeBackendAndGSN({
-    clientBackend: backend
+    clientBackend: backend,
+    from
   })
   await testEnvironment.manager.accountApi.googleLogin()
   return testEnvironment
@@ -98,7 +89,7 @@ describe('SimpleManager', async function () {
     before(async function () {
       const mockBackend = {
         validatePhone: () => { return { code: 200 } },
-        ...mockBackendBase
+        ...BaseBackendMock
       }
       testContext = await newTest(mockBackend)
     })
@@ -108,12 +99,52 @@ describe('SimpleManager', async function () {
   describe('#signInAsNewOperator()', async function () {
     let testContext
     before(async function () {
+      const web3 = new Web3(new Web3.providers.HttpProvider(_ethNodeUrl))
+      const guardianAcc = (await web3.eth.getAccounts())[7]
       const mockBackend = {
-        signInAsNewOperator: () => { return { code: 200 } },
-        ...mockBackendBase
+        signInAsNewOperator: async function ({ jwt, title }) {
+          // Warning: this is possible because Wallet is just pass-through
+          const address = jwt.address
+          await testContext.wallet.getWalletInfo()
+          const stateId = testContext.wallet.stateId
+          await testContext.wallet.addOperatorNow(address)
+
+          const permsLevelWatchdog = scutils.packPermissionLevel(Permissions.WatchdogPermissions, 1)
+          const permsLevelOperator = scutils.packPermissionLevel(Permissions.OwnerPermissions, 1)
+          await testContext.wallet.contract.approveAddOperatorNow(
+            permsLevelWatchdog,
+            this.newOwner,
+            stateId,
+            this.oldOwner,
+            permsLevelOperator,
+            {
+              from: guardianAcc,
+              useGSN: false
+            })
+        },
+        ...BaseBackendMock,
+        getAddresses: async function () {
+          return {
+            watchdog: guardianAcc
+          }
+        }
       }
+
       testContext = await newTest(mockBackend)
+      await setCreateAccount(mockBackend, smartAccountId, testContext)
+      await testContext.createWallet({
+        jwt: {},
+        phoneNumber: '1',
+        smsVerificationCode: '1234'
+      })
+      testContext.newManager = await testContext.newSimpleManager()
+      await testContext.newManager.googleLogin()
+      const newOwner = await testContext.newManager.getOwner()
+      mockBackend.newOwner = newOwner
+      mockBackend.oldOwner = await testContext.manager.getOwner()
+      testContext.jwt = { address: newOwner }
     })
+
     testSignInBehavior(() => testContext)
   })
 
@@ -125,8 +156,8 @@ describe('SimpleManager', async function () {
     let testContext
 
     before(async function () {
-      testContext = await newTest(mockBackendBase)
-      await setCreateAccount(mockBackendBase, smartAccountId, testContext)
+      testContext = await newTest(BaseBackendMock)
+      await setCreateAccount(BaseBackendMock, smartAccountId, testContext)
       testContext.jwt = {}
       testContext.phoneNumber = '1'
       testContext.smsCode = '1234'
@@ -159,7 +190,7 @@ describe('SimpleManager', async function () {
           const res = await testContext.wallet.cancelPending(delayedOpId)
           return { transactionHash: res.tx }
         },
-        ...mockBackendBase
+        ...BaseBackendMock
       }
 
       testContext = await newTest(mockBackend)
@@ -172,6 +203,7 @@ describe('SimpleManager', async function () {
   })
 
   describe('#recoverWallet()', async function () {
+    const newOperator = '0x' + '3'.repeat(40)
     let testContext
 
     before(async function () {
@@ -181,10 +213,12 @@ describe('SimpleManager', async function () {
         },
         validateRecoverWallet: async function () {
           await testContext.wallet.getWalletInfo() // Needed for stateId
-          await testContext.wallet.scheduleAddOperator({ newOperator: '0x' + '3'.repeat(40) })
-          return { code: 200 }
+          await testContext.wallet.scheduleAddOperator({ newOperator })
+          return {
+            transactionHash: '0xdeadface'
+          }
         },
-        ...mockBackendBase
+        ...BaseBackendMock
       }
       testContext = await TestEnvironment.initializeWithFakeBackendAndGSN({
         clientBackend: mockBackend
@@ -193,6 +227,7 @@ describe('SimpleManager', async function () {
       await testContext.manager.googleLogin()
       testContext.smsCode = '1234'
       testContext.jwt = {}
+      testContext.newOperatorAddress = newOperator
     })
 
     testRecoverWalletBehavior(() => testContext)
