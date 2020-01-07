@@ -7,11 +7,12 @@ import TestEnvironment from '../utils/TestEnvironment'
 
 import { increaseTime } from 'safechannels-contracts/test/utils'
 import { sleep } from '../backend/testutils'
+import * as TestUtils from 'safechannels-contracts/test/utils'
 
 const DAY = 24 * 3600
 
 const verbose = false
-describe('System flow: Create Account', () => {
+describe.only('System flow', () => {
   let testEnvironment, web3, toBN
   const userEmail = 'shahaf@tabookey.com'
 
@@ -93,7 +94,7 @@ describe('System flow: Create Account', () => {
     })
   })
 
-  describe('transfer flow', async () => {
+  describe.skip('transfer flow', async () => {
     let accounts
 
     before(async () => {
@@ -156,7 +157,85 @@ describe('System flow: Create Account', () => {
     })
   })
 
-  describe('add device now', async () => {
+  describe('recover device', async function () {
+    let newenv, newmgr, newwallet, oldOperator
+    before('create env for new device', async function () {
+      this.timeout(10000)
+        newenv = new TestEnvironment({})
+        newenv.sponsor = testEnvironment.sponsor
+        newenv.web3provider = testEnvironment.web3provider
+        newenv.web3 = testEnvironment.web3
+        newenv.verbose = testEnvironment.verbose
+        newenv.factory = testEnvironment.factory
+        newenv.backendAddresses = testEnvironment.backendAddresses
+
+        await newenv._initializeSimpleManager()
+
+        newmgr = newenv.manager
+
+        oldOperator = await mgr.getOwner()
+    })
+
+    const TEST_TITLE = 'recover-title'
+    let jwt, smsCode
+
+    it('recover from new device should send sms', async function () {
+      const { jwt: _jwt, email, address } = await newmgr.googleLogin()
+      jwt = _jwt
+      newwallet = await newmgr.loadWallet()
+
+      // should have the same email as first mgr
+      expect(email).to.equal(await mgr.getEmail())
+      // but not the same owner address!
+      expect(address).to.not.equal(oldOperator)
+
+      await newmgr.recoverWallet({ jwt, title: TEST_TITLE })
+
+      const msg = await SMSmock.asyncReadSms()
+      assert.match(msg.message, /code.*?\d{3,}/)
+      console.log('sms message', msg.message)
+      smsCode = msg.message.match(/code.*?(\d{3,})/)[1]
+      console.log('smsCode: ', smsCode)
+    })
+
+    it('new device should not be operator before recover', async function () {
+
+      assert.ok(!await newwallet.isOperator(await newmgr.getOwner()))
+    })
+
+
+    it('recover with sms should add pending event with new address', async function () {
+      function   bytes2addr(bytes) {
+        const data = bytes.replace(/^0x(0*)/,'')
+        return '0x'+ '0'.repeat(40-data.length)+data
+      }
+
+      await newmgr.validateRecoverWallet({jwt,smsCode})
+      const pending = await newwallet.listPendingConfigChanges()
+      console.log(JSON.stringify(pending[0],null,2))
+      assert.equal(pending.length,1)
+      assert.equal(pending[0].operations.length,1)
+      assert.equal(pending[0].operations[0].type, 'add_operator')
+      const added_arg = pending[0].operations[0].args[0]
+      assert.equal(bytes2addr(added_arg), await newmgr.getOwner( ))
+    })
+
+    it('new device should not be operator before recover timeout',async function () {
+      assert.ok(!await newwallet.isOperator(await newmgr.getOwner()))
+    })
+
+    it('guardian should apply recovery after timeout', async function () {
+
+      increaseTime(DAY*2, web3)
+      await sleep(500)
+      const pending = await newwallet.listPendingConfigChanges()
+      assert.equal(pending.length, 0)
+
+      assert.ok(await newwallet.isOperator(await newmgr.getOwner()))
+    })
+  })
+  
+  describe.skip('add device now', async () => {
     let newenv, newmgr
     let oldOperator
     before('create env for new device', async function () {
