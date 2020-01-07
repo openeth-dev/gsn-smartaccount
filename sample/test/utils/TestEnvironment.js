@@ -245,7 +245,6 @@ export default class TestEnvironment {
   }
 
   async createWallet ({ jwt, phoneNumber, smsVerificationCode, whitelist }) {
-    const module = '0x0000000000000000000000000000000000000000'
     if (whitelist && whitelist.length) {
       await this.deployWhitelistFactory()
     }
@@ -253,8 +252,7 @@ export default class TestEnvironment {
     const owner = await this.manager.getOwner()
     const config = SimpleWallet.getDefaultSampleInitialConfiguration({
       backendAddress: this.backendAddresses.watchdog,
-      operatorAddress: owner,
-      whitelistModuleAddress: module
+      operatorAddress: owner
     })
     await this.wallet.initialConfiguration(config)
     await TestUtils.evmMine(this.web3)

@@ -267,8 +267,7 @@ describe('Backend', async function () {
       const wallet = new SimpleWallet(walletConfig)
       const config = SimpleWallet.getDefaultSampleInitialConfiguration({
         backendAddress: keypair.address,
-        operatorAddress: accountZero,
-        whitelistModuleAddress: accountZero
+        operatorAddress: accountZero
       })
       config.initialDelays = [0, 0]
       config.requiredApprovalsPerLevel = [0, 0]

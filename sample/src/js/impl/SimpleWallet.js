@@ -441,7 +441,7 @@ export default class SimpleWallet extends SimpleWalletApi {
     return []
   }
 
-  static getDefaultSampleInitialConfiguration ({ backendAddress, operatorAddress, whitelistModuleAddress, whitelistedEthDestinations = [] }) {
+  static getDefaultSampleInitialConfiguration ({ backendAddress, operatorAddress, whitelistModuleAddress }) {
     const backendAsWatchdog = '0x' +
       SafeChannelUtils.participantHashUnpacked(backendAddress, Permissions.WatchdogPermissions, 1).toString('hex')
     const backendAsAdmin = '0x' +
@@ -449,9 +449,14 @@ export default class SimpleWallet extends SimpleWalletApi {
     const operator = '0x' +
       SafeChannelUtils.participantHashUnpacked(operatorAddress, Permissions.OwnerPermissions, 1).toString('hex')
     const bypassModules = []
-    // This looks dumb, but I need the same module for each destination and each erc20 method
-    for (let i = 0; i < whitelistedEthDestinations.length + 2; i++) {
-      bypassModules.push(whitelistModuleAddress)
+    const bypassMethods = []
+    if (whitelistModuleAddress) {
+      // We need the same module defined for no msgData and each erc20 method
+      const erc20methods = ['0x00000000', '0xa9059cbb', '0x095ea7b3']
+      bypassMethods.push(...erc20methods)
+      for (let i = 0; i < bypassMethods.length; i++) {
+        bypassModules.push(whitelistModuleAddress)
+      }
     }
     return {
       initialParticipants: [operator, backendAsWatchdog, backendAsAdmin],
@@ -459,8 +464,8 @@ export default class SimpleWallet extends SimpleWalletApi {
       allowAcceleratedCalls: true,
       allowAddOperatorNow: true,
       requiredApprovalsPerLevel: [1, 0],
-      bypassTargets: whitelistedEthDestinations,
-      bypassMethods: ['0xa9059cbb', '0x095ea7b3'],
+      bypassTargets: [],
+      bypassMethods,
       bypassModules
     }
   }

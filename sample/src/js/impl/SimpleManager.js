@@ -135,8 +135,7 @@ export default class SimpleManager extends SimpleManagerApi {
 
     const config = SimpleWallet.getDefaultSampleInitialConfiguration({
       backendAddress: this.guardianAddress,
-      operatorAddress: await this.getOwner(),
-      whitelistModuleAddress: '0x' + '1'.repeat(40) // whitelistPolicy
+      operatorAddress: await this.getOwner()
     })
     await wallet.initialConfiguration(config)
   }

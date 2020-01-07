@@ -2,10 +2,12 @@
   "allowAcceleratedCalls": true,
   "allowAddOperatorNow": true,
   "bypassMethods": [
+    "0x00000000",
     "0xa9059cbb",
     "0x095ea7b3"
   ],
   "bypassModules": [
+    "0x1111111111111111111111111111111111111111",
     "0x1111111111111111111111111111111111111111",
     "0x1111111111111111111111111111111111111111"
   ],
