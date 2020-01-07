@@ -214,8 +214,10 @@ describe('System flow: Create Account', () => {
     })
 
     it('addOperatorNow should add new operator..', async () => {
-      await wallet.getWalletInfo() // must be called before addOperatorNow
+      assert.ok(!await wallet.isOperator(newOperator))
 
+      let info = await wallet.getWalletInfo()
+      assert.equal(info.participants.filter(p => p.type === 'operator').length, 1)
       await wallet.addOperatorNow(newOperator)
 
       await sleep(1000) // should be enough for guardian to complete.
@@ -229,9 +231,15 @@ describe('System flow: Create Account', () => {
       // find "added" event (until Wallet will process it
       expect(events.filter(e => e.event === 'ParticipantAdded').length).to.equal(1)
 
-      const info = await wallet.getWalletInfo()
-      console.log('operators', info.operators, info.unknownGuardians)
-      // assert.deepInclude(info.operators, newOperator)
+      info = await wallet.getWalletInfo()
+      console.log('participants:', info.participants)
+      assert.equal(info.participants.filter(p => p.type === 'operator').length, 2)
+
+      const newwallet = await newmgr.loadWallet()
+      const newinfo = await newwallet.getWalletInfo()
+      console.log( 'new participants', newinfo.participants)
+
+      assert.ok(await newwallet.isOperator(newOperator))
     })
   })
 })

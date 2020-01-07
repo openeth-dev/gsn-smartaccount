@@ -197,6 +197,13 @@ export default class SimpleWallet extends SimpleWalletApi {
   listWhitelistedAddresses () {
   }
 
+  async isOperator (address) {
+    if ( (await this.getWalletInfo()).participants.find(it=>it.address===address) ) {
+      return true
+    }
+    return false
+  }
+
   // TODO: currently only initialConfig is checked. Must iterate over all config events to figure out the actual info.
   // TODO: split into two: scan events and interpret events.
   // TODO: add some caching mechanism then to avoid re-scanning entire history on every call
@@ -233,8 +240,8 @@ export default class SimpleWallet extends SimpleWalletApi {
     participants.push(...unknownParticipants.map(it => {
       return {
         address: 'n/a',
-        level: 'n/a',
-        type: 'n/a',
+        level: '1',
+        type: 'operator', //on current scenarios, unknown is operator..
         hash: it
       }
     }))

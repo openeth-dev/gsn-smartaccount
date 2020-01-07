@@ -50,6 +50,9 @@ export default class SimpleWalletApi {
     return ['add1', 'add2']
   }
 
+  async isOperator (address) {
+    error( 'return true if the given address is an operator of this wallet')
+  }
   async getWalletInfo () {
     error('wallet info')
   }
