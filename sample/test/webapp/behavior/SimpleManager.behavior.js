@@ -132,26 +132,32 @@ export function calledWithRightArgs (method, args) {
 export function testRecoverWalletBehavior (getContext) {
   let jwt
   let context
+  let smsCode
   let sm
 
   before(async function () {
+    this.timeout(15000)
     context = getContext()
     sm = context.manager
     jwt = context.jwt
-    await context.createWallet({ jwt, phoneNumber, smsVerificationCode: context.smsCode })
+    smsCode = context.smsCode
+    await context.createWallet({ jwt, phoneNumber, smsVerificationCode: smsCode })
   })
 
   it('should pass parameters to backend and handle response', async function () {
+    this.timeout(15000)
     sinon.spy(sm.backend)
-    const response = await sm.recoverWallet({ jwt })
+    const title = 'hello!'
+    const response = await sm.recoverWallet({ jwt, title })
     assert.strictEqual(response.code, 200)
-    calledWithRightArgs(sm.backend.recoverWallet, { jwt })
+    calledWithRightArgs(sm.backend.recoverWallet, { jwt, title })
   })
 
   it('should make a confirm 2FA request that initiates a new pending config change', async function () {
-    const response = await sm.validateRecoverWallet({ jwt, smsCode: context.smsCode })
-    assert.strictEqual(response.code, 200)
-    calledWithRightArgs(sm.backend.validateRecoverWallet, { jwt, smsCode: context.smsCode })
+    this.timeout(15000)
+    const response = await sm.validateRecoverWallet({ jwt, smsCode })
+    assert.strictEqual(true, context.web3.utils.isHexStrict(response.transactionHash))
+    calledWithRightArgs(sm.backend.validateRecoverWallet, { jwt, smsCode })
     const wallet = await sm.loadWallet()
     await wallet.getWalletInfo()
     const pending = await wallet.listPendingConfigChanges()
@@ -160,6 +166,6 @@ export function testRecoverWalletBehavior (getContext) {
     assert.strictEqual(first.operations.length, 1)
     const operation = first.operations[0]
     assert.strictEqual(operation.type, 'add_operator')
-    assert.strictEqual(operation.args[0], '0x0000000000000000000000003333333333333333333333333333333333333333')
+    assert.strictEqual(operation.args[0].replace(/0{24}/, ''), context.newOperatorAddress)
   })
 }

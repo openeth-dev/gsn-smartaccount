@@ -100,7 +100,7 @@ export default class SimpleManagerMock extends SimpleManagerApi {
     return this.wallet
   }
 
-  async recoverWallet ({ jwt }) {
+  async recoverWallet ({ jwt, title }) {
     error('trigger recover flow')
   }
 

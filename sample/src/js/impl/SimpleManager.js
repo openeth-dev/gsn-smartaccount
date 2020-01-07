@@ -73,8 +73,8 @@ export default class SimpleManager extends SimpleManagerApi {
     return this.wallet != null
   }
 
-  async recoverWallet ({ jwt }) {
-    return this.backend.recoverWallet({ jwt })
+  async recoverWallet ({ jwt, title }) {
+    return this.backend.recoverWallet({ jwt, title })
   }
 
   async validateRecoverWallet ({ jwt, smsCode }) {

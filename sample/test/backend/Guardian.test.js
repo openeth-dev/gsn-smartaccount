@@ -54,17 +54,6 @@ describe('As Guardian', async function () {
   const phoneNumber = '+972541234567'
   let newSmartAccountReceipt
 
-  async function fundAddress (guardianAddress) {
-    const tx = {
-      from: accountZero,
-      value: 1e18,
-      to: guardianAddress,
-      gasPrice: 1
-    }
-    const receipt = await web3.eth.sendTransaction(tx)
-    console.log(`Funded address ${guardianAddress}, txhash ${receipt.transactionHash}\n`)
-  }
-
   before(async function () {
     web3provider = new Web3.providers.WebsocketProvider(ethNodeUrl)
     web3 = new Web3(web3provider)
@@ -122,7 +111,12 @@ describe('As Guardian', async function () {
     config.initialDelays = [1, 1]
     config.requiredApprovalsPerLevel = [0, 0]
     await wallet.initialConfiguration(config)
-    await fundAddress(wallet.contract.address)
+    await web3.eth.sendTransaction({
+      from: accountZero,
+      value: 1e18,
+      to: wallet.contract.address,
+      gasPrice: 1
+    })
   })
 
   describe('As Watchdog', async function () {
@@ -131,7 +125,12 @@ describe('As Guardian', async function () {
     let args
 
     before(async function () {
-      await fundAddress(keypair.address)
+      await web3.eth.sendTransaction({
+        from: accountZero,
+        value: 1e18,
+        to: keypair.address,
+        gasPrice: 1
+      })
     })
 
     it('should construct Watchdog', async function () {
