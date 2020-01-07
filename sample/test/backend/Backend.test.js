@@ -172,8 +172,7 @@ describe('Backend', async function () {
         {
           accountId: accountId,
           email: email,
-          phone: phone(phoneNumber),
-          verified: true
+          phone: phone(phoneNumber)
         })
       // address is undefined at this point
       // delete account.address

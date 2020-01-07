@@ -33,8 +33,7 @@ export class Backend {
       const newAccount = new BackendAccount({
         accountId: smartAccountId,
         email: email,
-        phone: formattedPhone,
-        verified: true
+        phone: formattedPhone
       })
       await this.accountManager.putAccount({ account: newAccount })
     } else {

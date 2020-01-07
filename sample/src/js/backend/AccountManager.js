@@ -1,8 +1,8 @@
 import Nedb from 'nedb-async'
 
 export class BackendAccount {
-  constructor ({ accountId, email, phone, verified, address }) {
-    Object.assign(this, { accountId, email, phone, verified, address })
+  constructor ({ accountId, email, phone, address }) {
+    Object.assign(this, { accountId, email, phone, address })
   }
 }
 
