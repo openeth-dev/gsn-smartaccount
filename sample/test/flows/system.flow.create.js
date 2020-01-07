@@ -29,7 +29,9 @@ describe('System flow: Create Account', () => {
   after('stop backend', async () => {
     console.log('before kill', (await axios.get('http://localhost:8090/getaddr')).data)
     TestEnvironment.stopBackendServer()
-    await testEnvironment.revert()
+    if ( testEnvironment ) {
+      await testEnvironment.revert()
+    }
     try {
       console.log('after kill relay', (await axios.get('http://localhost:8090/getaddr')).data)
       fail('server should be down!')

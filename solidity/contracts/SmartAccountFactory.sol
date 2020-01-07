@@ -67,7 +67,7 @@ contract SmartAccountFactory is GsnRecipient, Ownable, ProxyFactory {
 
     function createAccountTemplate() onlyOwner public {
         require(address(template) == address(0), "createAccountTemplate: already called");
-        template = new SmartAccount();
+//        template = new SmartAccount();
     }
 
     /**

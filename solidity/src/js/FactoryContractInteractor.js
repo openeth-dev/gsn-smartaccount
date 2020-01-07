@@ -81,8 +81,18 @@ class FactoryContractInteractor {
     }
     this.smartAccountFactory = await SmartAccountFactory.at(this.smartAccountFactoryAddress)
   }
-
   static async deployContract (path, name, link, params, from, ethNodeUrl) {
+    console.log( "deployContract", path, "params=", params)
+    try {
+      const ret = await this.deployContract1(path, name, link, params, from, ethNodeUrl)
+      console.log( "deployContract", path, "ret=")
+      return ret
+    }catch (e) {
+      console.log( "EX deployContract", path,e)
+      throw e
+    }
+  }
+  static async deployContract1 (path, name, link, params, from, ethNodeUrl) {
     const abi = require('./' + path)
     // eslint-disable-next-line no-path-concat
     const bin = fs.readFileSync(__dirname + '/' + path + '.bin')
@@ -92,20 +102,29 @@ class FactoryContractInteractor {
       abi: abi,
       binary: bin
     })
-    contract.setProvider(new Web3.providers.HttpProvider(ethNodeUrl))
+    const provider = new Web3.providers.HttpProvider(ethNodeUrl)
+    contract.setProvider(provider)
     link.forEach(function (it) {
       contract.setNetwork(it.network_id)
       contract.link(it)
     })
     let promise
-    const gas = undefined // truffle-contract does "autoGas" by default.
+
+    const web3 = new Web3(provider)
+
     // contract.gasMultiplier = 1.0 // default 1.25 is too much...
     if (params && params.length > 0) {
+      const gas = await contract.new.estimateGas(...params, {from} );
+
+      console.log( "== gas estimate for "+path+" - "+ gas)
       promise = contract.new(...params, { from: from, gas: gas })
     } else {
+      const gas = await contract.new.estimateGas( {from} );
+      console.log( "== gas estimate for "+path+" - "+ gas)
       promise = contract.new({ from: from, gas: gas })
     }
     const instance = await promise
+    console.log( "after NEW "+path, "instance=", !!instance)
     contract.address = instance.address
     return { instance, contract }
   }
@@ -164,6 +183,7 @@ class FactoryContractInteractor {
    * @returns {Promise<String>} - the address of the newly deployed Factory
    */
   static async deployNewSmartAccountFactory (from, ethNodeUrl, forwarder) {
+    const templateSmartAccount = await this.deploySmartAccountDirectly(from,'unused', ethNodeUrl)
     const utilitiesContract = await this.deployUtilitiesLibrary(from, ethNodeUrl)
     const { instance: smartAccountFactory } = await this.deployContract('generated/SmartAccountFactory',
       'SmartAccountFactory', [utilitiesContract], [forwarder], from, ethNodeUrl)

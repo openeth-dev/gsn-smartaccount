@@ -172,7 +172,7 @@ export default class TestEnvironment {
 
   async deployNewFactory () {
     this.sponsor = await FactoryContractInteractor.deploySponsor(this.from, this.relayHub, this.ethNodeUrl)
-    await this.sponsor.relayHubDeposit({ value: 2e18, from: this.from, gas: 1e5 })
+    await this.sponsor.relayHubDeposit({ value: 2e18, from: this.from })
     this.forwarderAddress = await this.sponsor.getGsnForwarder()
     this.factory = await FactoryContractInteractor.deployNewSmartAccountFactory(this.from, this.ethNodeUrl, this.forwarderAddress)
   }
