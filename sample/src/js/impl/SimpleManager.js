@@ -12,12 +12,13 @@ import { hex2buf, nonNull } from '../utils/utils'
 
 // API of the main factory object.
 export default class SimpleManager extends SimpleManagerApi {
-  constructor ({ accountApi, backend, guardianAddress, factoryConfig }) {
+  constructor ({ accountApi, backend, guardianAddress, factoryConfig, web3 }) {
     super()
     nonNull({ accountApi, factoryConfig, backend })
     this.accountApi = accountApi
     this.backend = backend
     this.factoryConfig = this._validateConfig(factoryConfig)
+    this.web3 = web3
   }
 
   async _init () {
@@ -120,11 +121,14 @@ export default class SimpleManager extends SimpleManagerApi {
     // TODO: next commit: make 'FactoryContractInteractor.deployNewSmartAccount' do this job
     const smartAccountId = response.smartAccountId
     const approvalData = response.approvalData
-    await this.smartAccountFactory.newSmartAccount(smartAccountId, approvalData, {
+    const res = await this.smartAccountFactory.newSmartAccount(smartAccountId, approvalData, {
       from: sender,
       gas: 1e8,
       approvalData: approvalData
     })
+    if (!res.receipt.logs.length) {
+      throw Error('New Smart Account seems to fail. Please verify.')
+    }
 
     return this.loadWallet()
   }
@@ -145,14 +149,7 @@ export default class SimpleManager extends SimpleManagerApi {
     await this._init()
 
     const owner = await this.getOwner()
-    // TODO: read wallet with address, not from event!
-    const address = await this.getWalletAddress()
-
-    console.log('load wallet address=', address)
-    const smartAccount = await FactoryContractInteractor.getCreatedSmartAccountAt({
-      address,
-      provider: this.factoryConfig.provider
-    })
+    const smartAccount = await this._getSmartAccountContract()
 
     const participants = this._getParticipants({ ownerAddress: owner, guardianAddress: this.guardianAddress })
     return new SimpleWallet({
@@ -162,6 +159,17 @@ export default class SimpleManager extends SimpleManagerApi {
       participant: participants.operator,
       knownParticipants: [participants.backendAsAdmin, participants.backendAsWatchdog],
       knownTokens: this.factoryConfig.knownTokens
+    })
+  }
+
+  async _getSmartAccountContract () {
+    // TODO: read wallet with address, not from event!
+    const address = await this.getWalletAddress()
+
+    console.log('load wallet address=', address)
+    return FactoryContractInteractor.getCreatedSmartAccountAt({
+      address,
+      provider: this.factoryConfig.provider
     })
   }
 
@@ -179,21 +187,33 @@ export default class SimpleManager extends SimpleManagerApi {
   }
 
   async signInAsNewOperator ({ jwt, description, observer }) {
-    this.setSignInObserver({ observer, interval: 2000 })
-    const response = await this.backend.signInAsNewOperator({ jwt, description })
-    if (response.code === 200) {
-      return { success: true, reason: null }
-    } else {
-      return { success: false, reason: response.error }
+    if (observer) {
+      await this.setSignInObserver({ observer, interval: 2000 })
     }
+    return this.backend.signInAsNewOperator({ jwt, description })
   }
 
-  setSignInObserver ({ observer, interval }) {
-    /*
-    setInterval(() => {
-      console.log('how you gonna test?')
-    }, interval)
-     */
+  // I could use the websocket provider, but it seems to be a little overkill for a single event
+  async setSignInObserver ({ observer, interval }) {
+    const self = this
+    const block = await this.web3.eth.getBlock('latest')
+    const fromBlock = block.number
+    const handle = setInterval(getEvent, interval)
+    const smartAccount = await this._getSmartAccountContract()
+
+    async function getEvent () {
+      console.log('getEvent')
+      const participantAddedEvents = await smartAccount.getPastEvents('ParticipantAdded', {
+        fromBlock,
+        toBlock: 'latest'
+      })
+      if (participantAddedEvents.length) {
+        clearInterval(handle)
+        const wallet = await self.loadWallet()
+        console.log('observer called')
+        observer(wallet)
+      }
+    }
   }
 
   async cancelByUrl ({ jwt, url }) {
