@@ -1,4 +1,4 @@
-/* global describe before afterEach it */
+/* global describe before after afterEach it */
 
 import { Backend } from '../../src/js/backend/Backend'
 import { assert } from 'chai'
@@ -45,7 +45,7 @@ describe('Backend', async function () {
     smsProvider = new SMSmock()
     smsManager = new SmsManager({ smsProvider, secretSMSCodeSeed: crypto.randomBytes(32) })
     keyManager = new KeyManager({ ecdsaKeyPair: keypair })
-    accountManager = new AccountManager()
+    accountManager = new AccountManager({ workdir: '/tmp/test/backend' })
     const web3provider = new Web3.providers.WebsocketProvider(ethNodeUrl)
     web3 = new Web3(web3provider)
     accountZero = (await web3.eth.getAccounts())[0]
@@ -63,6 +63,11 @@ describe('Backend', async function () {
 
     hookBackend(backend)
   })
+
+  after(async function () {
+    await accountManager.clearAll()
+  })
+
   describe('sms code generation', async function () {
     let ts
     let firstCode
@@ -170,7 +175,9 @@ describe('Backend', async function () {
           phone: phone(phoneNumber),
           verified: true
         })
-      const actualAccount = backend.accountManager.getAccountById({ accountId })
+      // address is undefined at this point
+      // delete account.address
+      const actualAccount = await backend.accountManager.getAccountById({ accountId })
       assert.deepEqual(actualAccount, account)
     })
   })
@@ -180,11 +187,12 @@ describe('Backend', async function () {
     const myTitle = 'just throwing out the garbage'
     before(async function () {
       const accountId = await backend.getSmartAccountId({ email })
-      account = backend.accountManager.getAccountById({ accountId })
+      account = await backend.accountManager.getAccountById({ accountId })
     })
 
     it('should throw on wrong email in signInAsNewOperator request', async function () {
       account.email = wrongEmail
+      await backend.accountManager.putAccount({ account })
       try {
         await backend.signInAsNewOperator({ jwt, title: myTitle })
         assert.fail()
@@ -192,6 +200,7 @@ describe('Backend', async function () {
         assert.equal(e.message, `Invalid email. from jwt: ${email} from account: ${wrongEmail}`)
       }
       account.email = email
+      await backend.accountManager.putAccount({ account })
     })
 
     it('should throw if no new operator to add was found', async function () {
@@ -212,6 +221,7 @@ describe('Backend', async function () {
 
     it('should throw on wrong email in validateAddOperatorNow request', async function () {
       account.email = wrongEmail
+      await backend.accountManager.putAccount({ account })
       try {
         await backend.validateAddOperatorNow({ jwt, smsCode })
         assert.fail()
@@ -219,6 +229,7 @@ describe('Backend', async function () {
         assert.equal(e.message, `Invalid email. from jwt: ${email} from account: ${wrongEmail}`)
       }
       account.email = email
+      await backend.accountManager.putAccount({ account })
     })
 
     it('should throw on wrong smsCode in validateAddOperatorNow', async function () {
@@ -234,7 +245,7 @@ describe('Backend', async function () {
     it('should handle validateAddOperatorNow, store data and return new operator address, title', async function () {
       const { newOperatorAddress, title } = await backend.validateAddOperatorNow({ jwt, smsCode })
       assert.deepEqual(backend.unverifiedNewOperators, {})
-      assert.equal(backend.accountManager.getOperatorToAdd({ accountId: account.accountId }), nonce)
+      assert.equal(await backend.accountManager.getOperatorToAdd({ accountId: account.accountId }), nonce)
       assert.equal(newOperatorAddress, nonce)
       assert.equal(title, myTitle)
     })
@@ -249,10 +260,10 @@ describe('Backend', async function () {
     before(async function () {
       jwt = generateMockJwt({ email, nonce: newOperatorAddress })
       const accountId = await backend.getSmartAccountId({ email })
-      account = backend.accountManager.getAccountById({ accountId })
+      account = await backend.accountManager.getAccountById({ accountId })
       const smartAccount = await FactoryContractInteractor.deploySmartAccountDirectly(accountZero, ethNodeUrl)
       account.address = smartAccount.address
-      backend.accountManager.putAccount({ account })
+      await backend.accountManager.putAccount({ account })
 
       const walletConfig = {
         contract: smartAccount,

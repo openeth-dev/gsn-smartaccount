@@ -1,3 +1,5 @@
+import Nedb from 'nedb-async'
+
 export class BackendAccount {
   constructor ({ accountId, email, phone, verified, address }) {
     Object.assign(this, { accountId, email, phone, verified, address })
@@ -5,10 +7,13 @@ export class BackendAccount {
 }
 
 export class AccountManager {
-  constructor () {
-    this.accounts = {}
-    this.addressToId = {}
-    this.operatorsToAdd = {}
+  constructor ({ workdir = '/tmp' }) {
+    this.accounts = new Nedb({ filename: `${workdir}/accounts.db`, autoload: true })
+    this.accounts.ensureIndex({ fieldName: 'accountId', unique: true })
+    this.accounts.ensureIndex({ fieldName: 'address', unique: true })
+    this.accounts.ensureIndex({ fieldName: 'email', unique: true })
+    this.operatorsToAdd = new Nedb({ filename: `${workdir}/operatorsToAdd.db`, autoload: true })
+    this.operatorsToAdd.ensureIndex({ fieldName: 'address', unique: true })
   }
 
   _toLowerCase ({ account }) {
@@ -18,60 +23,80 @@ export class AccountManager {
     }
   }
 
-  putAccount ({ account }) {
+  async putAccount ({ account }) {
     if (!account) {
-      return
+      throw new Error('must supply account')
     }
     this._toLowerCase({ account })
-    this.accounts[account.accountId] = account
-    if (account.address) {
-      this.addressToId[account.address] = account.accountId
+    const existing = await this.accounts.asyncFindOne({ accountId: account.accountId })
+    if (existing) {
+      await this.accounts.asyncUpdate({ accountId: existing.accountId }, { $set: account })
+    } else {
+      await this.accounts.asyncInsert(account)
     }
+    // this.accounts[account.accountId] = account
+    // if (account.address) {
+    //   this.addressToId[account.address] = account.accountId
+    // }
   }
 
-  getAccountByAddress ({ address }) {
+  async getAccountByAddress ({ address }) {
     if (!address) {
-      return
+      throw new Error('must supply address')
     }
-    return this.getAccountById({ accountId: this.addressToId[address.toLowerCase()] })
+    return this.accounts.asyncFindOne({ address: address.toLowerCase() }, { _id: 0 })
+    // return this.getAccountById({ accountId: this.addressToId[address.toLowerCase()] })
   }
 
-  getAccountById ({ accountId }) {
+  async getAccountById ({ accountId }) {
     if (!accountId) {
-      return
+      throw new Error('must supply accountId')
     }
-    return this.accounts[accountId.toLowerCase()]
+    return this.accounts.asyncFindOne({ accountId: accountId.toLowerCase() }, { _id: 0 })
+    // return this.accounts[accountId.toLowerCase()]
   }
 
-  removeAccount ({ account }) {
+  async removeAccount ({ account }) {
     if (!account) {
-      return
+      throw new Error('must supply account')
     }
     this._toLowerCase({ account })
-    if (account.address) {
-      delete this.addressToId[account.address]
-    }
-    delete this.accounts[account.accountId]
+    return this.accounts.asyncRemove(account, { multi: true })
+    // if (account.address) {
+    //   delete this.addressToId[account.address]
+    // }
+    // delete this.accounts[account.accountId]
   }
 
-  putOperatorToAdd ({ accountId, address }) {
+  async putOperatorToAdd ({ accountId, address }) {
     if (!accountId || !address) {
-      return
+      throw new Error('must supply accountId and address')
     }
-    this.operatorsToAdd[accountId.toLowerCase()] = address.toLowerCase()
+    return this.operatorsToAdd.asyncInsert({ accountId: accountId.toLowerCase(), address: address.toLowerCase() })
+    // this.operatorsToAdd[accountId.toLowerCase()] = address.toLowerCase()
   }
 
-  getOperatorToAdd ({ accountId }) {
+  async getOperatorToAdd ({ accountId }) {
     if (!accountId) {
-      return
+      throw new Error('must supply accountId')
     }
-    return this.operatorsToAdd[accountId.toLowerCase()]
+    const opToAdd = await this.operatorsToAdd.asyncFindOne({ accountId: accountId.toLowerCase() }, { _id: 0 })
+    if (opToAdd && opToAdd.address) {
+      return opToAdd.address
+    }
+    // return this.operatorsToAdd[accountId.toLowerCase()]
   }
 
-  removeOperatorToAdd ({ accountId }) {
+  async removeOperatorToAdd ({ accountId }) {
     if (!accountId) {
-      return
+      throw new Error('must supply accountId')
     }
-    delete this.operatorsToAdd[accountId.toLowerCase()]
+    return this.operatorsToAdd.asyncRemove({ accountId: accountId.toLowerCase() })
+    // delete this.operatorsToAdd[accountId.toLowerCase()]
+  }
+
+  async clearAll () {
+    await this.accounts.asyncRemove({})
+    await this.operatorsToAdd.asyncRemove({})
   }
 }

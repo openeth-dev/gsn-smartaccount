@@ -1,4 +1,4 @@
-/* global describe before it */
+/* global describe before after it */
 
 import { assert } from 'chai'
 import Web3 from 'web3'
@@ -39,6 +39,7 @@ describe('As Guardian', async function () {
   let web3provider
   let smartAccount
   let smartAccountFactory
+  let smartAccountId
   let walletConfig
   let wallet
   const transferDestination = '0x1234567891111111111111111111111111111111'
@@ -70,7 +71,7 @@ describe('As Guardian', async function () {
 
     smsProvider = new SMSmock()
     smsManager = new SmsManager({ smsProvider, secretSMSCodeSeed: crypto.randomBytes(32) })
-    accountManager = new AccountManager()
+    accountManager = new AccountManager({ workdir: '/tmp/test/guaridan' })
     const backendKM = new KeyManager({ ecdsaKeyPair: KeyManager.newKeypair() })
     backend = new Backend(
       {
@@ -85,8 +86,9 @@ describe('As Guardian', async function () {
     backend._getTicketFromJWT = () => {
       return { getPayload: () => { return { email } } }
     }
-    const { approvalData, smartAccountId } = await backend.createAccount({ jwt, smsCode, phoneNumber })
-    newAccount = backend.accountManager.getAccountById({ accountId: smartAccountId })
+    let approvalData
+    ({ approvalData, smartAccountId } = await backend.createAccount({ jwt, smsCode, phoneNumber }))
+    newAccount = await backend.accountManager.getAccountById({ accountId: smartAccountId })
     newSmartAccountReceipt = await smartAccountFactory.newSmartAccount(smartAccountId, approvalData,
       { from: accountZero })
     smartAccount = await FactoryContractInteractor.getCreatedSmartAccountAt(
@@ -115,6 +117,10 @@ describe('As Guardian', async function () {
       to: wallet.contract.address,
       gasPrice: 1
     })
+  })
+
+  after(async function () {
+    await accountManager.clearAll()
   })
 
   describe('As Watchdog', async function () {
@@ -148,25 +154,28 @@ describe('As Guardian', async function () {
     })
 
     it('should NOT add address to known account after smartAccountCreated from unknown factory', async function () {
-      assert.equal(undefined, watchdog.accountManager.getAccountById({ accountId: newAccount.accountId }).address)
+      assert.equal(undefined,
+        (await watchdog.accountManager.getAccountById({ accountId: newAccount.accountId })).address)
       watchdog.smartAccountFactoryAddress = accountZero
       await watchdog._worker()
       watchdog.lastScannedBlock = 0
       watchdog.smartAccountFactoryAddress = smartAccountFactory.address
-      assert.equal(undefined, watchdog.accountManager.getAccountById({ accountId: newAccount.accountId }).address)
+      assert.equal(undefined,
+        (await watchdog.accountManager.getAccountById({ accountId: newAccount.accountId })).address)
     })
 
     it('should add address to known account after smartAccountCreated event', async function () {
-      assert.equal(undefined, watchdog.accountManager.getAccountById({ accountId: newAccount.accountId }).address)
+      assert.equal(undefined,
+        (await watchdog.accountManager.getAccountById({ accountId: newAccount.accountId })).address)
       await watchdog._worker()
-      assert.equal(wallet.contract.address.toLowerCase(),
-        watchdog.accountManager.getAccountById({ accountId: newAccount.accountId }).address)
+      newAccount = await backend.accountManager.getAccountById({ accountId: smartAccountId })
+      assert.equal(wallet.contract.address.toLowerCase(), newAccount.address)
     })
 
     const delayedOps = ['BypassCall', 'Config']
     delayedOps.forEach(function (delayedOp) {
       it(`should not apply delayed ${delayedOp} for unknown accounts`, async function () {
-        watchdog.accountManager.removeAccount({ account: newAccount })
+        await watchdog.accountManager.removeAccount({ account: newAccount })
         const stateId = await wallet.contract.stateNonce()
         if (delayedOp === 'BypassCall') {
           receipt = await wallet.contract.scheduleBypassCall(wallet.participant.permLevel, transferDestination, amount,
@@ -200,7 +209,7 @@ describe('As Guardian', async function () {
       })
 
       it(`should cancel delayed ${delayedOp} for a known account`, async function () {
-        watchdog.accountManager.putAccount({ account: newAccount })
+        await watchdog.accountManager.putAccount({ account: newAccount })
         const eventsBefore = await wallet.contract.getPastEvents(delayedOp + 'Cancelled')
         const smsCode = watchdog.smsManager.getSmsCode(
           { phoneNumber: newAccount.phone, email: newAccount.email })
@@ -249,7 +258,7 @@ describe('As Guardian', async function () {
 
     it('should NOT approve addOperatorNow for unknown accounts', async function () {
       // const id = (await sctestutils.snapshot(web3)).result
-      watchdog.accountManager.removeAccount({ account: newAccount })
+      await watchdog.accountManager.removeAccount({ account: newAccount })
       const stateId = await wallet.contract.stateNonce()
       receipt = await wallet.contract.addOperatorNow(wallet.participant.permLevel, newOperatorAddress, stateId,
         { from: accountZero })
@@ -263,7 +272,7 @@ describe('As Guardian', async function () {
     })
 
     it('should NOT approve addOperatorNow for unknown requests', async function () {
-      watchdog.accountManager.putAccount({ account: newAccount })
+      await watchdog.accountManager.putAccount({ account: newAccount })
       const stateId = await wallet.contract.stateNonce()
       receipt = await wallet.contract.addOperatorNow(wallet.participant.permLevel, newOperatorAddress, stateId,
         { from: accountZero })
@@ -274,7 +283,7 @@ describe('As Guardian', async function () {
     })
 
     it('should NOT approve addOperatorNow on participant hash mismatch', async function () {
-      watchdog.accountManager.putOperatorToAdd({ accountId: newAccount.accountId, address: wrongOperatorAddress })
+      await watchdog.accountManager.putOperatorToAdd({ accountId: newAccount.accountId, address: wrongOperatorAddress })
       const stateId = await wallet.contract.stateNonce()
       receipt = await wallet.contract.addOperatorNow(wallet.participant.permLevel, newOperatorAddress, stateId,
         { from: accountZero })
@@ -285,11 +294,11 @@ describe('As Guardian', async function () {
         `participant hash mismatch:\nlog ${receipt.logs[0].args.actionsArguments1[0]}\nexpected operator hash ${scutils.bufferToHex(
           scutils.operatorHash(
             wrongOperatorAddress))}`)
-      watchdog.accountManager.removeOperatorToAdd({ accountId: newAccount.accountId })
+      await watchdog.accountManager.removeOperatorToAdd({ accountId: newAccount.accountId })
     })
 
     it('should approve addOperatorNow for known requests', async function () {
-      watchdog.accountManager.putOperatorToAdd({ accountId: newAccount.accountId, address: newOperatorAddress })
+      await watchdog.accountManager.putOperatorToAdd({ accountId: newAccount.accountId, address: newOperatorAddress })
       const stateId = await wallet.contract.stateNonce()
       receipt = await wallet.contract.addOperatorNow(wallet.participant.permLevel, newOperatorAddress, stateId,
         { from: accountZero })
@@ -316,7 +325,7 @@ describe('As Guardian', async function () {
       })
       await watchdog._worker()
       assert.deepEqual(watchdog.changesToApply, {})
-      watchdog.accountManager.putOperatorToAdd({ accountId: newAccount.accountId, address: wrongOperatorAddress })
+      await watchdog.accountManager.putOperatorToAdd({ accountId: newAccount.accountId, address: wrongOperatorAddress })
       watchdog.lastScannedBlock = 0
       await watchdog._worker()
       assert.deepEqual(watchdog.changesToApply, {})
