@@ -103,12 +103,24 @@ function TokenWidget ({ symbol, balance, decimals, doTransfer }) {
   return <pre>{symbol}: {balance / div} <Button title={'send ' + symbol} action={() => doTransfer({ symbol })}/></pre>
 }
 
+const PendingTransaction = ({p}) => {
+  const op = p.operation || p.operations[0].type
+  if (op === 'transfer')
+    return <>
+      {p.tokenSymbol} {p.value / 1e18} {p.destination}
+    </>
+
+  if (op == 'add_operator')
+    return <>
+      add operator: {p.operations[0].args[0].replace(/0x(0*)/, '0x')}
+    </>
+}
 const PendingTransactions = ({ walletPending, doCancelPending }) =>
   <div>
     <b>Pending</b>
     {walletPending.map(p =>
       <div key={p.delayedOpId}>
-        {p.operation} {p.tokenSymbol} {p.value / 1e18} {p.destination}
+        <PendingTransaction p={p} /> -
         <Button title="Cancel" action={() => doCancelPending(p.delayedOpId)}/>
       </div>)
     }
@@ -139,11 +151,7 @@ function ActiveWallet ({ ownerAddr, walletInfo, walletBalances, walletPending, d
 
     {
       !walletInfo.isOperator &&
-      <div style={{ color: 'orange' }}>Warning: You are not an owner<br/>
-        (probably did &quot;Signout&quot; to forget the privkey, and then re-logged in. But don&apos;t worry: you can do
-        recover)
-      </div>
-
+      <div style={{ color: 'orange' }}>Warning: You are not an owner</div>
     }
     <xmp>
       Pending: {pending}
@@ -155,7 +163,7 @@ function ActiveWallet ({ ownerAddr, walletInfo, walletBalances, walletPending, d
   </>
 }
 
-function RecoverOrNewDevice ({ email, doNewDeviceAddOperator }) {
+function RecoverOrNewDevice ({ email, doNewDeviceAddOperator, doRecoverWalletOnNewDevice, doValidateRecoverWallet }) {
   return <div>
     Hello <b>{email}</b>,
     You have wallet on-chain, but this device is not its operator.<br/>
@@ -164,8 +172,13 @@ function RecoverOrNewDevice ({ email, doNewDeviceAddOperator }) {
       <li><Button title="add new operator" action={doNewDeviceAddOperator}/> (requires approval on your old
         device) or,
       </li>
-      <li><Button title="Recover your vault"/> (You dont need your old device,
-        but it takes time
+      <li>Recover your wallet (You dont need your old device, but it takes time)
+        <ul>
+          <li> Step 1: <Button title="Request recover SMS" action={doRecoverWalletOnNewDevice}/>
+          </li>
+          <li> Step 2: <Button title="Use SMS to recover" action={doValidateRecoverWallet}/>
+          </li>
+        </ul>
       </li>
     </ul>
   </div>
@@ -190,7 +203,7 @@ function WalletComponent (options) {
   }
   // pendingAddOperatorNow is a local flag set after we've sent a request
   // to add this device.
-  if (!pendingAddOperatorNow && (!walletInfo || !walletInfo.isOperator)) {
+  if (!pendingAddOperatorNow && (!walletInfo || !walletInfo.isOperatorOrPending)) {
     return <><DebugState state="nowalletInfo"/><RecoverOrNewDevice {...options} /></>
   }
 
@@ -245,12 +258,15 @@ class App extends React.Component {
         await wallet.subscribe(() => this.eventSubscriber())
       }
       mgrState.walletInfo = await wallet.getWalletInfo()
+      //TODO: isOperator, isOperatorOrPending are just parsers of walletInfo.
+      // no need to re-fetch it..
       mgrState.walletInfo.isOperator = await wallet.isOperator(mgrState.ownerAddr)
+      mgrState.walletInfo.isOperatorOrPending = await wallet.isOperatorOrPending(mgrState.ownerAddr)
       if (mgrState.walletInfo.isOperator) {
         mgrState.pendingAddOperatorNow = undefined
       }
       mgrState.walletBalances = await wallet.listTokens()
-      mgrState.walletPending = await wallet.listPendingTransactions()
+      mgrState.walletPending = [... await wallet.listPendingTransactions(), ... await wallet.listPendingConfigChanges() ]
       mgrState.walletPending.forEach((x, index) => { x.index = (index + 1).toString() })
       const web3 = new Web3(global.web3provider)
       mgrState.currentTime = new Date((await web3.eth.getBlock('latest')).timestamp * 1000).toString()
@@ -342,6 +358,21 @@ class App extends React.Component {
     }
   }
 
+  async doRecoverWalletOnNewDevice () {
+    if (window.confirm('Attempt to recover your wallet?\nIt takes few days..?\n' + getDeviceName())) {
+      await mgr.recoverWallet({ jwt: this.state.jwt, title: getDeviceName() })
+      window.alert('sms sent. use it in "Step 2"')
+    }
+  }
+
+  async doValidateRecoverWallet (smsCode) {
+    if (!smsCode) {
+      smsCode = window.prompt('Enter recover SMS code')
+      if (!smsCode) return
+    }
+    await mgr.validateRecoverWallet({ jwt: this.state.jwt, smsCode })
+  }
+
   async doNewDeviceAddOperator () {
     if (window.confirm('Request to add this device as new operator?\n' + getDeviceName())) {
       await mgr.signInAsNewOperator({ jwt: this.state.jwt, title: getDeviceName() })
@@ -380,7 +411,7 @@ class App extends React.Component {
       if (!window.confirm('Are you sure you want to cancel this operation?')) { return }
     }
 
-    await wallet.cancelPending(delayedOpId)
+    this.asyncHandler(wallet.cancelPending(delayedOpId))
   }
 
   async doTransfer ({ symbol }) {
@@ -524,6 +555,8 @@ class App extends React.Component {
           doCancelPending={params => this.doCancelPending(params)}
           doNewDeviceAddOperator={() => this.doNewDeviceAddOperator()}
           doOldDeviceApproveOperator={() => this.asyncHandler(this.doOldDeviceApproveOperator())}
+          doRecoverWalletOnNewDevice={()=>this.doRecoverWalletOnNewDevice()}
+          doValidateRecoverWallet={()=>this.doValidateRecoverWallet()}
           refresh={(extra) => this.reloadState(extra)} {...this.state} />
 
       </div>

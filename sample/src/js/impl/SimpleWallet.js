@@ -205,10 +205,34 @@ export default class SimpleWallet extends SimpleWalletApi {
     return false
   }
 
+  async isOperatorOrPending (address) {
+    if ( await this.isOperator(address) )
+      return true;
+
+    const pending = await this.listPendingConfigChanges()
+    const op = pending[0].operations && pending[0].operations[0]
+    if ( !op )
+      return false
+    if ( op.type == 'add_operator' &&
+         op.args[0].indexOf(address.replace(/0x/,'')) > 0 ) {
+      return true;
+    }
+    return false;
+  }
+
+  //naive caching: don't fetch more than once every 2 seconds..
+  async getWalletInfo () {
+    if ( !this.nextInfoUpdate || this.nextInfoUpdate < Date.now() ) {
+      this._walletInfo = await this._getWalletInfo()
+      this.nextInfoUpdate = Date.now() + 2000
+    }
+    return this._walletInfo
+  }
+
   // TODO: currently only initialConfig is checked. Must iterate over all config events to figure out the actual info.
   // TODO: split into two: scan events and interpret events.
   // TODO: add some caching mechanism then to avoid re-scanning entire history on every call
-  async getWalletInfo () {
+  async _getWalletInfo () {
     this.stateId = await this.contract.stateNonce()
     const { allowAcceleratedCalls, allowAddOperatorNow } = await this._getAllowedFlags()
     const { initEvent, participantAddedEvents } = await this._getCompletedConfigurationEvents()
