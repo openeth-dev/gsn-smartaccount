@@ -1,7 +1,7 @@
 function sig (method) {
   const str = method.toString().replace(/\s+/g, ' ')
   const regex = str.match(/^((?:async)?\s*\w+\s*\(.*?\))/)
-  return regex[1]
+  return regex ? regex[1] : ''
 }
 /* eslint-disable no-proto */
 export default function validate (baseClass, inst) {

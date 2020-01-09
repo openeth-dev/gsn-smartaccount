@@ -27,6 +27,13 @@ const verbose = window.location.href.indexOf('#verbose') > 0
 var mgr, sms, wallet, sdk
 const Button = ({ title, action }) => <input type="submit" onClick={action} value={title}/>
 
+function errorStr (e) {
+  if (e.stack) return 'stk:' + e.stack
+  if (e.message) return 'msg:' + e.message
+  if (e.error) return 'err:' + e.error
+  return JSON.stringify(e)
+}
+
 // not directly belongs to the UI - but extract device name from userAgent..
 function getDeviceName () {
   const userAgent = global.navigator && (navigator.userAgent || 'unknown')
@@ -51,7 +58,7 @@ function GoogleLogin ({ refresh, initMgr }) {
       const { jwt, email } = logininfo
       refresh({ jwt, email })
     } catch (e) {
-      refresh({ err: e.message || e.error })
+      refresh({ err: errorStr(e) })
     }
   }
 
@@ -88,7 +95,7 @@ function CreateWallet ({ refresh, jwt, email }) {
 
       refresh({ err: undefined })
     } catch (e) {
-      refresh({ err: e.message })
+      refresh({ err: errorStr(e) })
     }
   }
   return <div>
@@ -103,17 +110,19 @@ function TokenWidget ({ symbol, balance, decimals, doTransfer }) {
   return <pre>{symbol}: {balance / div} <Button title={'send ' + symbol} action={() => doTransfer({ symbol })}/></pre>
 }
 
-const PendingTransaction = ({p}) => {
+const PendingTransaction = ({ p }) => {
   const op = p.operation || p.operations[0].type
-  if (op === 'transfer')
+  if (op === 'transfer') {
     return <>
       {p.tokenSymbol} {p.value / 1e18} {p.destination}
     </>
+  }
 
-  if (op == 'add_operator')
+  if (op === 'add_operator') {
     return <>
       add operator: {p.operations[0].args[0].replace(/0x(0*)/, '0x')}
     </>
+  }
 }
 const PendingTransactions = ({ walletPending, doCancelPending }) =>
   <div>
@@ -227,7 +236,7 @@ class App extends React.Component {
   //  is it redundant? (not on error, anyway)
   asyncHandler (promise) {
     return promise.then(() => this.readMgrState().then(x => { this.setState(x) }))
-      .catch(err => this.reloadState({ err: err.message || err.error }))
+      .catch(err => this.reloadState({ err: errorStr(err) }))
   }
 
   async readMgrState () {
@@ -258,7 +267,7 @@ class App extends React.Component {
         await wallet.subscribe(() => this.eventSubscriber())
       }
       mgrState.walletInfo = await wallet.getWalletInfo()
-      //TODO: isOperator, isOperatorOrPending are just parsers of walletInfo.
+      // TODO: isOperator, isOperatorOrPending are just parsers of walletInfo.
       // no need to re-fetch it..
       mgrState.walletInfo.isOperator = await wallet.isOperator(mgrState.ownerAddr)
       mgrState.walletInfo.isOperatorOrPending = await wallet.isOperatorOrPending(mgrState.ownerAddr)
@@ -266,7 +275,7 @@ class App extends React.Component {
         mgrState.pendingAddOperatorNow = undefined
       }
       mgrState.walletBalances = await wallet.listTokens()
-      mgrState.walletPending = [... await wallet.listPendingTransactions(), ... await wallet.listPendingConfigChanges() ]
+      mgrState.walletPending = [...await wallet.listPendingTransactions(), ...await wallet.listPendingConfigChanges()]
       mgrState.walletPending.forEach((x, index) => { x.index = (index + 1).toString() })
       const web3 = new Web3(global.web3provider)
       mgrState.currentTime = new Date((await web3.eth.getBlock('latest')).timestamp * 1000).toString()
@@ -431,7 +440,7 @@ class App extends React.Component {
 
       await wallet.transfer({ destination, amount, token: symbol })
     } catch (e) {
-      this.reloadState({ err: e.message })
+      this.reloadState({ err: errorStr(e) })
     }
   }
 
@@ -503,7 +512,7 @@ class App extends React.Component {
       await sdk.enableApp({ appTitle: 'SampleWallet', appUrl: window.location.href })
       this.reloadState()
     } catch (e) {
-      this.reloadState({ err: e.message || e.error })
+      this.reloadState({ err: errorStr(e) })
     }
   }
 
@@ -545,8 +554,8 @@ class App extends React.Component {
         }
         {
           this.state.err &&
-          <div style={{ color: 'red' }} onClick={() => this.setState({ err: undefined })}>
-            <h2>Error: {this.state.err} </h2>
+          <div style={{ color: 'red' }} onClick={() => this.setState({ err: undefined })}> <pre>
+            <h2>Error: {this.state.err} </h2></pre>
           </div>
         }
         <WalletComponent
@@ -555,8 +564,8 @@ class App extends React.Component {
           doCancelPending={params => this.doCancelPending(params)}
           doNewDeviceAddOperator={() => this.doNewDeviceAddOperator()}
           doOldDeviceApproveOperator={() => this.asyncHandler(this.doOldDeviceApproveOperator())}
-          doRecoverWalletOnNewDevice={()=>this.doRecoverWalletOnNewDevice()}
-          doValidateRecoverWallet={()=>this.doValidateRecoverWallet()}
+          doRecoverWalletOnNewDevice={() => this.doRecoverWalletOnNewDevice()}
+          doValidateRecoverWallet={() => this.doValidateRecoverWallet()}
           refresh={(extra) => this.reloadState(extra)} {...this.state} />
 
       </div>

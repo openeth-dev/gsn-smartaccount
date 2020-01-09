@@ -164,7 +164,6 @@ export default class SimpleManager extends SimpleManagerApi {
     // TODO: read wallet with address, not from event!
     const address = await this.getWalletAddress()
 
-    console.log('load wallet address=', address)
     return FactoryContractInteractor.getCreatedSmartAccountAt({
       address,
       provider: this.factoryConfig.provider

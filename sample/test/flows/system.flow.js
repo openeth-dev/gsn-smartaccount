@@ -6,12 +6,16 @@ import SMSmock from '../../src/js/mocks/SMS.mock'
 import TestEnvironment from '../utils/TestEnvironment'
 
 import { increaseTime } from 'safechannels-contracts/test/utils'
-import { sleep } from '../backend/testutils'
-import * as TestUtils from 'safechannels-contracts/test/utils'
 
 const DAY = 24 * 3600
 
 const verbose = false
+
+async function walletOperators (wallet) {
+  const info = await wallet.getWalletInfo()
+  return info.participants.filter(p => p.type === 'operator')
+}
+
 describe.only('System flow', () => {
   let testEnvironment, web3, toBN
   const userEmail = 'shahaf@tabookey.com'
@@ -87,14 +91,13 @@ describe.only('System flow', () => {
     it('after wallet creation', async function () {
       const wallet = await mgr.loadWallet()
 
-      const info = await wallet.getWalletInfo()
-      const operators = info.participants.filter(it => it.type === 'operator')
+      const operators = await walletOperators(wallet)
       assert.deepEqual(operators.length, 1)
       assert.deepEqual(operators[0].address, await mgr.getOwner())
     })
   })
 
-  describe.skip('transfer flow', async () => {
+  describe('transfer flow', async () => {
     let accounts
 
     before(async () => {
@@ -235,7 +238,8 @@ describe.only('System flow', () => {
     })
   })
   
-  describe.skip('add device now', async () => {
+
+  describe('add device now', async () => {
     let newenv, newmgr
     let oldOperator
     before('create env for new device', async function () {
