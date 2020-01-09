@@ -17,11 +17,6 @@ const SmartAccountFactory = TruffleContract({
   abi: SmartAccountFactoryABI
 })
 
-const SmartAccountContract = TruffleContract({
-  contractName: 'SmartAccount',
-  abi: SmartAccountABI
-})
-
 const FreeRecipientSponsorContract = TruffleContract({
   contractName: 'FreeRecipientSponsorABI',
   abi: FreeRecipientSponsorABI
@@ -227,8 +222,12 @@ class FactoryContractInteractor {
   }
 
   static async getCreatedSmartAccountAt ({ address, provider }) {
+    const SmartAccountContract = TruffleContract({
+      contractName: 'SmartAccount',
+      abi: SmartAccountABI
+    })
     SmartAccountContract.setProvider(provider)
-    return SmartAccountContract.at(address)
+    return await SmartAccountContract.at(address)
   }
 
   async deployNewSmartAccount () {
