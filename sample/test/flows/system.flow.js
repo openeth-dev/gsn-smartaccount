@@ -16,7 +16,7 @@ async function walletOperators (wallet) {
   return info.participants.filter(p => p.type === 'operator')
 }
 
-describe.only('System flow', () => {
+describe('System flow', () => {
   let testEnvironment, web3, toBN
   const userEmail = 'shahaf@tabookey.com'
 
@@ -150,7 +150,11 @@ describe.only('System flow', () => {
       let pendings = await wallet.listPendingTransactions()
       assert.equal(pendings.length, 1)
       await increaseTime(3 * DAY, web3)
-      await wallet.applyAllPendingOperations()
+      try {
+        await wallet.applyAllPendingOperations()
+      } catch (e) {
+        // might get reverted, if the backend succeeds applying before client..
+      }
       pendings = await wallet.listPendingTransactions()
       assert.equal(pendings.length, 0)
       const finalBalance = await web3.eth.getBalance(info.address)
@@ -164,19 +168,21 @@ describe.only('System flow', () => {
     let newenv, newmgr, newwallet, oldOperator
     before('create env for new device', async function () {
       this.timeout(10000)
-        newenv = new TestEnvironment({})
-        newenv.sponsor = testEnvironment.sponsor
-        newenv.web3provider = testEnvironment.web3provider
-        newenv.web3 = testEnvironment.web3
-        newenv.verbose = testEnvironment.verbose
-        newenv.factory = testEnvironment.factory
-        newenv.backendAddresses = testEnvironment.backendAddresses
+      console.log('before newenv init')
 
-        await newenv._initializeSimpleManager()
+      newenv = new TestEnvironment({})
+      newenv.sponsor = testEnvironment.sponsor
+      newenv.web3provider = testEnvironment.web3provider
+      newenv.web3 = testEnvironment.web3
+      newenv.verbose = testEnvironment.verbose
+      newenv.factory = testEnvironment.factory
+      newenv.backendAddresses = testEnvironment.backendAddresses
 
-        newmgr = newenv.manager
+      await newenv._initializeSimpleManager()
 
-        oldOperator = await mgr.getOwner()
+      newmgr = newenv.manager
+
+      oldOperator = await mgr.getOwner()
     })
 
     const TEST_TITLE = 'recover-title'
@@ -202,42 +208,45 @@ describe.only('System flow', () => {
     })
 
     it('new device should not be operator before recover', async function () {
-
       assert.ok(!await newwallet.isOperator(await newmgr.getOwner()))
     })
-
 
     it('recover with sms should add pending event with new address', async function () {
-      function   bytes2addr(bytes) {
-        const data = bytes.replace(/^0x(0*)/,'')
-        return '0x'+ '0'.repeat(40-data.length)+data
+      function bytes2addr (bytes) {
+        const data = bytes.replace(/^0x(0*)/, '')
+        return '0x' + '0'.repeat(40 - data.length) + data
       }
 
-      await newmgr.validateRecoverWallet({jwt,smsCode})
+      await newmgr.validateRecoverWallet({ jwt, smsCode })
       const pending = await newwallet.listPendingConfigChanges()
-      console.log(JSON.stringify(pending[0],null,2))
-      assert.equal(pending.length,1)
-      assert.equal(pending[0].operations.length,1)
+      console.log(JSON.stringify(pending[0], null, 2))
+      assert.equal(pending.length, 1)
+      assert.equal(pending[0].operations.length, 1)
       assert.equal(pending[0].operations[0].type, 'add_operator')
-      const added_arg = pending[0].operations[0].args[0]
-      assert.equal(bytes2addr(added_arg), await newmgr.getOwner( ))
+      const addedArg = pending[0].operations[0].args[0]
+      assert.equal(bytes2addr(addedArg), await newmgr.getOwner())
     })
 
-    it('new device should not be operator before recover timeout',async function () {
+    it('new device should not be operator before recover timeout', async function () {
       assert.ok(!await newwallet.isOperator(await newmgr.getOwner()))
+      assert.ok(await newwallet.isOperatorOrPending(await newmgr.getOwner()))
     })
 
     it('guardian should apply recovery after timeout', async function () {
+      let resolvePromise = null
+      const walletChangedPromise = new Promise((resolve) => { resolvePromise = resolve })
+      await newwallet.subscribe(resolvePromise)
 
-      increaseTime(DAY*2, web3)
-      await sleep(500)
+      increaseTime(DAY * 2, web3)
+
+      await walletChangedPromise
+
       const pending = await newwallet.listPendingConfigChanges()
       assert.equal(pending.length, 0)
 
       assert.ok(await newwallet.isOperator(await newmgr.getOwner()))
     })
   })
-  
 
   describe('add device now', async () => {
     let newenv, newmgr
@@ -294,18 +303,21 @@ describe.only('System flow', () => {
     })
 
     it('addOperatorNow should add new operator..', async () => {
-      assert.ok(!await wallet.isOperator(newOperator))
+      console.log('env owner=', await mgr.getOwner())
+      console.log('newenv owner=', await newmgr.getOwner())
+      const newwallet = await newmgr.loadWallet()
+      assert.ok(!await newwallet.isOperator(newOperator))
 
-      let info = await wallet.getWalletInfo()
-      assert.equal(info.participants.filter(p => p.type === 'operator').length, 1)
+      let resolvePromise = null
+      const walletChangedPromise = new Promise((resolve) => { resolvePromise = resolve })
+      await wallet.subscribe(resolvePromise)
+
+      await wallet.getWalletInfo()
+      console.log('mgr owner: ', await mgr.getOwner())
       await wallet.addOperatorNow(newOperator)
 
-      await sleep(1000) // should be enough for guardian to complete.
-
-      info = await wallet.getWalletInfo()
-      assert.equal(info.participants.filter(p => p.type === 'operator').length, 2)
-
-      const newwallet = await newmgr.loadWallet()
+      console.log('after')
+      await walletChangedPromise
 
       assert.ok(await newwallet.isOperator(newOperator))
     })
