@@ -33,10 +33,9 @@ export class Backend {
       const newAccount = new BackendAccount({
         accountId: smartAccountId,
         email: email,
-        phone: formattedPhone,
-        verified: true
+        phone: formattedPhone
       })
-      this.accountManager.putAccount({ account: newAccount })
+      await this.accountManager.putAccount({ account: newAccount })
     } else {
       throw new Error(`invalid sms code: ${smsCode}`)
     }
@@ -50,7 +49,7 @@ export class Backend {
     const email = payload.email
     const newOperatorAddress = payload.nonce
     const smartAccountId = await this.getSmartAccountId({ email })
-    const account = this.accountManager.getAccountById({ accountId: smartAccountId })
+    const account = await this.accountManager.getAccountById({ accountId: smartAccountId })
     if (email !== account.email) {
       throw new Error(`Invalid email. from jwt: ${email} from account: ${account.email}`)
     }
@@ -63,7 +62,7 @@ export class Backend {
   async _authenticateClient ({ jwt, smsCode }) {
     const email = (await this._getTicketFromJWT(jwt)).getPayload().email
     const accountId = await this.getSmartAccountId({ email })
-    const account = this.accountManager.getAccountById({ accountId })
+    const account = await this.accountManager.getAccountById({ accountId })
     if (email !== account.email) {
       throw new Error(`Invalid email. from jwt: ${email} from account: ${account.email}`)
     }
@@ -79,7 +78,7 @@ export class Backend {
 
   async validateAddOperatorNow ({ jwt, smsCode }) {
     const { accountId, newOperatorAddress, title } = await this._authenticateClient({ jwt, smsCode })
-    this.accountManager.putOperatorToAdd({ accountId, address: newOperatorAddress })
+    await this.accountManager.putOperatorToAdd({ accountId, address: newOperatorAddress })
     delete this.unverifiedNewOperators[accountId]
     return { newOperatorAddress, title }
   }
