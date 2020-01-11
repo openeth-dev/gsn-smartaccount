@@ -38,7 +38,7 @@ const devMode = argv.dev || argv.D
 const smsManager = new SmsManager({ smsProvider, secretSMSCodeSeed: crypto.randomBytes(32) })
 const keypair = KeyManager.newKeypair()
 const keyManager = new KeyManager({ ecdsaKeyPair: keypair })
-const accountManager = new AccountManager()
+const accountManager = new AccountManager({ workdir: '/tmp/test/runserver' })
 const web3provider = new Web3.providers.WebsocketProvider(ethNodeUrl)
 const watchdog = new Watchdog({
   smsManager,

@@ -113,16 +113,16 @@ export class Watchdog extends Guardian {
   }
 
   async _handleSmartAccountCreatedEvent (dlog) {
-    const account = this.accountManager.getAccountById({ accountId: dlog.args.smartAccountId })
+    const account = await this.accountManager.getAccountById({ accountId: dlog.args.smartAccountId })
     if (!account || this.smartAccountFactoryAddress !== dlog.address) {
       return
     }
     account.address = dlog.args.smartAccount
-    this.accountManager.putAccount({ account })
+    await this.accountManager.putAccount({ account })
   }
 
   async _handlePendingEvent (dlog) {
-    const account = this.accountManager.getAccountByAddress({ address: dlog.address })
+    const account = await this.accountManager.getAccountByAddress({ address: dlog.address })
     if (!account) {
       return
     }
@@ -136,7 +136,7 @@ export class Watchdog extends Guardian {
   }
 
   async _handleCancelledOrAppliedEvent (dlog) {
-    const account = this.accountManager.getAccountByAddress({ address: dlog.address })
+    const account = await this.accountManager.getAccountByAddress({ address: dlog.address })
     if (!account) {
       return
     }
@@ -151,7 +151,7 @@ export class Watchdog extends Guardian {
       if (change.dueTime <= Date.now()) {
         txhashes.push(await this._finalizeChange(delayedOpId, { apply: true }))
       } else if (!change.smsSent) {
-        const account = this.accountManager.getAccountByAddress({ address: change.log.address })
+        const account = await this.accountManager.getAccountByAddress({ address: change.log.address })
         const smsCode = this.smsManager.getSmsCode({ phoneNumber: account.phone, email: account.email })
         await this.smsManager.sendSMS({
           phoneNumber: account.phone,
@@ -172,7 +172,7 @@ export class Watchdog extends Guardian {
   // TODO check jwt? not sure if needed ATM
   async cancelByUrl ({ jwt, url }) {
     const { delayedOpId, address, smsCode } = Watchdog._extractCancelParamsFromUrl({ url })
-    const account = this.accountManager.getAccountByAddress({ address })
+    const account = await this.accountManager.getAccountByAddress({ address })
     if (!account) {
       throw new Error(
         'Unknown account: either the account was not created on the backend or no address found from smartAccountCreated event')
@@ -196,8 +196,8 @@ export class Watchdog extends Guardian {
     } else if (change.log.name === 'ConfigPending') {
       // In case this is actually an addOperatorNow request, which is handled differently
       if (change.log.args.actions.length === 1 && change.log.args.actions[0] === ChangeType.ADD_OPERATOR_NOW.toString()) {
-        const account = this.accountManager.getAccountByAddress({ address: change.log.address })
-        const newOperatorAddress = this.accountManager.getOperatorToAdd(
+        const account = await this.accountManager.getAccountByAddress({ address: change.log.address })
+        const newOperatorAddress = await this.accountManager.getOperatorToAdd(
           { accountId: account.accountId })
         if (!newOperatorAddress) {
           // TODO cancel operation
@@ -211,7 +211,7 @@ export class Watchdog extends Guardian {
           return new Error(
             `participant hash mismatch:\nlog ${change.log.args.actionsArguments1[0]}\nexpected operator hash ${operatorHash}`)
         }
-        this.accountManager.removeOperatorToAdd({ accountId: account.accountId })
+        await this.accountManager.removeOperatorToAdd({ accountId: account.accountId })
         method = this._formatApproveAddOperatorNowMethod({ args: change.log.args, newOperatorAddress })
       } else { // All other config changes that are not addOperatorNow are handled the same
         method = this._formatConfigMethod({ args: change.log.args, apply, cancel })
@@ -312,7 +312,7 @@ export class Admin extends Guardian {
   }
 
   async scheduleAddOperator ({ accountId, newOperatorAddress }) {
-    const account = this.accountManager.getAccountById({ accountId })
+    const account = await this.accountManager.getAccountById({ accountId })
     if (!account) {
       throw Error('Account not found')
     }
