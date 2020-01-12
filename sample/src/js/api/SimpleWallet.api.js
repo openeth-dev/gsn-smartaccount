@@ -50,6 +50,22 @@ export default class SimpleWalletApi {
     return ['add1', 'add2']
   }
 
+  async isOperator (address) {
+    error('return true if the given address is an operator of this wallet')
+  }
+
+  async isOperatorOrPending (address) {
+    error('return true if the given address is an operator or pending-to-be-operator')
+  }
+
+  async subscribe (observer) {
+    error('call observer on any blockchain event of this wallet. call getWalletInfo() to update')
+  }
+
+  async unsubscribe (observer) {
+    error('remove observer from wallet')
+  }
+
   async getWalletInfo () {
     error('wallet info')
   }

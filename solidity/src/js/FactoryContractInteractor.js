@@ -17,11 +17,6 @@ const SmartAccountFactory = TruffleContract({
   abi: SmartAccountFactoryABI
 })
 
-const SmartAccountContract = TruffleContract({
-  contractName: 'SmartAccount',
-  abi: SmartAccountABI
-})
-
 const FreeRecipientSponsorContract = TruffleContract({
   contractName: 'FreeRecipientSponsorABI',
   abi: FreeRecipientSponsorABI
@@ -211,22 +206,11 @@ class FactoryContractInteractor {
     return new (new Web3()).eth.Contract(ERC20ABI).methods.transfer(destination, amount).encodeABI()
   }
 
-  static async getCreatedSmartAccount ({ factoryAddress, blockNumber, sender, provider }) {
-    SmartAccountFactory.setProvider(provider)
-    SmartAccountContract.setProvider(provider)
-    const smartAccountFactory = await SmartAccountFactory.at(factoryAddress)
-    const fromBlock = blockNumber
-    const toBlock = blockNumber === 1 ? 'latest' : blockNumber
-    const options = { fromBlock, toBlock }
-    let events = await Utils.getEvents(smartAccountFactory, smartAccountCreatedEvent, options, SmartAccountCreatedEvent)
-    events = events.filter(event => event.sender.toLowerCase() === sender)
-    if (events.length !== 1) {
-      throw new Error('Invalid smart account created events array size')
-    }
-    return SmartAccountContract.at(events[0].smartAccount)
-  }
-
   static async getCreatedSmartAccountAt ({ address, provider }) {
+    const SmartAccountContract = TruffleContract({
+      contractName: 'SmartAccount',
+      abi: SmartAccountABI
+    })
     SmartAccountContract.setProvider(provider)
     return SmartAccountContract.at(address)
   }

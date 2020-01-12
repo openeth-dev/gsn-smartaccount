@@ -79,17 +79,17 @@ export function testValidatePhoneBehavior (getContext) {
  */
 export function testSignInBehavior (getContext) {
   let jwt
-  let description
+  let title
   // This test is dumb now, but I expect it to get more advanced in the future if manager gets more inner logic
   it('should pass parameters to backend and handle http 200 OK code', async function () {
     const context = getContext()
     jwt = context.jwt
-    description = context.description
+    title = context.title
     const sm = context.manager
     const signInAsNewOperatorOrig = sm.backend.signInAsNewOperator
     sm.backend.signInAsNewOperator = sinon.spy()
-    await sm.signInAsNewOperator({ jwt, description })
-    calledWithRightArgs(sm.backend.signInAsNewOperator, { jwt, description })
+    await sm.signInAsNewOperator({ jwt, title })
+    calledWithRightArgs(sm.backend.signInAsNewOperator, { jwt, title })
     sm.backend.signInAsNewOperator = signInAsNewOperatorOrig
   })
 
@@ -101,7 +101,7 @@ export function testSignInBehavior (getContext) {
     })
 
     await sm.setSignInObserver({ observer, interval: 100 })
-    await sm.signInAsNewOperator({ jwt, description })
+    await sm.signInAsNewOperator({ jwt, title })
 
     for (let i = 0; i < 10; i++) {
       if (wasCalled) {

@@ -53,6 +53,22 @@ export default class SimpleWalletMock extends SimpleWalletApi {
     return ['add1', 'add2']
   }
 
+  async isOperator (address) {
+    return true
+  }
+
+  async isOperatorOrPending (address) {
+    error('return true if the given address is an operator or pending-to-be-operator')
+  }
+
+  async subscribe (observer) {
+    error('call observer on a change to wallet')
+  }
+
+  async unsubscribe (observer) {
+    error('remove observer from wallet')
+  }
+
   async getWalletInfo () {
     let addr
     return {

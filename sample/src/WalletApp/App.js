@@ -27,6 +27,26 @@ const verbose = window.location.href.indexOf('#verbose') > 0
 var mgr, sms, wallet, sdk
 const Button = ({ title, action }) => <input type="submit" onClick={action} value={title}/>
 
+function errorStr (e) {
+  if (e.stack) return 'stk:' + e.stack
+  if (e.message) return 'msg:' + e.message
+  if (e.error) return 'err:' + e.error
+  return JSON.stringify(e)
+}
+
+// not directly belongs to the UI - but extract device name from userAgent..
+function getDeviceName () {
+  const userAgent = global.navigator && (navigator.userAgent || 'unknown')
+  const deviceMatch = userAgent.match(/\((.*?)\)/)
+  if (!deviceMatch) { return userAgent }
+
+  console.log('== useragent:', userAgent)
+  const names = deviceMatch[1].split(/\s*;\s*/)
+  // TODO: Android is 2nd best: should return specific device type - if known.
+  const ret = names.find(name => /Window|Mac|iP|Android|Pixel|SM-|Nexus/.test(name))
+  return ret || deviceMatch
+}
+
 function GoogleLogin ({ refresh, initMgr }) {
   async function login () {
     try {
@@ -38,7 +58,7 @@ function GoogleLogin ({ refresh, initMgr }) {
       const { jwt, email } = logininfo
       refresh({ jwt, email })
     } catch (e) {
-      refresh({ err: e.message || e.error })
+      refresh({ err: errorStr(e) })
     }
   }
 
@@ -75,7 +95,7 @@ function CreateWallet ({ refresh, jwt, email }) {
 
       refresh({ err: undefined })
     } catch (e) {
-      refresh({ err: e.message })
+      refresh({ err: errorStr(e) })
     }
   }
   return <div>
@@ -90,21 +110,37 @@ function TokenWidget ({ symbol, balance, decimals, doTransfer }) {
   return <pre>{symbol}: {balance / div} <Button title={'send ' + symbol} action={() => doTransfer({ symbol })}/></pre>
 }
 
+const PendingTransaction = ({ p }) => {
+  const op = p.operation || p.operations[0].type
+  if (op === 'transfer') {
+    return <>
+      {p.tokenSymbol} {p.value / 1e18} {p.destination}
+    </>
+  }
+
+  if (op === 'add_operator') {
+    return <>
+      add operator: {p.operations[0].args[0].replace(/0x(0*)/, '0x')}
+    </>
+  }
+}
 const PendingTransactions = ({ walletPending, doCancelPending }) =>
   <div>
     <b>Pending</b>
     {walletPending.map(p =>
       <div key={p.delayedOpId}>
-        {p.operation} {p.tokenSymbol} {p.value / 1e18} {p.destination}
+        <PendingTransaction p={p} /> -
         <Button title="Cancel" action={() => doCancelPending(p.delayedOpId)}/>
       </div>)
     }
   </div>
-function ActiveWallet ({ ownerAddr, walletInfo, walletBalances, walletPending, doTransfer, doCancelPending, reload }) {
+
+function ActiveWallet ({ ownerAddr, walletInfo, walletBalances, walletPending, doTransfer, doCancelPending, doOldDeviceApproveOperator, pendingAddOperatorNow }) {
   const info = JSON.stringify(walletInfo, null, 2)
   const pending = JSON.stringify(walletPending, null, 2)
 
   return <>
+    <Button title="Add operator with code" action={doOldDeviceApproveOperator}/><br/>
     <b>Balances</b><br/>
     {
       walletBalances.map(token => <TokenWidget key={token.symbol} {...token} doTransfer={doTransfer}/>)
@@ -116,12 +152,15 @@ function ActiveWallet ({ ownerAddr, walletInfo, walletBalances, walletPending, d
     }
 
     {
-      !walletInfo.operators.includes(ownerAddr) &&
-      <div style={{ color: 'orange' }}>Warning: You are not an owner<br/>
-        (probably did &quot;Signout&quot; to forget the privkey, and then re-logged in. But don&apos;t worry: you can do
-        recover)
+      pendingAddOperatorNow && <div>
+        Sent an SMS to owner device. Once approved, this device will also become operator.<br/>
+        Until then, you can only view this wallet.
       </div>
+    }
 
+    {
+      !walletInfo.isOperator &&
+      <div style={{ color: 'orange' }}>Warning: You are not an owner</div>
     }
     <xmp>
       Pending: {pending}
@@ -133,17 +172,22 @@ function ActiveWallet ({ ownerAddr, walletInfo, walletBalances, walletPending, d
   </>
 }
 
-function RecoverOrNewDevice ({ email, walletAddr }) {
+function RecoverOrNewDevice ({ email, doNewDeviceAddOperator, doRecoverWalletOnNewDevice, doValidateRecoverWallet }) {
   return <div>
     Hello <b>{email}</b>,
     You have wallet on-chain, but this device is not its operator.<br/>
     You can either<br/>
     <ul>
-      <li><Button title="add new operator"/> (requires approval on your old
+      <li><Button title="add new operator" action={doNewDeviceAddOperator}/> (requires approval on your old
         device) or,
       </li>
-      <li><Button title="Recover your vault"/> (You dont need your old device,
-        but it takes time
+      <li>Recover your wallet (You dont need your old device, but it takes time)
+        <ul>
+          <li> Step 1: <Button title="Request recover SMS" action={doRecoverWalletOnNewDevice}/>
+          </li>
+          <li> Step 2: <Button title="Use SMS to recover" action={doValidateRecoverWallet}/>
+          </li>
+        </ul>
       </li>
     </ul>
   </div>
@@ -152,20 +196,23 @@ function RecoverOrNewDevice ({ email, walletAddr }) {
 function DebugState ({ state }) {
   return debug && <>state={state}</>
 }
+
 function WalletComponent (options) {
-  const { walletAddr, email, ownerAddr, walletInfo, loading } = options
+  const { walletAddr, email, ownerAddr, walletInfo, loading, pendingAddOperatorNow } = options
 
   if (loading) {
     return <h2>Loading, please wait.</h2>
   }
+
   if (!email || !ownerAddr) {
     return <><DebugState state="noemail"/><GoogleLogin {...options}/></>
   }
   if (!walletAddr) {
     return <><DebugState state="nowalletAddr"/><CreateWallet {...options} /></>
   }
-  if (!walletInfo ||
-    !walletInfo.operators.includes(ownerAddr)) {
+  // pendingAddOperatorNow is a local flag set after we've sent a request
+  // to add this device.
+  if (!pendingAddOperatorNow && (!walletInfo || !walletInfo.isOperatorOrPending)) {
     return <><DebugState state="nowalletInfo"/><RecoverOrNewDevice {...options} /></>
   }
 
@@ -185,9 +232,11 @@ class App extends React.Component {
   }
 
   // - call promise, update UI (either with good state, or error)
+  // TODO: we have subscribe to update on any blockchain change.
+  //  is it redundant? (not on error, anyway)
   asyncHandler (promise) {
     return promise.then(() => this.readMgrState().then(x => { this.setState(x) }))
-      .catch(err => this.reloadState({ err: err.message || err.error }))
+      .catch(err => this.reloadState({ err: errorStr(err) }))
   }
 
   async readMgrState () {
@@ -213,16 +262,31 @@ class App extends React.Component {
     }
 
     if (mgrState.walletAddr) {
-      if (!wallet) { wallet = await mgr.loadWallet() }
+      if (!wallet) {
+        wallet = await mgr.loadWallet()
+        await wallet.subscribe(() => this.eventSubscriber())
+      }
       mgrState.walletInfo = await wallet.getWalletInfo()
+      // TODO: isOperator, isOperatorOrPending are just parsers of walletInfo.
+      // no need to re-fetch it..
+      mgrState.walletInfo.isOperator = await wallet.isOperator(mgrState.ownerAddr)
+      mgrState.walletInfo.isOperatorOrPending = await wallet.isOperatorOrPending(mgrState.ownerAddr)
+      if (mgrState.walletInfo.isOperator) {
+        mgrState.pendingAddOperatorNow = undefined
+      }
       mgrState.walletBalances = await wallet.listTokens()
-      mgrState.walletPending = await wallet.listPendingTransactions()
+      mgrState.walletPending = [...await wallet.listPendingTransactions(), ...await wallet.listPendingConfigChanges()]
       mgrState.walletPending.forEach((x, index) => { x.index = (index + 1).toString() })
       const web3 = new Web3(global.web3provider)
       mgrState.currentTime = new Date((await web3.eth.getBlock('latest')).timestamp * 1000).toString()
     }
 
     return mgrState
+  }
+
+  eventSubscriber () {
+    console.log('== event subscriber')
+    this.reloadState()
   }
 
   async initMgr () {
@@ -293,16 +357,51 @@ class App extends React.Component {
       }
     }
 
-    console.log('==== before isenabled', sdk.isEnabled)
     if (await asyncDump('sdk.isEnabled', sdk.isEnabled({ appUrl: window.location.href }))) {
       const info = await sdk.account.googleAuthenticate()
       if (info) {
-        console.log('===', info)
         this.state.email = info.email
         this.state.ownerAddress = info.address
         this.state.jwt = info.jwt
       }
     }
+  }
+
+  async doRecoverWalletOnNewDevice () {
+    if (window.confirm('Attempt to recover your wallet?\nIt takes few days..?\n' + getDeviceName())) {
+      await mgr.recoverWallet({ jwt: this.state.jwt, title: getDeviceName() })
+      window.alert('sms sent. use it in "Step 2"')
+    }
+  }
+
+  async doValidateRecoverWallet (smsCode) {
+    if (!smsCode) {
+      smsCode = window.prompt('Enter recover SMS code')
+      if (!smsCode) return
+    }
+    await mgr.validateRecoverWallet({ jwt: this.state.jwt, smsCode })
+  }
+
+  async doNewDeviceAddOperator () {
+    if (window.confirm('Request to add this device as new operator?\n' + getDeviceName())) {
+      await mgr.signInAsNewOperator({ jwt: this.state.jwt, title: getDeviceName() })
+      // TODO: do we want to re-read "pendingAddOperatorNow" from server?
+      // (can't from blockchain, since its not there..)
+      this.reloadState({ pendingAddOperatorNow: true })
+    }
+  }
+
+  async doOldDeviceApproveOperator () {
+    const smsCode = prompt('Enter code received by SMS')
+    if (!smsCode) {
+      return
+    }
+
+    const { newOperatorAddress, title } = await wallet.validateAddOperatorNow({ jwt: this.state.jwt, smsCode })
+    if (!window.confirm('Add as new operator:\nDevice:' + title + '\naddr:' + newOperatorAddress)) {
+      return
+    }
+    await wallet.addOperatorNow(newOperatorAddress)
   }
 
   async doCancelPending (delayedOpId) {
@@ -321,12 +420,10 @@ class App extends React.Component {
       if (!window.confirm('Are you sure you want to cancel this operation?')) { return }
     }
 
-    await wallet.cancelPending(delayedOpId)
-    this.reloadState()
+    this.asyncHandler(wallet.cancelPending(delayedOpId))
   }
 
   async doTransfer ({ symbol }) {
-    let err
     try {
       const destination = prompt('Transfer ' + symbol + ' destination:')
       if (!destination) return
@@ -343,9 +440,7 @@ class App extends React.Component {
 
       await wallet.transfer({ destination, amount, token: symbol })
     } catch (e) {
-      err = e.message
-    } finally {
-      this.reloadState({ err: err })
+      this.reloadState({ err: errorStr(e) })
     }
   }
 
@@ -417,7 +512,7 @@ class App extends React.Component {
       await sdk.enableApp({ appTitle: 'SampleWallet', appUrl: window.location.href })
       this.reloadState()
     } catch (e) {
-      this.reloadState({ err: e.message || e.error })
+      this.reloadState({ err: errorStr(e) })
     }
   }
 
@@ -428,7 +523,7 @@ class App extends React.Component {
     const web3 = new Web3(global.web3provider)
     const accounts = await web3.eth.getAccounts()
     await web3.eth.sendTransaction({ from: accounts[0], to: walletAddr, value: web3.utils.toBN(val * 1e18) })
-    this.reloadState() // to see if wallet reads balance..
+    // this.reloadState() // to see if wallet reads balance..
   }
 
   render () {
@@ -459,14 +554,18 @@ class App extends React.Component {
         }
         {
           this.state.err &&
-          <div style={{ color: 'red' }} onClick={() => this.setState({ err: undefined })}>
-            <h2>Error: {this.state.err} </h2>
+          <div style={{ color: 'red' }} onClick={() => this.setState({ err: undefined })}> <pre>
+            <h2>Error: {this.state.err} </h2></pre>
           </div>
         }
         <WalletComponent
           initMgr={() => this.initMgr()}
           doTransfer={params => this.doTransfer(params)}
           doCancelPending={params => this.doCancelPending(params)}
+          doNewDeviceAddOperator={() => this.doNewDeviceAddOperator()}
+          doOldDeviceApproveOperator={() => this.asyncHandler(this.doOldDeviceApproveOperator())}
+          doRecoverWalletOnNewDevice={() => this.doRecoverWalletOnNewDevice()}
+          doValidateRecoverWallet={() => this.doValidateRecoverWallet()}
           refresh={(extra) => this.reloadState(extra)} {...this.state} />
 
       </div>

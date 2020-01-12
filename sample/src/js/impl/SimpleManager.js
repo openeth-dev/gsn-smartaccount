@@ -94,7 +94,6 @@ export default class SimpleManager extends SimpleManagerApi {
     })
     SmartAccountFactoryContract.setProvider(provider)
     this.smartAccountFactory = await SmartAccountFactoryContract.at(factoryAddress)
-
     if (whitelistFactoryAddress) {
       const WhitelistFactoryContract = TruffleContract({
         contractName: 'WhitelistFactory',
@@ -165,7 +164,6 @@ export default class SimpleManager extends SimpleManagerApi {
     // TODO: read wallet with address, not from event!
     const address = await this.getWalletAddress()
 
-    console.log('load wallet address=', address)
     return FactoryContractInteractor.getCreatedSmartAccountAt({
       address,
       provider: this.factoryConfig.provider
@@ -185,11 +183,11 @@ export default class SimpleManager extends SimpleManagerApi {
     return factoryConfig
   }
 
-  async signInAsNewOperator ({ jwt, description, observer }) {
+  async signInAsNewOperator ({ jwt, title, observer }) {
     if (observer) {
       await this.setSignInObserver({ observer, interval: 2000 })
     }
-    return this.backend.signInAsNewOperator({ jwt, description })
+    return this.backend.signInAsNewOperator({ jwt, title })
   }
 
   // I could use the websocket provider, but it seems to be a little overkill for a single event

@@ -108,8 +108,8 @@ export default class SimpleManagerMock extends SimpleManagerApi {
     super.validateRecoverWallet({ jwt, smsCode })
   }
 
-  async signInAsNewOperator ({ jwt, description, observer }) {
-    super.signInAsNewOperator({ jwt, description, observer })
+  async signInAsNewOperator ({ jwt, title, observer }) {
+    super.signInAsNewOperator({ jwt, title, observer })
   }
 
   async setSignInObserver ({ observer, interval }) {
