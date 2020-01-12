@@ -76,7 +76,8 @@ contract('SmartAccount Bootstrapping', async function (accounts) {
     gsnForwarder = await GsnForwarder.new(relayHub.address, gsnSponsor.address)
     await gsnSponsor.setForwarder(gsnForwarder.address)
     smartAccountFactory = await SmartAccountFactory.new(gsnForwarder.address, { gas: 9e7, from: vfOwner })
-    await smartAccountFactory.createAccountTemplate({ from: vfOwner })
+    const smartAccountTemplate = await SmartAccount.new({gas: 9e7} )
+    await smartAccountFactory.createAccountTemplate(smartAccountTemplate.address, { from: vfOwner })
 
     whitelistFactory = await WhitelistFactory.new(gsnForwarder.address)
     ephemeralOperator = RelayClient.newEphemeralKeypair()

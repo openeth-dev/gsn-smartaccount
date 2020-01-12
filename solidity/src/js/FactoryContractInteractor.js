@@ -50,7 +50,6 @@ class FactoryContractInteractor {
     SmartAccountFactory.setProvider(provider)
     const instance = new FactoryContractInteractor(credentials, smartAccountFactoryAddress)
     instance.smartAccountFactory = await SmartAccountFactory.at(instance.smartAccountFactoryAddress)
-    instance.smartAccountFactory.createAccountTemplate()
     return instance
   }
 
@@ -81,17 +80,19 @@ class FactoryContractInteractor {
     }
     this.smartAccountFactory = await SmartAccountFactory.at(this.smartAccountFactoryAddress)
   }
+
   static async deployContract (path, name, link, params, from, ethNodeUrl) {
-    console.log( "deployContract", path, "params=", params)
+    console.log('deployContract', path, 'params=', params)
     try {
       const ret = await this.deployContract1(path, name, link, params, from, ethNodeUrl)
-      console.log( "deployContract", path, "ret=")
+      console.log('deployContract', path, 'ret=')
       return ret
-    }catch (e) {
-      console.log( "EX deployContract", path,e)
+    } catch (e) {
+      console.log('EX deployContract', path, e)
       throw e
     }
   }
+
   static async deployContract1 (path, name, link, params, from, ethNodeUrl) {
     const abi = require('./' + path)
     // eslint-disable-next-line no-path-concat
@@ -114,17 +115,17 @@ class FactoryContractInteractor {
 
     // contract.gasMultiplier = 1.0 // default 1.25 is too much...
     if (params && params.length > 0) {
-      const gas = await contract.new.estimateGas(...params, {from} );
+      const gas = await contract.new.estimateGas(...params, { from })
 
-      console.log( "== gas estimate for "+path+" - "+ gas)
+      console.log('== gas estimate for ' + path + ' - ' + gas)
       promise = contract.new(...params, { from: from, gas: gas })
     } else {
-      const gas = await contract.new.estimateGas( {from} );
-      console.log( "== gas estimate for "+path+" - "+ gas)
+      const gas = await contract.new.estimateGas({ from })
+      console.log('== gas estimate for ' + path + ' - ' + gas)
       promise = contract.new({ from: from, gas: gas })
     }
     const instance = await promise
-    console.log( "after NEW "+path, "instance=", !!instance)
+    console.log('after NEW ' + path, 'instance=', !!instance)
     contract.address = instance.address
     return { instance, contract }
   }
@@ -166,14 +167,16 @@ class FactoryContractInteractor {
     return instance
   }
 
-  static async deploySmartAccountDirectly (from, relayHub, ethNodeUrl) {
+  static async deploySmartAccountDirectly (from, ethNodeUrl, isTemplate) {
     const utilitiesContract = await this.deployUtilitiesLibrary(from, ethNodeUrl)
     const { instance } = await this.deployContract(
       'generated/SmartAccount',
       'SmartAccount',
       [utilitiesContract], [], from, ethNodeUrl
     )
-    await instance.ctr2(zeroAddress(), from, { from })
+    if ( !isTemplate ) {
+      await instance.ctr2(zeroAddress(), from, { from })
+    }
     return instance
   }
 
@@ -183,11 +186,20 @@ class FactoryContractInteractor {
    * @returns {Promise<String>} - the address of the newly deployed Factory
    */
   static async deployNewSmartAccountFactory (from, ethNodeUrl, forwarder) {
-    const templateSmartAccount = await this.deploySmartAccountDirectly(from,'unused', ethNodeUrl)
+    const templateSmartAccount = await this.deploySmartAccountDirectly(from, ethNodeUrl)
     const utilitiesContract = await this.deployUtilitiesLibrary(from, ethNodeUrl)
     const { instance: smartAccountFactory } = await this.deployContract('generated/SmartAccountFactory',
       'SmartAccountFactory', [utilitiesContract], [forwarder], from, ethNodeUrl)
-    await smartAccountFactory.createAccountTemplate({ from })
+    console.log( '=== creating account template')
+    const smartAccountTemplate = await this.deploySmartAccountDirectly(from, ethNodeUrl,true)
+    // const {instance:smartAccountTemplate } = await this.deployContract(
+    //   'generated/SmartAccount',
+    //   'SmartAccount',
+    //   [utilitiesContract], [], from, ethNodeUrl
+    // )
+    console.log( '=== setting factory account template=', smartAccountTemplate.address)
+    await smartAccountFactory.createAccountTemplate(smartAccountTemplate.address, { from })
+    console.log( '=== done factory')
     return smartAccountFactory
   }
 

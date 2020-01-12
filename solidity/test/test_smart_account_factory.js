@@ -1,5 +1,6 @@
 /* global artifacts contract before it assert after */
 const SmartAccountFactory = artifacts.require('./SmartAccountFactory.sol')
+const SmartAccount = artifacts.require('./SmartAccount.sol')
 const RelayHub = artifacts.require('./RelayHub.sol')
 const MockGsnForwarder = artifacts.require('./tests/MockGsnForwarder.sol')
 
@@ -22,7 +23,8 @@ contract('SmartAccountFactory', function (accounts) {
     mockHub = await RelayHub.new({ gas: 9e6 })
     mockForwarder = await MockGsnForwarder.new(mockHub.address, { gas: 9e6 })
     smartAccountFactory = await SmartAccountFactory.new(mockForwarder.address, { gas: 9e7, from: vfOwner })
-    await smartAccountFactory.createAccountTemplate({ from: vfOwner })
+    const smartAccountTemplate = await SmartAccount.new({ gas: 9e7 })
+    await smartAccountFactory.createAccountTemplate(smartAccountTemplate.address, { from: vfOwner })
     // Mocking backend signature
     const approvalData = await forgeApprovalData(smartAccountId, smartAccountFactory, vfOwner)
     callData = smartAccountFactory.contract.methods.newSmartAccount(smartAccountId, approvalData).encodeABI()
