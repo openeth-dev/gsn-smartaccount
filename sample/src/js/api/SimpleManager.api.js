@@ -54,6 +54,10 @@ export default class SimpleManagerApi extends EventEmitter {
     error('callback should be called when sign in events happen')
   }
 
+  async getDefaultConfiguration () {
+    error('return configuration to pass to wallet.initialConfiguration()')
+  }
+
   // TODO: maybe beter have getInitialConfiguration(), and pass its value to createWallet.
   // no need for the client to know these are 2 separate transaction (and we're going to
   // make them a single transaction in the future..)

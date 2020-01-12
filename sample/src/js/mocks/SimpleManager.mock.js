@@ -82,6 +82,30 @@ export default class SimpleManagerMock extends SimpleManagerApi {
     return this.loadWallet()
   }
 
+  async getDefaultConfiguration () {
+    return {
+      initialParticipants: [
+        '0x3d743c52735b33ba244d14785f5020328440b78ab57896c47af1402187d67f80',
+        '0xec3c4fe72579b10fae772656c9f3f777e0b8d33a56e8a0eeb12b1e5756ecda18',
+        '0x8b1aaea1f8bb4142e4d1a6bfa358a668f1a9e7ee5ee8afad59b570f9e655ac2b'
+      ],
+      initialDelays: [
+        86400,
+        172800
+      ],
+      allowAcceleratedCalls: true,
+      allowAddOperatorNow: true,
+      requiredApprovalsPerLevel: [
+        1,
+        0
+      ],
+      whitelist: [],
+      bypassTargets: [],
+      bypassMethods: [],
+      bypassModules: []
+    }
+  }
+
   async setInitialConfiguration () {
   }
 

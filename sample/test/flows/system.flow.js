@@ -85,7 +85,9 @@ describe('System flow', () => {
     })
 
     it('initialConfiguration', async () => {
-      await mgr.setInitialConfiguration()
+      const config = await mgr.getDefaultConfiguration()
+      console.log('config=',config)
+      await wallet.initialConfiguration(config)
     })
 
     it('after wallet creation', async function () {
