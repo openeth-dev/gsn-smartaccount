@@ -72,16 +72,20 @@ function CreateWallet ({ refresh, jwt, email, initialConfig, setInitialConfig })
   let phoneNumber
 
   const [initConfig, setInitConfig] = useState('')
+  const [delayTime, setDelayTime] = useState('1m')
+  const [delayErr, setDelayErr] = useState('')
 
   const startCreate = async () => {
-    phoneNumber = prompt('enter phone number to validate (put 1)')
+    const PHONE = '+972541234567'
+
+    phoneNumber = prompt('enter phone number to validate ( put 1 for "'+PHONE+'" )')
     if (!phoneNumber) {
       return
     }
     // local israeli phones...
-    phoneNumber = phoneNumber.replace(/^0/, '+97254')
+    phoneNumber = phoneNumber.replace(/^0/, '+972')
     if (phoneNumber === '1') {
-      phoneNumber = '+972541234567'
+      phoneNumber = PHONE
     }
     console.log('validate:', jwt, phoneNumber)
     await mgr.validatePhone({ jwt, phoneNumber })
@@ -104,11 +108,27 @@ function CreateWallet ({ refresh, jwt, email, initialConfig, setInitialConfig })
       refresh({ err: errorStr(e) })
     }
   }
-  function updateConfig (val) {
+  function updateWhitelistConfig (val) {
     setInitConfig(val) // for UI leave string as-is
     // modify global state
     initialConfig.whitelist = val.split(/[ \t]*[,\n][ \t]*/).filter(addr => !!addr)
     setInitialConfig(initialConfig)
+  }
+  function updateDelayTime(val) {
+    setDelayTime(val) // for UI leave string as-is
+    // modify global state
+    try {
+      const suffixes = { s: 1, m: 60, h: 3600, d: 86400 }
+      const [, t, suf] = val.match(/^\s*([\d.]+)\s*(\w?)/)
+
+      const time = Math.floor(t * (suffixes[suf.toLowerCase()] || 1))
+      initialConfig.initialDelays[1] = time
+      setInitialConfig(initialConfig)
+      setDelayErr('')
+    }catch (e) {
+      setDelayErr('invalid number/suffix')
+      //ignore - just don't display..
+    }
   }
   return <div>
     Hello <b>{email}</b>, you dont have a wallet yet.<br/>
@@ -117,7 +137,13 @@ function CreateWallet ({ refresh, jwt, email, initialConfig, setInitialConfig })
 
     <p/>
     Enter whitelisted addresses for initial configuration:<br/>
-    <textarea cols="80" value={initConfig} onChange={e => updateConfig(e.target.value)}></textarea>
+    <textarea cols="80" value={initConfig} onChange={e => updateWhitelistConfig(e.target.value)}></textarea><br/>
+
+    Delay time:
+    <input cols="10" value={delayTime} onChange={e=>updateDelayTime(e.target.value)} />
+    <span style={{fontSize:10}}>(can use d/h/m/s suffix)
+    <span style={{color:'red'}}>{delayErr}</span>
+    </span><br/>
     <pre>
       {JSON.stringify(initialConfig, null, 2)}
     </pre>
@@ -159,12 +185,12 @@ const PendingTransactions = ({ walletPending, doCancelPending }) =>
     }
   </div>
 
-const Whitelist = ({ whitelist, doAddToWhiteList, doRemoveFromWhitelist }) => <>
+const Whitelist = ({ whitelist, doAddToWhiteList, doRemoveFromWhitelist }) => <div>
   <b>Whitelist</b><Button title="+ add" action={doAddToWhiteList}/><br/>
-  {!whitelist.length && <span style={{ fontSize: 10 }}>No whitelisted addresses</span>}
-  {whitelist.map(wl => <span key={wl}>{wl} <Button title="remove" action={() => doRemoveFromWhitelist(wl)}/><br/></span>)}
+  {(!whitelist || !whitelist.length ) && <span style={{ fontSize: 10 }}>No whitelisted addresses</span>}
+  {whitelist && whitelist.map(wl => <span key={wl}>{wl} <Button title="remove" action={() => doRemoveFromWhitelist(wl)}/><br/></span>)}
 
-</>
+</div>
 
 function ActiveWallet ({
   ownerAddr, walletInfo, walletBalances, walletPending, doTransfer, doCancelPending, doOldDeviceApproveOperator,
