@@ -317,7 +317,7 @@ export class Admin extends Guardian {
       throw Error('Account not found')
     }
     if (!account.address) {
-      throw Error('Account address is notset yet')
+      throw Error('Account address is not set yet')
     }
     this.smartAccountContract.options.address = account.address
     const stateId = await this.smartAccountContract.methods.stateNonce().call()
