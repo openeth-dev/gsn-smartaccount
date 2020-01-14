@@ -146,7 +146,7 @@ describe('Backend', async function () {
         await backend.createAccount({ jwt, smsCode: wrongSmsCode, phoneNumber })
         assert.fail()
       } catch (e) {
-        assert.equal(e.toString(), `Error: invalid sms code: ${wrongSmsCode}`)
+        assert.equal(e.message, `invalid sms code: ${wrongSmsCode}`)
       }
     })
 

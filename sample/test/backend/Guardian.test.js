@@ -3,7 +3,7 @@
 import { assert } from 'chai'
 import Web3 from 'web3'
 import SMSmock from '../../src/js/mocks/SMS.mock'
-import { Admin, Watchdog } from '../../src/js/backend/Guardian'
+import { Admin, AutoCancelWatchdog, Watchdog } from '../../src/js/backend/Guardian'
 import { KeyManager } from '../../src/js/backend/KeyManager'
 import FactoryContractInteractor from 'safechannels-contracts/src/js/FactoryContractInteractor'
 import { AccountManager } from '../../src/js/backend/AccountManager'
@@ -373,7 +373,6 @@ describe('As Guardian', async function () {
       admin = new Admin(
         { smsManager, keyManager, accountManager, smartAccountFactoryAddress: accountZero, web3provider })
       id = (await sctestutils.snapshot(web3)).result
-
     })
     it('should throw trying schedule add operator on unknown account', async function () {
       try {
@@ -408,6 +407,38 @@ describe('As Guardian', async function () {
     })
     after(async function () {
       await sctestutils.revert(id, web3)
+    })
+  })
+
+  describe('As AutoCancelWatchdog', async function () {
+    let autoCancelWatchdog
+    before(async function () {
+      autoCancelWatchdog = new AutoCancelWatchdog(
+        {
+          smsManager,
+          keyManager,
+          accountManager,
+          smartAccountFactoryAddress: smartAccountFactory.address,
+          web3provider
+        })
+      autoCancelWatchdog.lastScannedBlock = watchdog.lastScannedBlock
+    })
+    it('should auto cancel pending changes', async function () {
+      const stateId = await wallet.contract.stateNonce()
+      const receipt = await wallet.contract.scheduleBypassCall(wallet.participant.permLevel, transferDestination,
+        amount,
+        [],
+        stateId,
+        { from: accountZero })
+      assert.equal(receipt.logs[0].event, 'BypassCallPending')
+      const eventsBefore = await wallet.contract.getPastEvents('BypassCallCancelled')
+      const txreceipts = await autoCancelWatchdog._worker()
+      const eventsAfter = await wallet.contract.getPastEvents('BypassCallCancelled')
+      assert.equal(eventsAfter.length, eventsBefore.length + 1)
+      const dlogs = abiDecoder.decodeLogs(txreceipts[0].logs)
+      assert.equal(dlogs[0].name, 'BypassCallCancelled')
+      assert.equal(dlogs[0].events[0].name, 'delayedOpId')
+      assert.equal(dlogs[0].events[0].value, receipt.logs[0].args.delayedOpId)
     })
   })
 })

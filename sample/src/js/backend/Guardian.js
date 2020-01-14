@@ -331,3 +331,13 @@ export class Admin extends Guardian {
     return { transactionHash: receipt.transactionHash }
   }
 }
+
+export class AutoCancelWatchdog extends Watchdog {
+  async _applyChanges () {
+    const txhashes = []
+    for (const delayedOpId of Object.keys(this.changesToApply)) {
+      txhashes.push(await this._finalizeChange(delayedOpId, { cancel: true }))
+    }
+    return txhashes
+  }
+}
