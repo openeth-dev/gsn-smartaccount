@@ -147,9 +147,14 @@ describe('System flow', () => {
 
       // TODO: currently, without getWalletInfo, the "applyAll" would fail...
 
-      let pendings = await wallet.listPendingTransactions()
+      let pendings = await mgr.addTimeLeft(await wallet.listPendingTransactions())
       assert.equal(pendings.length, 1)
-      await increaseTime(3 * DAY, web3)
+      assert.equal(pendings[0].timeLeft, 2 * DAY)
+      await increaseTime(1 * DAY, web3)
+      pendings = await mgr.addTimeLeft(await wallet.listPendingTransactions())
+      assert.equal(pendings[0].timeLeft, 1 * DAY)
+      await increaseTime(2 * DAY, web3)
+
       try {
         await wallet.applyAllPendingOperations()
       } catch (e) {
