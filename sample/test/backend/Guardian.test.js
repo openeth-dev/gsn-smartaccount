@@ -150,7 +150,11 @@ describe('As Guardian', async function () {
       assert.isTrue(await wallet.contract.isParticipant(watchdog.address,
         watchdog.permsLevel))
       actions = [ChangeType.ADD_PARTICIPANT]
-      args = [scutils.participantHash(watchdog.address, watchdog.permsLevel)]
+      args = [scutils.encodeParticipant({
+        address: watchdog.address,
+        permissions: Permissions.WatchdogPermissions,
+        level: 1
+      })]
     })
 
     it('should NOT add address to known account after smartAccountCreated from unknown factory', async function () {
@@ -292,8 +296,11 @@ describe('As Guardian', async function () {
       const ret = await watchdog._worker()
       assert.equal(ret[0].message,
         `participant hash mismatch:\nlog ${receipt.logs[0].args.actionsArguments1[0]}\nexpected operator hash ${scutils.bufferToHex(
-          scutils.operatorHash(
-            wrongOperatorAddress))}`)
+          scutils.encodeParticipant({
+            address: wrongOperatorAddress,
+            permissions: Permissions.OwnerPermissions,
+            level: 1
+          }))}`)
       await watchdog.accountManager.removeOperatorToAdd({ accountId: newAccount.accountId })
     })
 
