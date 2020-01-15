@@ -2,8 +2,6 @@
 /* global before it */
 
 import assert from 'assert'
-import Participant from 'safechannels-contracts/src/js/Participant'
-import Permissions from 'safechannels-contracts/src/js/Permissions'
 
 export function testGetWalletInfoBehavior (getContext) {
   let wallet
@@ -40,7 +38,6 @@ export function testGetWalletInfoBehavior (getContext) {
     const participantAddedEvent = require('../testdata/GetWalletInfoSampleEvents/ParticipantAddedEvent')
     participantAddedEvents.push(participantAddedEvent)
     const expectedWalletInfo = getExpected('../testdata/ExpectedWalletInfoB')
-    wallet.knownParticipants.push(new Participant('0x4444444444444444444444444444444444444444', Permissions.OwnerPermissions, 1))
     const walletInfo = await wallet.getWalletInfo()
     assert.deepStrictEqual(walletInfo, expectedWalletInfo)
   })

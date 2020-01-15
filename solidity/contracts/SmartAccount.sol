@@ -37,10 +37,8 @@ contract SmartAccount is PermissionsLevel, GsnRecipient {
     event ConfigPending(bytes32 indexed delayedOpId, address sender, uint32 senderPermsLevel, address booster, uint32 boosterPermsLevel, uint256 stateId, uint8[] actions, bytes32[] actionsArguments1, bytes32[] actionsArguments2, uint256 dueTime);
     event ConfigCancelled(bytes32 indexed delayedOpId, address sender);
     event ConfigApplied(bytes32 indexed delayedOpId, address sender);
-    // TODO: add 'ConfigApplied' event - this is the simplest way to track what is applied and whatnot
-    event ParticipantAdded(bytes32 indexed participant);
-    event ParticipantRemoved(bytes32 indexed participant);
-    // TODO: not log participants
+    event ParticipantAdded(address indexed participant, uint32 permissions, uint8 level);
+    event ParticipantRemoved(address indexed participant, uint32 permissions, uint8 level);
     event SmartAccountInitialized(bytes32[] participants, uint256[] delays, uint256[] requiredApprovalsPerLevel);
     event LevelFrozen(uint256 frozenLevel, uint256 frozenUntil, address sender);
     event UnfreezeCompleted();
@@ -113,7 +111,8 @@ contract SmartAccount is PermissionsLevel, GsnRecipient {
     }
 
     function isParticipant(address participant, uint32 permsLevel) public view returns (bool) {
-        return participants[Utilities.participantHash(participant, permsLevel)];
+        bytes32 participantId = Utilities.encodeParticipant(participant, permsLevel);
+        return participants[participantId];
     }
 
     function requireParticipant(address participant, uint32 permsLevel) view internal {
@@ -205,7 +204,7 @@ contract SmartAccount is PermissionsLevel, GsnRecipient {
         uint8[] memory actions = new uint8[](1);
         bytes32[] memory args = new bytes32[](1);
         actions[0] = uint8(ChangeType.ADD_OPERATOR_NOW);
-        args[0] = Utilities.participantHash(newOperatorAddress, packPermissionLevel(ownerPermissions, 1));
+        args[0] = Utilities.encodeParticipant(newOperatorAddress, ownerPermissions, 1);
         changeConfigurationInternal(actions, args, args, sender, senderPermsLevel, address(0), 0);
     }
 
@@ -220,13 +219,13 @@ contract SmartAccount is PermissionsLevel, GsnRecipient {
         uint8[] memory actions = new uint8[](1);
         bytes32[] memory args = new bytes32[](1);
         actions[0] = uint8(ChangeType.ADD_OPERATOR_NOW);
-        args[0] = Utilities.participantHash(newOperatorAddress, packPermissionLevel(ownerPermissions, 1));
+        args[0] = Utilities.encodeParticipant(newOperatorAddress,ownerPermissions, 1);
         bytes32 hash = Utilities.transactionHash(actions, args, args, scheduledStateId, scheduler, schedulerPermsLevel, address(0), 0);
         require(pendingChanges[hash].dueTime != 0, "Pending change not found");
         delete pendingChanges[hash];
         participants[args[0]] = true;
         emit ConfigApplied(hash, sender);
-        emit ParticipantAdded(args[0]);
+        emit ParticipantAdded(newOperatorAddress, ownerPermissions, 1);
 
         stateNonce++;
     }
@@ -375,9 +374,10 @@ contract SmartAccount is PermissionsLevel, GsnRecipient {
         PendingChange storage pendingChange = pendingChanges[transactionHash];
         require(pendingChange.dueTime != 0, "approve called for non existent pending change");
         require(requiredApprovalsPerLevel[extractLevel(schedulerPermsLevel)] > 0, "Level doesn't support approvals");
-        require(!hasApproved(Utilities.participantHash(sender, senderPermsLevel), pendingChange.approvers), "Cannot approve twice");
+        bytes32 approver = Utilities.encodeParticipant(sender, senderPermsLevel);
+        require(!hasApproved(approver, pendingChange.approvers), "Cannot approve twice");
         //TODO: separate the checks above to different function shared between applyConfig & approveConfig
-        pendingChange.approvers.push(Utilities.participantHash(sender, senderPermsLevel));
+        pendingChange.approvers.push(approver);
         stateNonce++;
 
     }
@@ -458,14 +458,15 @@ contract SmartAccount is PermissionsLevel, GsnRecipient {
     function addParticipant(address sender, uint32 senderPermsLevel, bytes32 hash) private {
         requirePermissions(sender, canChangeParticipants, senderPermsLevel);
         participants[hash] = true;
-        emit ParticipantAdded(hash);
+        (address participant, uint32 permissions, uint8 level) = Utilities.decodeParticipant(hash);
+        emit ParticipantAdded(participant, permissions, level);
     }
 
     function addOperator(address sender, uint32 senderPermsLevel, address newOperator) private {
         requirePermissions(sender, canAddOperator, senderPermsLevel);
-        bytes32 hash = Utilities.participantHash(newOperator, packPermissionLevel(ownerPermissions, 1));
-        participants[hash] = true;
-        emit ParticipantAdded(hash);
+        bytes32 participantId = Utilities.encodeParticipant(newOperator, ownerPermissions, 1);
+        participants[participantId] = true;
+        emit ParticipantAdded(newOperator, ownerPermissions, 1);
     }
 
     function addBypassByTarget(address sender, uint32 senderPermsLevel, address target, BypassPolicy bypass) private {
@@ -480,11 +481,12 @@ contract SmartAccount is PermissionsLevel, GsnRecipient {
         emit BypassByMethodAdded(method, bypass);
     }
 
-    function removeParticipant(address sender, uint32 senderPermsLevel, bytes32 participant) private {
+    function removeParticipant(address sender, uint32 senderPermsLevel, bytes32 participantId) private {
         requirePermissions(sender, canChangeParticipants, senderPermsLevel);
-        require(participants[participant], "there is no such participant");
-        delete participants[participant];
-        emit ParticipantRemoved(participant);
+        require(participants[participantId], "there is no such participant");
+        delete participants[participantId];
+        (address participant, uint32 permissions, uint8 level) = Utilities.decodeParticipant(participantId);
+        emit ParticipantRemoved(participant, permissions, level);
     }
 
     function unfreeze(address sender, uint32 senderPermsLevel) private {
@@ -559,8 +561,9 @@ contract SmartAccount is PermissionsLevel, GsnRecipient {
         bytes32 bypassCallHash = Utilities.bypassCallHash(scheduledStateNonce, scheduler, schedulerPermsLevel, target, value, encodedFunction);
         PendingChange storage pendingBypassCall = pendingBypassCalls[bypassCallHash];
         require(pendingBypassCall.dueTime != 0, "approve called for non existent pending bypass call");
-        require(!hasApproved(Utilities.participantHash(sender, senderPermsLevel), pendingBypassCall.approvers), "Cannot approve twice");
-        pendingBypassCall.approvers.push(Utilities.participantHash(sender, senderPermsLevel));
+        bytes32 approver = Utilities.encodeParticipant(sender, senderPermsLevel);
+        require(!hasApproved(approver, pendingBypassCall.approvers), "Cannot approve twice");
+        pendingBypassCall.approvers.push(approver);
         stateNonce++;
     }
 
