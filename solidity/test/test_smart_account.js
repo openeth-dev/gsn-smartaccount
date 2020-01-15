@@ -244,13 +244,13 @@ contract('SmartAccount', async function (accounts) {
     initialDelays = Array.from({ length: 10 }, (x, i) => (i + 1) * dayInSec)
     requiredApprovalsPerLevel = [0, 0, 1, 2, 3, 4, 5, 6, 7, 8]
     initialParticipants = [
-      utils.bufferToHex(utils.participantId(operatorA)),
-      utils.bufferToHex(utils.participantId(adminA)),
-      utils.bufferToHex(utils.participantId(adminB)),
-      utils.bufferToHex(utils.participantId(watchdogA)),
-      utils.bufferToHex(utils.participantId(watchdogZ)),
-      utils.bufferToHex(utils.participantId(adminZ)),
-      utils.bufferToHex(utils.participantId(adminB2))
+      utils.bufferToHex(utils.encodeParticipant(operatorA)),
+      utils.bufferToHex(utils.encodeParticipant(adminA)),
+      utils.bufferToHex(utils.encodeParticipant(adminB)),
+      utils.bufferToHex(utils.encodeParticipant(watchdogA)),
+      utils.bufferToHex(utils.encodeParticipant(watchdogZ)),
+      utils.bufferToHex(utils.encodeParticipant(adminZ)),
+      utils.bufferToHex(utils.encodeParticipant(adminB2))
     ]
 
     const res = await smartAccount.initialConfig(initialParticipants, initialDelays, true, true,
@@ -667,7 +667,7 @@ contract('SmartAccount', async function (accounts) {
 
   it('should allow the owner to create a delayed config transaction', async function () {
     const actions = [ChangeType.ADD_PARTICIPANT]
-    const args = [utils.participantId(adminB1)]
+    const args = [utils.encodeParticipant(adminB1)]
     const stateId = await smartAccount.stateNonce()
     const res = await smartAccount.changeConfiguration(operatorA.permLevel, actions, args, args, stateId)
     const log = res.logs[0]
@@ -683,7 +683,7 @@ contract('SmartAccount', async function (accounts) {
   })
 
   it('should store admins\' credentials hashed', async function () {
-    const hash = utils.bufferToHex(utils.participantId(adminA))
+    const hash = utils.bufferToHex(utils.encodeParticipant(adminA))
     const isAdmin = await smartAccount.participants(hash)
     assert.equal(true, isAdmin)
   })
@@ -707,7 +707,7 @@ contract('SmartAccount', async function (accounts) {
 
   it('should revert an attempt to delete admin that is not a part of the config', async function () {
     const actions = [ChangeType.REMOVE_PARTICIPANT]
-    const args = [utils.participantId(adminC)]
+    const args = [utils.encodeParticipant(adminC)]
     const stateId = await smartAccount.stateNonce()
     const res = await smartAccount.changeConfiguration(operatorA.permLevel, actions, args, args, stateId)
     const log = res.logs[0]
@@ -720,7 +720,7 @@ contract('SmartAccount', async function (accounts) {
 
   it('should allow the owner to add an admin after a delay', async function () {
     const actions = [ChangeType.ADD_PARTICIPANT]
-    const args = [utils.participantId(adminC)]
+    const args = [utils.encodeParticipant(adminC)]
     const stateId = await smartAccount.stateNonce()
     const res = await smartAccount.changeConfiguration(operatorA.permLevel, actions, args, args, stateId)
 
@@ -741,7 +741,7 @@ contract('SmartAccount', async function (accounts) {
 
   it('should allow the owner to delete an admin after a delay', async function () {
     const actions = [ChangeType.REMOVE_PARTICIPANT]
-    const args = [utils.participantId(adminC)]
+    const args = [utils.encodeParticipant(adminC)]
     const stateId = await smartAccount.stateNonce()
     const res = await smartAccount.changeConfiguration(operatorA.permLevel, actions, args, args, stateId)
     const log = res.logs[0]
@@ -758,9 +758,9 @@ contract('SmartAccount', async function (accounts) {
   it('should allow the owner to replace an admin after a delay', async function () {
     const stateId = await smartAccount.stateNonce()
     const changeType1 = ChangeType.ADD_PARTICIPANT
-    const changeArg1 = utils.participantId(adminB1)
+    const changeArg1 = utils.encodeParticipant(adminB1)
     const changeType2 = ChangeType.REMOVE_PARTICIPANT
-    const changeArg2 = utils.participantId(adminB)
+    const changeArg2 = utils.encodeParticipant(adminB)
     await smartAccount.changeConfiguration(operatorA.permLevel, [changeType1, changeType2], [changeArg1, changeArg2],
       [changeArg1, changeArg2], stateId)
 
@@ -786,7 +786,7 @@ contract('SmartAccount', async function (accounts) {
   it('should revert an attempt to re-apply a config change', async function () {
     const stateId = await smartAccount.stateNonce()
     const changeType1 = ChangeType.ADD_PARTICIPANT
-    const changeArg1 = utils.participantId(adminB1)
+    const changeArg1 = utils.encodeParticipant(adminB1)
     await smartAccount.changeConfiguration(operatorA.permLevel, [changeType1], [changeArg1], [changeArg1], stateId)
 
     await expect(
@@ -836,7 +836,7 @@ contract('SmartAccount', async function (accounts) {
     await utils.validateConfigParticipants(participants, smartAccount)
     const stateId = await smartAccount.stateNonce()
     const actions = [ChangeType.REMOVE_PARTICIPANT]
-    const args = [utils.participantId(operatorB)]
+    const args = [utils.encodeParticipant(operatorB)]
     const res = await smartAccount.changeConfiguration(operatorA.permLevel, actions, args, args, stateId,
       { from: operatorA.address })
     await testUtils.increaseTime(timeGap, web3)
@@ -959,7 +959,7 @@ contract('SmartAccount', async function (accounts) {
     it('should initialize gk with failclose levels', async function () {
       initialDelays = Array.from({ length: 10 }, (x, i) => (i + 1) * dayInSec)
       requiredApprovalsPerLevel = [1, 1, 1, 2, 3, 2, 5, 6, 7, 8]
-      initialParticipants.push(utils.bufferToHex(utils.participantId(operatorZ)))
+      initialParticipants.push(utils.bufferToHex(utils.encodeParticipant(operatorZ)))
 
       res = await failCloseGK.initialConfig(initialParticipants, initialDelays, true, true, requiredApprovalsPerLevel,
         [], [], [], { from: operatorA.address })
@@ -970,7 +970,7 @@ contract('SmartAccount', async function (accounts) {
     it('should not approve non-exsiting change', async function () {
       const stateId = await failCloseGK.stateNonce()
       const changeType1 = ChangeType.ADD_PARTICIPANT
-      const changeArg1 = utils.participantId(adminB1)
+      const changeArg1 = utils.encodeParticipant(adminB1)
 
       await expect(
         failCloseGK.approveConfig(watchdogA.permLevel, [changeType1], [changeArg1], [changeArg1], stateId,
@@ -981,7 +981,7 @@ contract('SmartAccount', async function (accounts) {
     it('should schedule and approve operation that requires one approval', async function () {
       const stateId = await failCloseGK.stateNonce()
       const changeType1 = ChangeType.ADD_PARTICIPANT
-      const changeArg1 = utils.participantId(adminB1)
+      const changeArg1 = utils.encodeParticipant(adminB1)
       await failCloseGK.changeConfiguration(operatorA.permLevel, [changeType1], [changeArg1], [changeArg1], stateId)
 
       await expect(
@@ -1014,7 +1014,7 @@ contract('SmartAccount', async function (accounts) {
     it('should schedule and approve operation that requires two approvals', async function () {
       const stateId = await failCloseGK.stateNonce()
       const changeType1 = ChangeType.ADD_PARTICIPANT
-      const changeArg1 = utils.participantId(adminB1)
+      const changeArg1 = utils.encodeParticipant(adminB1)
       res = await failCloseGK.changeConfiguration(operatorZ.permLevel, [changeType1], [changeArg1], [changeArg1],
         stateId, { from: operatorZ.address })
 
@@ -1143,7 +1143,7 @@ contract('SmartAccount', async function (accounts) {
     const stateId = await smartAccount.stateNonce()
     await utils.asyncForEach(getNonConfigChangers(), async (participant) => {
       let actions = [ChangeType.ADD_PARTICIPANT]
-      let args = [utils.participantId(adminC)]
+      let args = [utils.encodeParticipant(adminC)]
       await expect(
         smartAccount.changeConfiguration(participant.permLevel, actions, args, args, stateId,
           { from: participant.address })
@@ -1151,7 +1151,7 @@ contract('SmartAccount', async function (accounts) {
       console.log(`${participant.name} + addParticipant + ${participant.expectError}`)
 
       actions = [ChangeType.REMOVE_PARTICIPANT]
-      args = [utils.participantId(adminA)]
+      args = [utils.encodeParticipant(adminA)]
       await expect(
         smartAccount.changeConfiguration(participant.permLevel, actions, args, args, stateId,
           { from: participant.address })
@@ -1196,7 +1196,7 @@ contract('SmartAccount', async function (accounts) {
     let res0
     {
       const actions = [ChangeType.ADD_PARTICIPANT]
-      const args = [utils.participantId(watchdogB)]
+      const args = [utils.encodeParticipant(watchdogB)]
       res0 = await smartAccount.changeConfiguration(operatorA.permLevel, actions, args, args, stateId)
       await testUtils.increaseTime(timeGap, web3)
       await applyDelayed({ res: res0 }, operatorA, smartAccount)
@@ -1231,7 +1231,7 @@ contract('SmartAccount', async function (accounts) {
     // On lower levels:
     // Operator cannot change configuration any more
     const actions = [ChangeType.ADD_PARTICIPANT]
-    const args = [utils.participantId(adminC)]
+    const args = [utils.encodeParticipant(adminC)]
     await expect(
       smartAccount.changeConfiguration(operatorA.permLevel, actions, args, args, stateId),
       'addParticipant did not revert correctly' +
@@ -1341,7 +1341,7 @@ contract('SmartAccount', async function (accounts) {
       async function () {
         // Schedule a totally valid config change
         const actions = [ChangeType.ADD_PARTICIPANT]
-        const args = [utils.participantId(adminB1)]
+        const args = [utils.encodeParticipant(adminB1)]
         const stateId = await smartAccount.stateNonce()
         const res1 = await smartAccount.changeConfiguration(operatorA.permLevel, actions, args, args, stateId)
 
@@ -1404,7 +1404,7 @@ contract('SmartAccount', async function (accounts) {
     // Schedule config change by operator, and claim to be an admin when applying
     const stateId = await smartAccount.stateNonce()
     const changeType = ChangeType.ADD_PARTICIPANT
-    const changeArgs = utils.participantId(adminB1)
+    const changeArgs = utils.encodeParticipant(adminB1)
 
     await smartAccount.changeConfiguration(operatorA.permLevel, [changeType], [changeArgs], [changeArgs], stateId)
 
@@ -1424,7 +1424,7 @@ contract('SmartAccount', async function (accounts) {
   it('should revert an attempt to schedule a transaction if the target state nonce is incorrect', async function () {
     const stateId = await smartAccount.stateNonce()
     const changeType = ChangeType.ADD_PARTICIPANT
-    const changeArgs = utils.participantId(adminB1)
+    const changeArgs = utils.encodeParticipant(adminB1)
 
     await expect(
       smartAccount.changeConfiguration(operatorA.permLevel, [changeType], [changeArgs], [changeArgs], stateId - 1)

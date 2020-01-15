@@ -410,7 +410,7 @@ export default class SimpleWallet extends SimpleWalletApi {
         // TODO: parse all args types to human-readable format
         // This is a hack to make one specific test pass. Will be fixed as more tests are added
         if (type === 'add_operator_now') {
-          args = [SafeChannelUtils.parseParticipantId(args[0]).address]
+          args = [SafeChannelUtils.decodeParticipant(args[0]).address]
         }
         operations.push(new ConfigEntry({ type, args }))
       }
@@ -515,19 +515,19 @@ export default class SimpleWallet extends SimpleWalletApi {
 
   static getDefaultSampleInitialConfiguration ({ backendAddress, operatorAddress, whitelistModuleAddress }) {
     const backendAsWatchdog = '0x' +
-      SafeChannelUtils.participantId({
+      SafeChannelUtils.encodeParticipant({
         address: backendAddress,
         permissions: Permissions.WatchdogPermissions,
         level: 1
       }).toString('hex')
     const backendAsAdmin = '0x' +
-      SafeChannelUtils.participantId({
+      SafeChannelUtils.encodeParticipant({
         address: backendAddress,
         permissions: Permissions.AdminPermissions,
         level: 1
       }).toString('hex')
     const operator = '0x' +
-      SafeChannelUtils.participantId({
+      SafeChannelUtils.encodeParticipant({
         address: operatorAddress,
         permissions: Permissions.OwnerPermissions,
         level: 1

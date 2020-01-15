@@ -26,17 +26,16 @@ library Utilities {
         return transactionHash(actions, args1, args2, stateId, sender, senderPermsLevel, booster, boosterPermsLevel);
     }
 
-    function abiEncode(address participant, uint32 permsLevel) internal pure returns (bytes32) {
+    function encodeParticipant(address participant, uint32 permsLevel) internal pure returns (bytes32) {
         (uint32 permissions, uint8 level) = extractPermissionLevel(permsLevel);
-        return abiEncode(participant, permissions, level);
+        return encodeParticipant(participant, permissions, level);
     }
 
-    function abiEncode(address participant, uint32 permissions, uint8 level) internal pure returns (bytes32) {
+    function encodeParticipant(address participant, uint32 permissions, uint8 level) internal pure returns (bytes32) {
         return abi.encodePacked(participant, permissions, level, uint56(0)).readBytes32(0);
     }
 
-    // TODO: RENAME it does not use the abi any more
-    function abiDecode(bytes32 participantId) public pure returns (address, uint32, uint8){
+    function decodeParticipant(bytes32 participantId) public pure returns (address, uint32, uint8){
         address participant = address(uint256(participantId) >> 96);
         uint32 permissions = uint32(uint256(participantId) >> 64) & 0x07FFFFFF;
         uint8 level = uint8(uint256(participantId)  >> 56);

@@ -43,7 +43,7 @@ contract('GSN and Sponsor integration', async function (accounts) {
     const dummyAddress = '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE'
     relayServer = { address: dummyAddress }
     actions = [ChangeType.ADD_PARTICIPANT]
-    args = [utils.participantId(operatorA)]
+    args = [utils.encodeParticipant(operatorA)]
     const minuteInSec = 60
     const hourInSec = 60 * minuteInSec
     const dayInSec = 24 * hourInSec

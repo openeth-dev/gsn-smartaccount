@@ -14,7 +14,7 @@ class Participant {
   }
 
   static parse (participantId) {
-    const { address, permissions, level } = truffleUtils.parseParticipantId(participantId)
+    const { address, permissions, level } = truffleUtils.decodeParticipant(participantId)
     return new Participant(address, permissions, level)
   }
 

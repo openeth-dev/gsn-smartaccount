@@ -15,14 +15,14 @@ module.exports = {
     return '0x' + buffer.toString('hex')
   },
 
-  participantId: function ({ address, permissions, level }) {
+  encodeParticipant: function ({ address, permissions, level }) {
     if (!address || !permissions || !Number.isInteger(level)) {
       throw Error('all parameters are required!')
     }
     return ABI.solidityPack(['address', 'uint32', 'uint8', 'uint56'], [address, permissions, level, 0])
   },
 
-  parseParticipantId: function (participantId) {
+  decodeParticipant: function (participantId) {
     const idAsBigInt = BigInt(participantId)
     const address = '0x' + (idAsBigInt >> 96n).toString(16).padStart(40, '0')
     const permissions = Number((idAsBigInt >> 64n) & 0x07FFFFFFn)
@@ -40,7 +40,7 @@ module.exports = {
   // Only used in tests
   validateConfigParticipants: async function (participants, gatekeeper) {
     await this.asyncForEach(participants, async (participant) => {
-      const adminHash = this.bufferToHex(this.participantId(participant))
+      const adminHash = this.bufferToHex(this.encodeParticipant(participant))
       const isAdmin = await gatekeeper.participants(adminHash)
       assert.equal(participant.isParticipant, isAdmin,
         `admin ${participant.name} isAdmin=${isAdmin}, expected=${participant.isParticipant}`)
