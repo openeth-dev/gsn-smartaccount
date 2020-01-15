@@ -17,7 +17,7 @@ import sctestutils from 'safechannels-contracts/test/utils'
 import ChangeType from 'safechannels-contracts/test/etc/ChangeType'
 import abiDecoder from 'abi-decoder'
 import { Backend } from '../../src/js/backend/Backend'
-import { generateMockJwt, hookFunction, unhookFunction } from './testutils'
+import { generateMockJwt, hookFunction, unhookFunction, urlPrefix } from './testutils'
 
 require('../../src/js/mocks/MockDate')
 
@@ -146,7 +146,8 @@ describe('As Guardian', async function () {
           keyManager,
           accountManager,
           smartAccountFactoryAddress: smartAccountFactory.address,
-          web3provider
+          web3provider,
+          urlPrefix
         })
       assert.isTrue(await wallet.contract.isParticipant(watchdog.address,
         watchdog.permsLevel))
@@ -202,7 +203,7 @@ describe('As Guardian', async function () {
       it(`should not cancel delayed ${delayedOp} for unknown accounts`, async function () {
         const smsCode = watchdog.smsManager.getSmsCode(
           { phoneNumber: newAccount.phone, email: newAccount.email })
-        const url = `To cancel event ${receipt.logs[0].args.delayedOpId} on smartAccount ${newAccount.address}, enter code ${smsCode}`
+        const url = `${urlPrefix}/?delayedOpId=${receipt.logs[0].args.delayedOpId}&address=${newAccount.address}&smsCode=${smsCode}`
         try {
           await watchdog.cancelByUrl(
             { jwt: undefined, url })
@@ -222,7 +223,7 @@ describe('As Guardian', async function () {
         watchdog.lastScannedBlock = 0
         await watchdog._worker()
         unhookFunction(watchdog, watchdog._applyChanges.name)
-        const url = `To cancel event ${receipt.logs[0].args.delayedOpId} on smartAccount ${newAccount.address}, enter code ${smsCode}`
+        const url = `${urlPrefix}/?delayedOpId=${receipt.logs[0].args.delayedOpId}&address=${newAccount.address}&smsCode=${smsCode}`
         const txhash = (await watchdog.cancelByUrl(
           { jwt: undefined, url })).transactionHash
         const rawReceipt = await web3.eth.getTransactionReceipt(txhash)
@@ -426,7 +427,8 @@ describe('As Guardian', async function () {
           keyManager,
           accountManager,
           smartAccountFactoryAddress: smartAccountFactory.address,
-          web3provider
+          web3provider,
+          urlPrefix
         })
       autoCancelWatchdog.lastScannedBlock = watchdog.lastScannedBlock
     })

@@ -6,6 +6,7 @@ import abiDecoder from 'abi-decoder'
 import SmartAccountFactoryABI from 'safechannels-contracts/src/js/generated/SmartAccountFactory'
 import SmartAccountABI from 'safechannels-contracts/src/js/generated/SmartAccount'
 import { ChangeType } from '../etc/ChangeType'
+import { URL } from 'url'
 
 abiDecoder.addABI(SmartAccountFactoryABI)
 abiDecoder.addABI(SmartAccountABI)
@@ -49,8 +50,12 @@ class Guardian {
 }
 
 export class Watchdog extends Guardian {
-  constructor ({ smsManager, keyManager, accountManager, smartAccountFactoryAddress, sponsorAddress, web3provider }) {
+  constructor ({ smsManager, keyManager, accountManager, smartAccountFactoryAddress, sponsorAddress, web3provider, urlPrefix }) {
     super({ smsManager, keyManager, accountManager, smartAccountFactoryAddress, sponsorAddress, web3provider })
+    this.urlPrefix = new URL(urlPrefix)
+    if (!this.urlPrefix.port || !this.urlPrefix.protocol || !this.urlPrefix.hostname) {
+      throw new Error(`Invalid url: ${urlPrefix}`)
+    }
     this.permsLevel = scutils.packPermissionLevel(Permissions.WatchdogPermissions, 1)
     const smartAccountTopics = Object.keys(this.smartAccountContract.events).filter(x => (x.includes('0x')))
     const smartAccountFactoryTopics = Object.keys(this.smartAccountFactoryContract.events).filter(
@@ -155,7 +160,7 @@ export class Watchdog extends Guardian {
         const smsCode = this.smsManager.getSmsCode({ phoneNumber: account.phone, email: account.email })
         await this.smsManager.sendSMS({
           phoneNumber: account.phone,
-          message: `To cancel event ${change.log.args.delayedOpId} on smartAccount ${account.address}, enter code ${smsCode}`
+          message: `${this.urlPrefix.href}?delayedOpId=${change.log.args.delayedOpId}&address=${account.address}&smsCode=${smsCode}`
         })
         change.smsSent = true
       }
@@ -164,9 +169,12 @@ export class Watchdog extends Guardian {
   }
 
   static _extractCancelParamsFromUrl ({ url }) {
-    const regex = /To cancel event (0x[0-9a-fA-F]*) on smartAccount (0x[0-9a-fA-F]*), enter code ([0-9]*)/
-    const [, delayedOpId, address, smsCode] = url.match(regex)
-    return { delayedOpId, address, smsCode }
+    try {
+      const [delayedOpId, address, smsCode] = url.split('?')[1].split('&').map(param => { return param.split('=')[1] })
+      return { delayedOpId, address, smsCode }
+    } catch (e) {
+      throw new Error(`Invalid url: ${url}`)
+    }
   }
 
   // TODO check jwt? not sure if needed ATM
