@@ -270,10 +270,11 @@ export default class SimpleWallet extends SimpleWalletApi {
       const _eventsEmitter = new EventsEmitter()
       this._eventsEmitter = _eventsEmitter
       setInterval(async () => {
-        const block = await web3.eth.getBlockNumber()
-        if (block === lastBlock) {
+        const block = await web3.eth.getBlock('latest')
+        if (block.number === lastBlock) {
           return
         }
+        this.lastBlockTimestamp = block.timestamp
         const events = await this.contract.getPastEvents({
           fromBlock: lastBlock
         })
@@ -390,7 +391,7 @@ export default class SimpleWallet extends SimpleWalletApi {
       return new DelayedConfigChange({
         txHash: it.transactionHash,
         delayedOpId: it.args.delayedOpId,
-        dueTime: 0, // TODO: pendingChange.dueTime.toNumber(),
+        dueTime: it.args.dueTime.toNumber(),
         state: 'mined',
         operations: operations
       })
@@ -401,7 +402,7 @@ export default class SimpleWallet extends SimpleWalletApi {
       const common = {
         txHash: it.transactionHash,
         delayedOpId: it.args.delayedOpId,
-        dueTime: 0, // TODO: fix events!
+        dueTime: parseInt(it.args.dueTime.toString()), // not sure why its not BN here
         state: 'mined'
       }
       for (let i = 0; i < it.args.actions.length; i++) {

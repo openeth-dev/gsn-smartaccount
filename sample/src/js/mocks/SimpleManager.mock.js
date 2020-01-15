@@ -100,6 +100,15 @@ export default class SimpleManagerMock extends SimpleManagerApi {
     return this.wallet
   }
 
+  async addTimeLeft (pendings) {
+    const lastBlockTimestamp = Math.floor(Date.now() / 1000)
+
+    return pendings.map(p => ({
+      ...p,
+      timeLeft: p.dueTime - lastBlockTimestamp
+    }))
+  }
+
   async recoverWallet ({ jwt, title }) {
     error('trigger recover flow')
   }
