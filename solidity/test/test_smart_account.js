@@ -732,7 +732,7 @@ contract('SmartAccount', async function (accounts) {
     const log2 = res2.logs[0]
     assert.equal(log2.event, 'ParticipantAdded')
     assert.equal(log2.args.participant, adminC.address)
-    assert.equal('0x' + log2.args.permissions.toString('hex'), adminC.permissions.toString())
+    assert.equal(log2.args.permissions, adminC.permissions.toString())
     assert.equal(log2.args.level.toString(), adminC.level.toString())
     await utils.validateConfigParticipants(
       [adminA.expect(), adminB.expect(), adminB1, adminC.expect()],
