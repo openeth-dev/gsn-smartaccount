@@ -1,9 +1,9 @@
+/* global BigInt */
 /* npm modules */
 const ABI = require('ethereumjs-abi')
 const Web3Utils = require('web3-utils')
 const EthUtils = require('ethereumjs-util')
 const assert = require('chai').assert
-const Permissions = require('./Permissions')
 
 module.exports = {
 
@@ -15,17 +15,19 @@ module.exports = {
     return '0x' + buffer.toString('hex')
   },
 
-  participantHash: function (admin, permLevel) {
-    return ABI.soliditySHA3(['address', 'uint32'], [admin, permLevel])
+  participantId: function ({ address, permissions, level }) {
+    if (!address || !permissions || !Number.isInteger(level)) {
+      throw Error('all parameters are required!')
+    }
+    return ABI.solidityPack(['address', 'uint32', 'uint8', 'uint56'], [address, permissions, level, 0])
   },
 
-  operatorHash: function (operatorAddress) {
-    return this.participantHash(operatorAddress, this.packPermissionLevel(Permissions.OwnerPermissions, 1))
-  },
-
-  // TODO: fix this mess, Alex!
-  participantHashUnpacked: function (admin, perms, level) {
-    return this.participantHash(admin, this.packPermissionLevel(perms, level))
+  parseParticipantId: function (participantId) {
+    const idAsBigInt = BigInt(participantId)
+    const address = '0x' + (idAsBigInt >> 96n).toString(16).padStart(40, '0')
+    const permissions = Number((idAsBigInt >> 64n) & 0x07FFFFFFn)
+    const level = Number((idAsBigInt >> 56n) & 0xFn)
+    return { address, permissions, level }
   },
 
   bypassCallHash: function (stateNonce, sender, senderPermsLevel, target, value, msgdata) {
@@ -38,7 +40,7 @@ module.exports = {
   // Only used in tests
   validateConfigParticipants: async function (participants, gatekeeper) {
     await this.asyncForEach(participants, async (participant) => {
-      const adminHash = this.bufferToHex(this.participantHash(participant.address, participant.permLevel))
+      const adminHash = this.bufferToHex(this.participantId(participant))
       const isAdmin = await gatekeeper.participants(adminHash)
       assert.equal(participant.isParticipant, isAdmin,
         `admin ${participant.name} isAdmin=${isAdmin}, expected=${participant.isParticipant}`)

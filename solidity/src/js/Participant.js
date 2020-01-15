@@ -6,11 +6,16 @@ class Participant {
   constructor (address, permissions, level, name) {
     nonNull({ address, permissions, level })
     this.address = address
-    this.permissions = permissions
-    this.level = level
+    this.permissions = parseInt(permissions)
+    this.level = parseInt(level)
     this.name = name
     this.permLevel = truffleUtils.packPermissionLevel(permissions, level)
     this.isParticipant = false
+  }
+
+  static parse (participantId) {
+    const { address, permissions, level } = truffleUtils.parseParticipantId(participantId)
+    return new Participant(address, permissions, level)
   }
 
   expectError (error) {

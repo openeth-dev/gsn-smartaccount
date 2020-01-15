@@ -1,6 +1,7 @@
 pragma solidity ^0.5.10;
 
 import "./Assert.sol";
+import "./Utilities.sol";
 
 contract PermissionsLevel {
 
@@ -50,22 +51,17 @@ contract PermissionsLevel {
     }
 
     function extractLevel(uint32 permLev) pure internal returns (uint8 level) {
-        (, level) = extractPermissionLevel(permLev);
+        (, level) = Utilities.extractPermissionLevel(permLev);
     }
 
     function extractPermission(uint32 permLev) pure internal returns (uint32 permission) {
-        (permission,) = extractPermissionLevel(permLev);
+        (permission,) = Utilities.extractPermissionLevel(permLev);
     }
 
     function packPermissionLevel(uint32 permissions, uint8 level) pure internal returns (uint32 permLev) {
         require(permissions <= 0x07FFFFFF, "permissions overflow");
         require(level <= 0x1F, "level overflow");
         return (uint32(level) << 27) + permissions;
-    }
-
-    function extractPermissionLevel(uint32 permLev) public pure returns(uint32 permissions, uint8 level) {
-        permissions = permLev & 0x07FFFFFF;
-        level = uint8(permLev >> 27);
     }
 
 

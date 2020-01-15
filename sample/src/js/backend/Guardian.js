@@ -204,7 +204,7 @@ export class Watchdog extends Guardian {
           delete this.changesToApply[delayedOpId]
           return new Error(`Cannot find new operator address of accountId ${account.accountId}`)
         }
-        const operatorHash = scutils.bufferToHex(scutils.operatorHash(newOperatorAddress))
+        const operatorHash = scutils.bufferToHex(scutils.participantId({ address: newOperatorAddress, permissions: Permissions.OwnerPermissions, level: 1 }))
         if (change.log.args.actionsArguments1[0] !== operatorHash) {
           // TODO cancel operation
           delete this.changesToApply[delayedOpId]

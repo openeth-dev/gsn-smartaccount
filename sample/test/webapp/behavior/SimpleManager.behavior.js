@@ -115,10 +115,9 @@ export function testSignInBehavior (getContext) {
     const info = await wallet.getWalletInfo()
     // Manager Owner account is now owner of the wallet with the 3 initial participants
     assert.strictEqual(info.participants.length, 4)
-    assert.strictEqual(info.participants[2].address, await sm.getOwner())
-    assert.strictEqual(info.participants[2].type, 'operator')
-    // TODO: Old operator is not known to the new wallet yet
-    assert.strictEqual(info.participants[3].address, 'n/a')
+    const expectedOwner = await sm.getOwner()
+    assert.strictEqual(info.participants[0].address, expectedOwner)
+    assert.strictEqual(info.participants[0].type, 'operator')
   })
 }
 
