@@ -7,6 +7,7 @@ import SmartAccountFactoryABI from 'safechannels-contracts/src/js/generated/Smar
 import SmartAccountABI from 'safechannels-contracts/src/js/generated/SmartAccount'
 import { ChangeType } from '../etc/ChangeType'
 import { URL } from 'url'
+import querystring from 'querystring'
 
 abiDecoder.addABI(SmartAccountFactoryABI)
 abiDecoder.addABI(SmartAccountABI)
@@ -160,7 +161,7 @@ export class Watchdog extends Guardian {
         const smsCode = this.smsManager.getSmsCode({ phoneNumber: account.phone, email: account.email })
         await this.smsManager.sendSMS({
           phoneNumber: account.phone,
-          message: `${this.urlPrefix.href}?delayedOpId=${change.log.args.delayedOpId}&address=${account.address}&smsCode=${smsCode}`
+          message: `${this.urlPrefix.href}&delayedOpId=${change.log.args.delayedOpId}&address=${account.address}&smsCode=${smsCode}`
         })
         change.smsSent = true
       }
@@ -170,7 +171,7 @@ export class Watchdog extends Guardian {
 
   static _extractCancelParamsFromUrl ({ url }) {
     try {
-      const [delayedOpId, address, smsCode] = url.split('?')[1].split('&').map(param => { return param.split('=')[1] })
+      const { delayedOpId, address, smsCode } = querystring.parse(url)
       return { delayedOpId, address, smsCode }
     } catch (e) {
       throw new Error(`Invalid url: ${url}`)

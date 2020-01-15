@@ -23,7 +23,7 @@ export const _relayHub = '0xD216153c06E857cD7f72665E0aF1d7D82172F494'
 export const _ethNodeUrl = 'http://localhost:8545'
 export const _relayUrl = 'http://localhost:8090'
 export const _serverUrl = `http://localhost:${webserverPort}/`
-const _urlPrefix = `http://srulik.lan:${webserverPort}`
+const _urlPrefix = `http://srulik.lan:${webserverPort}/?`
 
 const _verbose = false
 

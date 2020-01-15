@@ -203,7 +203,7 @@ describe('As Guardian', async function () {
       it(`should not cancel delayed ${delayedOp} for unknown accounts`, async function () {
         const smsCode = watchdog.smsManager.getSmsCode(
           { phoneNumber: newAccount.phone, email: newAccount.email })
-        const url = `${urlPrefix}/?delayedOpId=${receipt.logs[0].args.delayedOpId}&address=${newAccount.address}&smsCode=${smsCode}`
+        const url = `${urlPrefix}&delayedOpId=${receipt.logs[0].args.delayedOpId}&address=${newAccount.address}&smsCode=${smsCode}`
         try {
           await watchdog.cancelByUrl(
             { jwt: undefined, url })
@@ -223,7 +223,7 @@ describe('As Guardian', async function () {
         watchdog.lastScannedBlock = 0
         await watchdog._worker()
         unhookFunction(watchdog, watchdog._applyChanges.name)
-        const url = `${urlPrefix}/?delayedOpId=${receipt.logs[0].args.delayedOpId}&address=${newAccount.address}&smsCode=${smsCode}`
+        const url = `${urlPrefix}&delayedOpId=${receipt.logs[0].args.delayedOpId}&address=${newAccount.address}&smsCode=${smsCode}`
         const txhash = (await watchdog.cancelByUrl(
           { jwt: undefined, url })).transactionHash
         const rawReceipt = await web3.eth.getTransactionReceipt(txhash)

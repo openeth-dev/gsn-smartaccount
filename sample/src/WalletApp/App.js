@@ -129,7 +129,7 @@ const PendingTransactions = ({ walletPending, doCancelPending }) =>
     <b>Pending</b>
     {walletPending.map(p =>
       <div key={p.delayedOpId}>
-        <PendingTransaction p={p} /> -
+        <PendingTransaction p={p}/> -
         <Button title="Cancel" action={() => doCancelPending(p.delayedOpId)}/>
       </div>)
     }
@@ -198,35 +198,36 @@ function DebugState ({ state }) {
 }
 
 class CancelByUrl extends React.Component {
-
   constructor (props) {
     super(props)
-    this.state = {  }
+    this.state = {}
   }
 
   componentDidMount () {
-    this.props.initMgr().then(()=>{
+    this.props.initMgr().then(() => {
       const url = window.location.href
-      console.log( "xurl=", url)
-      mgr.cancelByUrl({ jwt: null, url }).
-        then(() => this.setState({ complete: true })).
-        catch(err => this.setState({ err: errorStr(err) }))
+      console.log('xurl=', url)
+      mgr.cancelByUrl({ jwt: null, url }).then(() => this.setState({ complete: true })).catch(
+        err => this.setState({ err: errorStr(err) }))
     })
   }
 
   render () {
-    const {complete, err} = this.state
-    if (complete)
+    const { complete, err } = this.state
+    if (complete) {
       return <> <h2>Canceled. </h2>
-        <Button title="Close" action={()=>window.close()}/>
+        <Button title="Close" action={() => window.close()}/>
       </>
-
-    if (err)
-      return <> <div style={{color:"red"}}>
-        <h2>Cancel Failed</h2><pre>{err}</pre></div>
-        <Button title="Close" action={()=>window.close()}/>
+    }
+    if (err) {
+      return <>
+        <div style={{ color: 'red' }}>
+          <h2>Cancel Failed</h2>
+          <pre>{err}</pre>
+        </div>
+        <Button title="Close" action={() => window.close()}/>
       </>
-
+    }
     return <>Canceling... please wait</>
   }
 }
@@ -234,8 +235,9 @@ class CancelByUrl extends React.Component {
 function WalletComponent (options) {
   const { walletAddr, email, ownerAddr, walletInfo, loading, pendingAddOperatorNow } = options
 
-  if ( window.location.href.includes('delayedOpId'))
+  if (window.location.href.includes('delayedOpId')) {
     return <CancelByUrl {...options} />
+  }
 
   if (loading) {
     return <h2>Loading, please wait.</h2>

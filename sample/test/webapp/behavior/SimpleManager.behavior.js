@@ -39,7 +39,7 @@ export function testCancelByUrlBehavior (getContext) {
     delayedOpId = res.logs[0].args.delayedOpId
     const address = context.wallet.contract.address
     url = `To cancel event ${delayedOpId} on smartAccount ${address}, enter code ${context.smsCode}`
-    url = `${context.urlPrefix}?delayedOpId=${delayedOpId}&address=${address}&smsCode=${context.smsCode}`
+    url = `${context.urlPrefix}&delayedOpId=${delayedOpId}&address=${address}&smsCode=${context.smsCode}`
   })
 
   it('should pass parameters to backend client and receive transaction hash in response', async function () {
