@@ -138,7 +138,7 @@ export default class SimpleManager extends SimpleManagerApi {
     })
   }
 
-  //todo: not really needed anymore: client should get default config, manipulate and set it to wallet.
+  // todo: not really needed anymore: client should get default config, manipulate and set it to wallet.
   async setInitialConfiguration () {
     const wallet = await this.loadWallet()
     await wallet.initialConfiguration(await this.getDefaultConfiguration())

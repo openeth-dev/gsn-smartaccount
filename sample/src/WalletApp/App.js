@@ -40,7 +40,6 @@ function getDeviceName () {
   const deviceMatch = userAgent.match(/\((.*?)\)/)
   if (!deviceMatch) { return userAgent }
 
-  console.log('== useragent:', userAgent)
   const names = deviceMatch[1].split(/\s*;\s*/)
   // TODO: Android is 2nd best: should return specific device type - if known.
   const ret = names.find(name => /Window|Mac|iP|Android|Pixel|SM-|Nexus/.test(name))
@@ -78,7 +77,7 @@ function CreateWallet ({ refresh, jwt, email, initialConfig, setInitialConfig })
   const startCreate = async () => {
     const PHONE = '+972541234567'
 
-    phoneNumber = prompt('enter phone number to validate ( put 1 for "'+PHONE+'" )')
+    phoneNumber = prompt('enter phone number to validate ( put 1 for "' + PHONE + '" )')
     if (!phoneNumber) {
       return
     }
@@ -114,7 +113,7 @@ function CreateWallet ({ refresh, jwt, email, initialConfig, setInitialConfig })
     initialConfig.whitelist = val.split(/[ \t]*[,\n][ \t]*/).filter(addr => !!addr)
     setInitialConfig(initialConfig)
   }
-  function updateDelayTime(val) {
+  function updateDelayTime (val) {
     setDelayTime(val) // for UI leave string as-is
     // modify global state
     try {
@@ -125,9 +124,9 @@ function CreateWallet ({ refresh, jwt, email, initialConfig, setInitialConfig })
       initialConfig.initialDelays[1] = time
       setInitialConfig(initialConfig)
       setDelayErr('')
-    }catch (e) {
+    } catch (e) {
       setDelayErr('invalid number/suffix')
-      //ignore - just don't display..
+      // ignore - just don't display..
     }
   }
   return <div>
@@ -140,9 +139,9 @@ function CreateWallet ({ refresh, jwt, email, initialConfig, setInitialConfig })
     <textarea cols="80" value={initConfig} onChange={e => updateWhitelistConfig(e.target.value)}></textarea><br/>
 
     Delay time:
-    <input cols="10" value={delayTime} onChange={e=>updateDelayTime(e.target.value)} />
-    <span style={{fontSize:10}}>(can use d/h/m/s suffix)
-    <span style={{color:'red'}}>{delayErr}</span>
+    <input cols="10" value={delayTime} onChange={e => updateDelayTime(e.target.value)} />
+    <span style={{ fontSize: 10 }}>(can use d/h/m/s suffix)
+      <span style={{ color: 'red' }}>{delayErr}</span>
     </span><br/>
     <pre>
       {JSON.stringify(initialConfig, null, 2)}
@@ -187,7 +186,7 @@ const PendingTransactions = ({ walletPending, doCancelPending }) =>
 
 const Whitelist = ({ whitelist, doAddToWhiteList, doRemoveFromWhitelist }) => <div>
   <b>Whitelist</b><Button title="+ add" action={doAddToWhiteList}/><br/>
-  {(!whitelist || !whitelist.length ) && <span style={{ fontSize: 10 }}>No whitelisted addresses</span>}
+  {(!whitelist || !whitelist.length) && <span style={{ fontSize: 10 }}>No whitelisted addresses</span>}
   {whitelist && whitelist.map(wl => <span key={wl}>{wl} <Button title="remove" action={() => doRemoveFromWhitelist(wl)}/><br/></span>)}
 
 </div>
@@ -358,7 +357,6 @@ class App extends React.Component {
   }
 
   eventSubscriber () {
-    console.log('== event subscriber')
     this.reloadState()
   }
 

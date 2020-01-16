@@ -6,7 +6,7 @@ import SMSmock from '../../src/js/mocks/SMS.mock'
 import TestEnvironment from '../utils/TestEnvironment'
 
 import { increaseTime } from 'safechannels-contracts/test/utils'
-
+import { sleep } from '../backend/testutils'
 const DAY = 24 * 3600
 
 const verbose = false
@@ -86,7 +86,6 @@ describe('System flow', () => {
 
     it('initialConfiguration', async () => {
       const config = await mgr.getDefaultConfiguration()
-      console.log('config=',config)
       await wallet.initialConfiguration(config)
     })
 
@@ -154,7 +153,7 @@ describe('System flow', () => {
       assert.equal(pendings[0].timeLeft, 2 * DAY)
       await increaseTime(1 * DAY, web3)
       pendings = await mgr.addTimeLeft(await wallet.listPendingTransactions())
-      assert.equal(pendings[0].timeLeft, 1 * DAY)
+      expect(pendings[0].timeLeft).to.be.closeTo(1 * DAY, 10)
       await increaseTime(2 * DAY, web3)
 
       try {
@@ -315,16 +314,19 @@ describe('System flow', () => {
       const newwallet = await newmgr.loadWallet()
       assert.ok(!await newwallet.isOperator(newOperator))
 
-      let resolvePromise = null
-      const walletChangedPromise = new Promise((resolve) => { resolvePromise = resolve })
-      await wallet.subscribe(resolvePromise)
+      const resolvePromise = null
+      await wallet.subscribe(e => {
+        console.log('got event ' + e)
+        resolvePromise()
+      })
 
-      await wallet.getWalletInfo()
-      console.log('mgr owner: ', await mgr.getOwner())
+      const fromBlock = await web3.eth.getBlockNumber()
       await wallet.addOperatorNow(newOperator)
 
-      console.log('after')
-      await walletChangedPromise
+      // wait for ParticipantAdded event
+      while (!(await wallet.contract.getPastEvents('ParticipantAdded', { fromBlock })).length) {
+        await sleep(400)
+      }
 
       assert.ok(await newwallet.isOperator(newOperator))
     })
