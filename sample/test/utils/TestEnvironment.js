@@ -11,7 +11,7 @@ import RelayServerMock from '../mocks/RelayServer.mock'
 import ClientBackend from '../../src/js/backend/ClientBackend'
 import SimpleWallet from '../../src/js/impl/SimpleWallet'
 import { startGsnRelay, stopGsnRelay } from 'localgsn'
-import { sleep, webserverPort } from '../backend/testutils'
+import { sleep, webserverPort, urlPrefix } from '../backend/testutils'
 import GauthMock from '../../src/js/mocks/Gauth.mock'
 import * as TestUtils from 'safechannels-contracts/test/utils'
 
@@ -23,7 +23,7 @@ export const _relayHub = '0xD216153c06E857cD7f72665E0aF1d7D82172F494'
 export const _ethNodeUrl = 'http://localhost:8545'
 export const _relayUrl = 'http://localhost:8090'
 export const _serverUrl = `http://localhost:${webserverPort}/`
-const _urlPrefix = 'http://srulik.lan:3000/?'
+const _urlPrefix = urlPrefix
 
 const _verbose = false
 

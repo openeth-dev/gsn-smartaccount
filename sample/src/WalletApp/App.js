@@ -235,7 +235,7 @@ class CancelByUrl extends React.Component {
 function WalletComponent (options) {
   const { walletAddr, email, ownerAddr, walletInfo, loading, pendingAddOperatorNow } = options
 
-  if (window.location.href.includes('delayedOpId')) {
+  if (window.location.href.includes('op=cancel')) {
     return <CancelByUrl {...options} />
   }
 

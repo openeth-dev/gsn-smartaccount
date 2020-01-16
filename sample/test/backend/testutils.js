@@ -56,4 +56,4 @@ export function unhookFunction (obj, funcName) {
 }
 
 export const webserverPort = 8888
-export const urlPrefix = 'http://srulik.lan:3000/?'
+export const urlPrefix = 'http://srulik.lan:3000/?op=cancel'
