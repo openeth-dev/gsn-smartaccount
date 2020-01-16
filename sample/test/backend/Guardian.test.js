@@ -23,6 +23,7 @@ require('../../src/js/mocks/MockDate')
 
 describe('As Guardian', async function () {
   let web3
+  let id
   let watchdog
   let backend
   let admin
@@ -61,6 +62,7 @@ describe('As Guardian', async function () {
     web3.eth.net.isListening(function (error, result) {
       if (error) console.log('error listening', error)
     })
+    id = (await sctestutils.snapshot(web3)).result
     accounts = await web3.eth.getAccounts()
     accountZero = accounts[0]
     const mockHub = await FactoryContractInteractor.deployMockHub(accountZero, ethNodeUrl)
@@ -122,6 +124,7 @@ describe('As Guardian', async function () {
 
   after(async function () {
     await accountManager.clearAll()
+    await sctestutils.revert(id, web3)
   })
 
   describe('As Watchdog', async function () {
@@ -235,6 +238,7 @@ describe('As Guardian', async function () {
       })
 
       it(`should apply delayed ${delayedOp} for a known account`, async function () {
+        this.timeout(10000)
         const stateId = await wallet.contract.stateNonce()
         if (delayedOp === 'BypassCall') {
           await wallet.contract.scheduleBypassCall(wallet.participant.permLevel, transferDestination, amount, [],
@@ -252,8 +256,8 @@ describe('As Guardian', async function () {
         const eventsDuring = await wallet.contract.getPastEvents(delayedOp + 'Applied')
         assert.equal(eventsDuring.length, eventsBefore.length)
         assert.isTrue(gotSms)
-        Date.setMockedTime(Date.realNow() + 1e6)
-        await sctestutils.increaseTime(1e2, web3)
+        Date.setMockedTime(Date.realNow() + 1e7)
+        await sctestutils.increaseTime(1e3, web3)
         await watchdog._worker()
         Date.mockedDateOffset = 0
         const eventsAfter = await wallet.contract.getPastEvents(delayedOp + 'Applied')
