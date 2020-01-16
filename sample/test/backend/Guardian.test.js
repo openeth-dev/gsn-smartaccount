@@ -3,7 +3,7 @@
 import { assert } from 'chai'
 import Web3 from 'web3'
 import SMSmock from '../../src/js/mocks/SMS.mock'
-import { Watchdog } from '../../src/js/backend/Guardian'
+import { Admin, AutoCancelWatchdog, Watchdog } from '../../src/js/backend/Guardian'
 import { KeyManager } from '../../src/js/backend/KeyManager'
 import FactoryContractInteractor from 'safechannels-contracts/src/js/FactoryContractInteractor'
 import { AccountManager } from '../../src/js/backend/AccountManager'
@@ -25,6 +25,7 @@ describe('As Guardian', async function () {
   let web3
   let watchdog
   let backend
+  let admin
   let smsProvider
   const keypair = {
     privateKey: Buffer.from('20e12d5dc484a03c969d48446d897a006ebef40a806dab16d58db79ba64aa01f', 'hex'),
@@ -374,5 +375,77 @@ describe('As Guardian', async function () {
   })
 
   describe('As Admin', async function () {
+    let id
+    before(async function () {
+      admin = new Admin(
+        { smsManager, keyManager, accountManager, smartAccountFactoryAddress: accountZero, web3provider })
+      id = (await sctestutils.snapshot(web3)).result
+    })
+    it('should throw trying schedule add operator on unknown account', async function () {
+      try {
+        await watchdog.accountManager.removeAccount({ account: newAccount })
+        await admin.scheduleAddOperator({ accountId: newAccount.accountId, newOperatorAddress })
+        assert.fail()
+      } catch (e) {
+        assert.equal(e.message, 'Account not found')
+      }
+    })
+    it('should throw trying schedule add operator on account without address', async function () {
+      const address = newAccount.address
+      delete newAccount.address
+      await watchdog.accountManager.putAccount({ account: newAccount })
+      try {
+        await admin.scheduleAddOperator({ accountId: newAccount.accountId, newOperatorAddress })
+        assert.fail()
+      } catch (e) {
+        assert.equal(e.message, 'Account address is not set yet')
+      }
+      newAccount.address = address
+      await watchdog.accountManager.putAccount({ account: newAccount })
+    })
+    it('should schedule add operator', async function () {
+      const { transactionHash } = await admin.scheduleAddOperator(
+        { accountId: newAccount.accountId, newOperatorAddress })
+      const receipt = await web3.eth.getTransactionReceipt(transactionHash)
+      const dlogs = abiDecoder.decodeLogs(receipt.logs)
+      assert.equal(dlogs[0].name, 'ConfigPending')
+      assert.equal(dlogs[0].events[6].name, 'actions')
+      assert.equal(dlogs[0].events[6].value, ChangeType.ADD_OPERATOR)
+    })
+    after(async function () {
+      await sctestutils.revert(id, web3)
+    })
+  })
+
+  describe('As AutoCancelWatchdog', async function () {
+    let autoCancelWatchdog
+    before(async function () {
+      autoCancelWatchdog = new AutoCancelWatchdog(
+        {
+          smsManager,
+          keyManager,
+          accountManager,
+          smartAccountFactoryAddress: smartAccountFactory.address,
+          web3provider
+        })
+      autoCancelWatchdog.lastScannedBlock = watchdog.lastScannedBlock
+    })
+    it('should auto cancel pending changes', async function () {
+      const stateId = await wallet.contract.stateNonce()
+      const receipt = await wallet.contract.scheduleBypassCall(wallet.participant.permLevel, transferDestination,
+        amount,
+        [],
+        stateId,
+        { from: accountZero })
+      assert.equal(receipt.logs[0].event, 'BypassCallPending')
+      const eventsBefore = await wallet.contract.getPastEvents('BypassCallCancelled')
+      const txreceipts = await autoCancelWatchdog._worker()
+      const eventsAfter = await wallet.contract.getPastEvents('BypassCallCancelled')
+      assert.equal(eventsAfter.length, eventsBefore.length + 1)
+      const dlogs = abiDecoder.decodeLogs(txreceipts[0].logs)
+      assert.equal(dlogs[0].name, 'BypassCallCancelled')
+      assert.equal(dlogs[0].events[0].name, 'delayedOpId')
+      assert.equal(dlogs[0].events[0].value, receipt.logs[0].args.delayedOpId)
+    })
   })
 })

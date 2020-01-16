@@ -29,7 +29,7 @@ export class SmsManager {
 
   calcSmsCode ({ phoneNumber, email, minuteTimeStamp }) {
     const dataToHash = 'PAD' + this.secretSMSCodeSeed.toString('hex') + phoneNumber[0] + email + minuteTimeStamp + 'PAD'
-    let code = parseInt(abi.soliditySHA3(['string'], [dataToHash]).toString('hex').slice(0, 6), 16) % 1e7
+    let code = parseInt(abi.soliditySHA3(['string'], [dataToHash]).toString('hex').slice(0, 6), 16) % 1e3
     code = code.toString() + (minuteTimeStamp % 10).toString()
 
     return code
