@@ -54,7 +54,7 @@ export class Watchdog extends Guardian {
   constructor ({ smsManager, keyManager, accountManager, smartAccountFactoryAddress, sponsorAddress, web3provider, urlPrefix }) {
     super({ smsManager, keyManager, accountManager, smartAccountFactoryAddress, sponsorAddress, web3provider })
     this.urlPrefix = new URL(urlPrefix)
-    if (!this.urlPrefix.port || !this.urlPrefix.protocol || !this.urlPrefix.hostname) {
+    if (!this.urlPrefix.href) {
       throw new Error(`Invalid url: ${urlPrefix}`)
     }
     this.permsLevel = scutils.packPermissionLevel(Permissions.WatchdogPermissions, 1)
@@ -213,7 +213,8 @@ export class Watchdog extends Guardian {
           delete this.changesToApply[delayedOpId]
           return new Error(`Cannot find new operator address of accountId ${account.accountId}`)
         }
-        const operatorHash = scutils.bufferToHex(scutils.encodeParticipant({ address: newOperatorAddress, permissions: Permissions.OwnerPermissions, level: 1 }))
+        const operatorHash = scutils.bufferToHex(scutils.encodeParticipant(
+          { address: newOperatorAddress, permissions: Permissions.OwnerPermissions, level: 1 }))
         if (change.log.args.actionsArguments1[0] !== operatorHash) {
           // TODO cancel operation
           delete this.changesToApply[delayedOpId]
