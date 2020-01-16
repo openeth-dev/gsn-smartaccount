@@ -21,7 +21,7 @@ describe('System flow', () => {
   const userEmail = 'shahaf@tabookey.com'
 
   before('check "gsn-dock-relay" is active', async function () {
-    this.timeout(7000)
+    this.timeout(9000)
 
     testEnvironment = await TestEnvironment.initializeAndStartBackendForRealGSN({ verbose })
     await testEnvironment.snapshot()
@@ -321,6 +321,7 @@ describe('System flow', () => {
       })
 
       const fromBlock = await web3.eth.getBlockNumber()
+      await wallet.getWalletInfo()
       await wallet.addOperatorNow(newOperator)
 
       // wait for ParticipantAdded event
