@@ -40,14 +40,6 @@ export default class SimpleWalletMock extends SimpleWalletApi {
     error('perform a transfer to a whitelisted address')
   }
 
-  addWhitelist (addrs) {
-    error('add pending operation to add entries to whitelist')
-  }
-
-  removeWhitelist (addrs) {
-    error('remove entries from whitelist (immediate)')
-  }
-
   // return cached list of whitelisted addresses.
   listWhitelistedAddresses () {
     return ['add1', 'add2']
@@ -245,5 +237,17 @@ export default class SimpleWalletMock extends SimpleWalletApi {
 
   async deployWhitelistModule ({ whitelistPreconfigured }) {
     super.deployWhitelistModule({ whitelistPreconfigured })
+  }
+
+  async scheduleBypassCall ({ destination, value, encodedTransaction }) {
+    super.scheduleBypassCall({ destination, value, encodedTransaction })
+  }
+
+  async setWhitelistedDestination (destination, isWhitelisted) {
+    super.setWhitelistedDestination(destination, isWhitelisted)
+  }
+
+  async getWhitelistModule () {
+    super.getWhitelistModule()
   }
 }

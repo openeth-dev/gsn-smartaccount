@@ -76,6 +76,16 @@ export default class SimpleWallet extends SimpleWalletApi {
     )
   }
 
+  // TODO: there is a major overlap between this and ERC-20 transfer. Refactor!
+  async scheduleBypassCall ({ destination, value, encodedTransaction }) {
+    return this.contract.scheduleBypassCall(
+      this.participant.permLevel, destination, value, encodedTransaction, this.stateId,
+      {
+        from: this.participant.address,
+        gas: 1e8
+      })
+  }
+
   async transfer ({ destination, amount, token }) {
     let destinationAddress
     let ethAmount
@@ -178,13 +188,14 @@ export default class SimpleWallet extends SimpleWalletApi {
   refresh () {
   }
 
+  // TODO: this API is not necessary. The regular transfer can decide if immediate operation is possible.
   transferWhiteList ({ destination, amount, token }) {
   }
 
-  addWhitelist (addrs) {
-  }
-
-  removeWhitelist (addrs) {
+  async setWhitelistedDestination (destination, isWhitelisted) {
+    const whitelistBypassPolicy = await this.getWhitelistModule()
+    const encodedTransaction = whitelistBypassPolicy.contract.methods.setWhitelistedDestination(destination, isWhitelisted).encodeABI()
+    return this.scheduleBypassCall({ destination: whitelistBypassPolicy.address, value: 0, encodedTransaction })
   }
 
   // return cached list of whitelisted addresses.
@@ -327,11 +338,24 @@ export default class SimpleWallet extends SimpleWalletApi {
       fromBlock: _fromBlock,
       toBlock: _toBlock
     })
+    const bypassByTargetAddedEvents = await this.contract.getPastEvents('BypassByTargetAdded', {
+      fromBlock: _fromBlock,
+      toBlock: _toBlock
+    })
+    const bypassByMethodAddedEvents = await this.contract.getPastEvents('BypassByMethodAdded', {
+      fromBlock: _fromBlock,
+      toBlock: _toBlock
+    })
     const initEvent = (await this.contract.getPastEvents('SmartAccountInitialized', {
       fromBlock: deployedBlock,
       toBlock: 'latest'
     }))[0]
-    return { participantAddedEvents, initEvent }
+    return {
+      initEvent,
+      participantAddedEvents,
+      bypassByTargetAddedEvents,
+      bypassByMethodAddedEvents
+    }
   }
 
   async listTokens () {
@@ -653,5 +677,28 @@ export default class SimpleWallet extends SimpleWalletApi {
   async _isBypassActivated ({ target, value, encodedFunction }) {
     const policy = await this.contract.getBypassPolicy(target, value, encodedFunction)
     return policy[0].toString() === '0' && policy[1].toString() === '0'
+  }
+
+  // Should eventually be public
+  async _getBypassPolicies () {
+    // TODO: add support for added/removed bypass policies here
+    const {
+      initEvent
+      /*
+      bypassByMethodAddedEvents,
+      bypassByTargetAddedEvents
+      */
+    } = await this._getCompletedConfigurationEvents()
+
+    return [...new Set(initEvent.args.bypassModules)]
+  }
+
+  async getWhitelistModule () {
+    if (!this.whitelistModule) {
+      const whitelistAddress = (await this._getBypassPolicies())[0]
+      const { provider } = this._getWeb3()
+      this.whitelistModule = FactoryContractInteractor.whitelistAt({ address: whitelistAddress, provider })
+    }
+    return this.whitelistModule
   }
 }

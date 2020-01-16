@@ -25,7 +25,7 @@ contract WhitelistBypassPolicy is BypassPolicy {
         }
     }
 
-    function addWhitelistedTarget(
+    function setWhitelistedDestination(
         address destination,
         bool isWhitelisted)
     external {

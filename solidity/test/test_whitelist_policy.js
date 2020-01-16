@@ -15,8 +15,7 @@ contract('WhitelistBypassPolicy', async function (accounts) {
   let transferCall
   let approveCall
   let erc20
-  // TODO: 2^256, or uint(-1). How do I get it in JavaScript?
-  const useDefaultFlag = '115792089237316195423570985008687907853269984665640564039457584007913129639935'
+  const useDefaultFlag = BigInt('0x' + 'f'.repeat(64)).toString()
   const anyAddress1 = '0x5409ED021D9299bf6814279A6A1411A7e866A631'
   const anyAddress2 = '0x2409ed021d9299bf6814279a6a1411a7e866a631'
 
@@ -36,7 +35,7 @@ contract('WhitelistBypassPolicy', async function (accounts) {
   })
 
   it('should allow the gatekeeper to add whitelisted destinations', async function () {
-    const res = await policy.addWhitelistedTarget(anyAddress1, true)
+    const res = await policy.setWhitelistedDestination(anyAddress1, true)
     assert.equal(res.logs[0].event, 'WhitelistChanged')
     assert.equal(res.logs[0].args.destination, anyAddress1)
     assert.equal(res.logs[0].args.isWhitelisted, true)
@@ -56,7 +55,7 @@ contract('WhitelistBypassPolicy', async function (accounts) {
   })
 
   it('should allow the gatekeeper to remove whitelisted destinations', async function () {
-    const res = await policy.addWhitelistedTarget(anyAddress1, false)
+    const res = await policy.setWhitelistedDestination(anyAddress1, false)
     assert.equal(res.logs[0].event, 'WhitelistChanged')
     assert.equal(res.logs[0].args.destination, anyAddress1)
     assert.equal(res.logs[0].args.isWhitelisted, false)
@@ -68,7 +67,7 @@ contract('WhitelistBypassPolicy', async function (accounts) {
 
   it('should not allow unknown addresses to add whitelisted destinations', async function () {
     await expect(
-      policy.addWhitelistedTarget(anyAddress1, false, { from: accounts[1] })
+      policy.setWhitelistedDestination(anyAddress1, false, { from: accounts[1] })
     ).to.be.revertedWith('only smartAccount can change the whitelist')
   })
 
