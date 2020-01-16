@@ -5,16 +5,19 @@ import DelayedTransfer from '../etc/DelayedTransfer'
 import DelayedContractCall from '../etc/DelayedContractCall'
 import DelayedConfigChange from '../etc/DelayedConfigChange'
 import ConfigEntry from '../etc/ConfigEntry'
+import { EventEmitter } from 'events'
 
 export default class SimpleWalletMock extends SimpleWalletApi {
   constructor ({ email, address }) {
     super()
     this.email = email
     this.address = address
+    this.whitelist = []
+    this.events = new EventEmitter()
   }
 
   async initialConfiguration (configuration) {
-    error('set initial configuration in the contract')
+    this.whitelist = configuration.whitelist
   }
 
   async transfer ({ destination, amount, token }) {
@@ -41,16 +44,18 @@ export default class SimpleWalletMock extends SimpleWalletApi {
   }
 
   addWhitelist (addrs) {
-    error('add pending operation to add entries to whitelist')
+    this.whitelist = [...this.whitelist, ...addrs]
+    this.events.emit('events')
   }
 
   removeWhitelist (addrs) {
-    error('remove entries from whitelist (immediate)')
+    this.whitelist = this.whitelist.filter(it => addrs.indexOf(it) < 0)
+    this.events.emit('events')
   }
 
   // return cached list of whitelisted addresses.
   listWhitelistedAddresses () {
-    return ['add1', 'add2']
+    return this.whitelist
   }
 
   async isOperator (address) {
@@ -58,15 +63,15 @@ export default class SimpleWalletMock extends SimpleWalletApi {
   }
 
   async isOperatorOrPending (address) {
-    error('return true if the given address is an operator or pending-to-be-operator')
+    return true
   }
 
   async subscribe (observer) {
-    error('call observer on a change to wallet')
+    this.events.on('events', observer)
   }
 
   async unsubscribe (observer) {
-    error('remove observer from wallet')
+    this.events.off('events', observer)
   }
 
   async getWalletInfo () {
@@ -77,8 +82,8 @@ export default class SimpleWalletMock extends SimpleWalletApi {
         allowAddOperatorNow: false,
         allowAcceleratedCalls: false
       },
-      operators: [addr, addr],
-      guardians: [
+      participants: [
+        { addr: addr, level: 1, type: 'operator' },
         { addr: 0x123, level: 1, type: 'watchdog' },
         { addr: 0x123, level: 1, type: 'admin' }
       ],

@@ -274,14 +274,12 @@ export default class SimpleWallet extends SimpleWalletApi {
         if (block.number === lastBlock) {
           return
         }
-        this.lastBlockTimestamp = block.timestamp
         const events = await this.contract.getPastEvents({
           fromBlock: lastBlock
         })
         lastBlock = block
         if (events.length) {
           _eventsEmitter.emit('events', events)
-          console.log('== wallet event: ', events[0].event)
         }
       }, 1000)
     }
