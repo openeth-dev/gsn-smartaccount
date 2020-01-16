@@ -2,13 +2,13 @@
   {
     "txHash": "0x7247dafb43492720822b6b578ce05c5bc2cd967ce4e3d6f859f10185ed3dcde2",
     "delayedOpId": "0x6d73f8098e37b142e65abb8f80c49dd1edc801e0b01ca60677c7524d25ebae3a",
-    "dueTime": 0,
+    "dueTime": 100,
     "state": "mined",
     "operations": [
       {
         "type": "add_operator_now",
         "args": [
-          "0x90f8bf6a479f320ead074411a4b0e7944ea8c9c1"
+          "0x4444444444444444444444444444444444444444"
         ],
         "targetModule": null
       }

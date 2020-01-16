@@ -6,25 +6,21 @@
   "participants": [
     {
       "address": "0x3333333333333333333333333333333333333333",
-      "hash": "0xd4b083f632474ecef0b5ffea590de2943bab31085275b0055bfa867e54fbc002",
       "level": 1,
       "type": "operator"
     },
     {
       "address": "0x2222222222222222222222222222222222222222",
-      "hash": "0x67bc56c5803119fe35293776b020975fe0691e2890b44956f2934c95c0727d82",
       "level": 1,
       "type": "watchdog"
     },
     {
       "address": "0x2222222222222222222222222222222222222222",
-      "hash": "0x7cb3e4310827deaab62c9b804e7ab5da8df2dc7be5ad3f8fdb8dde9c93d32498",
       "level": 1,
       "type": "admin"
     },
     {
       "address": "0x4444444444444444444444444444444444444444",
-      "hash": "0x3719200ca509986b9d23040976127a2e8db997e965646f6e16fb456b1a641a81",
       "level": 1,
       "type": "operator"
     }

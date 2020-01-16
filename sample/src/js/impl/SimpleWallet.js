@@ -3,6 +3,7 @@ import asyncForEach from 'async-await-foreach'
 import Web3 from 'web3'
 
 import Permissions from 'safechannels-contracts/src/js/Permissions'
+import Participant from 'safechannels-contracts/src/js/Participant'
 import SafeChannelUtils from 'safechannels-contracts/src/js/SafeChannelUtils'
 import FactoryContractInteractor from 'safechannels-contracts/src/js/FactoryContractInteractor'
 
@@ -31,10 +32,6 @@ const dueFilter = function (blockchainTime) {
   return (it) => it.args.dueTime.toNumber() < blockchainTime
 }
 
-function hash (participant) {
-  return '0x' + SafeChannelUtils.participantHash(participant.address, participant.permLevel).toString('hex')
-}
-
 export default class SimpleWallet extends SimpleWalletApi {
   /**
    *
@@ -42,8 +39,6 @@ export default class SimpleWallet extends SimpleWalletApi {
    * @param participant - the participant to be used as the 'from' of all operations
    * @param backend - implementation of {@link ClientBackend}
    * @param whitelistFactory - instance ow Truffle Contract for whitelist deployment
-   * @param knownParticipants - all other possible participants known to the wallet. Not necessarily activated on vault.
-   *        Note: participants should be of 'Participant' class!
    * @param knownTokens - tokens currently supported.
    */
   constructor ({
@@ -51,7 +46,6 @@ export default class SimpleWallet extends SimpleWalletApi {
     participant,
     backend,
     whitelistFactory,
-    knownParticipants = [],
     knownTokens = []
   }) {
     super()
@@ -61,7 +55,6 @@ export default class SimpleWallet extends SimpleWalletApi {
     this.participant = participant
     this.whitelistFactory = whitelistFactory
     this.knownTokens = knownTokens
-    this.knownParticipants = [...knownParticipants, participant]
     abiDecoder.addABI(FactoryContractInteractor.getErc20ABI())
     // TODO: make sure no duplicates
   }
@@ -200,7 +193,7 @@ export default class SimpleWallet extends SimpleWalletApi {
 
   async isOperator (address) {
     const info = await this.getWalletInfo()
-    if ((info).participants.find(it => it.address === address)) {
+    if ((info).participants.find(it => it.address.toLowerCase() === address.toLowerCase())) {
       return true
     }
     return false
@@ -213,7 +206,7 @@ export default class SimpleWallet extends SimpleWalletApi {
     const op = pending && pending[0] && pending[0].operations && pending[0].operations[0]
     if (!op) { return false }
     if (op.type === 'add_operator' &&
-         op.args[0].indexOf(address.replace(/0x/, '')) > 0) {
+      op.args[0].indexOf(address.replace(/0x/, '')) > 0) {
       return true
     }
     return false
@@ -227,11 +220,11 @@ export default class SimpleWallet extends SimpleWalletApi {
     const { allowAcceleratedCalls, allowAddOperatorNow } = await this._getAllowedFlags()
     const { initEvent, participantAddedEvents } = await this._getCompletedConfigurationEvents()
     const args = initEvent.args
-    const { foundParticipants, unknownParticipants } = this._findParticipants({ initEvent, participantAddedEvents })
+    const foundParticipants = this._findParticipants({ initEvent, participantAddedEvents })
 
     const participants = foundParticipants.map(it => {
       let type // TODO: move to participant class
-      switch (it.permissions) {
+      switch (Number(it.permissions)) {
         case Permissions.WatchdogPermissions:
           type = 'watchdog'
           break
@@ -247,18 +240,9 @@ export default class SimpleWallet extends SimpleWalletApi {
       return {
         address: it.address,
         level: it.level,
-        type: type,
-        hash: hash(it)
+        type: type
       }
     })
-    participants.push(...unknownParticipants.map(it => {
-      return {
-        address: 'n/a',
-        level: '1',
-        type: 'operator', // on current scenarios, unknown is operator..
-        hash: it
-      }
-    }))
     const levels = []
     for (let i = 0; i < args.delays.length; i++) {
       levels[i] = {
@@ -286,10 +270,11 @@ export default class SimpleWallet extends SimpleWalletApi {
       const _eventsEmitter = new EventsEmitter()
       this._eventsEmitter = _eventsEmitter
       setInterval(async () => {
-        const block = await web3.eth.getBlockNumber()
-        if (block === lastBlock) {
+        const block = await web3.eth.getBlock('latest')
+        if (block.number === lastBlock) {
           return
         }
+        this.lastBlockTimestamp = block.timestamp
         const events = await this.contract.getPastEvents({
           fromBlock: lastBlock
         })
@@ -320,18 +305,13 @@ export default class SimpleWallet extends SimpleWalletApi {
    *  TODO: add support for unknown participants
    */
   _findParticipants ({ initEvent, participantAddedEvents }) {
-    const participants = initEvent.args.participants
+    const participants = initEvent.args.participants.map(it => {
+      return Participant.parse(it)
+    })
     participantAddedEvents.forEach(event => {
-      participants.push(event.args.participant)
+      participants.push(new Participant(event.args.participant, event.args.permissions.toString(), event.args.level.toString()))
     })
-    // This is ok, we will never have > 10 participants.
-    const foundParticipants = this.knownParticipants.filter((it) => {
-      return participants.includes(hash(it))
-    })
-    const unknownParticipants = participants.filter(it => {
-      return !foundParticipants.map(it => hash(it)).includes(it)
-    })
-    return { foundParticipants, unknownParticipants }
+    return participants
   }
 
   async _getAllowedFlags () {
@@ -411,7 +391,7 @@ export default class SimpleWallet extends SimpleWalletApi {
       return new DelayedConfigChange({
         txHash: it.transactionHash,
         delayedOpId: it.args.delayedOpId,
-        dueTime: 0, // TODO: pendingChange.dueTime.toNumber(),
+        dueTime: it.args.dueTime.toNumber(),
         state: 'mined',
         operations: operations
       })
@@ -422,7 +402,7 @@ export default class SimpleWallet extends SimpleWalletApi {
       const common = {
         txHash: it.transactionHash,
         delayedOpId: it.args.delayedOpId,
-        dueTime: 0, // TODO: fix events!
+        dueTime: parseInt(it.args.dueTime.toString()), // not sure why its not BN here
         state: 'mined'
       }
       for (let i = 0; i < it.args.actions.length; i++) {
@@ -431,13 +411,7 @@ export default class SimpleWallet extends SimpleWalletApi {
         // TODO: parse all args types to human-readable format
         // This is a hack to make one specific test pass. Will be fixed as more tests are added
         if (type === 'add_operator_now') {
-          const participantToAdd = this.knownParticipants.filter((it) => {
-            const hash = '0x' + SafeChannelUtils.participantHash(it.address, it.permLevel).toString('hex')
-            return args[0] === hash
-          })
-          if (participantToAdd.length > 0) {
-            args = [participantToAdd[0].address]
-          }
+          args = [SafeChannelUtils.decodeParticipant(args[0]).address]
         }
         operations.push(new ConfigEntry({ type, args }))
       }
@@ -542,11 +516,23 @@ export default class SimpleWallet extends SimpleWalletApi {
 
   static getDefaultSampleInitialConfiguration ({ backendAddress, operatorAddress, whitelistModuleAddress }) {
     const backendAsWatchdog = '0x' +
-      SafeChannelUtils.participantHashUnpacked(backendAddress, Permissions.WatchdogPermissions, 1).toString('hex')
+      SafeChannelUtils.encodeParticipant({
+        address: backendAddress,
+        permissions: Permissions.WatchdogPermissions,
+        level: 1
+      }).toString('hex')
     const backendAsAdmin = '0x' +
-      SafeChannelUtils.participantHashUnpacked(backendAddress, Permissions.AdminPermissions, 1).toString('hex')
+      SafeChannelUtils.encodeParticipant({
+        address: backendAddress,
+        permissions: Permissions.AdminPermissions,
+        level: 1
+      }).toString('hex')
     const operator = '0x' +
-      SafeChannelUtils.participantHashUnpacked(operatorAddress, Permissions.OwnerPermissions, 1).toString('hex')
+      SafeChannelUtils.encodeParticipant({
+        address: operatorAddress,
+        permissions: Permissions.OwnerPermissions,
+        level: 1
+      }).toString('hex')
     const bypassModules = []
     const bypassMethods = []
     if (whitelistModuleAddress) {

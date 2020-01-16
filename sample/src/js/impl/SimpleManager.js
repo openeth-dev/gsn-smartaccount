@@ -9,16 +9,17 @@ import SimpleManagerApi from '../api/SimpleManager.api.js'
 import Participant from 'safechannels-contracts/src/js/Participant'
 import Permissions from 'safechannels-contracts/src/js/Permissions'
 import { hex2buf, nonNull } from '../utils/utils'
+import Web3 from 'web3'
 
 // API of the main factory object.
 export default class SimpleManager extends SimpleManagerApi {
-  constructor ({ accountApi, backend, guardianAddress, factoryConfig, web3 }) {
+  constructor ({ accountApi, backend, guardianAddress, factoryConfig }) {
     super()
     nonNull({ accountApi, factoryConfig, backend })
     this.accountApi = accountApi
     this.backend = backend
     this.factoryConfig = this._validateConfig(factoryConfig)
-    this.web3 = web3
+    this.web3 = new Web3(this.factoryConfig.provider)
   }
 
   async _init () {
@@ -181,6 +182,16 @@ export default class SimpleManager extends SimpleManagerApi {
   _validateConfig (factoryConfig) {
     // TODO: check all needed fields of config
     return factoryConfig
+  }
+
+  async addTimeLeft (pendings) {
+    // TODO: can subscribe to newBlock, and make this method work without contacting the blockchain.
+    const lastBlockTimestamp = (await this.web3.eth.getBlock('latest')).timestamp
+
+    return pendings.map(p => ({
+      ...p,
+      timeLeft: p.dueTime - lastBlockTimestamp
+    }))
   }
 
   async signInAsNewOperator ({ jwt, title, observer }) {

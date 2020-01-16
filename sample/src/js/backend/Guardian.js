@@ -204,7 +204,7 @@ export class Watchdog extends Guardian {
           delete this.changesToApply[delayedOpId]
           return new Error(`Cannot find new operator address of accountId ${account.accountId}`)
         }
-        const operatorHash = scutils.bufferToHex(scutils.operatorHash(newOperatorAddress))
+        const operatorHash = scutils.bufferToHex(scutils.encodeParticipant({ address: newOperatorAddress, permissions: Permissions.OwnerPermissions, level: 1 }))
         if (change.log.args.actionsArguments1[0] !== operatorHash) {
           // TODO cancel operation
           delete this.changesToApply[delayedOpId]
@@ -317,7 +317,7 @@ export class Admin extends Guardian {
       throw Error('Account not found')
     }
     if (!account.address) {
-      throw Error('Account address is notset yet')
+      throw Error('Account address is not set yet')
     }
     this.smartAccountContract.options.address = account.address
     const stateId = await this.smartAccountContract.methods.stateNonce().call()
@@ -329,5 +329,15 @@ export class Admin extends Guardian {
 
     const receipt = await this._sendTransaction(method, account.address)
     return { transactionHash: receipt.transactionHash }
+  }
+}
+
+export class AutoCancelWatchdog extends Watchdog {
+  async _applyChanges () {
+    const txhashes = []
+    for (const delayedOpId of Object.keys(this.changesToApply)) {
+      txhashes.push(await this._finalizeChange(delayedOpId, { cancel: true }))
+    }
+    return txhashes
   }
 }
