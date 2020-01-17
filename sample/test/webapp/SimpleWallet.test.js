@@ -431,6 +431,41 @@ describe('SimpleWallet', async function () {
           await validatePolicy({ expectedWhitelist: operation.isWhitelisted })
         })
     )
-  }
-  )
+  })
+
+  describe('#removeParticipant()', async function () {
+    let testContext
+
+    before(async function () {
+      testContext = await newTest(from)
+    })
+
+    it('should schedule participant removal', async function () {
+      let info = await testContext.wallet.getWalletInfo()
+
+      function getAllOperators () {
+        return info.participants.filter(it => it.type === 'operator')
+      }
+
+      let allOperators = getAllOperators()
+      assert.strictEqual(allOperators.length, 1)
+      const operator = allOperators[0]
+      await testContext.wallet.removeParticipant({
+        address: operator.address,
+        permissions: Permissions.OwnerPermissions,
+        level: operator.level
+      })
+      // TODO: this test is not yet possible as wallet cannot query config change tx
+      const pending = await testContext.wallet.listPendingConfigChanges()
+      assert.strictEqual(pending.length, 1)
+
+      const timeGap = 60 * 60 * 24 * 2 + 10
+      await scTestUtils.increaseTime(timeGap, testContext.wallet._getWeb3().web3)
+      await testContext.wallet.applyAllPendingOperations()
+      info = await testContext.wallet.getWalletInfo()
+      allOperators = getAllOperators()
+      // TODO getWalletInfo does not recognize removals yet
+      assert.strictEqual(allOperators.length, 0)
+    })
+  })
 })

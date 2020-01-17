@@ -12,7 +12,7 @@ import DelayedTransfer from '../etc/DelayedTransfer'
 import DelayedContractCall from '../etc/DelayedContractCall'
 import DelayedConfigChange from '../etc/DelayedConfigChange'
 import ConfigEntry from '../etc/ConfigEntry'
-import { changeTypeToString } from '../etc/ChangeType'
+import { ChangeType, changeTypeToString } from '../etc/ChangeType'
 import { nonNull } from '../utils/utils'
 import EventsEmitter from 'events'
 
@@ -121,7 +121,14 @@ export default class SimpleWallet extends SimpleWalletApi {
       })
   }
 
-  removeOperator (addr) {
+  async removeParticipant ({ address, permissions, level }) {
+    const actions = [ChangeType.REMOVE_PARTICIPANT]
+    const args = [Buffer.from(SafeChannelUtils.encodeParticipant({ address, permissions, level }))]
+    return this.contract.changeConfiguration(this.participant.permLevel, actions, args, args, this.stateId,
+      {
+        from: this.participant.address,
+        gas: 1e8
+      })
   }
 
   async cancelPending (delayedOpId) {
@@ -223,15 +230,16 @@ export default class SimpleWallet extends SimpleWalletApi {
     return false
   }
 
-  // TODO: currently only initialConfig is checked. Must iterate over all config events to figure out the actual info.
-  // TODO: split into two: scan events and interpret events.
-  // TODO: add some caching mechanism then to avoid re-scanning entire history on every call
+  // TODO-1: currently only initialConfig is checked. Must iterate over all config events to figure out the actual info.
+  // TODO-2: split into two: scan events and interpret events.
+  // TODO-3: add some caching mechanism then to avoid re-scanning entire history on every call
+  // TODO-4: the format of returned data is bad. take 'participants' - they have 'type' instead of 'permissions, wtf?
   async getWalletInfo () {
     this.stateId = await this.contract.stateNonce()
     const { allowAcceleratedCalls, allowAddOperatorNow } = await this._getAllowedFlags()
-    const { initEvent, participantAddedEvents } = await this._getCompletedConfigurationEvents()
+    const { initEvent, events } = await this._getCompletedConfigurationEvents()
     const args = initEvent.args
-    const foundParticipants = this._findParticipants({ initEvent, participantAddedEvents })
+    const foundParticipants = this._findParticipants({ initEvent, events })
 
     const participants = foundParticipants.map(it => {
       let type // TODO: move to participant class
@@ -309,16 +317,20 @@ export default class SimpleWallet extends SimpleWalletApi {
     emitter.on('events', observer)
   }
 
-  /**
-   *  TODO: add support for removing participant
-   *  TODO: add support for unknown participants
-   */
-  _findParticipants ({ initEvent, participantAddedEvents }) {
-    const participants = initEvent.args.participants.map(it => {
+  _findParticipants ({ initEvent, events }) {
+    let participants = initEvent.args.participants.map(it => {
       return Participant.parse(it)
     })
-    participantAddedEvents.forEach(event => {
-      participants.push(new Participant(event.args.participant, event.args.permissions.toString(), event.args.level.toString()))
+    events.forEach(event => {
+      if (!event.event.includes('Participant')) {
+        return
+      }
+      const participant = new Participant(event.args.participant, event.args.permissions.toString(), event.args.level.toString())
+      if (event.event === 'ParticipantAdded' && !participants.find(it => it.equals(participant))) {
+        participants.push(participant)
+      } else if (event.event === 'ParticipantRemoved') {
+        participants = participants.filter(it => !it.equals(participant))
+      }
     })
     return participants
   }
@@ -329,31 +341,16 @@ export default class SimpleWallet extends SimpleWalletApi {
     return { allowAcceleratedCalls, allowAddOperatorNow }
   }
 
+  // TODO: so much duplication... refactor!!!
   async _getCompletedConfigurationEvents () {
-    const deployedBlock = await this._getDeployedBlock()
-    const _fromBlock = this.deployedBlock || 0
-    const _toBlock = 'latest'
-    const participantAddedEvents = await this.contract.getPastEvents('ParticipantAdded', {
-      fromBlock: _fromBlock,
-      toBlock: _toBlock
-    })
-    const bypassByTargetAddedEvents = await this.contract.getPastEvents('BypassByTargetAdded', {
-      fromBlock: _fromBlock,
-      toBlock: _toBlock
-    })
-    const bypassByMethodAddedEvents = await this.contract.getPastEvents('BypassByMethodAdded', {
-      fromBlock: _fromBlock,
-      toBlock: _toBlock
-    })
-    const initEvent = (await this.contract.getPastEvents('SmartAccountInitialized', {
-      fromBlock: deployedBlock,
-      toBlock: 'latest'
-    }))[0]
+    const fromBlock = await this._getDeployedBlock()
+    const toBlock = 'latest'
+    let events = await this.contract.getPastEvents('allEvents', { fromBlock, toBlock })
+    const initEvent = events.filter(it => it.event === 'SmartAccountInitialized')[0]
+    events = events.filter(it => it.event !== 'SmartAccountInitialized')
     return {
       initEvent,
-      participantAddedEvents,
-      bypassByTargetAddedEvents,
-      bypassByMethodAddedEvents
+      events
     }
   }
 

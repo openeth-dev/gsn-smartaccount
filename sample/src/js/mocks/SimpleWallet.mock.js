@@ -24,7 +24,7 @@ export default class SimpleWalletMock extends SimpleWalletApi {
     error('initiate transfer operation. adds a pending item, depending on transfer policy')
   }
 
-  removeOperator (addr) {
+  async removeParticipant ({ address, permissions, level }) {
     error('add "remove operator" operation, (delayed, can be canceled by watchdog)')
   }
 
