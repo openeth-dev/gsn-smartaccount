@@ -1,4 +1,4 @@
-/* global artifacts contract before it assert  */
+/* global BigInt artifacts contract before it assert  */
 const Chai = require('chai')
 const web3 = require('web3')
 
