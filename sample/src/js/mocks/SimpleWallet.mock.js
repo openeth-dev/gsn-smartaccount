@@ -44,12 +44,11 @@ export default class SimpleWalletMock extends SimpleWalletApi {
   }
 
   async setWhitelistedDestination (destination, isWhitelisted) {
-    if (isWhitelisted){
-      this.whitelist = [...this.whitelist, ...addrs]
+    if (isWhitelisted) {
+      this.whitelist = [...this.whitelist, ...destination]
       this.events.emit('events')
-    }
-    else {
-      this.whitelist = this.whitelist.filter(it => addrs.indexOf(it) < 0)
+    } else {
+      this.whitelist = this.whitelist.filter(it => destination.indexOf(it) < 0)
       this.events.emit('events')
     }
   }
