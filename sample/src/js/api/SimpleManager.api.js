@@ -41,6 +41,10 @@ export default class SimpleManagerApi extends EventEmitter {
     error('check if a wallet exists for this email)')
   }
 
+  async addTimeLeft (pendings) {
+    error('add "timeLeft" to all pending entries (based on their"dueTime") ')
+  }
+
   async signInAsNewOperator ({ jwt, title, observer }) {
     error('ask backend to add our address as an operator for existing vault')
   }
@@ -52,6 +56,10 @@ export default class SimpleManagerApi extends EventEmitter {
    */
   async setSignInObserver ({ observer, interval }) {
     error('callback should be called when sign in events happen')
+  }
+
+  async getDefaultConfiguration () {
+    error('return configuration to pass to wallet.initialConfiguration()')
   }
 
   // TODO: maybe beter have getInitialConfiguration(), and pass its value to createWallet.

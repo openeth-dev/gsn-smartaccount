@@ -1,17 +1,17 @@
 /* global prompt alert */
 /* eslint  "react/prop-types":"off"   */
 
-import React from 'react'
+import React, { useState } from 'react'
 import './App.css'
 
 import SimpleManagerMock from '../js/mocks/SimpleManager.mock'
-import AccountProxy from '../js/impl/Account.proxy'
 import Web3 from 'web3'
 import ClientBackend from '../js/backend/ClientBackend'
 import SmartAccountSDK from '../js/impl/SmartAccountSDK'
 import SimpleManager from '../js/impl/SimpleManager'
 import { increaseTime } from './GanacheIncreaseTime'
 import { toBN } from 'web3-utils'
+import AccountMock from '../js/mocks/Account.mock'
 
 let debug = getParam('debug')
 
@@ -40,7 +40,6 @@ function getDeviceName () {
   const deviceMatch = userAgent.match(/\((.*?)\)/)
   if (!deviceMatch) { return userAgent }
 
-  console.log('== useragent:', userAgent)
   const names = deviceMatch[1].split(/\s*;\s*/)
   // TODO: Android is 2nd best: should return specific device type - if known.
   const ret = names.find(name => /Window|Mac|iP|Android|Pixel|SM-|Nexus/.test(name))
@@ -68,21 +67,30 @@ function GoogleLogin ({ refresh, initMgr }) {
   </div>
 }
 
-function CreateWallet ({ refresh, jwt, email }) {
+function CreateWallet ({ refresh, jwt, email, initialConfig, setInitialConfig }) {
   let phoneNumber
-  const startCreate = () => {
-    phoneNumber = prompt('enter phone number to validate (put 1)')
+
+  const [initConfig, setInitConfig] = useState('')
+  const [delayTime, setDelayTime] = useState('1m')
+  const [delayErr, setDelayErr] = useState('')
+
+  const startCreate = async () => {
+    const PHONE = '+972541234567'
+
+    phoneNumber = prompt('enter phone number to validate ( put 1 for "' + PHONE + '" )')
     if (!phoneNumber) {
       return
     }
     // local israeli phones...
-    phoneNumber = phoneNumber.replace(/^0/, '+97254')
+    phoneNumber = phoneNumber.replace(/^0/, '+972')
     if (phoneNumber === '1') {
-      phoneNumber = '+972541234567'
+      phoneNumber = PHONE
     }
     console.log('validate:', jwt, phoneNumber)
-    mgr.validatePhone({ jwt, phoneNumber })
+    await mgr.validatePhone({ jwt, phoneNumber })
+    window.alert('sms sent. copy SMS code to create wallet')
   }
+
   const createWallet = async () => {
     const smsVerificationCode = prompt('enter SMS verification code')
     if (!smsVerificationCode) {
@@ -91,30 +99,66 @@ function CreateWallet ({ refresh, jwt, email }) {
 
     try {
       await mgr.createWallet({ jwt, phoneNumber, smsVerificationCode })
-      await mgr.setInitialConfiguration()
+      const wallet = await mgr.loadWallet()
+      await wallet.initialConfiguration(initialConfig)
 
       refresh({ err: undefined })
     } catch (e) {
       refresh({ err: errorStr(e) })
     }
   }
+  function updateWhitelistConfig (val) {
+    setInitConfig(val) // for UI leave string as-is
+    // modify global state
+    initialConfig.whitelist = val.split(/[ \t]*[,\n][ \t]*/).filter(addr => !!addr)
+    setInitialConfig(initialConfig)
+  }
+  function updateDelayTime (val) {
+    setDelayTime(val) // for UI leave string as-is
+    // modify global state
+    try {
+      const suffixes = { s: 1, m: 60, h: 3600, d: 86400 }
+      const [, t, suf] = val.match(/^\s*([\d.]+)\s*(\w?)/)
+
+      const time = Math.floor(t * (suffixes[suf.toLowerCase()] || 1))
+      initialConfig.initialDelays[1] = time
+      setInitialConfig(initialConfig)
+      setDelayErr('')
+    } catch (e) {
+      setDelayErr('invalid number/suffix')
+      // ignore - just don't display..
+    }
+  }
   return <div>
     Hello <b>{email}</b>, you dont have a wallet yet.<br/>
     Click <Button title="here to verify phone" action={startCreate}/><br/>
-    Click here to enter SMS verification code <Button title="verify" action={createWallet}/>
+    Click here to enter SMS verification code <Button title="verify and create" action={createWallet}/>
+
+    <p/>
+    Enter whitelisted addresses for initial configuration:<br/>
+    <textarea cols="80" value={initConfig} onChange={e => updateWhitelistConfig(e.target.value)}></textarea><br/>
+
+    Delay time:
+    <input cols="10" value={delayTime} onChange={e => updateDelayTime(e.target.value)} />
+    <span style={{ fontSize: 10 }}>(can use d/h/m/s suffix)
+      <span style={{ color: 'red' }}>{delayErr}</span>
+    </span><br/>
+    <pre>
+      {JSON.stringify(initialConfig, null, 2)}
+    </pre>
   </div>
 }
 
 function TokenWidget ({ symbol, balance, decimals, doTransfer }) {
   const div = '1' + '0'.repeat(decimals || 0)
-  return <pre>{symbol}: {balance / div} <Button title={'send ' + symbol} action={() => doTransfer({ symbol })}/></pre>
+  return <span>{symbol}: {balance / div} <Button title={'send ' + symbol} action={() => doTransfer({ symbol })}/><br/></span>
 }
 
 const PendingTransaction = ({ p }) => {
-  const op = p.operation || p.operations[0].type
+  const op = p.operation || (p.operations && p.operations[0] && p.operations[0].type)
   if (op === 'transfer') {
     return <>
-      {p.tokenSymbol} {p.value / 1e18} {p.destination}
+      transfer: {p.tokenSymbol} {p.value / 1e18} {p.destination}
     </>
   }
 
@@ -123,29 +167,48 @@ const PendingTransaction = ({ p }) => {
       add operator: {p.operations[0].args[0].replace(/0x(0*)/, '0x')}
     </>
   }
+
+  return <>
+    unknown operation: {JSON.stringify(p)}
+  </>
 }
+
 const PendingTransactions = ({ walletPending, doCancelPending }) =>
   <div>
     <b>Pending</b>
-    {walletPending.map(p =>
-      <div key={p.delayedOpId}>
+    {walletPending.map((p, i) =>
+      <div key={i}>
         <PendingTransaction p={p} /> -
         <Button title="Cancel" action={() => doCancelPending(p.delayedOpId)}/>
       </div>)
     }
   </div>
 
-function ActiveWallet ({ ownerAddr, walletInfo, walletBalances, walletPending, doTransfer, doCancelPending, doOldDeviceApproveOperator, pendingAddOperatorNow }) {
+const Whitelist = ({ whitelist, doAddToWhiteList, doRemoveFromWhitelist }) => <div>
+  <b>Whitelist</b><Button title="+ add" action={doAddToWhiteList}/><br/>
+  {(!whitelist || !whitelist.length) && <span style={{ fontSize: 10 }}>No whitelisted addresses</span>}
+  {whitelist && whitelist.map(wl => <span key={wl}>{wl} <Button title="remove" action={() => doRemoveFromWhitelist(wl)}/><br/></span>)}
+
+</div>
+
+function ActiveWallet ({
+  ownerAddr, walletInfo, walletBalances, walletPending, doTransfer, doCancelPending, doOldDeviceApproveOperator,
+  whitelist, doAddToWhiteList, doRemoveFromWhitelist,
+  pendingAddOperatorNow
+}) {
   const info = JSON.stringify(walletInfo, null, 2)
   const pending = JSON.stringify(walletPending, null, 2)
 
   return <>
+    Wallet owner: {ownerAddr}<p/>
     <Button title="Add operator with code" action={doOldDeviceApproveOperator}/><br/>
     <b>Balances</b><br/>
     {
       walletBalances.map(token => <TokenWidget key={token.symbol} {...token} doTransfer={doTransfer}/>)
     }
 
+    <br/>
+    <Whitelist whitelist={whitelist} doAddToWhiteList={doAddToWhiteList} doRemoveFromWhitelist={doRemoveFromWhitelist} />
     {
       walletPending.length ? <PendingTransactions walletPending={walletPending} doCancelPending={doCancelPending}/>
         : <b>No Pending Transactions</b>
@@ -243,6 +306,7 @@ class App extends React.Component {
     console.log('readMgrState')
     const mgrState = {
       loading: undefined,
+      initialConfig: undefined,
       walletInfo: undefined,
       walletBalances: undefined,
       walletPending: undefined
@@ -255,6 +319,9 @@ class App extends React.Component {
         email: this.state.email || await mgr.getEmail(),
         walletAddr: this.state.walletAddr || await mgr.getWalletAddress()
       })
+      if (!mgrState.walletAddr) {
+        mgrState.initialConfig = await mgr.getDefaultConfiguration()
+      }
       console.log('readMgrState: has some state')
     } else {
       mgrState.needApprove = true
@@ -277,15 +344,19 @@ class App extends React.Component {
       mgrState.walletBalances = await wallet.listTokens()
       mgrState.walletPending = [...await wallet.listPendingTransactions(), ...await wallet.listPendingConfigChanges()]
       mgrState.walletPending.forEach((x, index) => { x.index = (index + 1).toString() })
-      const web3 = new Web3(global.web3provider)
-      mgrState.currentTime = new Date((await web3.eth.getBlock('latest')).timestamp * 1000).toString()
+
+      mgrState.whitelist = await wallet.listWhitelistedAddresses()
+
+      if (!useMock) {
+        const web3 = new Web3(global.web3provider)
+        mgrState.currentTime = new Date((await web3.eth.getBlock('latest')).timestamp * 1000).toString()
+      }
     }
 
     return mgrState
   }
 
   eventSubscriber () {
-    console.log('== event subscriber')
     this.reloadState()
   }
 
@@ -303,7 +374,8 @@ class App extends React.Component {
   async _initMockSdk () {
     // mock SDK...
     sdk = new SmartAccountSDK()
-    sdk.account = new AccountProxy()
+    // sdk.account = new AccountProxy()
+    sdk.account = new AccountMock()
 
     mgr = new SimpleManagerMock({ accountApi: sdk.account })
     sms = mgr.smsApi
@@ -312,6 +384,9 @@ class App extends React.Component {
         alert('Received SMS to ' + data.phone + ':\n' + data.message)
       }, 1000)
     })
+    if (getParam('auto')) {
+      setTimeout(() => this.debugActiveWallet(), 300)
+    }
   }
 
   async _initRealSdk () {
@@ -463,7 +538,6 @@ class App extends React.Component {
   reloadState (extra = {}) {
     const self = this
     this.readMgrState().then(mgrState => {
-      debug = getParam('debug')
       const newState = { ...mgrState, ...extra, debug }
       console.log('newState', newState)
       self.setState(newState)
@@ -481,12 +555,12 @@ class App extends React.Component {
     for (const k in keys) {
       obj[keys[k]] = undefined
     }
-    console.log('signout state=', this.state)
-    this.reloadState()
+    window.location.reload()
   }
 
   async debugActiveWallet () {
     await this.initMgr()
+    this.enableApp()
     const { jwt } = await mgr.googleLogin()
     // await mgr.validatePhone({jwt, phone:123})
     if (!await mgr.hasWallet()) {
@@ -499,10 +573,8 @@ class App extends React.Component {
   }
 
   toggleDebug () {
-    let url = window.location.href
-    debug = getParam('debug')
-    if (!debug) { url = url + '#debug' } else { url = url.replace(/#debug/, '') }
-    window.location.replace(url)
+    // TODO: update #debug in URL - without reload page..
+    debug = !debug
     this.reloadState()
   }
 
@@ -524,6 +596,17 @@ class App extends React.Component {
     const accounts = await web3.eth.getAccounts()
     await web3.eth.sendTransaction({ from: accounts[0], to: walletAddr, value: web3.utils.toBN(val * 1e18) })
     // this.reloadState() // to see if wallet reads balance..
+  }
+
+  async doAddToWhiteList () {
+    const addr = window.prompt('Add to whitelist')
+    if (!addr) return
+    await wallet.addWhitelist([addr])
+  }
+
+  async doRemoveFromWhitelist (addr) {
+    if (!window.confirm('Remove from whitelist: ' + addr)) { return }
+    await wallet.removeWhitelist([addr])
   }
 
   render () {
@@ -566,6 +649,9 @@ class App extends React.Component {
           doOldDeviceApproveOperator={() => this.asyncHandler(this.doOldDeviceApproveOperator())}
           doRecoverWalletOnNewDevice={() => this.doRecoverWalletOnNewDevice()}
           doValidateRecoverWallet={() => this.doValidateRecoverWallet()}
+          doAddToWhiteList={() => this.doAddToWhiteList()}
+          doRemoveFromWhitelist={(addr) => this.doRemoveFromWhitelist(addr)}
+          setInitialConfig={config => this.setState({ initialConfig: config })}
           refresh={(extra) => this.reloadState(extra)} {...this.state} />
 
       </div>
