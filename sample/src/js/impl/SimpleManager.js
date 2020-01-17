@@ -42,7 +42,7 @@ export default class SimpleManager extends SimpleManagerApi {
   }
 
   async signOut () {
-    this.accountApi.signOut()
+    return this.accountApi.signOut()
   }
 
   async getOwner () {
@@ -106,9 +106,7 @@ export default class SimpleManager extends SimpleManagerApi {
   }
 
   async createWallet ({ jwt, phoneNumber, smsVerificationCode }) {
-    if (!jwt || !phoneNumber || !smsVerificationCode) {
-      throw Error('All parameters are required')
-    }
+    nonNull({ jwt, phoneNumber, smsVerificationCode })
     await this._initializeFactory(this.factoryConfig)
 
     const response = await this.backend.createAccount({
@@ -133,15 +131,17 @@ export default class SimpleManager extends SimpleManagerApi {
     return this.loadWallet()
   }
 
-  async setInitialConfiguration () {
-    await this._init()
-    const wallet = await this.loadWallet()
-
-    const config = SimpleWallet.getDefaultSampleInitialConfiguration({
+  async getDefaultConfiguration () {
+    return SimpleWallet.getDefaultSampleInitialConfiguration({
       backendAddress: this.guardianAddress,
       operatorAddress: await this.getOwner()
     })
-    await wallet.initialConfiguration(config)
+  }
+
+  // todo: not really needed anymore: client should get default config, manipulate and set it to wallet.
+  async setInitialConfiguration () {
+    const wallet = await this.loadWallet()
+    await wallet.initialConfiguration(await this.getDefaultConfiguration())
   }
 
   async loadWallet () {
