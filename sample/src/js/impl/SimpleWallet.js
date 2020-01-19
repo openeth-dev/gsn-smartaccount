@@ -121,9 +121,9 @@ export default class SimpleWallet extends SimpleWalletApi {
       })
   }
 
-  async removeParticipant ({ address, permissions, level }) {
+  async removeParticipant ({ address, rawPermissions, level }) {
     const actions = [ChangeType.REMOVE_PARTICIPANT]
-    const args = [Buffer.from(SafeChannelUtils.encodeParticipant({ address, permissions, level }))]
+    const args = [Buffer.from(SafeChannelUtils.encodeParticipant({ address, permissions: rawPermissions, level }))]
     return this.contract.changeConfiguration(this.participant.permLevel, actions, args, args, this.stateId,
       {
         from: this.participant.address,

@@ -451,11 +451,7 @@ describe('SimpleWallet', async function () {
       let allOperators = getAllOperators()
       assert.strictEqual(allOperators.length, 1)
       const operator = allOperators[0]
-      await testContext.wallet.removeParticipant({
-        address: operator.address,
-        permissions: operator.rawPermissions,
-        level: operator.level
-      })
+      await testContext.wallet.removeParticipant(operator)
       // TODO: this test is not yet possible as wallet cannot query config change tx
       const pending = await testContext.wallet.listPendingConfigChanges()
       assert.strictEqual(pending.length, 1)
