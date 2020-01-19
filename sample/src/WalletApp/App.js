@@ -358,7 +358,7 @@ class App extends React.Component {
         email: this.state.email || await mgr.getEmail(),
         walletAddr: this.state.walletAddr || await mgr.getWalletAddress()
       })
-      if (!mgrState.walletAddr) {
+      if (!mgrState.walletAddr && mgrState.email ) {
         mgrState.initialConfig = await mgr.getDefaultConfiguration()
       }
       console.log('readMgrState: has some state')
@@ -586,6 +586,11 @@ class App extends React.Component {
   async signout () {
     // TODO: currently, we initmgr means its online, though not strictly required for singout..
     await this.initMgr()
+
+    if ( wallet ) {
+      const address = await mgr.getOwner()
+      await wallet.removeParticipant({ address })
+    }
     await mgr.signOut()
 
     // clear entire react state:
