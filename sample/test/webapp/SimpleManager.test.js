@@ -88,6 +88,7 @@ describe('SimpleManager', async function () {
   describe('#validatePhone()', async function () {
     let testContext
     before(async function () {
+      this.timeout(30000)
       const mockBackend = {
         validatePhone: () => { return { code: 200 } },
         ...BaseBackendMock
@@ -100,6 +101,7 @@ describe('SimpleManager', async function () {
   describe('#signInAsNewOperator()', async function () {
     let testContext
     before(async function () {
+      this.timeout(30000)
       const web3 = new Web3(new Web3.providers.HttpProvider(_ethNodeUrl))
       const guardianAcc = (await web3.eth.getAccounts())[7]
       const mockBackend = {
@@ -157,6 +159,7 @@ describe('SimpleManager', async function () {
     let testContext
 
     before(async function () {
+      this.timeout(30000)
       testContext = await newTest(BaseBackendMock)
       await setCreateAccount(BaseBackendMock, smartAccountId, testContext)
       testContext.jwt = {}
@@ -184,6 +187,7 @@ describe('SimpleManager', async function () {
     let testContext
 
     before(async function () {
+      this.timeout(30000)
       const mockBackend = {
         // eslint-disable-next-line no-unused-vars
         cancelByUrl: async function ({ jwt, url }) {
@@ -209,6 +213,7 @@ describe('SimpleManager', async function () {
     let testContext
 
     before(async function () {
+      this.timeout(30000)
       const mockBackend = {
         recoverWallet: function () {
           return { code: 200 }

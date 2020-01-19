@@ -57,6 +57,7 @@ describe('As Guardian', async function () {
   let newSmartAccountReceipt
 
   before(async function () {
+    this.timeout(30000)
     web3provider = new Web3.providers.WebsocketProvider(ethNodeUrl)
     web3 = new Web3(web3provider)
     web3.eth.net.isListening(function (error, result) {
@@ -71,7 +72,6 @@ describe('As Guardian', async function () {
     const forwarderAddress = await sponsor.getGsnForwarder()
     smartAccountFactory = await FactoryContractInteractor.deployNewSmartAccountFactory(accountZero, ethNodeUrl,
       forwarderAddress)
-
     smsProvider = new SMSmock()
     smsManager = new SmsManager({ smsProvider, secretSMSCodeSeed: crypto.randomBytes(32) })
     accountManager = new AccountManager({ workdir: '/tmp/test/guaridan' })

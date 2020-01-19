@@ -21,7 +21,7 @@ describe('System flow', () => {
   const userEmail = 'shahaf@tabookey.com'
 
   before('check "gsn-dock-relay" is active', async function () {
-    this.timeout(9000)
+    this.timeout(30000)
 
     testEnvironment = await TestEnvironment.initializeAndStartBackendForRealGSN({ verbose })
     await testEnvironment.snapshot()
