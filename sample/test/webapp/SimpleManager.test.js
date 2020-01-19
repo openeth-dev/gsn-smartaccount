@@ -16,6 +16,7 @@ import TestEnvironment, { _ethNodeUrl } from '../utils/TestEnvironment'
 import { Watchdog } from '../../src/js/backend/Guardian'
 import BaseBackendMock from '../mocks/BaseBackend.mock'
 
+import { urlPrefix } from '../backend/testutils'
 import { forgeApprovalData } from 'safechannels-contracts/test/utils'
 import * as scutils from 'safechannels-contracts/src/js/SafeChannelUtils'
 import Web3 from 'web3'
@@ -197,6 +198,7 @@ describe('SimpleManager', async function () {
       await setCreateAccount(mockBackend, smartAccountId, testContext)
       testContext.jwt = {}
       testContext.smsCode = '1234'
+      testContext.urlPrefix = urlPrefix
     })
 
     testCancelByUrlBehavior(() => testContext)

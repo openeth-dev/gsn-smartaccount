@@ -19,8 +19,8 @@ import Web3 from 'web3'
 function error (err) { throw new Error(err) }
 
 const argv = parseArgs(process.argv.slice(2), {
-  string: ['s', 'f', 'url'],
-  alias: { D: 'dev', S: 'sms', u: 'url' }
+  string: ['s', 'f', 'url', 'url-prefix'],
+  alias: { D: 'dev', S: 'sms', u: 'url', x: 'url-prefix' }
 })
 
 if (argv._.length) error('unknown extra params: ' + argv._)
@@ -30,6 +30,7 @@ const factoryAddress = argv.f || error('missing -f [factoryAddress]')
 const sponsorAddress = argv.s || error('missing -s [sponsotAddress]')
 const ethNodeUrl = argv.url || error('missing -u [ethNodeUrl]')
 const smsProvider = argv.sms === 'twilio' ? new SMStwilio() : new SMSmock()
+const urlPrefix = argv.x || error('missing -x [urlPrefix]')
 
 console.log('Using sms provider: ', smsProvider.constructor.name)
 
@@ -46,7 +47,8 @@ const watchdog = new Watchdog({
   accountManager,
   smartAccountFactoryAddress: factoryAddress,
   sponsorAddress: sponsorAddress,
-  web3provider: web3provider
+  web3provider: web3provider,
+  urlPrefix
 })
 const admin = new Admin({
   smsManager,
