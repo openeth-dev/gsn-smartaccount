@@ -18,7 +18,11 @@ export default class SimpleWalletApi {
     error('initiate transfer operation. adds a pending item, depending on transfer policy')
   }
 
-  removeOperator (addr) {
+  async scheduleBypassCall ({ destination, value, encodedTransaction }) {
+    error('initiate operation. adds a pending item.')
+  }
+
+  async removeParticipant ({ address, rawPermissions, level }) {
     error('add "remove operator" operation, (delayed, can be canceled by watchdog)')
   }
 
@@ -37,12 +41,8 @@ export default class SimpleWalletApi {
     error('perform a transfer to a whitelisted address')
   }
 
-  addWhitelist (addrs) {
+  async setWhitelistedDestination (destination, isWhitelisted) {
     error('add pending operation to add entries to whitelist')
-  }
-
-  removeWhitelist (addrs) {
-    error('remove entries from whitelist (immediate)')
   }
 
   // return cached list of whitelisted addresses.
@@ -68,6 +68,10 @@ export default class SimpleWalletApi {
 
   async getWalletInfo () {
     error('wallet info')
+  }
+
+  async getWhitelistModule () {
+    error('return bypass policy contract object')
   }
 
   async listTokens () {

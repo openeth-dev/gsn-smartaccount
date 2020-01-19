@@ -25,7 +25,7 @@ contract WhitelistBypassPolicy is BypassPolicy {
         }
     }
 
-    function addWhitelistedTarget(
+    function setWhitelistedDestination(
         address destination,
         bool isWhitelisted)
     external {
@@ -38,7 +38,7 @@ contract WhitelistBypassPolicy is BypassPolicy {
         address target,
         uint256 value,
         bytes memory encodedFunction)
-    public view returns (uint256 /* delay */, uint256 /* requiredConfirmations */, bool) {
+    public view returns (uint256 delay, uint256 requiredConfirmations, bool requireBothDelayAndApprovals) {
         if (value > 0) {
             return getPolicyForRecipient(target);
         }

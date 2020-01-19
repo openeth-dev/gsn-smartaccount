@@ -24,7 +24,7 @@ export default class SimpleWalletMock extends SimpleWalletApi {
     error('initiate transfer operation. adds a pending item, depending on transfer policy')
   }
 
-  removeOperator (addr) {
+  async removeParticipant ({ address, rawPermissions, level }) {
     error('add "remove operator" operation, (delayed, can be canceled by watchdog)')
   }
 
@@ -43,14 +43,14 @@ export default class SimpleWalletMock extends SimpleWalletApi {
     error('perform a transfer to a whitelisted address')
   }
 
-  addWhitelist (addrs) {
-    this.whitelist = [...this.whitelist, ...addrs]
-    this.events.emit('events')
-  }
-
-  removeWhitelist (addrs) {
-    this.whitelist = this.whitelist.filter(it => addrs.indexOf(it) < 0)
-    this.events.emit('events')
+  async setWhitelistedDestination (destination, isWhitelisted) {
+    if (isWhitelisted) {
+      this.whitelist = [...this.whitelist, ...destination]
+      this.events.emit('events')
+    } else {
+      this.whitelist = this.whitelist.filter(it => destination.indexOf(it) < 0)
+      this.events.emit('events')
+    }
   }
 
   // return cached list of whitelisted addresses.
@@ -250,5 +250,13 @@ export default class SimpleWalletMock extends SimpleWalletApi {
 
   async deployWhitelistModule ({ whitelistPreconfigured }) {
     super.deployWhitelistModule({ whitelistPreconfigured })
+  }
+
+  async scheduleBypassCall ({ destination, value, encodedTransaction }) {
+    super.scheduleBypassCall({ destination, value, encodedTransaction })
+  }
+
+  async getWhitelistModule () {
+    super.getWhitelistModule()
   }
 }

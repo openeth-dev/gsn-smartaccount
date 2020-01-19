@@ -1,5 +1,5 @@
 /* eslint-disable no-unused-expressions */
-/* global describe before after it */
+/* global BigInt describe before after it */
 import assert from 'assert'
 import Web3 from 'web3'
 import FactoryContractInteractor from 'safechannels-contracts/src/js/FactoryContractInteractor'
@@ -375,5 +375,94 @@ describe('SimpleWallet', async function () {
     })
 
     it('should not try to apply addOperatorNow')
+  })
+
+  describe('#setWhitelistedDestination()', async function () {
+    let testContext
+    const newWhitelistDest = '0x' + '5'.repeat(40)
+    const useDefaultFlag = BigInt('0x' + 'f'.repeat(64)).toString()
+
+    async function validatePolicy ({ expectedWhitelist }) {
+      let expected
+      if (expectedWhitelist) {
+        expected = {
+          delay: 0,
+          requiredConfirmations: 0,
+          requireBothDelayAndApprovals: false
+        }
+      } else {
+        expected = {
+          delay: useDefaultFlag,
+          requiredConfirmations: useDefaultFlag,
+          requireBothDelayAndApprovals: true
+        }
+      }
+      const whitelistModule = await testContext.wallet.getWhitelistModule()
+      const policy = await whitelistModule.getBypassPolicy(newWhitelistDest, 10, '0x')
+      assert.strictEqual(policy.delay.toString(), expected.delay.toString())
+      assert.strictEqual(policy.requiredConfirmations.toString(), expected.requiredConfirmations.toString())
+      assert.strictEqual(policy.requireBothDelayAndApprovals, expected.requireBothDelayAndApprovals)
+    }
+
+    before(async function () {
+      const whitelistPreconfigured = ['0x' + '0'.repeat(40)]
+      testContext = await newTest(from, whitelistPreconfigured)
+    });
+
+    [{
+      name: 'add',
+      isWhitelisted: true
+    }, {
+      name: 'remove',
+      isWhitelisted: false
+    }
+    ].forEach(
+      operation =>
+        it(`should initiate delayed ${operation.name} config change call to the whitelist module`, async function () {
+          await testContext.wallet.getWalletInfo()
+          let pending = await testContext.wallet.listPendingTransactions()
+          assert.strictEqual(pending.length, 0)
+          await testContext.wallet.setWhitelistedDestination(newWhitelistDest, operation.isWhitelisted)
+          pending = await testContext.wallet.listPendingTransactions()
+          assert.strictEqual(pending.length, 1)
+          const timeGap = 60 * 60 * 24 * 2 + 10
+          await scTestUtils.increaseTime(timeGap, testContext.wallet._getWeb3().web3)
+          await validatePolicy({ expectedWhitelist: !operation.isWhitelisted })
+          await testContext.wallet.applyAllPendingOperations()
+          await validatePolicy({ expectedWhitelist: operation.isWhitelisted })
+        })
+    )
+  })
+
+  describe('#removeParticipant()', async function () {
+    let testContext
+
+    before(async function () {
+      testContext = await newTest(from)
+    })
+
+    it('should schedule participant removal', async function () {
+      let info = await testContext.wallet.getWalletInfo()
+
+      function getAllOperators () {
+        return info.participants.filter(it => it.type === 'operator')
+      }
+
+      let allOperators = getAllOperators()
+      assert.strictEqual(allOperators.length, 1)
+      const operator = allOperators[0]
+      await testContext.wallet.removeParticipant(operator)
+      // TODO: this test is not yet possible as wallet cannot query config change tx
+      const pending = await testContext.wallet.listPendingConfigChanges()
+      assert.strictEqual(pending.length, 1)
+
+      const timeGap = 60 * 60 * 24 * 2 + 10
+      await scTestUtils.increaseTime(timeGap, testContext.wallet._getWeb3().web3)
+      await testContext.wallet.applyAllPendingOperations()
+      info = await testContext.wallet.getWalletInfo()
+      allOperators = getAllOperators()
+      // TODO getWalletInfo does not recognize removals yet
+      assert.strictEqual(allOperators.length, 0)
+    })
   })
 })

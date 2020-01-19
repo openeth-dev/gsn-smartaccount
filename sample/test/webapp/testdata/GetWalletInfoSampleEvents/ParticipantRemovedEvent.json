@@ -1,0 +1,13 @@
+{
+  "address": "0x51b1C62F635EAd13e951A30f3DF01d5dED090533",
+  "transactionHash": "0x0f127ec602403b4e7105e9d270414cbf83f7d7c17a28c85c0fda6c9709a007e5",
+  "blockHash": "0xcacdb1c69339650fcf6779154cc4db13f8060869c1d53b45a399570ceadd04d1",
+  "blockNumber": 664,
+  "event": "ParticipantRemoved",
+  "signature": "0xcbd00a8ba1fe89a494e0c96a0ed2dd01a6cd8ae8a1a4b4103edbae0fb52ab741",
+  "args": {
+    "participant": "0x4444444444444444444444444444444444444444",
+    "permissions": "0xfddf",
+    "level": 1
+  }
+}

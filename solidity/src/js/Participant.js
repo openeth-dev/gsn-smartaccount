@@ -29,6 +29,12 @@ class Participant {
     clone.isParticipant = true
     return clone
   }
+
+  equals (participant) {
+    return (this.address.toLowerCase() === participant.address.toLowerCase() &&
+      this.permissions === participant.permissions &&
+      this.level === participant.level)
+  }
 }
 
 module.exports = Participant
