@@ -11,7 +11,7 @@ import RelayServerMock from '../mocks/RelayServer.mock'
 import ClientBackend from '../../src/js/backend/ClientBackend'
 import SimpleWallet from '../../src/js/impl/SimpleWallet'
 import { startGsnRelay, stopGsnRelay } from 'localgsn'
-import { sleep } from '../backend/testutils'
+import { sleep, backendPort, urlPrefix } from '../backend/testutils'
 import GauthMock from '../../src/js/mocks/Gauth.mock'
 import * as TestUtils from 'safechannels-contracts/test/utils'
 
@@ -22,7 +22,9 @@ import * as TestUtils from 'safechannels-contracts/test/utils'
 export const _relayHub = '0xD216153c06E857cD7f72665E0aF1d7D82172F494'
 export const _ethNodeUrl = 'http://localhost:8545'
 export const _relayUrl = 'http://localhost:8090'
-export const _serverUrl = 'http://localhost:8888/'
+export const _backendUrl = `http://localhost:${backendPort}/`
+const _urlPrefix = urlPrefix
+
 const _verbose = false
 
 let ls
@@ -32,8 +34,9 @@ export default class TestEnvironment {
   constructor ({
     ethNodeUrl = _ethNodeUrl,
     relayUrl = _relayUrl,
-    serverUrl = _serverUrl,
+    backendUrl = _backendUrl,
     relayHub = _relayHub,
+    urlPrefix = _urlPrefix,
     clientBackend,
     web3provider,
     useTwilio,
@@ -43,7 +46,8 @@ export default class TestEnvironment {
     this.ethNodeUrl = ethNodeUrl
     this.relayUrl = relayUrl
     this.relayHub = relayHub
-    this.clientBackend = clientBackend || new ClientBackend({ serverURL: serverUrl })
+    this.urlPrefix = urlPrefix
+    this.clientBackend = clientBackend || new ClientBackend({ backendURL: backendUrl })
     this.web3provider = web3provider || new Web3.providers.HttpProvider(ethNodeUrl)
     this.web3 = new Web3(this.web3provider)
     this.useTwilio = useTwilio
@@ -128,17 +132,17 @@ export default class TestEnvironment {
       console.error('Server is already running, restarting it!!!')
       TestEnvironment.stopBackendServer()
     }
-    const port = 8888
     return new Promise((resolve, reject) => {
       const runServerPath = path.resolve(__dirname, '../../../sample/src/js/backend/runServer.js')
       ls = spawn('node', [
         '-r',
         'esm',
         runServerPath,
-        '-p', port,
+        '-p', backendPort,
         '-f', this.factory.address,
         '-s', this.sponsor.address,
         '-u', this.ethNodeUrl,
+        '-x', this.urlPrefix,
         '--sms', this.useTwilio ? 'twilio' : 'mock', // anything except 'twilio' is a mock...
         '--dev', this.useDev
       ])

@@ -54,3 +54,6 @@ export function unhookFunction (obj, funcName) {
   obj[funcName] = obj[funcName + 'Orig']
   delete obj[funcName + 'Orig']
 }
+
+export const backendPort = 8888
+export const urlPrefix = 'http://srulik.lan:3000/?op=cancel'

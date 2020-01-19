@@ -260,8 +260,47 @@ function DebugState ({ state }) {
   return debug && <>state={state}</>
 }
 
+class CancelByUrl extends React.Component {
+  constructor (props) {
+    super(props)
+    this.state = {}
+  }
+
+  componentDidMount () {
+    this.props.initMgr().then(() => {
+      const url = window.location.href
+      console.log('xurl=', url)
+      mgr.cancelByUrl({ jwt: null, url }).then(() => this.setState({ complete: true })).catch(
+        err => this.setState({ err: errorStr(err) }))
+    })
+  }
+
+  render () {
+    const { complete, err } = this.state
+    if (complete) {
+      return <> <h2>Canceled. </h2>
+        <Button title="Close" action={() => window.close()}/>
+      </>
+    }
+    if (err) {
+      return <>
+        <div style={{ color: 'red' }}>
+          <h2>Cancel Failed</h2>
+          <pre>{err}</pre>
+        </div>
+        <Button title="Close" action={() => window.close()}/>
+      </>
+    }
+    return <>Canceling... please wait</>
+  }
+}
+
 function WalletComponent (options) {
   const { walletAddr, email, ownerAddr, walletInfo, loading, pendingAddOperatorNow } = options
+
+  if (window.location.href.includes('op=cancel')) {
+    return <CancelByUrl {...options} />
+  }
 
   if (loading) {
     return <h2>Loading, please wait.</h2>
@@ -390,16 +429,16 @@ class App extends React.Component {
   }
 
   async _initRealSdk () {
-    const serverURL = window.location.protocol + '//' + window.location.host.replace(/(:\d+)?$/, ':8888')
+    const backendURL = window.location.protocol + '//' + window.location.host.replace(/(:\d+)?$/, ':8888')
 
     // debug node runs on server's host. real node might use infura.
     const ethNodeUrl = window.location.protocol + '//' + window.location.host.replace(/(:\d+)?$/, ':8545')
 
-    console.log('connecting to:', { serverURL, ethNodeUrl })
+    console.log('connecting to:', { backendURL, ethNodeUrl })
     const web3provider = new Web3.providers.HttpProvider(ethNodeUrl)
     global.web3provider = web3provider
 
-    const backend = new ClientBackend({ serverURL })
+    const backend = new ClientBackend({ backendURL })
     const { sponsor, factory } = (await backend.getAddresses())
 
     const relayOptions = {

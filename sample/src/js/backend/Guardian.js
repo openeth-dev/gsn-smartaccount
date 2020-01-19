@@ -6,6 +6,8 @@ import abiDecoder from 'abi-decoder'
 import SmartAccountFactoryABI from 'safechannels-contracts/src/js/generated/SmartAccountFactory'
 import SmartAccountABI from 'safechannels-contracts/src/js/generated/SmartAccount'
 import { ChangeType } from '../etc/ChangeType'
+import { URL } from 'url'
+import querystring from 'querystring'
 
 abiDecoder.addABI(SmartAccountFactoryABI)
 abiDecoder.addABI(SmartAccountABI)
@@ -49,8 +51,12 @@ class Guardian {
 }
 
 export class Watchdog extends Guardian {
-  constructor ({ smsManager, keyManager, accountManager, smartAccountFactoryAddress, sponsorAddress, web3provider }) {
+  constructor ({ smsManager, keyManager, accountManager, smartAccountFactoryAddress, sponsorAddress, web3provider, urlPrefix }) {
     super({ smsManager, keyManager, accountManager, smartAccountFactoryAddress, sponsorAddress, web3provider })
+    this.urlPrefix = new URL(urlPrefix)
+    if (!this.urlPrefix.href) {
+      throw new Error(`Invalid url: ${urlPrefix}`)
+    }
     this.permsLevel = scutils.packPermissionLevel(Permissions.WatchdogPermissions, 1)
     const smartAccountTopics = Object.keys(this.smartAccountContract.events).filter(x => (x.includes('0x')))
     const smartAccountFactoryTopics = Object.keys(this.smartAccountFactoryContract.events).filter(
@@ -155,7 +161,7 @@ export class Watchdog extends Guardian {
         const smsCode = this.smsManager.getSmsCode({ phoneNumber: account.phone, email: account.email })
         await this.smsManager.sendSMS({
           phoneNumber: account.phone,
-          message: `To cancel event ${change.log.args.delayedOpId} on smartAccount ${account.address}, enter code ${smsCode}`
+          message: `${this.urlPrefix.href}&delayedOpId=${change.log.args.delayedOpId}&address=${account.address}&smsCode=${smsCode}`
         })
         change.smsSent = true
       }
@@ -164,9 +170,12 @@ export class Watchdog extends Guardian {
   }
 
   static _extractCancelParamsFromUrl ({ url }) {
-    const regex = /To cancel event (0x[0-9a-fA-F]*) on smartAccount (0x[0-9a-fA-F]*), enter code ([0-9]*)/
-    const [, delayedOpId, address, smsCode] = url.match(regex)
-    return { delayedOpId, address, smsCode }
+    try {
+      const { delayedOpId, address, smsCode } = querystring.parse(url)
+      return { delayedOpId, address, smsCode }
+    } catch (e) {
+      throw new Error(`Invalid url: ${url}`)
+    }
   }
 
   // TODO check jwt? not sure if needed ATM
@@ -204,7 +213,8 @@ export class Watchdog extends Guardian {
           delete this.changesToApply[delayedOpId]
           return new Error(`Cannot find new operator address of accountId ${account.accountId}`)
         }
-        const operatorHash = scutils.bufferToHex(scutils.encodeParticipant({ address: newOperatorAddress, permissions: Permissions.OwnerPermissions, level: 1 }))
+        const operatorHash = scutils.bufferToHex(scutils.encodeParticipant(
+          { address: newOperatorAddress, permissions: Permissions.OwnerPermissions, level: 1 }))
         if (change.log.args.actionsArguments1[0] !== operatorHash) {
           // TODO cancel operation
           delete this.changesToApply[delayedOpId]

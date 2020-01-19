@@ -17,7 +17,7 @@ describe('http layer tests', async function () {
   const myTitle = 'just throwing out the garbage'
   const myDelayedOpId = 'delayedOpId'
   const myAddress = '0xdeadbeef'
-  const serverURL = `http://localhost:${port}`
+  const backendURL = `http://localhost:${port}`
 
   before(async function () {
     mockBE = {}
@@ -33,7 +33,7 @@ describe('http layer tests', async function () {
   it('should construct webclient, webserver and start server', async function () {
     try {
       server = new Webserver({ port, backend: mockBE, watchdog: mockWD })
-      client = new ClientBackend({ serverURL })
+      client = new ClientBackend({ backendURL })
       server.start()
     } catch (e) {
       console.log(e)
