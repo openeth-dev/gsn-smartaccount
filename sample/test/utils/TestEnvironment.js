@@ -11,7 +11,7 @@ import RelayServerMock from '../mocks/RelayServer.mock'
 import ClientBackend from '../../src/js/backend/ClientBackend'
 import SimpleWallet from '../../src/js/impl/SimpleWallet'
 import { startGsnRelay, stopGsnRelay } from 'localgsn'
-import { sleep, webserverPort, urlPrefix } from '../backend/testutils'
+import { sleep, backendPort, urlPrefix } from '../backend/testutils'
 import GauthMock from '../../src/js/mocks/Gauth.mock'
 import * as TestUtils from 'safechannels-contracts/test/utils'
 
@@ -22,7 +22,7 @@ import * as TestUtils from 'safechannels-contracts/test/utils'
 export const _relayHub = '0xD216153c06E857cD7f72665E0aF1d7D82172F494'
 export const _ethNodeUrl = 'http://localhost:8545'
 export const _relayUrl = 'http://localhost:8090'
-export const _serverUrl = `http://localhost:${webserverPort}/`
+export const _backendUrl = `http://localhost:${backendPort}/`
 const _urlPrefix = urlPrefix
 
 const _verbose = false
@@ -34,7 +34,7 @@ export default class TestEnvironment {
   constructor ({
     ethNodeUrl = _ethNodeUrl,
     relayUrl = _relayUrl,
-    serverUrl = _serverUrl,
+    backendUrl = _backendUrl,
     relayHub = _relayHub,
     urlPrefix = _urlPrefix,
     clientBackend,
@@ -47,7 +47,7 @@ export default class TestEnvironment {
     this.relayUrl = relayUrl
     this.relayHub = relayHub
     this.urlPrefix = urlPrefix
-    this.clientBackend = clientBackend || new ClientBackend({ serverURL: serverUrl })
+    this.clientBackend = clientBackend || new ClientBackend({ backendURL: backendUrl })
     this.web3provider = web3provider || new Web3.providers.HttpProvider(ethNodeUrl)
     this.web3 = new Web3(this.web3provider)
     this.useTwilio = useTwilio
@@ -138,7 +138,7 @@ export default class TestEnvironment {
         '-r',
         'esm',
         runServerPath,
-        '-p', webserverPort,
+        '-p', backendPort,
         '-f', this.factory.address,
         '-s', this.sponsor.address,
         '-u', this.ethNodeUrl,

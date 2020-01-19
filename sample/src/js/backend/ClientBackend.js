@@ -20,10 +20,10 @@ export class Webclient {
 const jsonrpc = require('jsonrpc-lite')
 
 export default class ClientBackend extends BEapi {
-  constructor ({ serverURL }) {
+  constructor ({ backendURL }) {
     super()
     this.webclient = new Webclient()
-    this.serverURL = serverURL
+    this.backendURL = backendURL
   }
 
   async getAddresses () {
@@ -69,7 +69,7 @@ export default class ClientBackend extends BEapi {
   }
 
   async _sendRequest (request) {
-    let response = await this.webclient.sendPromise(this.serverURL, request)
+    let response = await this.webclient.sendPromise(this.backendURL, request)
     response = this._handleJSONRPCResponse(response)
     return response
   }

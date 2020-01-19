@@ -429,16 +429,16 @@ class App extends React.Component {
   }
 
   async _initRealSdk () {
-    const serverURL = window.location.protocol + '//' + window.location.host.replace(/(:\d+)?$/, ':8888')
+    const backendURL = window.location.protocol + '//' + window.location.host.replace(/(:\d+)?$/, ':8888')
 
     // debug node runs on server's host. real node might use infura.
     const ethNodeUrl = window.location.protocol + '//' + window.location.host.replace(/(:\d+)?$/, ':8545')
 
-    console.log('connecting to:', { serverURL, ethNodeUrl })
+    console.log('connecting to:', { backendURL, ethNodeUrl })
     const web3provider = new Web3.providers.HttpProvider(ethNodeUrl)
     global.web3provider = web3provider
 
-    const backend = new ClientBackend({ serverURL })
+    const backend = new ClientBackend({ backendURL })
     const { sponsor, factory } = (await backend.getAddresses())
 
     const relayOptions = {
