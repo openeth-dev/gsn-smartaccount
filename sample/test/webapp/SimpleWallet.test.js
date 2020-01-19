@@ -387,21 +387,21 @@ describe('SimpleWallet', async function () {
       if (expectedWhitelist) {
         expected = {
           delay: 0,
-          requiredApprovals: 0,
+          requiredConfirmations: 0,
           requireBothDelayAndApprovals: false
         }
       } else {
         expected = {
           delay: useDefaultFlag,
-          requiredApprovals: useDefaultFlag,
+          requiredConfirmations: useDefaultFlag,
           requireBothDelayAndApprovals: true
         }
       }
       const whitelistModule = await testContext.wallet.getWhitelistModule()
       const policy = await whitelistModule.getBypassPolicy(newWhitelistDest, 10, '0x')
-      assert.strictEqual(policy[0].toString(), expected.delay.toString())
-      assert.strictEqual(policy[1].toString(), expected.requiredApprovals.toString())
-      assert.strictEqual(policy[2], expected.requireBothDelayAndApprovals)
+      assert.strictEqual(policy.delay.toString(), expected.delay.toString())
+      assert.strictEqual(policy.requiredConfirmations.toString(), expected.requiredConfirmations.toString())
+      assert.strictEqual(policy.requireBothDelayAndApprovals, expected.requireBothDelayAndApprovals)
     }
 
     before(async function () {
@@ -427,6 +427,7 @@ describe('SimpleWallet', async function () {
           assert.strictEqual(pending.length, 1)
           const timeGap = 60 * 60 * 24 * 2 + 10
           await scTestUtils.increaseTime(timeGap, testContext.wallet._getWeb3().web3)
+          await validatePolicy({ expectedWhitelist: !operation.isWhitelisted })
           await testContext.wallet.applyAllPendingOperations()
           await validatePolicy({ expectedWhitelist: operation.isWhitelisted })
         })
@@ -452,7 +453,7 @@ describe('SimpleWallet', async function () {
       const operator = allOperators[0]
       await testContext.wallet.removeParticipant({
         address: operator.address,
-        permissions: Permissions.OwnerPermissions,
+        permissions: operator.rawPermissions,
         level: operator.level
       })
       // TODO: this test is not yet possible as wallet cannot query config change tx

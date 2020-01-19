@@ -71,7 +71,7 @@ export default class SimpleWalletApi {
   }
 
   async getWhitelistModule () {
-    error('bypass policies')
+    error('return bypass policy contract object')
   }
 
   async listTokens () {

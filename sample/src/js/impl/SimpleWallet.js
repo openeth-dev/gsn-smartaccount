@@ -259,6 +259,7 @@ export default class SimpleWallet extends SimpleWalletApi {
       return {
         address: it.address,
         level: it.level,
+        rawPermissions: it.permissions,
         type: type
       }
     })
