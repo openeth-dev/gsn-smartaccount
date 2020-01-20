@@ -122,10 +122,10 @@ export default class SimpleWallet extends SimpleWalletApi {
   }
 
   async removeParticipant ({ address, rawPermissions, level }) {
-    if ( !rawPermissions || !level ) {
-      //search for address
+    if (!rawPermissions || !level) {
+      // search for address
       const info = await this.getWalletInfo()
-      const f = info.participants.filter(it => it.address == address &&
+      const f = info.participants.filter(it => it.address === address &&
         (rawPermissions === undefined || it.rawPermissions === rawPermissions) &&
         (level === undefined || it.level === level))
       if (!f.length) {
@@ -137,7 +137,6 @@ export default class SimpleWallet extends SimpleWalletApi {
 
       rawPermissions = f[0].rawPermissions
       level = f[0].level
-      console.log( "=== xx found: ", {address, rawPermissions, level} )
     }
     const actions = [ChangeType.REMOVE_PARTICIPANT]
     const args = [Buffer.from(SafeChannelUtils.encodeParticipant({ address, permissions: rawPermissions, level }))]

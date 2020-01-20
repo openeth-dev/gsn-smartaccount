@@ -132,6 +132,7 @@ export default class SimpleManager extends SimpleManagerApi {
   }
 
   async getDefaultConfiguration () {
+    await this._init()
     return SimpleWallet.getDefaultSampleInitialConfiguration({
       backendAddress: this.guardianAddress,
       operatorAddress: await this.getOwner()

@@ -358,7 +358,7 @@ class App extends React.Component {
         email: this.state.email || await mgr.getEmail(),
         walletAddr: this.state.walletAddr || await mgr.getWalletAddress()
       })
-      if (!mgrState.walletAddr && mgrState.email ) {
+      if (!mgrState.walletAddr && mgrState.email) {
         mgrState.initialConfig = await mgr.getDefaultConfiguration()
       }
       console.log('readMgrState: has some state')
@@ -587,7 +587,7 @@ class App extends React.Component {
     // TODO: currently, we initmgr means its online, though not strictly required for singout..
     await this.initMgr()
 
-    if ( wallet ) {
+    if (wallet) {
       const address = await mgr.getOwner()
       await wallet.removeParticipant({ address })
     }
@@ -645,12 +645,12 @@ class App extends React.Component {
   async doAddToWhiteList () {
     const addr = window.prompt('Add to whitelist')
     if (!addr) return
-    await wallet.addWhitelist([addr])
+    await wallet.setWhitelistedDestination(addr, true)
   }
 
   async doRemoveFromWhitelist (addr) {
     if (!window.confirm('Remove from whitelist: ' + addr)) { return }
-    await wallet.removeWhitelist([addr])
+    await wallet.setWhitelistedDestination(addr, false)
   }
 
   render () {
