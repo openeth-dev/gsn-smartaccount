@@ -28,7 +28,6 @@ const _urlPrefix = urlPrefix
 const _verbose = false
 
 let ls
-let whitelistFactory
 
 export default class TestEnvironment {
   constructor ({
@@ -109,6 +108,7 @@ export default class TestEnvironment {
 
     // await instance.fundRelayIfNeeded()
     await instance.deployNewFactory()
+    await instance.deployWhitelistFactory()
     await instance.startBackendServer()
     // From this point on, there is an external process running that has to be killed if construction fails
     try {
@@ -141,6 +141,7 @@ export default class TestEnvironment {
         '-p', backendPort,
         '-f', this.factory.address,
         '-s', this.sponsor.address,
+        '-w', this.whitelistFactoryAddress,
         '-u', this.ethNodeUrl,
         '-x', this.urlPrefix,
         '--sms', this.useTwilio ? 'twilio' : 'mock', // anything except 'twilio' is a mock...
@@ -175,6 +176,7 @@ export default class TestEnvironment {
   }
 
   async deployNewFactory () {
+    console.log( '== deploying factory')
     this.sponsor = await FactoryContractInteractor.deploySponsor(this.from, this.relayHub, this.ethNodeUrl)
     await this.sponsor.relayHubDeposit({ value: 2e18, from: this.from, gas: 1e5 })
     this.forwarderAddress = await this.sponsor.getGsnForwarder()
@@ -230,7 +232,8 @@ export default class TestEnvironment {
     })
     const factoryConfig = {
       provider: acc.provider,
-      factoryAddress: this.factory.address
+      factoryAddress: this.factory.address,
+      whitelistFactoryAddress: this.whitelistFactory.address
     }
 
     return new SimpleManager({
@@ -246,22 +249,21 @@ export default class TestEnvironment {
   }
 
   async deployWhitelistFactory () {
-    if (!whitelistFactory) {
-      whitelistFactory =
+    if (!this.whitelistFactory) {
+      this.whitelistFactory =
         await FactoryContractInteractor.deployNewWhitelistFactory(this.from, this.ethNodeUrl, this.forwarderAddress)
     }
-    return whitelistFactory
   }
 
   async createWallet ({ jwt, phoneNumber, smsVerificationCode, whitelist }) {
-    if (whitelist && whitelist.length) {
-      await this.deployWhitelistFactory()
-    }
+    await this.deployWhitelistFactory()
     this.wallet = await this.manager.createWallet({ jwt, phoneNumber, smsVerificationCode })
     const owner = await this.manager.getOwner()
+
     const config = SimpleWallet.getDefaultSampleInitialConfiguration({
       backendAddress: this.backendAddresses.watchdog,
-      operatorAddress: owner
+      operatorAddress: owner,
+      whitelistFactoryAddress : this.backendAddresses.whitelistFactory
     })
     await this.wallet.initialConfiguration(config)
     await TestUtils.evmMine(this.web3)

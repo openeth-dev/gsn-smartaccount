@@ -439,7 +439,7 @@ class App extends React.Component {
     global.web3provider = web3provider
 
     const backend = new ClientBackend({ backendURL })
-    const { sponsor, factory } = (await backend.getAddresses())
+    const { sponsor, factory, whitelistFactory } = (await backend.getAddresses())
 
     const relayOptions = {
       verbose,
@@ -452,7 +452,8 @@ class App extends React.Component {
 
     const factoryConfig = {
       provider: sdk.provider,
-      factoryAddress: factory
+      factoryAddress: factory,
+      whitelistFactoryAddress: whitelistFactory
     }
 
     mgr = new SimpleManager({

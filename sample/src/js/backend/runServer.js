@@ -20,7 +20,7 @@ function error (err) { throw new Error(err) }
 
 const argv = parseArgs(process.argv.slice(2), {
   string: ['s', 'f', 'url', 'url-prefix'],
-  alias: { D: 'dev', S: 'sms', u: 'url', x: 'url-prefix' }
+  alias: { D: 'dev', S: 'sms', u: 'url', x: 'url-prefix', w: 'whitelistFactory' }
 })
 
 if (argv._.length) error('unknown extra params: ' + argv._)
@@ -28,6 +28,7 @@ if (argv._.length) error('unknown extra params: ' + argv._)
 const port = argv.p || error('missing -p [port]')
 const factoryAddress = argv.f || error('missing -f [factoryAddress]')
 const sponsorAddress = argv.s || error('missing -s [sponsotAddress]')
+const whitelistFactoryAddress = argv.w || error('missing -w [whitelistFactoryAddress]')
 const ethNodeUrl = argv.url || error('missing -u [ethNodeUrl]')
 const smsProvider = argv.sms === 'twilio' ? new SMStwilio() : new SMSmock()
 const urlPrefix = argv.x || error('missing -x [urlPrefix]')
@@ -46,7 +47,8 @@ const watchdog = new Watchdog({
   keyManager,
   accountManager,
   smartAccountFactoryAddress: factoryAddress,
-  sponsorAddress: sponsorAddress,
+  sponsorAddress,
+  whitelistFactoryAddress,
   web3provider: web3provider,
   urlPrefix
 })
