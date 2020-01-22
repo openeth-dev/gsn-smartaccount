@@ -12,6 +12,7 @@ import SimpleManager from '../js/impl/SimpleManager'
 import { increaseTime } from './GanacheIncreaseTime'
 import { toBN } from 'web3-utils'
 import AccountMock from '../js/mocks/Account.mock'
+import SimpleWallet from '../js/impl/SimpleWallet'
 
 let debug = getParam('debug')
 
@@ -67,7 +68,7 @@ function GoogleLogin ({ refresh, initMgr }) {
   </div>
 }
 
-function CreateWallet ({ refresh, jwt, email, initialConfig, setInitialConfig }) {
+function CreateWallet ({ refresh, jwt, email, userConfig, setUserConfig }) {
   let phoneNumber
 
   const [initConfig, setInitConfig] = useState('')
@@ -110,8 +111,8 @@ function CreateWallet ({ refresh, jwt, email, initialConfig, setInitialConfig })
   function updateWhitelistConfig (val) {
     setInitConfig(val) // for UI leave string as-is
     // modify global state
-    initialConfig.whitelist = val.split(/[ \t]*[,\n][ \t]*/).filter(addr => !!addr)
-    setInitialConfig(initialConfig)
+    userConfig.whitelistPreconfigured = val.split(/[ \t]*[,\n][ \t]*/).filter(addr => !!addr)
+    setUserConfig(userConfig)
   }
   function updateDelayTime (val) {
     setDelayTime(val) // for UI leave string as-is
@@ -121,8 +122,8 @@ function CreateWallet ({ refresh, jwt, email, initialConfig, setInitialConfig })
       const [, t, suf] = val.match(/^\s*([\d.]+)\s*(\w?)/)
 
       const time = Math.floor(t * (suffixes[suf.toLowerCase()] || 1))
-      initialConfig.initialDelays[1] = time
-      setInitialConfig(initialConfig)
+      userConfig.initialDelays[1] = time
+      setUserConfig(userConfig)
       setDelayErr('')
     } catch (e) {
       setDelayErr('invalid number/suffix')
@@ -144,7 +145,7 @@ function CreateWallet ({ refresh, jwt, email, initialConfig, setInitialConfig })
       <span style={{ color: 'red' }}>{delayErr}</span>
     </span><br/>
     <pre>
-      {JSON.stringify(initialConfig, null, 2)}
+      {JSON.stringify(userConfig, null, 2)}
     </pre>
   </div>
 }
@@ -345,7 +346,7 @@ class App extends React.Component {
     console.log('readMgrState')
     const mgrState = {
       loading: undefined,
-      initialConfig: undefined,
+      userConfig: undefined,
       walletInfo: undefined,
       walletBalances: undefined,
       walletPending: undefined
@@ -359,7 +360,7 @@ class App extends React.Component {
         walletAddr: this.state.walletAddr || await mgr.getWalletAddress()
       })
       if (!mgrState.walletAddr && mgrState.email) {
-        mgrState.initialConfig = await mgr.getDefaultConfiguration()
+        mgrState.userConfig = await SimpleWallet.getDefaultUserConfig()
       }
       console.log('readMgrState: has some state')
     } else {
@@ -610,7 +611,6 @@ class App extends React.Component {
     // await mgr.validatePhone({jwt, phone:123})
     if (!await mgr.hasWallet()) {
       await mgr.createWallet({ jwt, phoneNumber: '123', smsVerificationCode: 'v123' })
-      await mgr.setInitialConfiguration()
     } else {
       await mgr.loadWallet()
     }
@@ -696,7 +696,7 @@ class App extends React.Component {
           doValidateRecoverWallet={() => this.doValidateRecoverWallet()}
           doAddToWhiteList={() => this.doAddToWhiteList()}
           doRemoveFromWhitelist={(addr) => this.doRemoveFromWhitelist(addr)}
-          setInitialConfig={config => this.setState({ initialConfig: config })}
+          setUserConfig={config => this.setState({ userConfig: config })}
           refresh={(extra) => this.reloadState(extra)} {...this.state} />
 
       </div>

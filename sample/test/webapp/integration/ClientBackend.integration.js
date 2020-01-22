@@ -36,11 +36,17 @@ function calculateSmsCode () {
 }
 
 async function newTest () {
-  const testContext = await TestEnvironment.initializeAndStartBackendForRealGSN({})
-  await testContext.manager.googleLogin()
-  testContext.jwt = jwt
-  testContext.smsCode = calculateSmsCode()
-  return testContext
+  try {
+
+    const testContext = await TestEnvironment.initializeAndStartBackendForRealGSN({})
+    await testContext.manager.googleLogin()
+    testContext.jwt = jwt
+    testContext.smsCode = calculateSmsCode()
+    return testContext
+  } catch (e) {
+    console.log( 'newtest ex=',ex)
+    throw e
+  }
 }
 
 describe('Client <-> Backend <-> Blockchain', async function () {
@@ -48,6 +54,7 @@ describe('Client <-> Backend <-> Blockchain', async function () {
     describe('#cancelByUrl()', async function () {
       let testContext
       before(async function () {
+        this.timeout(10000)
         testContext = await newTest()
       })
       testCancelByUrlBehavior(() => testContext)
@@ -59,6 +66,7 @@ describe('Client <-> Backend <-> Blockchain', async function () {
     describe('#createWallet()', async function () {
       let testContext
       before(async function () {
+        this.timeout(10000)
         testContext = await newTest()
         testContext.phoneNumber = '+1-541-754-3010'
       })
@@ -73,6 +81,7 @@ describe('Client <-> Backend <-> Blockchain', async function () {
       let testContext
       const newOperatorAddress = '0x' + '7'.repeat(40)
       before(async function () {
+        this.timeout(10000)
         testContext = await newTest()
         const email = await testContext.manager.getEmail()
         testContext.jwt = generateMockJwt({ email, nonce: newOperatorAddress })

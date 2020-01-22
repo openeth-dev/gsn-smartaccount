@@ -49,7 +49,8 @@ export default class SimpleWallet extends SimpleWalletApi {
     knownTokens = []
   }) {
     super()
-    nonNull({ contract, participant })
+    nonNull({ manager, contract, participant })
+    this.manager = manager
     this.contract = contract
     this.backend = backend
     this.participant = participant
@@ -60,6 +61,8 @@ export default class SimpleWallet extends SimpleWalletApi {
   }
 
   async initialConfiguration (configuration) {
+    const whitelistModule = await this.deployWhitelistModule({ whitelistPreconfigured: configuration.whitelistPreconfigured })
+
     return this.contract.initialConfig(
       configuration.initialParticipants,
       configuration.initialDelays,
@@ -550,7 +553,23 @@ export default class SimpleWallet extends SimpleWalletApi {
     return []
   }
 
-  static getDefaultSampleInitialConfiguration ({ backendAddress, operatorAddress, whitelistModuleAddress }) {
+  //default configuration to let the user edit.
+  // later passed into the getDefaultSampleInitConfiguration
+  static getDefaultUserConfig() {
+    return {
+      initialDelays: [86400, 172800],
+      allowAcceleratedCalls: true,
+      allowAddOperatorNow: true,
+      requiredApprovalsPerLevel: [1, 0],
+      whitelistPreconfigured: []
+    }
+  }
+
+  //create a configuration to pass into initialConfiguration()
+  async createInitialConfig ({ userConfig }) {
+    const backendAddress = this.manager.guardianAddress
+    const operatorAddress = await this.manager.getOwner()
+
     const backendAsWatchdog = '0x' +
       SafeChannelUtils.encodeParticipant({
         address: backendAddress,
@@ -571,7 +590,10 @@ export default class SimpleWallet extends SimpleWalletApi {
       }).toString('hex')
     const bypassModules = []
     const bypassMethods = []
-    if (whitelistModuleAddress) {
+
+    if ( userConfig.whitelistPreconfigured) {
+      const whitelistModuleAddress = await this.deployWhitelistModule({ whitelistPreconfigured: userConfig.whitelistPreconfigured })
+
       // We need the same module defined for no msgData and each erc20 method
       const erc20methods = ['0x00000000', '0xa9059cbb', '0x095ea7b3']
       bypassMethods.push(...erc20methods)
@@ -580,11 +602,8 @@ export default class SimpleWallet extends SimpleWalletApi {
       }
     }
     return {
+      ...userConfig,
       initialParticipants: [operator, backendAsWatchdog, backendAsAdmin],
-      initialDelays: [86400, 172800],
-      allowAcceleratedCalls: true,
-      allowAddOperatorNow: true,
-      requiredApprovalsPerLevel: [1, 0],
       bypassTargets: [],
       bypassMethods,
       bypassModules
@@ -681,10 +700,12 @@ export default class SimpleWallet extends SimpleWalletApi {
   }
 
   async deployWhitelistModule ({ whitelistPreconfigured }) {
-    return this.whitelistFactory.newWhitelist(this.contract.address, whitelistPreconfigured,
+    const receipt =  await this.whitelistFactory.newWhitelist(this.contract.address, whitelistPreconfigured,
       {
         from: this.participant.address
       })
+    const whitelistModuleAddress = receipt.logs[0].args.module
+    return whitelistModuleAddress
   }
 
   async _isBypassActivated ({ target, value, encodedFunction }) {

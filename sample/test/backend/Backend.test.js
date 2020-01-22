@@ -276,11 +276,13 @@ describe('Backend', async function () {
       }
       const wallet = new SimpleWallet(walletConfig)
       const config = SimpleWallet.getDefaultSampleInitialConfiguration({
+        userConfig: {
+          initialDelays: [0,0],
+          requiredApprovalsPerLevel: [0, 0]
+        },
         backendAddress: keypair.address,
         operatorAddress: accountZero
       })
-      config.initialDelays = [0, 0]
-      config.requiredApprovalsPerLevel = [0, 0]
       await wallet.initialConfiguration(config)
       await web3.eth.sendTransaction({
         from: accountZero,

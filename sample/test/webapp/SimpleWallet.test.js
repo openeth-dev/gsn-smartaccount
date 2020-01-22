@@ -60,21 +60,21 @@ describe('SimpleWallet', async function () {
     const smartAccount = await FactoryContractInteractor.deploySmartAccountDirectly(from, ethNodeUrl)
     // TODO: duplicate code, testenv does same work as the rest of the code here!!!
     const testEnvironment = await TestEnvironment.initializeWithFakeBackendAndGSN({ clientBackend: BaseBackendMock })
-    const whitelistFactory = await testEnvironment.deployWhitelistFactory()
     const wallet = new SimpleWallet(
       {
+        operator,
         ...walletSharedConfig,
-        whitelistFactory,
+        whitelistFactory: testEnvironment.whitelistFactory,
         contract: smartAccount,
         knownTokens
       })
     let whitelistModuleAddress
     if (whitelistPreconfigured.length > 0) {
-      const receipt = await wallet.deployWhitelistModule({ whitelistPreconfigured })
-      whitelistModuleAddress = receipt.logs[0].args.module
+      whitelistModuleAddress = await wallet.deployWhitelistModule({ whitelistPreconfigured })
     }
     if (operator !== null) {
       const config = SimpleWallet.getDefaultSampleInitialConfiguration({
+        userConfig : await SimpleWallet.getDefaultUserConfig(),
         backendAddress: backend,
         operatorAddress: operator,
         whitelistModuleAddress
@@ -83,18 +83,6 @@ describe('SimpleWallet', async function () {
     }
     return { smartAccount, wallet }
   }
-
-  describe('#_getDefaultSampleInitialConfiguration()', async function () {
-    it('should return valid config given backend and whitelist addresses', async function () {
-      const whitelistModuleAddress = '0x1111111111111111111111111111111111111111'
-      const config = SimpleWallet.getDefaultSampleInitialConfiguration({
-        backendAddress: backend,
-        operatorAddress: operator,
-        whitelistModuleAddress
-      })
-      assert.deepStrictEqual(config, expectedInitialConfig)
-    })
-  })
 
   describe('#getWalletInfo', async function () {
     let testContext
@@ -112,7 +100,8 @@ describe('SimpleWallet', async function () {
     })
 
     it('should accept valid configuration and apply it on-chain', async function () {
-      const config = SimpleWallet.getDefaultSampleInitialConfiguration({
+      const config = testContext.wallet.createInitialConfig({
+        userConfig: {},
         backendAddress: backend,
         operatorAddress: operator
       })

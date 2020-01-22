@@ -10,6 +10,10 @@ export default class SimpleWalletApi {
     validate(SimpleWalletApi, this)
   }
 
+  async createInitialConfig ({ userConfig }) {
+    error('create initial configuration to pass to initialConfiguration')
+  }
+
   async initialConfiguration (configuration) {
     error('set initial configuration in the contract')
   }

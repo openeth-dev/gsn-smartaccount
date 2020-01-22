@@ -75,6 +75,7 @@ export default class TestEnvironment {
     instance.backendAddresses = await instance.clientBackend.getAddresses()
     await instance.deployMockHub()
     await instance.deployNewFactory()
+    await instance.deployWhitelistFactory()
     await instance._initializeSimpleManager()
     return instance
   }
@@ -166,8 +167,9 @@ export default class TestEnvironment {
     })
   }
 
-  static stopBackendServer () {
-    stopGsnRelay()
+  static stopBackendServer (stopgsn=false) {
+    if ( stopgsn)
+      stopGsnRelay()
     if (!ls) {
       return
     }
@@ -176,7 +178,7 @@ export default class TestEnvironment {
   }
 
   async deployNewFactory () {
-    console.log( '== deploying factory')
+    console.log('== deploying factory')
     this.sponsor = await FactoryContractInteractor.deploySponsor(this.from, this.relayHub, this.ethNodeUrl)
     await this.sponsor.relayHubDeposit({ value: 2e18, from: this.from, gas: 1e5 })
     this.forwarderAddress = await this.sponsor.getGsnForwarder()
@@ -233,7 +235,7 @@ export default class TestEnvironment {
     const factoryConfig = {
       provider: acc.provider,
       factoryAddress: this.factory.address,
-      whitelistFactoryAddress: this.whitelistFactory.address
+      whitelistFactoryAddress: (this.whitelistFactory||{}).address
     }
 
     return new SimpleManager({
@@ -253,6 +255,7 @@ export default class TestEnvironment {
       this.whitelistFactory =
         await FactoryContractInteractor.deployNewWhitelistFactory(this.from, this.ethNodeUrl, this.forwarderAddress)
     }
+    return this.whitelistFactory
   }
 
   async createWallet ({ jwt, phoneNumber, smsVerificationCode, whitelist }) {
@@ -260,11 +263,8 @@ export default class TestEnvironment {
     this.wallet = await this.manager.createWallet({ jwt, phoneNumber, smsVerificationCode })
     const owner = await this.manager.getOwner()
 
-    const config = SimpleWallet.getDefaultSampleInitialConfiguration({
-      backendAddress: this.backendAddresses.watchdog,
-      operatorAddress: owner,
-      whitelistFactoryAddress : this.backendAddresses.whitelistFactory
-    })
+    const config = this.wallet.createInitialConfig({})
+      // backendAddress: this.backendAddresses.watchdog,
     await this.wallet.initialConfiguration(config)
     await TestUtils.evmMine(this.web3)
   }

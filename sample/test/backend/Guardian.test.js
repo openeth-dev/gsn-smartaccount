@@ -108,11 +108,13 @@ describe('As Guardian', async function () {
     }
     wallet = new SimpleWallet(walletConfig)
     config = SimpleWallet.getDefaultSampleInitialConfiguration({
+      userConfig: {
+        initialDelays: [1, 1],
+        requiredApprovalsPerLevel: [0, 0]
+      },
       backendAddress: keypair.address,
       operatorAddress: accountZero
     })
-    config.initialDelays = [1, 1]
-    config.requiredApprovalsPerLevel = [0, 0]
     await wallet.initialConfiguration(config)
     await web3.eth.sendTransaction({
       from: accountZero,
