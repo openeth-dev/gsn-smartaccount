@@ -90,7 +90,16 @@ export default class TestEnvironment {
     useDev,
     verbose
   }) {
-    const instance = new TestEnvironment({ ethNodeUrl, relayUrl, relayHub, web3provider, clientBackend, useTwilio, useDev, verbose })
+    const instance = new TestEnvironment({
+      ethNodeUrl,
+      relayUrl,
+      relayHub,
+      web3provider,
+      clientBackend,
+      useTwilio,
+      useDev,
+      verbose
+    })
     instance.from = (await instance.web3.eth.getAccounts())[0]
 
     // bring up RelayHub, relay.
@@ -167,9 +176,8 @@ export default class TestEnvironment {
     })
   }
 
-  static stopBackendServer (stopgsn=false) {
-    if ( stopgsn)
-      stopGsnRelay()
+  static stopBackendServer (stopgsn = false) {
+    if (stopgsn) { stopGsnRelay() }
     if (!ls) {
       return
     }
@@ -235,7 +243,7 @@ export default class TestEnvironment {
     const factoryConfig = {
       provider: acc.provider,
       factoryAddress: this.factory.address,
-      whitelistFactoryAddress: (this.whitelistFactory||{}).address
+      whitelistFactoryAddress: (this.whitelistFactory || {}).address
     }
 
     return new SimpleManager({
@@ -261,10 +269,13 @@ export default class TestEnvironment {
   async createWallet ({ jwt, phoneNumber, smsVerificationCode, whitelist }) {
     await this.deployWhitelistFactory()
     this.wallet = await this.manager.createWallet({ jwt, phoneNumber, smsVerificationCode })
-    const owner = await this.manager.getOwner()
 
-    const config = this.wallet.createInitialConfig({})
-      // backendAddress: this.backendAddresses.watchdog,
+    const userConfig = SimpleWallet.getDefaultUserConfig()
+    if (whitelist) {
+      userConfig.whitelistPreconfigured = whitelist
+    }
+    const config = await this.wallet.createInitialConfig({ userConfig })
+    // backendAddress: this.backendAddresses.watchdog,
     await this.wallet.initialConfiguration(config)
     await TestUtils.evmMine(this.web3)
   }

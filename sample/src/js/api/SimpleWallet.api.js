@@ -11,7 +11,13 @@ export default class SimpleWalletApi {
   }
 
   async createInitialConfig ({ userConfig }) {
-    error('create initial configuration to pass to initialConfiguration')
+    return {
+      ...userConfig,
+      initialParticipants: ['operator', 'backendAsWatchdog', 'backendAsAdmin'],
+      bypassTargets: [],
+      bypassMethods: [],
+      bypassModules: []
+    }
   }
 
   async initialConfiguration (configuration) {

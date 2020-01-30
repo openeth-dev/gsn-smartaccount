@@ -265,24 +265,28 @@ describe('Backend', async function () {
       await backend.accountManager.putAccount({ account })
 
       const walletConfig = {
+        manager: {
+          guardianAddress: keypair.address,
+          getOwner: () => accountZero
+        },
         contract: smartAccount,
         participant:
           new Participant(accountZero, Permissions.OwnerPermissions, 1),
-        knownParticipants: [
-          new Participant(accountZero, Permissions.OwnerPermissions, 1),
-          new Participant(keypair.address, Permissions.WatchdogPermissions, 1),
-          new Participant(keypair.address, Permissions.AdminPermissions, 1)
-        ]
+
+        whitelistFactory: {
+          newWhitelist: () => {
+            // const whitelistModuleAddress = receipt.logs[0].args.module
+            return { logs: [{ args: { module: '0x' + '12'.repeat(20) } }] }
+          }
+        }
       }
       const wallet = new SimpleWallet(walletConfig)
-      const config = SimpleWallet.getDefaultSampleInitialConfiguration({
-        userConfig: {
-          initialDelays: [0,0],
-          requiredApprovalsPerLevel: [0, 0]
-        },
-        backendAddress: keypair.address,
-        operatorAddress: accountZero
-      })
+      const userConfig = {
+        ...SimpleWallet.getDefaultUserConfig(),
+        initialDelays: [0, 0],
+        requiredApprovalsPerLevel: [0, 0]
+      }
+      const config = await wallet.createInitialConfig({ userConfig })
       await wallet.initialConfiguration(config)
       await web3.eth.sendTransaction({
         from: accountZero,

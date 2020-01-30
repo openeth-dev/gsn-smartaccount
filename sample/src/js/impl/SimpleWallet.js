@@ -42,6 +42,7 @@ export default class SimpleWallet extends SimpleWalletApi {
    * @param knownTokens - tokens currently supported.
    */
   constructor ({
+    manager,
     contract,
     participant,
     backend,
@@ -49,7 +50,7 @@ export default class SimpleWallet extends SimpleWalletApi {
     knownTokens = []
   }) {
     super()
-    nonNull({ manager, contract, participant })
+    nonNull({ manager, contract, participant, whitelistFactory })
     this.manager = manager
     this.contract = contract
     this.backend = backend
@@ -61,8 +62,6 @@ export default class SimpleWallet extends SimpleWalletApi {
   }
 
   async initialConfiguration (configuration) {
-    const whitelistModule = await this.deployWhitelistModule({ whitelistPreconfigured: configuration.whitelistPreconfigured })
-
     return this.contract.initialConfig(
       configuration.initialParticipants,
       configuration.initialDelays,
@@ -553,9 +552,9 @@ export default class SimpleWallet extends SimpleWalletApi {
     return []
   }
 
-  //default configuration to let the user edit.
+  // default configuration to let the user edit.
   // later passed into the getDefaultSampleInitConfiguration
-  static getDefaultUserConfig() {
+  static getDefaultUserConfig () {
     return {
       initialDelays: [86400, 172800],
       allowAcceleratedCalls: true,
@@ -565,7 +564,7 @@ export default class SimpleWallet extends SimpleWalletApi {
     }
   }
 
-  //create a configuration to pass into initialConfiguration()
+  // create a configuration to pass into initialConfiguration()
   async createInitialConfig ({ userConfig }) {
     const backendAddress = this.manager.guardianAddress
     const operatorAddress = await this.manager.getOwner()
@@ -591,7 +590,7 @@ export default class SimpleWallet extends SimpleWalletApi {
     const bypassModules = []
     const bypassMethods = []
 
-    if ( userConfig.whitelistPreconfigured) {
+    if (userConfig && userConfig.whitelistPreconfigured) {
       const whitelistModuleAddress = await this.deployWhitelistModule({ whitelistPreconfigured: userConfig.whitelistPreconfigured })
 
       // We need the same module defined for no msgData and each erc20 method
@@ -700,7 +699,8 @@ export default class SimpleWallet extends SimpleWalletApi {
   }
 
   async deployWhitelistModule ({ whitelistPreconfigured }) {
-    const receipt =  await this.whitelistFactory.newWhitelist(this.contract.address, whitelistPreconfigured,
+    nonNull({ whitelistPreconfigured })
+    const receipt = await this.whitelistFactory.newWhitelist(this.contract.address, whitelistPreconfigured,
       {
         from: this.participant.address
       })

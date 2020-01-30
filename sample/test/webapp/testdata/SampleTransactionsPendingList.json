@@ -2,7 +2,7 @@
   {
     "delayedOpId": "0x2224972fe1e499aab8729c12217895c8b7d8c090f62fbdd367aaa82173702e7d",
     "destination": "0xF16165f1046f1B3cDB37dA25E835B986E696313A",
-    "dueTime": 5,
+    "dueTime": "5",
     "operation": "transfer",
     "state": "mined",
     "tokenSymbol": "ETH",

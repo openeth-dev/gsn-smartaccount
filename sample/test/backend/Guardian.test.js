@@ -41,6 +41,7 @@ describe('As Guardian', async function () {
   let web3provider
   let smartAccount
   let smartAccountFactory
+  let whitelistFactory
   let smartAccountId
   let walletConfig
   let wallet
@@ -48,7 +49,6 @@ describe('As Guardian', async function () {
   const newOperatorAddress = '0x1234567892222222222222222222222222222222'
   const wrongOperatorAddress = '0x1234567892222222222222222222222222222223'
   const amount = 1e3
-  let config
   let newAccount
   const audience = '202746986880-u17rbgo95h7ja4fghikietupjknd1bln.apps.googleusercontent.com'
   const email = 'someone@somewhere.com'
@@ -71,6 +71,8 @@ describe('As Guardian', async function () {
     const forwarderAddress = await sponsor.getGsnForwarder()
     smartAccountFactory = await FactoryContractInteractor.deployNewSmartAccountFactory(accountZero, ethNodeUrl,
       forwarderAddress)
+
+    whitelistFactory = await FactoryContractInteractor.deployNewWhitelistFactory(accountZero, ethNodeUrl, forwarderAddress)
 
     smsProvider = new SMSmock()
     smsManager = new SmsManager({ smsProvider, secretSMSCodeSeed: crypto.randomBytes(32) })
@@ -97,6 +99,10 @@ describe('As Guardian', async function () {
     smartAccount = await FactoryContractInteractor.getCreatedSmartAccountAt(
       { address: newSmartAccountReceipt.logs[0].args.smartAccount, provider: web3provider })
     walletConfig = {
+      manager: {
+        guardianAddress: keypair.address,
+        getOwner: () => accountZero
+      },
       contract: smartAccount,
       participant:
         new Participant(accountZero, Permissions.OwnerPermissions, 1),
@@ -104,18 +110,19 @@ describe('As Guardian', async function () {
         new Participant(accountZero, Permissions.OwnerPermissions, 1),
         new Participant(keypair.address, Permissions.WatchdogPermissions, 1),
         new Participant(keypair.address, Permissions.AdminPermissions, 1)
-      ]
+      ],
+      whitelistFactory
     }
     wallet = new SimpleWallet(walletConfig)
-    config = SimpleWallet.getDefaultSampleInitialConfiguration({
-      userConfig: {
-        initialDelays: [1, 1],
-        requiredApprovalsPerLevel: [0, 0]
-      },
-      backendAddress: keypair.address,
-      operatorAddress: accountZero
-    })
+    const userConfig = {
+      ...SimpleWallet.getDefaultUserConfig(),
+      initialDelays: [1, 1],
+      requiredApprovalsPerLevel: [0, 0]
+    }
+    const config = await wallet.createInitialConfig({ userConfig })
+
     await wallet.initialConfiguration(config)
+
     await web3.eth.sendTransaction({
       from: accountZero,
       value: 1e18,

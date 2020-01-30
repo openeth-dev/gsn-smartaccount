@@ -96,7 +96,6 @@ export default class SimpleManager extends SimpleManagerApi {
     SmartAccountFactoryContract.setProvider(provider)
     this.smartAccountFactory = await SmartAccountFactoryContract.at(factoryAddress)
     if (whitelistFactoryAddress) {
-      console.log( '=== initialize whitelist factory')
       const WhitelistFactoryContract = TruffleContract({
         contractName: 'WhitelistFactory',
         abi: WhitelistFactoryABI

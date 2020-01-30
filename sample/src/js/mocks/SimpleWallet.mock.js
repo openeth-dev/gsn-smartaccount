@@ -16,6 +16,9 @@ export default class SimpleWalletMock extends SimpleWalletApi {
     this.events = new EventEmitter()
   }
 
+  async createInitialConfig ({ userConfig }) {
+  }
+
   async initialConfiguration (configuration) {
     this.whitelist = configuration.whitelist
   }

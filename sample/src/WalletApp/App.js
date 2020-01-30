@@ -100,8 +100,9 @@ function CreateWallet ({ refresh, jwt, email, userConfig, setUserConfig }) {
 
     try {
       await mgr.createWallet({ jwt, phoneNumber, smsVerificationCode })
-      const wallet = await mgr.loadWallet()
-      await wallet.initialConfiguration(initialConfig)
+      // TODO: create wallet and initial config
+      // const wallet = await mgr.loadWallet()
+      // await wallet.initialConfiguration(initialConfig)
 
       refresh({ err: undefined })
     } catch (e) {
@@ -360,7 +361,7 @@ class App extends React.Component {
         walletAddr: this.state.walletAddr || await mgr.getWalletAddress()
       })
       if (!mgrState.walletAddr && mgrState.email) {
-        mgrState.userConfig = await SimpleWallet.getDefaultUserConfig()
+        mgrState.userConfig = SimpleWallet.getDefaultUserConfig()
       }
       console.log('readMgrState: has some state')
     } else {

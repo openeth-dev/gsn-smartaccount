@@ -36,20 +36,19 @@ function calculateSmsCode () {
 }
 
 async function newTest () {
-  try {
-
-    const testContext = await TestEnvironment.initializeAndStartBackendForRealGSN({})
-    await testContext.manager.googleLogin()
-    testContext.jwt = jwt
-    testContext.smsCode = calculateSmsCode()
-    return testContext
-  } catch (e) {
-    console.log( 'newtest ex=',ex)
-    throw e
-  }
+  const testContext = await TestEnvironment.initializeAndStartBackendForRealGSN({})
+  await testContext.manager.googleLogin()
+  testContext.jwt = jwt
+  testContext.smsCode = calculateSmsCode()
+  return testContext
 }
 
 describe('Client <-> Backend <-> Blockchain', async function () {
+  before(async () => {
+    // restart GSN (someone, previous tests left it in an unstable state.
+    TestEnvironment.stopBackendServer(true)
+  })
+
   describe('SimpleManager', async function () {
     describe('#cancelByUrl()', async function () {
       let testContext

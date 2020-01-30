@@ -82,9 +82,7 @@ export default class SimpleManagerMock extends SimpleManagerApi {
     return this.loadWallet()
   }
 
-
-  async _getWalletConfiguration ({defaultConfig, wallet}) {
-
+  async _getWalletConfiguration ({ defaultConfig, wallet }) {
     return {
       ...defaultConfig,
       initialParticipants: [

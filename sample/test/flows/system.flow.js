@@ -33,7 +33,7 @@ describe('System flow', () => {
   after('stop backend', async () => {
     console.log('before kill', (await axios.get('http://localhost:8090/getaddr')).data)
     TestEnvironment.stopBackendServer()
-    if ( !process.env.NOREVERT) {
+    if (!process.env.NOREVERT) {
       await testEnvironment.revert()
     }
     try {
@@ -89,9 +89,9 @@ describe('System flow', () => {
 
     it('initialConfiguration', async () => {
       const userConfig = SimpleWallet.getDefaultUserConfig()
-      userConfig.initialDelays[0]=60
-      userConfig.whitelistPreconfigured.push('0x'+'5'.repeat(40))
-      const config = await await wallet.createInitialConfig({userConfig})
+      userConfig.initialDelays[0] = 60
+      userConfig.whitelistPreconfigured.push('0x' + '5'.repeat(40))
+      const config = await await wallet.createInitialConfig({ userConfig })
       await wallet.initialConfiguration(config)
     })
 
@@ -104,25 +104,22 @@ describe('System flow', () => {
     })
   })
 
-  describe( 'whitelist', async() => {
-    it( 'should add pending operation for new whitelist item', async ()=>{
-      const whiteAddr = '0x'+'3'.repeat(40)
+  describe('whitelist', async () => {
+    it('should add pending operation for new whitelist item', async () => {
+      const whiteAddr = '0x' + '3'.repeat(40)
       await wallet.getWalletInfo()
       await wallet.setWhitelistedDestination(whiteAddr, true)
       const ops = await wallet.listPendingTransactions()
-      //TODO: should be added to wallet.listPendingConfigChanges() !!!
-      console.log( 'pending=',ops)
+      // TODO: should be added to wallet.listPendingConfigChanges() !!!
+      console.log('pending=', ops)
 
       await increaseTime(3 * DAY, web3)
 
       await sleep(2000)
       const w = await wallet.listWhitelistedAddresses()
-      console.log('w=',w)
     })
   })
 
-  if(1!=2)
-    return describe.skip('=== skip the rest of the tests')
   describe('transfer flow', async () => {
     let accounts
 
