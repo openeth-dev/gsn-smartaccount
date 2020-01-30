@@ -19,7 +19,7 @@ import Web3 from 'web3'
 function error (err) { throw new Error(err) }
 
 const argv = parseArgs(process.argv.slice(2), {
-  string: ['s', 'f', 'url', 'url-prefix'],
+  string: ['s', 'f', 'url', 'w', 'url-prefix'],
   alias: { D: 'dev', S: 'sms', u: 'url', x: 'url-prefix', w: 'whitelistFactory' }
 })
 

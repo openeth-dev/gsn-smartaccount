@@ -151,7 +151,7 @@ export default class TestEnvironment {
         '-p', backendPort,
         '-f', this.factory.address,
         '-s', this.sponsor.address,
-        '-w', this.whitelistFactoryAddress,
+        '-w', this.whitelistFactory.address,
         '-u', this.ethNodeUrl,
         '-x', this.urlPrefix,
         '--sms', this.useTwilio ? 'twilio' : 'mock', // anything except 'twilio' is a mock...
