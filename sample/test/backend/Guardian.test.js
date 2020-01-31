@@ -99,10 +99,9 @@ describe('As Guardian', async function () {
     smartAccount = await FactoryContractInteractor.getCreatedSmartAccountAt(
       { address: newSmartAccountReceipt.logs[0].args.smartAccount, provider: web3provider })
     walletConfig = {
-      manager: {
-        guardianAddress: keypair.address,
-        getOwner: () => accountZero
-      },
+      guardianAddress: keypair.address,
+      ownerAddress: accountZero,
+
       contract: smartAccount,
       participant:
         new Participant(accountZero, Permissions.OwnerPermissions, 1),

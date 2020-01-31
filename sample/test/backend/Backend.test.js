@@ -265,10 +265,8 @@ describe('Backend', async function () {
       await backend.accountManager.putAccount({ account })
 
       const walletConfig = {
-        manager: {
-          guardianAddress: keypair.address,
-          getOwner: () => accountZero
-        },
+        guardianAddress: keypair.address,
+        ownerAddress: accountZero,
         contract: smartAccount,
         participant:
           new Participant(accountZero, Permissions.OwnerPermissions, 1),

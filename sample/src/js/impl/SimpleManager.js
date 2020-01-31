@@ -139,7 +139,8 @@ export default class SimpleManager extends SimpleManagerApi {
 
     const participants = this._getParticipants({ ownerAddress: owner, guardianAddress: this.guardianAddress })
     return new SimpleWallet({
-      manager: this,
+      guardianAddress: this.guardianAddress,
+      ownerAddress: owner,
       contract: smartAccount,
       backend: this.backend,
       whitelistFactory: this.whitelistFactory,

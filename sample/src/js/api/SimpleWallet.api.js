@@ -56,7 +56,7 @@ export default class SimpleWalletApi {
   }
 
   // return cached list of whitelisted addresses.
-  listWhitelistedAddresses () {
+  async listWhitelistedAddresses () {
     return ['add1', 'add2']
   }
 

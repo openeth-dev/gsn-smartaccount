@@ -42,7 +42,8 @@ export default class SimpleWallet extends SimpleWalletApi {
    * @param knownTokens - tokens currently supported.
    */
   constructor ({
-    manager,
+    guardianAddress,
+    ownerAddress,
     contract,
     participant,
     backend,
@@ -50,8 +51,15 @@ export default class SimpleWallet extends SimpleWalletApi {
     knownTokens = []
   }) {
     super()
-    nonNull({ manager, contract, participant, whitelistFactory })
-    this.manager = manager
+    nonNull({
+      contract,
+      participant,
+      whitelistFactory,
+      guardianAddress,
+      ownerAddress
+    })
+    this.guardianAddress = guardianAddress
+    this.ownerAddress = ownerAddress
     this.contract = contract
     this.backend = backend
     this.participant = participant
@@ -223,10 +231,6 @@ export default class SimpleWallet extends SimpleWalletApi {
     const whitelistBypassPolicy = await this.getWhitelistModule()
     const encodedTransaction = whitelistBypassPolicy.contract.methods.setWhitelistedDestination(destination, isWhitelisted).encodeABI()
     return this.scheduleBypassCall({ destination: whitelistBypassPolicy.address, value: 0, encodedTransaction })
-  }
-
-  // return cached list of whitelisted addresses.
-  listWhitelistedAddresses () {
   }
 
   async _isWhitelisted ({ destination }) {
@@ -573,8 +577,8 @@ export default class SimpleWallet extends SimpleWalletApi {
 
   // create a configuration to pass into initialConfiguration()
   async createInitialConfig ({ userConfig }) {
-    const backendAddress = this.manager.guardianAddress
-    const operatorAddress = await this.manager.getOwner()
+    const backendAddress = this.guardianAddress
+    const operatorAddress = await this.ownerAddress
 
     const backendAsWatchdog = '0x' +
       SafeChannelUtils.encodeParticipant({
@@ -741,5 +745,22 @@ export default class SimpleWallet extends SimpleWalletApi {
       this.whitelistModule = FactoryContractInteractor.whitelistAt({ address: whitelistAddress, provider })
     }
     return this.whitelistModule
+  }
+
+  // return cached list of whitelisted addresses.
+  async listWhitelistedAddresses () {
+    const module = await this.getWhitelistModule()
+    const whitelist = {}
+    // TODO: should we add a 'fromBlock' ? we can't add wallet.deployedBlock, since
+    //  the whitelist was created BEFORE the wallet, so mightAll policy.deployedBlock
+    const events = await module.getPastEvents('WhitelistChanged', { fromBlock: 1 })
+    events.forEach(e => {
+      if (e.args.isWhitelisted) {
+        whitelist[e.args.destination] = true
+      } else {
+        delete whitelist[e.args.destination]
+      }
+    })
+    return Object.keys(whitelist)
   }
 }

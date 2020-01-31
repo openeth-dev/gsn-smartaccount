@@ -110,16 +110,13 @@ describe('System flow', () => {
     it('should add pending operation for new whitelist item', async () => {
       const whiteAddr = '0x' + '3'.repeat(40)
       await wallet.getWalletInfo()
+
       await wallet.setWhitelistedDestination(whiteAddr, true)
-      const ops = await wallet.listPendingTransactions()
-      // TODO: should be added to wallet.listPendingConfigChanges() !!!
-      console.log('pending=', ops)
 
       await increaseTime(3 * DAY, web3)
 
-      await sleep(2000)
-      const w = await wallet.listWhitelistedAddresses()
-      console.log('whitelisted=', w)
+      await sleep(1000)
+      assert.deepInclude(await wallet.listWhitelistedAddresses(), whiteAddr)
     })
   })
 

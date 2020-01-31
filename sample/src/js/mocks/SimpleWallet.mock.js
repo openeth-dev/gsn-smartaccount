@@ -57,7 +57,7 @@ export default class SimpleWalletMock extends SimpleWalletApi {
   }
 
   // return cached list of whitelisted addresses.
-  listWhitelistedAddresses () {
+  async listWhitelistedAddresses () {
     return this.whitelist
   }
 

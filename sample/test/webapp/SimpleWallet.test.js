@@ -62,10 +62,8 @@ describe('SimpleWallet', async function () {
     const testEnvironment = await TestEnvironment.initializeWithFakeBackendAndGSN({ clientBackend: BaseBackendMock })
     const wallet = new SimpleWallet(
       {
-        manager: {
-          guardianAddress: testEnvironment.backendAddresses.watchdog,
-          getOwner: () => _operator
-        },
+        guardianAddress: testEnvironment.backendAddresses.watchdog,
+        ownerAddress: _operator,
         operator,
         ...walletSharedConfig,
         whitelistFactory: testEnvironment.whitelistFactory,
