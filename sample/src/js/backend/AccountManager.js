@@ -62,7 +62,13 @@ export class AccountManager {
     if (!accountId || !address) {
       throw new Error('must supply accountId and address')
     }
-    return this.operatorsToAdd.asyncInsert({ accountId: accountId.toLowerCase(), address: address.toLowerCase() })
+    const existing = await this.operatorsToAdd.asyncFindOne({ accountId: accountId.toLowerCase() })
+    if (existing) {
+      return this.operatorsToAdd.asyncUpdate({ accountId: accountId.toLowerCase() },
+        { $set: { accountId: accountId.toLowerCase(), address: address.toLowerCase() } })
+    } else {
+      return this.operatorsToAdd.asyncInsert({ accountId: accountId.toLowerCase(), address: address.toLowerCase() })
+    }
   }
 
   async getOperatorToAdd ({ accountId }) {
