@@ -158,7 +158,7 @@ function CreateWallet ({ refresh, jwt, email, userConfig, setUserConfig }) {
 function TokenWidget ({ symbol, balance, decimals, doTransfer }) {
   const div = '1' + '0'.repeat(decimals || 0)
   return <span>{symbol}: {balance / div} <Button title={'send ' + symbol}
-                                                 action={() => doTransfer({ symbol })}/><br/></span>
+    action={() => doTransfer({ symbol })}/><br/></span>
 }
 
 const PendingTransaction = ({ p }) => {
@@ -195,15 +195,15 @@ const Whitelist = ({ whitelist, doAddToWhiteList, doRemoveFromWhitelist }) => <d
   <b>Whitelist</b><Button title="+ add" action={doAddToWhiteList}/><br/>
   {(!whitelist || !whitelist.length) && <span style={{ fontSize: 10 }}>No whitelisted addresses</span>}
   {whitelist && whitelist.map(wl => <span key={wl}>{wl} <Button title="remove"
-                                                                action={() => doRemoveFromWhitelist(wl)}/><br/></span>)}
+    action={() => doRemoveFromWhitelist(wl)}/><br/></span>)}
 
 </div>
 
 function ActiveWallet ({
-                         ownerAddr, walletInfo, walletBalances, walletPending, doTransfer, doCancelPending, doOldDeviceApproveOperator,
-                         whitelist, doAddToWhiteList, doRemoveFromWhitelist,
-                         pendingAddOperatorNow
-                       }) {
+  ownerAddr, walletInfo, walletBalances, walletPending, doTransfer, doCancelPending, doOldDeviceApproveOperator,
+  whitelist, doAddToWhiteList, doRemoveFromWhitelist,
+  pendingAddOperatorNow
+}) {
   const info = JSON.stringify(walletInfo, null, 2)
   const pending = JSON.stringify(walletPending, null, 2)
 
@@ -345,8 +345,8 @@ class App extends React.Component {
   // TODO: we have subscribe to update on any blockchain change.
   //  is it redundant? (not on error, anyway)
   asyncHandler (promise) {
-    return promise.then(() => this.readMgrState().then(x => { this.setState(x) })).
-      catch(err => this.reloadState({ err: errorStr(err) }))
+    return promise.then(() => this.readMgrState().then(x => { this.setState(x) }))
+      .catch(err => this.reloadState({ err: errorStr(err) }))
   }
 
   async readMgrState () {
@@ -594,7 +594,6 @@ class App extends React.Component {
   }
 
   async signout () {
-
     if (!window.confirm('Signing out and requesting to self as operator\n' +
       'has wallet=' + !!wallet)) {
       return

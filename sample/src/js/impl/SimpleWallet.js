@@ -229,9 +229,9 @@ export default class SimpleWallet extends SimpleWalletApi {
   listWhitelistedAddresses () {
   }
 
-  async _isWhitelisted({destination}) {
-    //TODO: need a better way to determined if entery is in the whitelist.
-    return await await this._isBypassActivated({ target: destination, value: 1, encodedFunction: '0x' })
+  async _isWhitelisted ({ destination }) {
+    // TODO: need a better way to determined if entery is in the whitelist.
+    return this._isBypassActivated({ target: destination, value: 1, encodedFunction: '0x' })
   }
 
   async isOperator (address) {

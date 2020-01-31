@@ -8,6 +8,7 @@ import TestEnvironment from '../utils/TestEnvironment'
 import { increaseTime } from 'safechannels-contracts/test/utils'
 import { sleep } from '../backend/testutils'
 import SimpleWallet from '../../src/js/impl/SimpleWallet'
+
 const DAY = 24 * 3600
 
 const verbose = false
@@ -23,6 +24,7 @@ describe('System flow', () => {
 
   before('check "gsn-dock-relay" is active', async function () {
     this.timeout(9000)
+    TestEnvironment.stopBackendServer(true)
 
     testEnvironment = await TestEnvironment.initializeAndStartBackendForRealGSN({ verbose })
     await testEnvironment.snapshot()
@@ -117,6 +119,7 @@ describe('System flow', () => {
 
       await sleep(2000)
       const w = await wallet.listWhitelistedAddresses()
+      console.log('whitelisted=', w)
     })
   })
 
@@ -206,6 +209,7 @@ describe('System flow', () => {
       newenv.verbose = testEnvironment.verbose
       newenv.factory = testEnvironment.factory
       newenv.backendAddresses = testEnvironment.backendAddresses
+      newenv.whitelistFactory = testEnvironment.whitelistFactory
 
       await newenv._initializeSimpleManager()
 
@@ -290,6 +294,7 @@ describe('System flow', () => {
         newenv.verbose = testEnvironment.verbose
         newenv.factory = testEnvironment.factory
         newenv.backendAddresses = testEnvironment.backendAddresses
+        newenv.whitelistFactory = testEnvironment.whitelistFactory
 
         await newenv._initializeSimpleManager()
 
@@ -337,21 +342,20 @@ describe('System flow', () => {
       const newwallet = await newmgr.loadWallet()
       assert.ok(!await newwallet.isOperator(newOperator))
 
-      const resolvePromise = null
-      await wallet.subscribe(e => {
-        console.log('got event ' + e)
-        resolvePromise()
-      })
-
-      const fromBlock = await web3.eth.getBlockNumber()
+      const fromBlock = (await web3.eth.getBlockNumber()) + 1
       await wallet.getWalletInfo()
       await wallet.addOperatorNow(newOperator)
 
       // wait for ParticipantAdded event
-      while (!(await wallet.contract.getPastEvents('ParticipantAdded', { fromBlock })).length) {
+      while (true) {
+        const addedEvent = (await wallet.contract.getPastEvents('ParticipantAdded', { fromBlock }))
+        if (addedEvent.length) {
+          break
+        }
         await sleep(400)
       }
 
+      console.log('new operator: ', newOperator)
       assert.ok(await newwallet.isOperator(newOperator))
     })
   })
