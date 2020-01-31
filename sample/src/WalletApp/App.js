@@ -101,20 +101,23 @@ function CreateWallet ({ refresh, jwt, email, userConfig, setUserConfig }) {
     try {
       await mgr.createWallet({ jwt, phoneNumber, smsVerificationCode })
       // TODO: create wallet and initial config
-      // const wallet = await mgr.loadWallet()
-      // await wallet.initialConfiguration(initialConfig)
+      const wallet = await mgr.loadWallet()
+      const initialConfig = await wallet.createInitialConfig({ userConfig })
+      await wallet.initialConfiguration(initialConfig)
 
       refresh({ err: undefined })
     } catch (e) {
       refresh({ err: errorStr(e) })
     }
   }
+
   function updateWhitelistConfig (val) {
     setInitConfig(val) // for UI leave string as-is
     // modify global state
     userConfig.whitelistPreconfigured = val.split(/[ \t]*[,\n][ \t]*/).filter(addr => !!addr)
     setUserConfig(userConfig)
   }
+
   function updateDelayTime (val) {
     setDelayTime(val) // for UI leave string as-is
     // modify global state
@@ -131,6 +134,7 @@ function CreateWallet ({ refresh, jwt, email, userConfig, setUserConfig }) {
       // ignore - just don't display..
     }
   }
+
   return <div>
     Hello <b>{email}</b>, you dont have a wallet yet.<br/>
     Click <Button title="here to verify phone" action={startCreate}/><br/>
@@ -141,7 +145,7 @@ function CreateWallet ({ refresh, jwt, email, userConfig, setUserConfig }) {
     <textarea cols="80" value={initConfig} onChange={e => updateWhitelistConfig(e.target.value)}></textarea><br/>
 
     Delay time:
-    <input cols="10" value={delayTime} onChange={e => updateDelayTime(e.target.value)} />
+    <input cols="10" value={delayTime} onChange={e => updateDelayTime(e.target.value)}/>
     <span style={{ fontSize: 10 }}>(can use d/h/m/s suffix)
       <span style={{ color: 'red' }}>{delayErr}</span>
     </span><br/>
@@ -153,7 +157,8 @@ function CreateWallet ({ refresh, jwt, email, userConfig, setUserConfig }) {
 
 function TokenWidget ({ symbol, balance, decimals, doTransfer }) {
   const div = '1' + '0'.repeat(decimals || 0)
-  return <span>{symbol}: {balance / div} <Button title={'send ' + symbol} action={() => doTransfer({ symbol })}/><br/></span>
+  return <span>{symbol}: {balance / div} <Button title={'send ' + symbol}
+                                                 action={() => doTransfer({ symbol })}/><br/></span>
 }
 
 const PendingTransaction = ({ p }) => {
@@ -180,7 +185,7 @@ const PendingTransactions = ({ walletPending, doCancelPending }) =>
     <b>Pending</b>
     {walletPending.map((p, i) =>
       <div key={i}>
-        <PendingTransaction p={p} /> -
+        <PendingTransaction p={p}/> -
         <Button title="Cancel" action={() => doCancelPending(p.delayedOpId)}/>
       </div>)
     }
@@ -189,15 +194,16 @@ const PendingTransactions = ({ walletPending, doCancelPending }) =>
 const Whitelist = ({ whitelist, doAddToWhiteList, doRemoveFromWhitelist }) => <div>
   <b>Whitelist</b><Button title="+ add" action={doAddToWhiteList}/><br/>
   {(!whitelist || !whitelist.length) && <span style={{ fontSize: 10 }}>No whitelisted addresses</span>}
-  {whitelist && whitelist.map(wl => <span key={wl}>{wl} <Button title="remove" action={() => doRemoveFromWhitelist(wl)}/><br/></span>)}
+  {whitelist && whitelist.map(wl => <span key={wl}>{wl} <Button title="remove"
+                                                                action={() => doRemoveFromWhitelist(wl)}/><br/></span>)}
 
 </div>
 
 function ActiveWallet ({
-  ownerAddr, walletInfo, walletBalances, walletPending, doTransfer, doCancelPending, doOldDeviceApproveOperator,
-  whitelist, doAddToWhiteList, doRemoveFromWhitelist,
-  pendingAddOperatorNow
-}) {
+                         ownerAddr, walletInfo, walletBalances, walletPending, doTransfer, doCancelPending, doOldDeviceApproveOperator,
+                         whitelist, doAddToWhiteList, doRemoveFromWhitelist,
+                         pendingAddOperatorNow
+                       }) {
   const info = JSON.stringify(walletInfo, null, 2)
   const pending = JSON.stringify(walletPending, null, 2)
 
@@ -210,7 +216,7 @@ function ActiveWallet ({
     }
 
     <br/>
-    <Whitelist whitelist={whitelist} doAddToWhiteList={doAddToWhiteList} doRemoveFromWhitelist={doRemoveFromWhitelist} />
+    <Whitelist whitelist={whitelist} doAddToWhiteList={doAddToWhiteList} doRemoveFromWhitelist={doRemoveFromWhitelist}/>
     {
       walletPending.length ? <PendingTransactions walletPending={walletPending} doCancelPending={doCancelPending}/>
         : <b>No Pending Transactions</b>
@@ -339,8 +345,8 @@ class App extends React.Component {
   // TODO: we have subscribe to update on any blockchain change.
   //  is it redundant? (not on error, anyway)
   asyncHandler (promise) {
-    return promise.then(() => this.readMgrState().then(x => { this.setState(x) }))
-      .catch(err => this.reloadState({ err: errorStr(err) }))
+    return promise.then(() => this.readMgrState().then(x => { this.setState(x) })).
+      catch(err => this.reloadState({ err: errorStr(err) }))
   }
 
   async readMgrState () {
@@ -544,7 +550,8 @@ class App extends React.Component {
     try {
       const destination = prompt('Transfer ' + symbol + ' destination:')
       if (!destination) return
-      const val = prompt('Transfer ' + symbol + ' amount:')
+      const isWhitelisted = await wallet._isWhitelisted({ destination })
+      const val = prompt((isWhitelisted ? 'DIERCT ' : 'Scheduled ') + 'Transfer ' + symbol + ' amount:')
       if (!(val > 0)) return
       const tokinfo = this.state.walletBalances.find(b => b.symbol === symbol)
       const factor = '1' + '0'.repeat(tokinfo.decimals || 0)
@@ -587,6 +594,11 @@ class App extends React.Component {
   }
 
   async signout () {
+
+    if (!window.confirm('Signing out and requesting to self as operator\n' +
+      'has wallet=' + !!wallet)) {
+      return
+    }
     // TODO: currently, we initmgr means its online, though not strictly required for singout..
     await this.initMgr()
 

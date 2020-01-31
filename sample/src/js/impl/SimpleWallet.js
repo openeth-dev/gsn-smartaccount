@@ -92,9 +92,9 @@ export default class SimpleWallet extends SimpleWalletApi {
     let destinationAddress
     let ethAmount
     let encodedTransaction
-    let whitelisted = false
+    let isBypassCall
     if (token === 'ETH') {
-      whitelisted = await this._isBypassActivated({ target: destination, value: amount, encodedFunction: '0x' })
+      isBypassCall = await this._isBypassActivated({ target: destination, value: amount, encodedFunction: '0x' })
       destinationAddress = destination
       ethAmount = amount
       encodedTransaction = []
@@ -102,14 +102,14 @@ export default class SimpleWallet extends SimpleWalletApi {
       destinationAddress = this._getTokenAddress(token)
       ethAmount = 0
       encodedTransaction = FactoryContractInteractor.encodeErc20Call({ destination, amount, operation: 'transfer' })
-      whitelisted = await this._isBypassActivated({
+      isBypassCall = await this._isBypassActivated({
         target: destinationAddress,
         value: ethAmount,
         encodedFunction: encodedTransaction
       })
     }
     let method
-    if (whitelisted) {
+    if (isBypassCall) {
       // uint32 senderPermsLevel, address target, uint256 value, bytes memory encodedFunction, uint256 targetStateNonce
       method = this.contract.executeBypassCall
     } else {
@@ -127,9 +127,11 @@ export default class SimpleWallet extends SimpleWalletApi {
     if (!rawPermissions || !level) {
       // search for address
       const info = await this.getWalletInfo()
-      const f = info.participants.filter(it => it.address === address &&
+      const f = info.participants.filter(it =>
+        it.address.toLowerCase() === address.toLowerCase() &&
         (rawPermissions === undefined || it.rawPermissions === rawPermissions) &&
-        (level === undefined || it.level === level))
+        (level === undefined || it.level === level)
+      )
       if (!f.length) {
         throw new Error('not participant: ' + address)
       }
@@ -227,6 +229,11 @@ export default class SimpleWallet extends SimpleWalletApi {
   listWhitelistedAddresses () {
   }
 
+  async _isWhitelisted({destination}) {
+    //TODO: need a better way to determined if entery is in the whitelist.
+    return await await this._isBypassActivated({ target: destination, value: 1, encodedFunction: '0x' })
+  }
+
   async isOperator (address) {
     const info = await this.getWalletInfo()
     if ((info).participants.find(it => it.address.toLowerCase() === address.toLowerCase())) {
@@ -315,11 +322,11 @@ export default class SimpleWallet extends SimpleWalletApi {
         const events = await this.contract.getPastEvents({
           fromBlock: lastBlock
         })
-        lastBlock = block
+        lastBlock = block.number
         if (events.length) {
           _eventsEmitter.emit('events', events)
         }
-      }, 1000)
+      }, this._interval || 2000)
     }
     return this._eventsEmitter
   }
