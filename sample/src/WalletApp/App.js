@@ -603,7 +603,7 @@ class App extends React.Component {
 
     if (wallet) {
       const address = await mgr.getOwner()
-      await wallet.removeParticipant({ address })
+      await wallet.removeParticipantByAddress({ address })
     }
     await mgr.signOut()
 

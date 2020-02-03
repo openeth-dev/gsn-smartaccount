@@ -56,7 +56,7 @@ describe('SimpleWallet', async function () {
     await scTestUtils.revert(id, web3)
   })
 
-  async function newTest (_operator = operator, whitelistPreconfigured = [], knownTokens = []) {
+  async function newTest (_operator = operator, whitelistPreconfigured = [], knownTokens = [], skipInit = false) {
     const smartAccount = await FactoryContractInteractor.deploySmartAccountDirectly(from, ethNodeUrl)
     // TODO: duplicate code, testenv does same work as the rest of the code here!!!
     const testEnvironment = await TestEnvironment.initializeWithFakeBackendAndGSN({ clientBackend: BaseBackendMock })
@@ -70,14 +70,17 @@ describe('SimpleWallet', async function () {
         contract: smartAccount,
         knownTokens
       })
-    const defaultConfig = {
-      ...SimpleWallet.getDefaultUserConfig(),
-      whitelistPreconfigured
+    console.log('newTest skipinit=', skipInit)
+    if (!skipInit) {
+      const defaultConfig = {
+        ...SimpleWallet.getDefaultUserConfig(),
+        whitelistPreconfigured
+      }
+      const config = await wallet.createInitialConfig({
+        userConfig: defaultConfig
+      })
+      await wallet.initialConfiguration(config)
     }
-    const config = await wallet.createInitialConfig({
-      userConfig: defaultConfig
-    })
-    await wallet.initialConfiguration(config)
     return { smartAccount, wallet }
   }
 
@@ -93,7 +96,7 @@ describe('SimpleWallet', async function () {
   describe.skip('#initialConfiguration()', async function () {
     let testContext
     before(async function () {
-      testContext = await newTest()
+      testContext = await newTest(operator, [], [], true)
       expectedWalletInfoA.address = testContext.smartAccount.address
     })
 

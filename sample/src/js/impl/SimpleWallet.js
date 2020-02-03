@@ -131,25 +131,27 @@ export default class SimpleWallet extends SimpleWalletApi {
       })
   }
 
-  async removeParticipant ({ address, rawPermissions, level }) {
-    if (!rawPermissions || !level) {
-      // search for address
-      const info = await this.getWalletInfo()
-      const f = info.participants.filter(it =>
-        it.address.toLowerCase() === address.toLowerCase() &&
-        (rawPermissions === undefined || it.rawPermissions === rawPermissions) &&
-        (level === undefined || it.level === level)
-      )
-      if (!f.length) {
-        throw new Error('not participant: ' + address)
-      }
-      if (f.length !== 1) {
-        throw new Error('not unique participant: ' + address)
-      }
+  async _findParticipantByAddress ({ address }) {
+    // search for address
+    const info = await this.getWalletInfo()
+    const f = info.participants.filter(it =>
+      it.address.toLowerCase() === address.toLowerCase())
 
-      rawPermissions = f[0].rawPermissions
-      level = f[0].level
+    if (!f.length) {
+      throw new Error('not participant: ' + address)
     }
+    if (f.length !== 1) {
+      throw new Error('not unique participant: ' + address)
+    }
+
+    return f[0]
+  }
+
+  async removeParticipantByAddress ({ address }) {
+    this.removeParticipant(this._findParticipantByAddress(address))
+  }
+
+  async removeParticipant ({ address, rawPermissions, level }) {
     const actions = [ChangeType.REMOVE_PARTICIPANT]
     const args = [Buffer.from(SafeChannelUtils.encodeParticipant({ address, permissions: rawPermissions, level }))]
     return this.contract.changeConfiguration(this.participant.permLevel, actions, args, args, this.stateId,

@@ -14,7 +14,7 @@ function nonNull (params) {
     if (typeof val === 'undefined' || val === 'null') {
       throw new Error('Unexpected ' + name + '=' + val)
     }
-    if (val.then) {
+    if (typeof val.then === 'function') {
       throw new Error('Unexpected Promise ' + name + '. forgot await ?')
     }
   })

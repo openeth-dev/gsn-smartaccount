@@ -32,6 +32,10 @@ export default class SimpleWalletApi {
     error('initiate operation. adds a pending item.')
   }
 
+  async removeParticipantByAddress ({ address }) {
+    error('find the signle participant with this address, and remove it.')
+  }
+
   async removeParticipant ({ address, rawPermissions, level }) {
     error('add "remove operator" operation, (delayed, can be canceled by watchdog)')
   }
