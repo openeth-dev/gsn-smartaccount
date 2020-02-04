@@ -6055,6 +6055,15 @@ functional-red-black-tree@^1.0.1, functional-red-black-tree@~1.0.1:
   resolved "https://registry.yarnpkg.com/functional-red-black-tree/-/functional-red-black-tree-1.0.1.tgz#1b0ab3bd553b2a0d6399d29c0e3ea0b252078327"
   integrity sha1-GwqzvVU7Kg1jmdKcDj6gslIHgyc=
 
+ganache-cli@^6.0.3:
+  version "6.9.0"
+  resolved "https://registry.yarnpkg.com/ganache-cli/-/ganache-cli-6.9.0.tgz#94d7e26964dff80b7382a33829ec75e15709a948"
+  integrity sha512-ZdL6kPrApXF/O+f6uU431OJcwxMk69H3KPDSHHrMP82ZvZRNpDHbR+rVv7XX/YUeoQ5q6nZ2AFiGiFAVn9pfzA==
+  dependencies:
+    ethereumjs-util "6.1.0"
+    source-map-support "0.5.12"
+    yargs "13.2.4"
+
 ganache-cli@^6.4.2:
   version "6.7.0"
   resolved "https://registry.yarnpkg.com/ganache-cli/-/ganache-cli-6.7.0.tgz#b59845578221bdf686cf124d007c5ee62e85a62f"
@@ -8310,12 +8319,13 @@ localforage@^1.3.0:
   dependencies:
     lie "3.1.1"
 
-localgsn@^1.0.0-beta-0.0:
-  version "1.0.0-beta-0.0"
-  resolved "https://registry.yarnpkg.com/localgsn/-/localgsn-1.0.0-beta-0.0.tgz#8c647963eea8d535448c2fa7e5b2627ac3f97be3"
-  integrity sha512-6FYa8F8lIo0bwFowRc2eQI/duCr7nN0qjDl82xz6kRetKODWJYSvXnMcv5iMPlwW44gwad2GCUE6TV1mU1pXYA==
+localgsn@^1.0.1:
+  version "1.0.1"
+  resolved "https://registry.yarnpkg.com/localgsn/-/localgsn-1.0.1.tgz#a451ee2d6fb6c5db6955caf0c03c8d261f9aaeee"
+  integrity sha512-TmzfHihinsLhRVDA0WnQkk8nKdh5GWDGqe0bB2ZiArBtgTpfnAzAlWBYC+tL22UO+DHteYwA8I5T6DZNZzNgRg==
   dependencies:
     esm "^3.2.25"
+    run-with-ganache "^0.1.1"
     tabookey-gasless "^0.4.5"
 
 locate-path@^2.0.0:
@@ -11359,6 +11369,14 @@ run-queue@^1.0.0, run-queue@^1.0.3:
   integrity sha1-6Eg5bwV9Ij8kOGkkYY4laUFh7Ec=
   dependencies:
     aproba "^1.1.1"
+
+run-with-ganache@^0.1.1:
+  version "0.1.1"
+  resolved "https://registry.yarnpkg.com/run-with-ganache/-/run-with-ganache-0.1.1.tgz#55393006db4f18e2dca8084221aa4f8a10bf31fb"
+  integrity sha1-VTkwBttPGOLcqAhCIapPihC/Mfs=
+  dependencies:
+    colors "^1.1.2"
+    ganache-cli "^6.0.3"
 
 run-with-testrpc@0.3.1:
   version "0.3.1"
