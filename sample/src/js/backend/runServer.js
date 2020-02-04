@@ -72,7 +72,7 @@ const admin = new Admin({
 const backend = new Backend(
   {
     smsManager,
-    audience: '202746986880-u17rbgo95h7ja4fghikietupjknd1bln.apps.googleusercontent.com',
+    audience: '966448872848-td59kkdbgdk4r1pngbmf71mor450upn0.apps.googleusercontent.com',
     keyManager,
     accountManager,
     admin: admin
