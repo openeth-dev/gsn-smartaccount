@@ -15,9 +15,6 @@ contract SmartAccount is PermissionsLevel, GsnRecipient {
 
     using LibBytes for bytes;
 
-    // Nice idea to use mock token address for ETH instead of 'address(0)'
-    address constant internal ETH_TOKEN_ADDRESS = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
-
     uint256 constant USE_DEFAULT = uint(- 1);
 
     enum ChangeType {
@@ -92,7 +89,7 @@ contract SmartAccount is PermissionsLevel, GsnRecipient {
 
     address public creator;
 
-    //constructor-method.must be called immediately after construction
+    //constructor-method. Must be called immediately after construction
     // (or after proxy creation)
     function ctr2(address _forwarder, address _creator) public {
         require(creator==address(0), "ctr2: can only be called once");
@@ -185,11 +182,11 @@ contract SmartAccount is PermissionsLevel, GsnRecipient {
         requireNotFrozen(senderPermsLevel);
         uint256 until = SafeMath.add(now, duration);
         uint8 senderLevel = extractLevel(senderPermsLevel);
-        require(levelToFreeze <= senderLevel, "cannot freeze level that is higher than caller");
-        require(levelToFreeze >= frozenLevel, "cannot freeze level that is lower than already frozen");
-        require(duration <= maxFreeze, "cannot freeze level for this long");
-        require(frozenUntil <= until, "cannot freeze level for less than already frozen");
-        require(duration > 0, "cannot freeze level for zero time");
+        require(levelToFreeze <= senderLevel, "level higher than caller");
+        require(levelToFreeze >= frozenLevel, "level already frozen");
+        require(duration <= maxFreeze, "duration too long");
+        require(frozenUntil <= until, "cannot decrease duration");
+        require(duration > 0, "duration too short");
 
         frozenLevel = levelToFreeze;
         frozenUntil = until;
@@ -286,7 +283,6 @@ contract SmartAccount is PermissionsLevel, GsnRecipient {
         changeConfigurationInternal(actions, args1, args2, realSender, senderPermsLevel, address(0), 0);
     }
 
-    // Note: this internal method is not wrapped with 'requirePermissions' as it may be called by the 'changeOwner'
     function changeConfigurationInternal(
         uint8[] memory actions,
         bytes32[] memory args1,
@@ -329,13 +325,13 @@ contract SmartAccount is PermissionsLevel, GsnRecipient {
         requirePermissions(sender, canCancel, senderPermsLevel);
         requireNotFrozen(senderPermsLevel);
         bytes32 hash = Utilities.transactionHash(actions, args1, args2, scheduledStateId, scheduler, schedulerPermsLevel, booster, boosterPermsLevel);
-        require(pendingChanges[hash].dueTime > 0, "cannot cancel, operation does not exist");
+        require(pendingChanges[hash].dueTime > 0, "operation does not exist");
         // TODO: refactor, make function or whatever
         if (booster != address(0)) {
-            require(extractLevel(boosterPermsLevel) <= extractLevel(senderPermsLevel), "cannot cancel, booster is of higher level");
+            require(extractLevel(boosterPermsLevel) <= extractLevel(senderPermsLevel), "booster is of higher level");
         }
         else {
-            require(extractLevel(schedulerPermsLevel) <= extractLevel(senderPermsLevel), "cannot cancel, scheduler is of higher level");
+            require(extractLevel(schedulerPermsLevel) <= extractLevel(senderPermsLevel), "scheduler is of higher level");
         }
         delete pendingChanges[hash];
         emit ConfigCancelled(hash, sender);
@@ -374,7 +370,7 @@ contract SmartAccount is PermissionsLevel, GsnRecipient {
 
         bytes32 transactionHash = Utilities.transactionHash(actions, args1, args2, scheduledStateId, scheduler, schedulerPermsLevel, booster, boosterPermsLevel);
         PendingChange storage pendingChange = pendingChanges[transactionHash];
-        require(pendingChange.dueTime != 0, "approve called for non existent pending change");
+        require(pendingChange.dueTime != 0, "non existent pending change");
         require(requiredApprovalsPerLevel[extractLevel(schedulerPermsLevel)] > 0, "Level doesn't support approvals");
         bytes32 approver = Utilities.encodeParticipant(sender, senderPermsLevel);
         require(!hasApproved(approver, pendingChange.approvers), "Cannot approve twice");
@@ -407,8 +403,8 @@ contract SmartAccount is PermissionsLevel, GsnRecipient {
         }
         bytes32 transactionHash = Utilities.transactionHash(actions, args1, args2, scheduledStateId, scheduler, schedulerPermsLevel, booster, boosterPermsLevel);
         PendingChange memory pendingChange = pendingChanges[transactionHash];
-        require(pendingChange.dueTime != 0, "apply called for non existent pending change");
-        require(now >= pendingChange.dueTime, "apply called before due time");
+        require(pendingChange.dueTime != 0, "non existent pending change");
+        require(now >= pendingChange.dueTime, "before due time");
         // TODO: also, should probably check that all approvers are still participants
         require(pendingChange.approvers.length >= requiredApprovalsPerLevel[extractLevel(schedulerPermsLevel)], "Pending approvals");
         delete pendingChanges[transactionHash];
@@ -542,7 +538,6 @@ contract SmartAccount is PermissionsLevel, GsnRecipient {
         uint256 dueTime = SafeMath.add(now, delay);
         pendingBypassCalls[bypassCallHash] = PendingChange(dueTime, new bytes32[](0));
         emit BypassCallPending(bypassCallHash, stateNonce, sender, senderPermsLevel, target, value, encodedFunction, dueTime);
-
         stateNonce++;
     }
 
@@ -562,7 +557,7 @@ contract SmartAccount is PermissionsLevel, GsnRecipient {
 
         bytes32 bypassCallHash = Utilities.bypassCallHash(scheduledStateNonce, scheduler, schedulerPermsLevel, target, value, encodedFunction);
         PendingChange storage pendingBypassCall = pendingBypassCalls[bypassCallHash];
-        require(pendingBypassCall.dueTime != 0, "approve called for non existent pending bypass call");
+        require(pendingBypassCall.dueTime != 0, "non existent pending bypass call");
         bytes32 approver = Utilities.encodeParticipant(sender, senderPermsLevel);
         require(!hasApproved(approver, pendingBypassCall.approvers), "Cannot approve twice");
         pendingBypassCall.approvers.push(approver);
@@ -589,8 +584,8 @@ contract SmartAccount is PermissionsLevel, GsnRecipient {
         if (delay == USE_DEFAULT && requiredApprovals == USE_DEFAULT) {
             requireBothDelayAndApprovals = true;
         }
-        require(pendingBypassCall.dueTime != 0, "apply called for non existent pending bypass call");
-        require(now >= pendingBypassCall.dueTime || !requireBothDelayAndApprovals, "apply called before due time");
+        require(pendingBypassCall.dueTime != 0, "non existent pending bypass call");
+        require(now >= pendingBypassCall.dueTime || !requireBothDelayAndApprovals, "before due time");
         if (requiredApprovals == USE_DEFAULT) {
             requiredApprovals = requiredApprovalsPerLevel[extractLevel(schedulerPermsLevel)];
         }
@@ -616,10 +611,9 @@ contract SmartAccount is PermissionsLevel, GsnRecipient {
 
         bytes32 bypassCallHash = Utilities.bypassCallHash(scheduledStateNonce, scheduler, schedulerPermsLevel, target, value, encodedFunction);
         PendingChange memory pendingBypassCall = pendingBypassCalls[bypassCallHash];
-        require(pendingBypassCall.dueTime != 0, "cancel called for non existent pending bypass call");
+        require(pendingBypassCall.dueTime != 0, "non existent pending bypass call");
         delete pendingBypassCalls[bypassCallHash];
         emit BypassCallCancelled(bypassCallHash, sender);
-
         stateNonce++;
     }
 
