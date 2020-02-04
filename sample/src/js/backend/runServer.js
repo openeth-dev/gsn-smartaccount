@@ -88,6 +88,7 @@ function hookNodeTime () {
 
 if (devMode) {
   console.log('Running server in dev mode')
+  accountManager.clearAll()
   hookBackend(backend)
   hookNodeTime()
   smsManager.secretSMSCodeSeed = Buffer.from('f'.repeat(64), 'hex')
