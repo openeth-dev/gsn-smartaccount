@@ -42,6 +42,8 @@ export default class SimpleWallet extends SimpleWalletApi {
    * @param knownTokens - tokens currently supported.
    */
   constructor ({
+    guardianAddress,
+    ownerAddress,
     contract,
     participant,
     backend,
@@ -49,7 +51,15 @@ export default class SimpleWallet extends SimpleWalletApi {
     knownTokens = []
   }) {
     super()
-    nonNull({ contract, participant })
+    nonNull({
+      contract,
+      participant,
+      whitelistFactory,
+      guardianAddress,
+      ownerAddress
+    })
+    this.guardianAddress = guardianAddress
+    this.ownerAddress = ownerAddress
     this.contract = contract
     this.backend = backend
     this.participant = participant
@@ -90,9 +100,9 @@ export default class SimpleWallet extends SimpleWalletApi {
     let destinationAddress
     let ethAmount
     let encodedTransaction
-    let whitelisted = false
+    let isBypassCall
     if (token === 'ETH') {
-      whitelisted = await this._isBypassActivated({ target: destination, value: amount, encodedFunction: '0x' })
+      isBypassCall = await this._isBypassActivated({ target: destination, value: amount, encodedFunction: '0x' })
       destinationAddress = destination
       ethAmount = amount
       encodedTransaction = []
@@ -100,14 +110,14 @@ export default class SimpleWallet extends SimpleWalletApi {
       destinationAddress = this._getTokenAddress(token)
       ethAmount = 0
       encodedTransaction = FactoryContractInteractor.encodeErc20Call({ destination, amount, operation: 'transfer' })
-      whitelisted = await this._isBypassActivated({
+      isBypassCall = await this._isBypassActivated({
         target: destinationAddress,
         value: ethAmount,
         encodedFunction: encodedTransaction
       })
     }
     let method
-    if (whitelisted) {
+    if (isBypassCall) {
       // uint32 senderPermsLevel, address target, uint256 value, bytes memory encodedFunction, uint256 targetStateNonce
       method = this.contract.executeBypassCall
     } else {
@@ -119,6 +129,26 @@ export default class SimpleWallet extends SimpleWalletApi {
         from: this.participant.address,
         gas: 1e8
       })
+  }
+
+  async _findParticipantByAddress ({ address }) {
+    // search for address
+    const info = await this.getWalletInfo()
+    const f = info.participants.filter(it =>
+      it.address.toLowerCase() === address.toLowerCase())
+
+    if (!f.length) {
+      throw new Error('not participant: ' + address)
+    }
+    if (f.length !== 1) {
+      throw new Error('not unique participant: ' + address)
+    }
+
+    return f[0]
+  }
+
+  async removeParticipantByAddress ({ address }) {
+    this.removeParticipant(this._findParticipantByAddress(address))
   }
 
   async removeParticipant ({ address, rawPermissions, level }) {
@@ -205,8 +235,9 @@ export default class SimpleWallet extends SimpleWalletApi {
     return this.scheduleBypassCall({ destination: whitelistBypassPolicy.address, value: 0, encodedTransaction })
   }
 
-  // return cached list of whitelisted addresses.
-  listWhitelistedAddresses () {
+  async _isWhitelisted ({ destination }) {
+    // TODO: need a better way to determined if entery is in the whitelist.
+    return this._isBypassActivated({ target: destination, value: 1, encodedFunction: '0x' })
   }
 
   async isOperator (address) {
@@ -297,11 +328,11 @@ export default class SimpleWallet extends SimpleWalletApi {
         const events = await this.contract.getPastEvents({
           fromBlock: lastBlock
         })
-        lastBlock = block
+        lastBlock = block.number
         if (events.length) {
           _eventsEmitter.emit('events', events)
         }
-      }, 1000)
+      }, this._interval || 2000)
     }
     return this._eventsEmitter
   }
@@ -534,7 +565,23 @@ export default class SimpleWallet extends SimpleWalletApi {
     return []
   }
 
-  static getDefaultSampleInitialConfiguration ({ backendAddress, operatorAddress, whitelistModuleAddress }) {
+  // default configuration to let the user edit.
+  // later passed into the getDefaultSampleInitConfiguration
+  static getDefaultUserConfig () {
+    return {
+      initialDelays: [86400, 172800],
+      allowAcceleratedCalls: true,
+      allowAddOperatorNow: true,
+      requiredApprovalsPerLevel: [1, 0],
+      whitelistPreconfigured: []
+    }
+  }
+
+  // create a configuration to pass into initialConfiguration()
+  async createInitialConfig ({ userConfig }) {
+    const backendAddress = this.guardianAddress
+    const operatorAddress = await this.ownerAddress
+
     const backendAsWatchdog = '0x' +
       SafeChannelUtils.encodeParticipant({
         address: backendAddress,
@@ -555,7 +602,10 @@ export default class SimpleWallet extends SimpleWalletApi {
       }).toString('hex')
     const bypassModules = []
     const bypassMethods = []
-    if (whitelistModuleAddress) {
+
+    if (userConfig && userConfig.whitelistPreconfigured) {
+      const whitelistModuleAddress = await this.deployWhitelistModule({ whitelistPreconfigured: userConfig.whitelistPreconfigured })
+
       // We need the same module defined for no msgData and each erc20 method
       const erc20methods = ['0x00000000', '0xa9059cbb', '0x095ea7b3']
       bypassMethods.push(...erc20methods)
@@ -564,11 +614,8 @@ export default class SimpleWallet extends SimpleWalletApi {
       }
     }
     return {
+      ...userConfig,
       initialParticipants: [operator, backendAsWatchdog, backendAsAdmin],
-      initialDelays: [86400, 172800],
-      allowAcceleratedCalls: true,
-      allowAddOperatorNow: true,
-      requiredApprovalsPerLevel: [1, 0],
       bypassTargets: [],
       bypassMethods,
       bypassModules
@@ -665,10 +712,13 @@ export default class SimpleWallet extends SimpleWalletApi {
   }
 
   async deployWhitelistModule ({ whitelistPreconfigured }) {
-    return this.whitelistFactory.newWhitelist(this.contract.address, whitelistPreconfigured,
+    nonNull({ whitelistPreconfigured })
+    const receipt = await this.whitelistFactory.newWhitelist(this.contract.address, whitelistPreconfigured,
       {
         from: this.participant.address
       })
+    const whitelistModuleAddress = receipt.logs[0].args.module
+    return whitelistModuleAddress
   }
 
   async _isBypassActivated ({ target, value, encodedFunction }) {
@@ -697,5 +747,22 @@ export default class SimpleWallet extends SimpleWalletApi {
       this.whitelistModule = FactoryContractInteractor.whitelistAt({ address: whitelistAddress, provider })
     }
     return this.whitelistModule
+  }
+
+  // return cached list of whitelisted addresses.
+  async listWhitelistedAddresses () {
+    const module = await this.getWhitelistModule()
+    const whitelist = {}
+    // TODO: should we add a 'fromBlock' ? we can't add wallet.deployedBlock, since
+    //  the whitelist was created BEFORE the wallet, so mightAll policy.deployedBlock
+    const events = await module.getPastEvents('WhitelistChanged', { fromBlock: 1 })
+    events.forEach(e => {
+      if (e.args.isWhitelisted) {
+        whitelist[e.args.destination] = true
+      } else {
+        delete whitelist[e.args.destination]
+      }
+    })
+    return Object.keys(whitelist)
   }
 }

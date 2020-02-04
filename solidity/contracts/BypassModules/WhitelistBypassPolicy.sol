@@ -22,6 +22,7 @@ contract WhitelistBypassPolicy is BypassPolicy {
         smartAccount = _smartAccount;
         for (uint i = 0; i < _whitelist.length; i++) {
             whitelist[_whitelist[i]] = true;
+            emit WhitelistChanged(_whitelist[i], true);
         }
     }
 

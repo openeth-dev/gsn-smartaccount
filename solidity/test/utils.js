@@ -113,9 +113,9 @@ module.exports = {
 
   getBalance: async function (web3, token, address) {
     if (!token) {
-      return web3.eth.getBalance(address)
+      return (await web3.eth.getBalance(address)).toString()
     } else {
-      return token.balanceOf(address)
+      return (await token.balanceOf(address)).toString()
     }
   }
 }

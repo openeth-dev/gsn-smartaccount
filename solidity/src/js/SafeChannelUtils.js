@@ -24,9 +24,9 @@ module.exports = {
 
   decodeParticipant: function (participantId) {
     const idAsBigInt = BigInt(participantId)
-    const address = '0x' + (idAsBigInt >> 96n).toString(16).padStart(40, '0')
-    const permissions = Number((idAsBigInt >> 64n) & 0x07FFFFFFn)
-    const level = Number((idAsBigInt >> 56n) & 0xFn)
+    const address = '0x' + (idAsBigInt >> BigInt(96)).toString(16).padStart(40, '0')
+    const permissions = Number((idAsBigInt >> BigInt(64)) & BigInt(0x07FFFFFF))
+    const level = Number((idAsBigInt >> BigInt(56)) & BigInt(0xF))
     return { address, permissions, level }
   },
 

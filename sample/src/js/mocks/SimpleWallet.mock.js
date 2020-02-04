@@ -16,12 +16,19 @@ export default class SimpleWalletMock extends SimpleWalletApi {
     this.events = new EventEmitter()
   }
 
+  async createInitialConfig ({ userConfig }) {
+  }
+
   async initialConfiguration (configuration) {
     this.whitelist = configuration.whitelist
   }
 
   async transfer ({ destination, amount, token }) {
     error('initiate transfer operation. adds a pending item, depending on transfer policy')
+  }
+
+  async removeParticipantByAddress ({ address }) {
+    error('find the signle participant with this address, and remove it.')
   }
 
   async removeParticipant ({ address, rawPermissions, level }) {
@@ -54,7 +61,7 @@ export default class SimpleWalletMock extends SimpleWalletApi {
   }
 
   // return cached list of whitelisted addresses.
-  listWhitelistedAddresses () {
+  async listWhitelistedAddresses () {
     return this.whitelist
   }
 
