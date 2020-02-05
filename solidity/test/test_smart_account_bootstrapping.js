@@ -48,6 +48,7 @@ contract('SmartAccount Bootstrapping', async function (accounts) {
 
   let erc20
   let smartAccount
+  let smartAccountTemplate
   let bypassModule
 
   async function callViaRelayHub (encodedFunctionCall, nonce, approvalData = []) {
@@ -75,8 +76,9 @@ contract('SmartAccount Bootstrapping', async function (accounts) {
     gsnSponsor = await FreeRecipientSponsor.new()
     gsnForwarder = await GsnForwarder.new(relayHub.address, gsnSponsor.address)
     await gsnSponsor.setForwarder(gsnForwarder.address)
-    smartAccountFactory = await SmartAccountFactory.new(gsnForwarder.address, { gas: 9e7, from: vfOwner })
-    await smartAccountFactory.createAccountTemplate({ from: vfOwner })
+    smartAccountTemplate = await SmartAccount.new({ gas: 9e6 })
+    smartAccountFactory = await SmartAccountFactory.new(gsnForwarder.address, smartAccountTemplate.address,
+      { gas: 9e7, from: vfOwner })
 
     whitelistFactory = await WhitelistFactory.new(gsnForwarder.address)
     ephemeralOperator = RelayClient.newEphemeralKeypair()
@@ -100,7 +102,8 @@ contract('SmartAccount Bootstrapping', async function (accounts) {
     const smartAccountId = Buffer.from('a3a6839853586edc9133e9c71d4ccfac678b4fc3f5475fd3014845ad5287870f', 'hex') // crypto.randomBytes(32)
     // Mocking backend signature
     const approvalData = await forgeApprovalData(smartAccountId, smartAccountFactory, vfOwner)
-    const newSmartAccountCallData = smartAccountFactory.contract.methods.newSmartAccount(smartAccountId, approvalData).encodeABI()
+    const newSmartAccountCallData = smartAccountFactory.contract.methods.newSmartAccount(smartAccountId,
+      approvalData).encodeABI()
     const encodedFunctionCall =
       gsnForwarder.contract.methods.callRecipient(smartAccountFactory.address, newSmartAccountCallData).encodeABI()
 
@@ -116,14 +119,14 @@ contract('SmartAccount Bootstrapping', async function (accounts) {
   it('should prevent an attacker from intercepting a deployed uninitialized smartAccount', async function () {
     await expect(
       smartAccount.initialConfig([attacker], [86400], true, true, [0, 0, 0], [], [], [], { from: attacker })
-    ).to.be.revertedWith('initialConfig must be called by creator')
+    ).to.be.revertedWith('must be called by creator')
   })
 
   it('should sponsor creation of a bypass module', async function () {
     const newBypassModuleCallData =
-            whitelistFactory.contract.methods.newWhitelist(smartAccount.address, [anyAddress1, anyAddress2]).encodeABI()
+      whitelistFactory.contract.methods.newWhitelist(smartAccount.address, [anyAddress1, anyAddress2]).encodeABI()
     const encodedFunctionCall =
-            gsnForwarder.contract.methods.callRecipient(whitelistFactory.address, newBypassModuleCallData).encodeABI()
+      gsnForwarder.contract.methods.callRecipient(whitelistFactory.address, newBypassModuleCallData).encodeABI()
 
     const receipt = await callViaRelayHub(encodedFunctionCall, 1)
     const createdEvent = receipt.logs[0]
@@ -142,18 +145,18 @@ contract('SmartAccount Bootstrapping', async function (accounts) {
     const modules = [anyAddress1, anyAddress2, bypassModule.address, anyTarget2]
 
     const initialConfigCallData =
-            smartAccount.contract.methods.initialConfig(
-              [attacker],
-              [86400],
-              true,
-              true,
-              [0, 0, 0],
-              targetsForModule,
-              methodSignaturesForModule,
-              modules
-            ).encodeABI()
+      smartAccount.contract.methods.initialConfig(
+        [attacker],
+        [86400],
+        true,
+        true,
+        [0, 0, 0],
+        targetsForModule,
+        methodSignaturesForModule,
+        modules
+      ).encodeABI()
     const encodedFunctionCall =
-            gsnForwarder.contract.methods.callRecipient(smartAccount.address, initialConfigCallData).encodeABI()
+      gsnForwarder.contract.methods.callRecipient(smartAccount.address, initialConfigCallData).encodeABI()
 
     const receipt = await callViaRelayHub(encodedFunctionCall, 2)
     const createdEvent = receipt.logs[0]

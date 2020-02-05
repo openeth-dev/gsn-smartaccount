@@ -9,9 +9,10 @@ import "tabookey-gasless/contracts/GsnUtils.sol";
 import "./PermissionsLevel.sol";
 import "./Utilities.sol";
 import "./BypassModules/BypassPolicy.sol";
+import "./ISmartAccount.sol";
 
 
-contract SmartAccount is PermissionsLevel, GsnRecipient {
+contract SmartAccount is PermissionsLevel, GsnRecipient, ISmartAccount {
 
     using LibBytes for bytes;
 
@@ -98,7 +99,7 @@ contract SmartAccount is PermissionsLevel, GsnRecipient {
         creator = _creator;
     }
 
-    // ********** Access control modifiers below this point
+    // ********** Access control functions below this point
 
     function requireNotFrozen(uint32 senderPermsLevel, string memory errorMessage) view internal {
         uint8 senderLevel = extractLevel(senderPermsLevel);
@@ -144,7 +145,7 @@ contract SmartAccount is PermissionsLevel, GsnRecipient {
         bytes4[]  memory bypassMethods,
         address[] memory bypassModules
     ) public {
-        require(getSender() == creator, "initialConfig must be called by creator");
+        require(getSender() == creator, "must be called by creator");
         require(stateNonce == 0, "already initialized");
         require(initialParticipants.length <= maxParticipants, "too many participants");
         require(initialDelays.length <= maxLevels, "too many levels");
@@ -225,7 +226,6 @@ contract SmartAccount is PermissionsLevel, GsnRecipient {
         participants[args[0]] = true;
         emit ConfigApplied(hash, sender);
         emit ParticipantAdded(newOperatorAddress, ownerPermissions, 1);
-
         stateNonce++;
     }
 
@@ -266,7 +266,6 @@ contract SmartAccount is PermissionsLevel, GsnRecipient {
         requirePermissions(signer, canSignBoosts | canChangeConfig, signerPermsLevel);
         changeConfigurationInternal(actions, args1, args2, signer, signerPermsLevel, sender, boosterPermsLevel);
     }
-
 
     function changeConfiguration(
         uint32 senderPermsLevel,
@@ -411,7 +410,6 @@ contract SmartAccount is PermissionsLevel, GsnRecipient {
         for (uint256 i = 0; i < actions.length; i++) {
             dispatch(actions[i], args1[i], args2[i], scheduler, schedulerPermsLevel);
         }
-        // TODO: do this in every method, as a function/modifier
         emit ConfigApplied(transactionHash, sender);
         stateNonce++;
     }

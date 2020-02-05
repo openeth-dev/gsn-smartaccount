@@ -46,7 +46,7 @@ contract PermissionsLevel {
             senderPermissions == ownerPermissions ||
             senderPermissions == adminPermissions ||
             senderPermissions == watchdogPermissions,
-            "use defaults or go compile your vault from sources");
+            "unsupported permission set");
 
     }
 
@@ -57,12 +57,4 @@ contract PermissionsLevel {
     function extractPermission(uint32 permLev) pure internal returns (uint32 permission) {
         (permission,) = Utilities.extractPermissionLevel(permLev);
     }
-
-    function packPermissionLevel(uint32 permissions, uint8 level) pure internal returns (uint32 permLev) {
-        require(permissions <= 0x07FFFFFF, "permissions overflow");
-        require(level <= 0x1F, "level overflow");
-        return (uint32(level) << 27) + permissions;
-    }
-
-
 }

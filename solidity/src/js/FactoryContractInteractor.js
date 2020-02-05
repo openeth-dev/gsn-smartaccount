@@ -41,14 +41,6 @@ class FactoryContractInteractor {
     this.smartAccountFactoryAddress = smartAccountFactoryAddress
   }
 
-  static async getInstance ({ credentials, smartAccountFactoryAddress, provider }) {
-    SmartAccountFactory.setProvider(provider)
-    const instance = new FactoryContractInteractor(credentials, smartAccountFactoryAddress)
-    instance.smartAccountFactory = await SmartAccountFactory.at(instance.smartAccountFactoryAddress)
-    instance.smartAccountFactory.createAccountTemplate()
-    return instance
-  }
-
   /**
    * Not a constructor because constructors cannot be async
    * @param credentials
@@ -160,9 +152,9 @@ class FactoryContractInteractor {
    */
   static async deployNewSmartAccountFactory (from, ethNodeUrl, forwarder) {
     const utilitiesContract = await this.deployUtilitiesLibrary(from, ethNodeUrl)
+    const smartAccountTemplate = await this.deploySmartAccountDirectly(from, ethNodeUrl)
     const { instance: smartAccountFactory } = await this.deployContract('generated/SmartAccountFactory',
-      'SmartAccountFactory', [utilitiesContract], [forwarder], from, ethNodeUrl)
-    await smartAccountFactory.createAccountTemplate({ from })
+      'SmartAccountFactory', [utilitiesContract], [forwarder,smartAccountTemplate.address], from, ethNodeUrl)
     return smartAccountFactory
   }
 
