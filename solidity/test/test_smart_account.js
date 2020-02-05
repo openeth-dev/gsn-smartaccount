@@ -217,7 +217,7 @@ contract('SmartAccount', async function (accounts) {
     const wrongInitialDelays = []
     const initialParticipants = Array(21).fill('0x1123123')
     await expect(
-      smartAccount.initialConfig(initialParticipants, wrongInitialDelays, true, true, [0, 0, 0], [], [], [])
+      smartAccount.initialConfig(initialParticipants, wrongInitialDelays, true, [0, 0, 0], [], [], [])
     ).to.be.revertedWith('too many participants')
   })
 
@@ -225,10 +225,10 @@ contract('SmartAccount', async function (accounts) {
     const wrongInitialDelays = Array(11).fill(10)
     const initialParticipants = []
     await expect(
-      smartAccount.initialConfig(initialParticipants, wrongInitialDelays, true, true, [0, 0, 0], [], [], [])
+      smartAccount.initialConfig(initialParticipants, wrongInitialDelays, true, [0, 0, 0], [], [], [])
     ).to.be.revertedWith('too many levels')
     await expect(
-      smartAccount.initialConfig(initialParticipants, [], true, true, Array(11).fill(0), [], [], [])
+      smartAccount.initialConfig(initialParticipants, [], true, Array(11).fill(0), [], [], [])
     ).to.be.revertedWith('too many levels again')
   })
 
@@ -236,7 +236,7 @@ contract('SmartAccount', async function (accounts) {
     const wrongInitialDelays = Array.from({ length: 10 }, (x, i) => (i + 1) * yearInSec)
     const initialParticipants = []
     await expect(
-      smartAccount.initialConfig(initialParticipants, wrongInitialDelays, true, true, [0, 0, 0], [], [], [])
+      smartAccount.initialConfig(initialParticipants, wrongInitialDelays, true, [0, 0, 0], [], [], [])
     ).to.be.revertedWith('Delay too long')
   })
 
@@ -254,7 +254,7 @@ contract('SmartAccount', async function (accounts) {
       utils.bufferToHex(utils.encodeParticipant(adminB2))
     ]
 
-    const res = await smartAccount.initialConfig(initialParticipants, initialDelays, true, true,
+    const res = await smartAccount.initialConfig(initialParticipants, initialDelays, true,
       requiredApprovalsPerLevel, [], [], [], { from: operatorA.address })
     const log = res.logs[0]
     assert.equal(log.event, 'SmartAccountInitialized')
@@ -278,7 +278,7 @@ contract('SmartAccount', async function (accounts) {
     const initialDelays = []
     const initialParticipants = []
     await expect(
-      smartAccount.initialConfig(initialParticipants, initialDelays, true, true, requiredApprovalsPerLevel, [], [], [],
+      smartAccount.initialConfig(initialParticipants, initialDelays, true, requiredApprovalsPerLevel, [], [], [],
         { from: operatorA.address })
     ).to.be.revertedWith('already initialized')
   })
@@ -598,7 +598,8 @@ contract('SmartAccount', async function (accounts) {
     it('should bypass a call by method if no module-by-target is set', async function () {
       const calldata = erc20.contract.methods.approve(whitelistedDestination, 1000000).encodeABI()
       const stateId = await smartAccount.stateNonce()
-      const res = await smartAccount.executeBypassCall(operatorA.permLevel, differentErc20.address, 0, calldata, stateId)
+      const res = await smartAccount.executeBypassCall(operatorA.permLevel, differentErc20.address, 0, calldata,
+        stateId)
       assert.equal(res.logs[0].event, 'Approval')
     })
 
@@ -900,9 +901,9 @@ contract('SmartAccount', async function (accounts) {
     })
 
     it('should disable adding operator immediately', async function () {
-      assert.equal(true, await smartAccount.allowAddOperatorNow())
+      assert.equal(true, await smartAccount.allowAcceleratedCalls())
       let stateId = await smartAccount.stateNonce()
-      const actions = [ChangeType.SET_ADD_OPERATOR_NOW]
+      const actions = [ChangeType.SET_ACCELERATED_CALLS]
       // bool to bytes32 basically...
       const args = [Buffer.from('0'.repeat(64), 'hex')]
       res = await smartAccount.changeConfiguration(operatorA.permLevel, actions, args, args, stateId,
@@ -913,7 +914,7 @@ contract('SmartAccount', async function (accounts) {
       ).to.be.revertedWith('before due time')
       await testUtils.increaseTime(timeGap, web3)
       applyDelayed({ res }, operatorA, smartAccount)
-      assert.equal(false, await smartAccount.allowAddOperatorNow())
+      assert.equal(false, await smartAccount.allowAcceleratedCalls())
       stateId = await smartAccount.stateNonce()
       await expect(
         smartAccount.addOperatorNow(operatorA.permLevel, operatorB.address, stateId, { from: operatorA.address })
@@ -921,9 +922,9 @@ contract('SmartAccount', async function (accounts) {
     })
 
     it('should re-enable adding operator immediately', async function () {
-      assert.equal(false, await smartAccount.allowAddOperatorNow())
+      assert.equal(false, await smartAccount.allowAcceleratedCalls())
       let stateId = await smartAccount.stateNonce()
-      const actions = [ChangeType.SET_ADD_OPERATOR_NOW]
+      const actions = [ChangeType.SET_ACCELERATED_CALLS]
       // bool to bytes32 basically...
       const args = [Buffer.from('1'.repeat(64), 'hex')]
       res = await smartAccount.changeConfiguration(operatorA.permLevel, actions, args, args, stateId,
@@ -934,7 +935,7 @@ contract('SmartAccount', async function (accounts) {
       ).to.be.revertedWith('before due time')
       await testUtils.increaseTime(timeGap, web3)
       applyDelayed({ res }, operatorA, smartAccount)
-      assert.equal(true, await smartAccount.allowAddOperatorNow())
+      assert.equal(true, await smartAccount.allowAcceleratedCalls())
       stateId = await smartAccount.stateNonce()
       res = await smartAccount.addOperatorNow(operatorA.permLevel, operatorB.address, stateId,
         { from: operatorA.address })
@@ -963,7 +964,7 @@ contract('SmartAccount', async function (accounts) {
       requiredApprovalsPerLevel = [1, 1, 1, 2, 3, 2, 5, 6, 7, 8]
       initialParticipants.push(utils.bufferToHex(utils.encodeParticipant(operatorZ)))
 
-      res = await failCloseGK.initialConfig(initialParticipants, initialDelays, true, true, requiredApprovalsPerLevel,
+      res = await failCloseGK.initialConfig(initialParticipants, initialDelays, true, requiredApprovalsPerLevel,
         [], [], [], { from: operatorA.address })
       const log = res.logs[0]
       assert.equal(log.event, 'SmartAccountInitialized')
@@ -1114,7 +1115,7 @@ contract('SmartAccount', async function (accounts) {
   function getNonConfigChangers () {
     return [
       adminA.expectError(`permissions missing: ${Permissions.CanChangeParticipants + Permissions.CanUnfreeze +
-      Permissions.CanChangeBypass + Permissions.CanSetAcceleratedCalls + Permissions.CanSetAddOperatorNow + Permissions.CanAddOperatorNow}`),
+      Permissions.CanChangeBypass + Permissions.CanSetAcceleratedCalls + Permissions.CanAddOperatorNow}`),
       watchdogA.expectError(`permissions missing: ${Permissions.CanChangeConfig}`),
       wrongaddr.expectError('not participant')
     ]
@@ -1123,8 +1124,7 @@ contract('SmartAccount', async function (accounts) {
   function getNonBoostees () {
     return [
       adminA.expectError(`permissions missing: ${Permissions.CanSignBoosts + Permissions.CanUnfreeze +
-      Permissions.CanChangeParticipants + Permissions.CanChangeBypass + Permissions.CanSetAcceleratedCalls +
-      Permissions.CanSetAddOperatorNow + Permissions.CanAddOperatorNow}`),
+      Permissions.CanChangeParticipants + Permissions.CanChangeBypass + Permissions.CanSetAcceleratedCalls + Permissions.CanAddOperatorNow}`),
       watchdogA.expectError(`permissions missing: ${Permissions.CanSignBoosts + Permissions.CanChangeConfig}`),
       wrongaddr.expectError('not participant')
     ]
@@ -1430,7 +1430,7 @@ contract('SmartAccount', async function (accounts) {
 
     await expect(
       smartAccount.changeConfiguration(operatorA.permLevel, [changeType], [changeArgs], [changeArgs], stateId - 1)
-    ).to.be.revertedWith('contract state changed since transaction was created')
+    ).to.be.revertedWith('incorrect state')
   })
 
   it('should save the block number of the deployment transaction', async function () {

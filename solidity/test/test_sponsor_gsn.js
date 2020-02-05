@@ -49,7 +49,7 @@ contract('GSN and Sponsor integration', async function (accounts) {
     const hourInSec = 60 * minuteInSec
     const dayInSec = 24 * hourInSec
     const initialDelays = Array.from({ length: 10 }, (x, i) => (i + 1) * dayInSec)
-    await gatekeeper.initialConfig(args, initialDelays, true, true, [0, 0, 0], [], [], [])
+    await gatekeeper.initialConfig(args, initialDelays, true, [0, 0, 0], [], [], [])
   })
 
   it('should accept a relayed call if it comes from a valid participant', async function () {

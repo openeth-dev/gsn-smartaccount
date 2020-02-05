@@ -64,7 +64,6 @@ export default class SimpleWallet extends SimpleWalletApi {
       configuration.initialParticipants,
       configuration.initialDelays,
       configuration.allowAcceleratedCalls,
-      configuration.allowAddOperatorNow,
       configuration.requiredApprovalsPerLevel,
       configuration.bypassTargets,
       configuration.bypassMethods,
@@ -217,7 +216,7 @@ export default class SimpleWallet extends SimpleWalletApi {
   // TODO: add some caching mechanism then to avoid re-scanning entire history on every call
   async getWalletInfo () {
     this.stateId = await this.contract.stateNonce()
-    const { allowAcceleratedCalls, allowAddOperatorNow } = await this._getAllowedFlags()
+    const { allowAcceleratedCalls } = await this._getAllowedFlags()
     const { initEvent, participantAddedEvents } = await this._getCompletedConfigurationEvents()
     const args = initEvent.args
     const foundParticipants = this._findParticipants({ initEvent, participantAddedEvents })
@@ -253,8 +252,7 @@ export default class SimpleWallet extends SimpleWalletApi {
     return {
       address: initEvent.address,
       options: {
-        allowAcceleratedCalls,
-        allowAddOperatorNow
+        allowAcceleratedCalls
       },
       participants,
       levels: levels
@@ -307,15 +305,15 @@ export default class SimpleWallet extends SimpleWalletApi {
       return Participant.parse(it)
     })
     participantAddedEvents.forEach(event => {
-      participants.push(new Participant(event.args.participant, event.args.permissions.toString(), event.args.level.toString()))
+      participants.push(
+        new Participant(event.args.participant, event.args.permissions.toString(), event.args.level.toString()))
     })
     return participants
   }
 
   async _getAllowedFlags () {
     const allowAcceleratedCalls = await this.contract.allowAcceleratedCalls()
-    const allowAddOperatorNow = await this.contract.allowAddOperatorNow()
-    return { allowAcceleratedCalls, allowAddOperatorNow }
+    return { allowAcceleratedCalls }
   }
 
   async _getCompletedConfigurationEvents () {
@@ -545,7 +543,6 @@ export default class SimpleWallet extends SimpleWalletApi {
       initialParticipants: [operator, backendAsWatchdog, backendAsAdmin],
       initialDelays: [86400, 172800],
       allowAcceleratedCalls: true,
-      allowAddOperatorNow: true,
       requiredApprovalsPerLevel: [1, 0],
       bypassTargets: [],
       bypassMethods,

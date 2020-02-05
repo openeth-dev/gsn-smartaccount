@@ -15,6 +15,7 @@ import SimpleWallet from '../../src/js/impl/SimpleWallet'
 import abiDecoder from 'abi-decoder'
 import Permissions from 'safechannels-contracts/src/js/Permissions'
 import Participant from 'safechannels-contracts/src/js/Participant'
+import { ChangeType, changeTypeToString } from '../../src/js/etc/ChangeType'
 
 const ethUtils = require('ethereumjs-util')
 const abi = require('ethereumjs-abi')
@@ -307,7 +308,7 @@ describe('Backend', async function () {
       assert.equal(log.name, 'ConfigPending')
       assert.equal(log.events[7].value.length, 1)
       assert.equal(log.events[7].value[0].replace(/0{24}/, ''), newOperatorAddress)
-      assert.equal(log.events[6].value, '7')
+      assert.equal(changeTypeToString(log.events[6].value), changeTypeToString(ChangeType.ADD_OPERATOR))
       assert.deepEqual(backend.unverifiedNewOperators, {})
     })
   })

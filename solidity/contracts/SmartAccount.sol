@@ -24,7 +24,6 @@ contract SmartAccount is PermissionsLevel, GsnRecipient, ISmartAccount {
         ADD_BYPASS_BY_TARGET,
         ADD_BYPASS_BY_METHOD,
         SET_ACCELERATED_CALLS,
-        SET_ADD_OPERATOR_NOW,
         UNFREEZE, // no args
         ADD_OPERATOR,
         ADD_OPERATOR_NOW
@@ -63,7 +62,6 @@ contract SmartAccount is PermissionsLevel, GsnRecipient, ISmartAccount {
     // TODO: do not call this 'bypass calls', this does not describe what these are.
     mapping(bytes32 => PendingChange) public pendingBypassCalls;
     bool public allowAcceleratedCalls;
-    bool public allowAddOperatorNow;
     // 0 - no approvals needed before applying
     uint256[] public requiredApprovalsPerLevel;
 
@@ -126,7 +124,7 @@ contract SmartAccount is PermissionsLevel, GsnRecipient, ISmartAccount {
     }
 
     function requireCorrectState(uint256 targetStateNonce) view internal {
-        require(stateNonce == targetStateNonce, "contract state changed since transaction was created");
+        require(stateNonce == targetStateNonce, "incorrect state");
     }
 
     uint256 constant maxParticipants = 20;
@@ -139,7 +137,6 @@ contract SmartAccount is PermissionsLevel, GsnRecipient, ISmartAccount {
         bytes32[] memory initialParticipants,
         uint256[] memory initialDelays,
         bool _allowAcceleratedCalls,
-        bool _allowAddOperatorNow,
         uint256[] memory _requiredApprovalsPerLevel,
         address[] memory bypassTargets,
         bytes4[]  memory bypassMethods,
@@ -160,7 +157,6 @@ contract SmartAccount is PermissionsLevel, GsnRecipient, ISmartAccount {
         }
         delays = initialDelays;
         allowAcceleratedCalls = _allowAcceleratedCalls;
-        allowAddOperatorNow = _allowAddOperatorNow;
         requiredApprovalsPerLevel = _requiredApprovalsPerLevel;
 
         emit SmartAccountInitialized(initialParticipants, delays, requiredApprovalsPerLevel);
@@ -200,7 +196,7 @@ contract SmartAccount is PermissionsLevel, GsnRecipient, ISmartAccount {
         requirePermissions(sender, canAddOperatorNow, senderPermsLevel);
         requireNotFrozen(senderPermsLevel);
         requireCorrectState(targetStateNonce);
-        require(allowAddOperatorNow, "Call blocked");
+        require(allowAcceleratedCalls, "Call blocked");
         uint8[] memory actions = new uint8[](1);
         bytes32[] memory args = new bytes32[](1);
         actions[0] = uint8(ChangeType.ADD_OPERATOR_NOW);
@@ -437,9 +433,6 @@ contract SmartAccount is PermissionsLevel, GsnRecipient, ISmartAccount {
         else if (action == ChangeType.SET_ACCELERATED_CALLS) {
             setAcceleratedCalls(sender, senderPermsLevel, uint256(arg1) != 0);
         }
-        else if (action == ChangeType.SET_ADD_OPERATOR_NOW) {
-            setAddOperatorNow(sender, senderPermsLevel, uint256(arg1) != 0);
-        }
         else if (action == ChangeType.ADD_OPERATOR_NOW) {
             revert("Use approveAddOperatorNow instead");
         }
@@ -496,12 +489,6 @@ contract SmartAccount is PermissionsLevel, GsnRecipient, ISmartAccount {
         requirePermissions(sender, canSetAcceleratedCalls, senderPermsLevel);
         allowAcceleratedCalls = allow;
         emit AcceleratedCAllSet(allow);
-    }
-
-    function setAddOperatorNow(address sender, uint32 senderPermsLevel, bool allow) private {
-        requirePermissions(sender, canSetAddOperatorNow, senderPermsLevel);
-        allowAddOperatorNow = allow;
-        emit AddOperatorNowSet(allow);
     }
 
     //BYPASS SUPPORT

@@ -118,7 +118,7 @@ contract('SmartAccount Bootstrapping', async function (accounts) {
 
   it('should prevent an attacker from intercepting a deployed uninitialized smartAccount', async function () {
     await expect(
-      smartAccount.initialConfig([attacker], [86400], true, true, [0, 0, 0], [], [], [], { from: attacker })
+      smartAccount.initialConfig([attacker], [86400], true, [0, 0, 0], [], [], [], { from: attacker })
     ).to.be.revertedWith('must be called by creator')
   })
 
@@ -148,7 +148,6 @@ contract('SmartAccount Bootstrapping', async function (accounts) {
       smartAccount.contract.methods.initialConfig(
         [attacker],
         [86400],
-        true,
         true,
         [0, 0, 0],
         targetsForModule,

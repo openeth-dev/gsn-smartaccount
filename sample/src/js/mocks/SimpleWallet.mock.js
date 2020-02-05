@@ -79,7 +79,6 @@ export default class SimpleWalletMock extends SimpleWalletApi {
     return {
       address: this.address,
       options: {
-        allowAddOperatorNow: false,
         allowAcceleratedCalls: false
       },
       participants: [

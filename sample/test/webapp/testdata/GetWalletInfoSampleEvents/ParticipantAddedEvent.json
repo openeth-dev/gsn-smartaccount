@@ -7,7 +7,7 @@
   "signature": "0xcbd00a8ba1fe89a494e0c96a0ed2dd01a6cd8ae8a1a4b4103edbae0fb52ab741",
   "args": {
     "participant": "0x4444444444444444444444444444444444444444",
-    "permissions": "0xfddf",
+    "permissions": "0xbddf",
     "level": 1
   }
 }

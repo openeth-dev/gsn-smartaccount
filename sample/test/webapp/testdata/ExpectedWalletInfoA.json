@@ -1,6 +1,5 @@
 {
   "options": {
-    "allowAddOperatorNow": true,
     "allowAcceleratedCalls": true
   },
   "participants": [
