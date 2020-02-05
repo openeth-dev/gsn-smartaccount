@@ -42,6 +42,7 @@ describe('Backend', async function () {
 
   const audience = '202746986880-u17rbgo95h7ja4fghikietupjknd1bln.apps.googleusercontent.com'
   before(async function () {
+    this.timeout(30000)
     smsProvider = new SMSmock()
     smsManager = new SmsManager({ smsProvider, secretSMSCodeSeed: crypto.randomBytes(32) })
     keyManager = new KeyManager({ ecdsaKeyPair: keypair })
@@ -73,6 +74,7 @@ describe('Backend', async function () {
     let firstCode
     let formattedNumber
     before(async function () {
+      this.timeout(30000)
       formattedNumber = backend._formatPhoneNumber(phoneNumber)
       ts = backend.smsManager.getMinuteTimestamp({})
       firstCode = backend.smsManager.calcSmsCode(
@@ -257,6 +259,7 @@ describe('Backend', async function () {
     let jwt
 
     before(async function () {
+      this.timeout(30000)
       jwt = generateMockJwt({ email, nonce: newOperatorAddress })
       const accountId = await backend.getSmartAccountId({ email })
       account = await backend.accountManager.getAccountById({ accountId })
