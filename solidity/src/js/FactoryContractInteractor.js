@@ -154,7 +154,7 @@ class FactoryContractInteractor {
     const utilitiesContract = await this.deployUtilitiesLibrary(from, ethNodeUrl)
     const smartAccountTemplate = await this.deploySmartAccountDirectly(from, ethNodeUrl)
     const { instance: smartAccountFactory } = await this.deployContract('generated/SmartAccountFactory',
-      'SmartAccountFactory', [utilitiesContract], [forwarder,smartAccountTemplate.address], from, ethNodeUrl)
+      'SmartAccountFactory', [utilitiesContract], [forwarder, smartAccountTemplate.address], from, ethNodeUrl)
     return smartAccountFactory
   }
 

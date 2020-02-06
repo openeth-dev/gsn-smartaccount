@@ -17,7 +17,7 @@ const permissions = {
   CanAddOperatorNow: 1 << 15
 }
 
-permissions.CanChangeConfig = permissions.CanUnfreeze | permissions.CanChangeParticipants | permissions.CanAddOperator | permissions.CanAddOperatorNow | permissions.CanChangeBypass | permissions.CanSetAcceleratedCalls 
+permissions.CanChangeConfig = permissions.CanUnfreeze | permissions.CanChangeParticipants | permissions.CanAddOperator | permissions.CanAddOperatorNow | permissions.CanChangeBypass | permissions.CanSetAcceleratedCalls
 permissions.CanCancel = permissions.CanCancelSpend | permissions.CanCancelConfigChanges | permissions.CanCancelBypassCall
 permissions.OwnerPermissions = permissions.CanSpend | permissions.CanCancel | permissions.CanFreeze | permissions.CanChangeConfig | permissions.CanSignBoosts | permissions.CanExecuteBypassCall
 permissions.AdminPermissions = permissions.CanExecuteBoosts | permissions.CanAddOperator

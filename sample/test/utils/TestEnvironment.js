@@ -96,12 +96,12 @@ export default class TestEnvironment {
     // bring up RelayHub, relay.
     // all parameters are optional.
     await startGsnRelay({ from: instance.from, provider: instance.ethNodeUrl, verbose: instance.verbose })
-    for (let i = 0; i <= 10; i++) {
+    for (let i = 0; i <= 100; i++) {
       await sleep(500)
       const { isRelayReady, minGasPrice } = await instance.getRelayAddress()
       if (isRelayReady && minGasPrice) {
         break
-      } else if (i === 10) {
+      } else if (i === 100) {
         throw Error('Relay is still not ready, abort mission')
       }
     }
