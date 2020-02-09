@@ -1,12 +1,26 @@
 import Wallet from 'ethereumjs-wallet'
 import { Transaction } from 'ethereumjs-tx'
 import abi from 'ethereumjs-abi'
+import fs from 'fs'
 
 const ethUtils = require('ethereumjs-util')
 
 export class KeyManager {
-  constructor ({ ecdsaKeyPair }) {
+  constructor ({ ecdsaKeyPair, workdir }) {
     this.ecdsaKeyPair = ecdsaKeyPair
+    if (workdir) {
+      this.workdir = workdir
+      try {
+        if (!fs.existsSync(workdir)) {
+          fs.mkdirSync(workdir)
+        }
+        fs.writeFileSync(workdir + '/keystore', JSON.stringify({ ecdsaKeyPair }), { flag: 'w' })
+      } catch (e) {
+        if (!e.message.includes('file already exists')) {
+          throw e
+        }
+      }
+    }
   }
 
   static newKeypair () {
