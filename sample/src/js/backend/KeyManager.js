@@ -12,7 +12,7 @@ export class KeyManager {
       this.workdir = workdir
       try {
         if (!fs.existsSync(workdir)) {
-          fs.mkdirSync(workdir)
+          fs.mkdirSync(workdir, { recursive: true })
         }
         fs.writeFileSync(workdir + '/keystore', JSON.stringify({ ecdsaKeyPair }), { flag: 'w' })
       } catch (e) {

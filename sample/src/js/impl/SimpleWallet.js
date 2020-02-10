@@ -541,9 +541,9 @@ export default class SimpleWallet extends SimpleWalletApi {
     }
     return {
       initialParticipants: [operator, backendAsWatchdog, backendAsAdmin],
-      initialDelays: [86400, 172800],
+      initialDelays: [86400, 172800, 345600],
       allowAcceleratedCalls: true,
-      requiredApprovalsPerLevel: [1, 0],
+      requiredApprovalsPerLevel: [0, 0, 1],
       bypassTargets: [],
       bypassMethods,
       bypassModules

@@ -51,13 +51,13 @@ class Guardian {
 }
 
 export class Watchdog extends Guardian {
-  constructor ({ smsManager, keyManager, accountManager, smartAccountFactoryAddress, sponsorAddress, web3provider, urlPrefix }) {
+  constructor ({ smsManager, keyManager, accountManager, smartAccountFactoryAddress, sponsorAddress, web3provider, urlPrefix, level }) {
     super({ smsManager, keyManager, accountManager, smartAccountFactoryAddress, sponsorAddress, web3provider })
     this.urlPrefix = new URL(urlPrefix)
     if (!this.urlPrefix.href) {
       throw new Error(`Invalid url: ${urlPrefix}`)
     }
-    this.permsLevel = scutils.packPermissionLevel(Permissions.WatchdogPermissions, 1)
+    this.permsLevel = scutils.packPermissionLevel(Permissions.WatchdogPermissions, level)
     const smartAccountTopics = Object.keys(this.smartAccountContract.events).filter(x => (x.includes('0x')))
     const smartAccountFactoryTopics = Object.keys(this.smartAccountFactoryContract.events).filter(
       x => (x.includes('0x')))
@@ -232,6 +232,7 @@ export class Watchdog extends Guardian {
     }
     try {
       const receipt = await this._sendTransaction(method, change.log.address)
+      console.log('change', change.log.args.delayedOpId, apply ? 'applied' : (cancel ? 'cancelled' : 'not handled'))
       delete this.changesToApply[delayedOpId]
       return receipt
     } catch (e) {
@@ -347,6 +348,7 @@ export class AutoCancelWatchdog extends Watchdog {
     const txhashes = []
     for (const delayedOpId of Object.keys(this.changesToApply)) {
       txhashes.push(await this._finalizeChange(delayedOpId, { cancel: true }))
+      console.log(`delayedOpId ${delayedOpId} cancelled`)
     }
     return txhashes
   }

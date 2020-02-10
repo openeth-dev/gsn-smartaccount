@@ -150,7 +150,8 @@ describe('As Guardian', async function () {
           accountManager,
           smartAccountFactoryAddress: smartAccountFactory.address,
           web3provider,
-          urlPrefix
+          urlPrefix,
+          level: 1
         })
       assert.isTrue(await wallet.contract.isParticipant(watchdog.address,
         watchdog.permsLevel))
@@ -444,7 +445,8 @@ describe('As Guardian', async function () {
           accountManager,
           smartAccountFactoryAddress: smartAccountFactory.address,
           web3provider,
-          urlPrefix
+          urlPrefix,
+          level: 1
         })
       autoCancelWatchdog.lastScannedBlock = watchdog.lastScannedBlock
     })

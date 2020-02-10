@@ -109,7 +109,7 @@ export default class TestEnvironment {
 
     // await instance.fundRelayIfNeeded()
     await instance.deployNewFactory()
-    await instance.startBackendServer()
+    await instance.startBackendServer({ autoCancel: false })
     // From this point on, there is an external process running that has to be killed if construction fails
     try {
       instance.backendAddresses = await instance.clientBackend.getAddresses()
@@ -127,7 +127,7 @@ export default class TestEnvironment {
     }
   }
 
-  async startBackendServer () {
+  async startBackendServer ({ autoCancel }) {
     if (ls) {
       console.error('Server is already running, restarting it!!!')
       TestEnvironment.stopBackendServer()
@@ -143,6 +143,7 @@ export default class TestEnvironment {
         '-s', this.sponsor.address,
         '-u', this.ethNodeUrl,
         '-x', this.urlPrefix,
+        '-a', autoCancel,
         '--sms', this.useTwilio ? 'twilio' : 'mock', // anything except 'twilio' is a mock...
         '--dev', this.useDev
       ])
@@ -153,6 +154,9 @@ export default class TestEnvironment {
         if (m) { serverAddress = m[1] }
         if (data.includes('listening')) {
           resolve(serverAddress)
+        }
+        if (data.includes('Running auto cancelling watchdog')) {
+          resolve({ autoCancel })
         }
       })
       ls.stderr.on('data', (data) => {
@@ -165,8 +169,10 @@ export default class TestEnvironment {
     })
   }
 
-  static stopBackendServer () {
-    stopGsnRelay()
+  static stopBackendServer (stopRelay = true) {
+    if (stopRelay) {
+      stopGsnRelay()
+    }
     if (!ls) {
       return
     }

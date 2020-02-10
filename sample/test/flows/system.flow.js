@@ -91,7 +91,8 @@ describe('System flow', () => {
     })
 
     it('after wallet creation', async function () {
-      const wallet = await mgr.loadWallet()
+      // SHAHAF to DROR/ALEX: why is this line needed? it's shadowing outer scope var and mgr.createWallet() calls mgr.loadWallet(), so nothing is achieved here
+      // const wallet = await mgr.loadWallet()
 
       const operators = await walletOperators(wallet)
       assert.deepEqual(operators.length, 1)

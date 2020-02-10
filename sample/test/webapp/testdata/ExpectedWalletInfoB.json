@@ -27,11 +27,15 @@
   "levels": [
     {
       "delay": "86400",
-      "requiredApprovals": "1"
+      "requiredApprovals": "0"
     },
     {
       "delay": "172800",
       "requiredApprovals": "0"
+    },
+    {
+      "delay": "345600",
+      "requiredApprovals": "1"
     }
   ]
 }
