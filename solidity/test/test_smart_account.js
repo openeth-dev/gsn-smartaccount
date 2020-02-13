@@ -10,7 +10,6 @@ const AllowAllPolicy = artifacts.require('AllowAllPolicy')
 const TestContract = artifacts.require('TestContract')
 const TestPolicy = artifacts.require('TestPolicy')
 const SmartAccount = artifacts.require('SmartAccount')
-const Utilities = artifacts.require('Utilities')
 const DAI = artifacts.require('DAI')
 
 const testUtils = require('./utils')
@@ -30,7 +29,7 @@ const hourInSec = 60 * minuteInSec
 const dayInSec = 24 * hourInSec
 const yearInSec = 365 * dayInSec
 
-async function getDelayedOpHashFromEvent (log, utilities) {
+function getDelayedOpHashFromEvent (log) {
   const actions = log.args.actions
   const args1 = log.args.actionsArguments1
   const args2 = log.args.actionsArguments2
@@ -39,8 +38,8 @@ async function getDelayedOpHashFromEvent (log, utilities) {
   const schedulerPermsLevel = log.args.senderPermsLevel
   const boosterAddress = log.args.booster
   const boosterPermsLevel = log.args.boosterPermsLevel
-  return utilities.transactionHashPublic(actions, args1, args2, stateId, schedulerAddress, schedulerPermsLevel,
-    boosterAddress, boosterPermsLevel)
+  return '0x' + utils.transactionHash(actions, args1, args2, stateId, schedulerAddress, schedulerPermsLevel,
+    boosterAddress, boosterPermsLevel).toString('hex')
 }
 
 async function cancelDelayed ({ res, log }, fromParticipant, smartAccount) {
@@ -129,7 +128,6 @@ async function applyDelayed ({ res, log }, fromParticipant, smartAccount) {
 
 contract('SmartAccount', async function (accounts) {
   let smartAccount
-  let utilities
   let erc20
   const fundedAmount = 300
   const from = accounts[0]
@@ -174,7 +172,6 @@ contract('SmartAccount', async function (accounts) {
 
     smartAccount = await SmartAccount.new({ gas: 8e6 })
     await smartAccount.ctr2(zeroAddress, accounts[0])
-    utilities = await Utilities.deployed()
     erc20 = await DAI.new()
     web3 = new Web3(smartAccount.contract.currentProvider)
     ownerPermissions = utils.bufferToHex(await smartAccount.ownerPermissions())
@@ -693,7 +690,7 @@ contract('SmartAccount', async function (accounts) {
   /* Rejected config change */
   it('should allow the watchdog to cancel a delayed config transaction', async function () {
     const log = await testUtils.extractLastConfigPendingEvent(smartAccount)
-    const hash = await getDelayedOpHashFromEvent(log, utilities)
+    const hash = getDelayedOpHashFromEvent(log)
     const res2 = await cancelDelayed({ log }, watchdogA, smartAccount)
     const log2 = res2.logs[0]
     assert.equal(log2.event, 'ConfigCancelled')
@@ -1021,8 +1018,8 @@ contract('SmartAccount', async function (accounts) {
       res = await failCloseGK.changeConfiguration(operatorZ.permLevel, [changeType1], [changeArg1], [changeArg1],
         stateId, { from: operatorZ.address })
 
-      const txhash = await utilities.transactionHashPublic([changeType1], [changeArg1], [changeArg1], stateId,
-        operatorZ.address, operatorZ.permLevel, zeroAddress, 0)
+      const txhash = '0x' + utils.transactionHash([changeType1], [changeArg1], [changeArg1], stateId,
+        operatorZ.address, operatorZ.permLevel, zeroAddress, 0).toString('hex')
 
       await expect(
         failCloseGK.applyConfig(operatorA.permLevel, [changeType1], [changeArg1], [changeArg1], stateId,
@@ -1278,7 +1275,7 @@ contract('SmartAccount', async function (accounts) {
       const actions = [ChangeType.UNFREEZE]
       const args = ['0x0']
       const stateId = await smartAccount.stateNonce()
-      const encodedHash = await utilities.changeHash(actions, args, args, stateId)// utils.getTransactionHash(ABI.solidityPack(["uint8[]", "bytes32[]", "uint256"], [actions, args, stateId]));
+      const encodedHash = '0x' + utils.changeHash(actions, args, args, stateId).toString('hex')
       const signature = await utils.signMessage(encodedHash, web3, { from: signingParty.address })
       await expect(
         smartAccount.boostedConfigChange(
@@ -1308,7 +1305,7 @@ contract('SmartAccount', async function (accounts) {
     const actions = [ChangeType.UNFREEZE]
     const args = ['0x0']
     let stateId = await smartAccount.stateNonce()
-    const encodedHash = await utilities.changeHash(actions, args, args, stateId)// utils.getTransactionHash(ABI.solidityPack(["uint8[]", "bytes32[]", "uint256"], [actions, args, stateId]));
+    const encodedHash = '0x' + utils.changeHash(actions, args, args, stateId).toString('hex')
     const signature = await utils.signMessage(encodedHash, web3, { from: operatorA.address })
     const res1 = await smartAccount.boostedConfigChange(adminB1.permLevel, actions, args, args, stateId,
       operatorA.permLevel, signature, { from: adminB1.address })
@@ -1369,7 +1366,7 @@ contract('SmartAccount', async function (accounts) {
         const actions = [ChangeType.UNFREEZE]
         const args = ['0x0']
         const stateId = await smartAccount.stateNonce()
-        const encodedHash = await utilities.changeHash(actions, args, args, stateId)// utils.getTransactionHash(ABI.solidityPack(["uint8[]", "bytes32[]", "uint256"], [actions, args, stateId]));
+        const encodedHash =  '0x' + utils.changeHash(actions, args, args, stateId).toString('hex')
         const signature = await utils.signMessage(encodedHash, web3, { from: operatorA.address })
         const res1 = await smartAccount.boostedConfigChange(
           adminB1.permLevel,

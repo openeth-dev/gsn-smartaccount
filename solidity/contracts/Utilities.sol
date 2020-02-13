@@ -18,14 +18,6 @@ library Utilities {
         return keccak256(abi.encodePacked(actions, args1, args2, stateId, sender, senderPermsLevel, booster, boosterPermsLevel));
     }
 
-    function transactionHashPublic(
-        uint8[] memory actions, bytes32[] memory args1, bytes32[] memory args2, uint256 stateId,
-        address sender, uint32 senderPermsLevel,
-        address booster, uint32 boosterPermsLevel)
-    public pure returns (bytes32) {
-        return transactionHash(actions, args1, args2, stateId, sender, senderPermsLevel, booster, boosterPermsLevel);
-    }
-
     function encodeParticipant(address participant, uint32 permsLevel) internal pure returns (bytes32) {
         (uint32 permissions, uint8 level) = extractPermissionLevel(permsLevel);
         return encodeParticipant(participant, permissions, level);
