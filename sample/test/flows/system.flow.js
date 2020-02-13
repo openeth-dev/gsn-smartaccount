@@ -7,6 +7,7 @@ import TestEnvironment from '../utils/TestEnvironment'
 
 import { increaseTime } from 'safechannels-contracts/test/utils'
 import { sleep } from '../backend/testutils'
+
 const DAY = 24 * 3600
 
 const verbose = false
@@ -173,7 +174,7 @@ describe('System flow', () => {
   describe('recover device', async function () {
     let newenv, newmgr, newwallet, oldOperator
     before('create env for new device', async function () {
-      this.timeout(10000)
+      this.timeout(30000)
       console.log('before newenv init')
 
       newenv = new TestEnvironment({})
@@ -258,7 +259,7 @@ describe('System flow', () => {
     let newenv, newmgr
     let oldOperator
     before('create env for new device', async function () {
-      this.timeout(10000)
+      this.timeout(40000)
       try {
         newenv = new TestEnvironment({})
         newenv.sponsor = testEnvironment.sponsor
@@ -306,9 +307,11 @@ describe('System flow', () => {
       assert.equal(title, TEST_TITLE)
       assert.equal(newOperatorAddress, await newmgr.getOwner())
       newOperator = newOperatorAddress
+      console.log('newOperator is', newOperator)
     })
 
-    it('addOperatorNow should add new operator..', async () => {
+    it('addOperatorNow should add new operator..', async function () {
+      this.timeout(30000)
       console.log('env owner=', await mgr.getOwner())
       console.log('newenv owner=', await newmgr.getOwner())
       const newwallet = await newmgr.loadWallet()
@@ -325,10 +328,22 @@ describe('System flow', () => {
       await wallet.addOperatorNow(newOperator)
 
       // wait for ParticipantAdded event
-      while (!(await wallet.contract.getPastEvents('ParticipantAdded', { fromBlock })).length) {
+      let events
+      let operatorAdded = false
+      while (!operatorAdded) {
+        events = await wallet.contract.getPastEvents('ParticipantAdded', { fromBlock })
+        events.forEach(event => {
+          if (event.returnValues.participant.toLowerCase() === newOperator.toLowerCase()) {
+            operatorAdded = true
+          }
+        })
         await sleep(400)
       }
-
+      // events = await wallet.contract.getPastEvents('ParticipantAdded', { fromBlock })
+      // console.log('events.length', events.length)
+      // assert.equal('ParticipantAdded', events[1].event)
+      // console.log('events[0].participant is', events[0].returnValues.participant)
+      // console.log('newOperator is', newOperator)
       assert.ok(await newwallet.isOperator(newOperator))
     })
   })
