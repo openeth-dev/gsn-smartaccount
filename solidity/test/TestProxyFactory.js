@@ -6,9 +6,9 @@ const BypassLib = artifacts.require('BypassLib')
 describe('#ProxyFactory', () => {
   let factory, template, bypassLib
   before(async () => {
-    factory = await ProxyFactory.new()
-    bypassLib = await BypassLib.new({ gas: 8e6 })
-    template = await SmartAccount.new(bypassLib.address, { gas: 1e7 })
+    factory = await ProxyFactory.new({ gas: 7e6 })
+    bypassLib = await BypassLib.new({ gas: 7e6 })
+    template = await SmartAccount.new(bypassLib.address, { gas: 7e6 })
   })
 
   let acc
