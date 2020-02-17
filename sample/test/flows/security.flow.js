@@ -10,6 +10,7 @@ import { increaseTime } from 'safechannels-contracts/test/utils'
 import { sleep } from '../backend/testutils'
 import Permissions from 'safechannels-contracts/src/js/Permissions'
 import SmartAccountABI from 'safechannels-contracts/src/js/generated/SmartAccount'
+import SimpleWallet from '../../src/js/impl/SimpleWallet'
 
 const DAY = 24 * 3600
 const verbose = false
@@ -72,7 +73,8 @@ describe('Security flow', () => {
     })
 
     it('initialConfiguration', async () => {
-      const config = await mgr.getDefaultConfiguration()
+      const userConfig = await SimpleWallet.getDefaultUserConfig()
+      const config = await wallet.createInitialConfig( { userConfig })
       levelTwoAdmin1Address = accounts[4].toLowerCase()
       levelTwoAdmin2Address = accounts[5].toLowerCase()
       levelTwoAdmin3Address = accounts[6].toLowerCase()

@@ -22,10 +22,11 @@ contract WhitelistBypassPolicy is BypassPolicy {
         smartAccount = _smartAccount;
         for (uint i = 0; i < _whitelist.length; i++) {
             whitelist[_whitelist[i]] = true;
+            emit WhitelistChanged(_whitelist[i], true);
         }
     }
 
-    function addWhitelistedTarget(
+    function setWhitelistedDestination(
         address destination,
         bool isWhitelisted)
     external {
@@ -38,7 +39,7 @@ contract WhitelistBypassPolicy is BypassPolicy {
         address target,
         uint256 value,
         bytes memory encodedFunction)
-    public view returns (uint256 /* delay */, uint256 /* requiredConfirmations */, bool) {
+    public view returns (uint256 delay, uint256 requiredConfirmations, bool requireBothDelayAndApprovals) {
         if (value > 0) {
             return getPolicyForRecipient(target);
         }

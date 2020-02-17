@@ -136,13 +136,18 @@ class FactoryContractInteractor {
 
   static async deploySmartAccountDirectly (from, relayHub, ethNodeUrl) {
     const utilitiesContract = await this.deployUtilitiesLibrary(from, ethNodeUrl)
-    const { instance } = await this.deployContract(
-      'generated/SmartAccount',
-      'SmartAccount',
+    const { instance: bypassLib } = await this.deployContract(
+      'generated/BypassModules/BypassLib',
+      'bypassLib',
       [utilitiesContract], [], from, ethNodeUrl
     )
-    await instance.ctr2(zeroAddress(), from, { from })
-    return instance
+    const { instance: smartAccount } = await this.deployContract(
+      'generated/SmartAccount',
+      'SmartAccount',
+      [utilitiesContract], [bypassLib.address], from, ethNodeUrl
+    )
+    await smartAccount.ctr2(zeroAddress(), from, bypassLib.address, { from })
+    return { smartAccount, bypassLib }
   }
 
   /**
@@ -152,9 +157,10 @@ class FactoryContractInteractor {
    */
   static async deployNewSmartAccountFactory (from, ethNodeUrl, forwarder) {
     const utilitiesContract = await this.deployUtilitiesLibrary(from, ethNodeUrl)
-    const smartAccountTemplate = await this.deploySmartAccountDirectly(from, ethNodeUrl)
+    const { smartAccount: smartAccountTemplate, bypassLib } = await this.deploySmartAccountDirectly(from, ethNodeUrl)
     const { instance: smartAccountFactory } = await this.deployContract('generated/SmartAccountFactory',
-      'SmartAccountFactory', [utilitiesContract], [forwarder, smartAccountTemplate.address], from, ethNodeUrl)
+      'SmartAccountFactory', [utilitiesContract], [forwarder, smartAccountTemplate.address, bypassLib.address], from,
+      ethNodeUrl)
     return smartAccountFactory
   }
 

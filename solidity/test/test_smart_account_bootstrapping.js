@@ -8,7 +8,7 @@ const RelayClient = require('tabookey-gasless/src/js/relayclient/RelayClient')
 /* truffle artifacts */
 const DAI = artifacts.require('./DAI.sol')
 const SmartAccount = artifacts.require('./SmartAccount.sol')
-
+const BypassLib = artifacts.require('./BypassModules/BypassLib.sol')
 const RelayHub = artifacts.require('RelayHub')
 const SmartAccountFactory = artifacts.require('SmartAccountFactory')
 const GsnForwarder = artifacts.require('GsnForwarder')
@@ -47,6 +47,7 @@ contract('SmartAccount Bootstrapping', async function (accounts) {
   let smartAccountFactory
 
   let erc20
+  let bypassLib
   let smartAccount
   let smartAccountTemplate
   let bypassModule
@@ -76,8 +77,10 @@ contract('SmartAccount Bootstrapping', async function (accounts) {
     gsnSponsor = await FreeRecipientSponsor.new()
     gsnForwarder = await GsnForwarder.new(relayHub.address, gsnSponsor.address)
     await gsnSponsor.setForwarder(gsnForwarder.address)
-    smartAccountTemplate = await SmartAccount.new({ gas: 9e6 })
+    bypassLib = await BypassLib.new({ gas: 8e6 })
+    smartAccountTemplate = await SmartAccount.new(bypassLib.address, { gas: 9e6 })
     smartAccountFactory = await SmartAccountFactory.new(gsnForwarder.address, smartAccountTemplate.address,
+      bypassLib.address,
       { gas: 9e7, from: vfOwner })
 
     whitelistFactory = await WhitelistFactory.new(gsnForwarder.address)

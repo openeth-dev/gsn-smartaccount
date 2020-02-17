@@ -11,6 +11,7 @@ const outAbiFolder = 'solidity/src/js/generated'
 
 const contractsToExtract = [
   'Utilities',
+  'BypassModules/BypassLib',
   'SmartAccount',
   'SmartAccountFactory',
 
@@ -55,6 +56,10 @@ function compileFile (contractFile, c) {
     const compile = solc.compile(JSON.stringify(input), function (path) {
       const subPath = parts.length === 0 ? '' : '/' + parts.join('/')
       let realPath = contractsFolder + subPath + '/' + path
+      // Try neighboring directories first
+      if (!fs.existsSync(realPath)) {
+        realPath = contractsFolder + '/' + path
+      }
       if (!fs.existsSync(realPath)) {
         realPath = projectFolder + '/node_modules/' + path
       }

@@ -28,7 +28,6 @@ const _urlPrefix = urlPrefix
 const _verbose = false
 
 let ls
-let whitelistFactory
 
 export default class TestEnvironment {
   constructor ({
@@ -76,6 +75,7 @@ export default class TestEnvironment {
     instance.backendAddresses = await instance.clientBackend.getAddresses()
     await instance.deployMockHub()
     await instance.deployNewFactory()
+    await instance.deployWhitelistFactory()
     await instance._initializeSimpleManager()
     return instance
   }
@@ -90,7 +90,16 @@ export default class TestEnvironment {
     useDev,
     verbose
   }) {
-    const instance = new TestEnvironment({ ethNodeUrl, relayUrl, relayHub, web3provider, clientBackend, useTwilio, useDev, verbose })
+    const instance = new TestEnvironment({
+      ethNodeUrl,
+      relayUrl,
+      relayHub,
+      web3provider,
+      clientBackend,
+      useTwilio,
+      useDev,
+      verbose
+    })
     instance.from = (await instance.web3.eth.getAccounts())[0]
 
     // bring up RelayHub, relay.
@@ -109,6 +118,7 @@ export default class TestEnvironment {
 
     // await instance.fundRelayIfNeeded()
     await instance.deployNewFactory()
+    await instance.deployWhitelistFactory()
     await instance.startBackendServer({ autoCancel: false })
     // From this point on, there is an external process running that has to be killed if construction fails
     try {
@@ -141,6 +151,7 @@ export default class TestEnvironment {
         '-p', backendPort,
         '-f', this.factory.address,
         '-s', this.sponsor.address,
+        '-w', this.whitelistFactory.address,
         '-u', this.ethNodeUrl,
         '-x', this.urlPrefix,
         '-a', autoCancel,
@@ -236,7 +247,8 @@ export default class TestEnvironment {
     })
     const factoryConfig = {
       provider: acc.provider,
-      factoryAddress: this.factory.address
+      factoryAddress: this.factory.address,
+      whitelistFactoryAddress: (this.whitelistFactory || {}).address
     }
 
     return new SimpleManager({
@@ -252,23 +264,23 @@ export default class TestEnvironment {
   }
 
   async deployWhitelistFactory () {
-    if (!whitelistFactory) {
-      whitelistFactory =
+    if (!this.whitelistFactory) {
+      this.whitelistFactory =
         await FactoryContractInteractor.deployNewWhitelistFactory(this.from, this.ethNodeUrl, this.forwarderAddress)
     }
-    return whitelistFactory
+    return this.whitelistFactory
   }
 
   async createWallet ({ jwt, phoneNumber, smsVerificationCode, whitelist }) {
-    if (whitelist && whitelist.length) {
-      await this.deployWhitelistFactory()
-    }
+    await this.deployWhitelistFactory()
     this.wallet = await this.manager.createWallet({ jwt, phoneNumber, smsVerificationCode })
-    const owner = await this.manager.getOwner()
-    const config = SimpleWallet.getDefaultSampleInitialConfiguration({
-      backendAddress: this.backendAddresses.watchdog,
-      operatorAddress: owner
-    })
+
+    const userConfig = SimpleWallet.getDefaultUserConfig()
+    if (whitelist) {
+      userConfig.whitelistPreconfigured = whitelist
+    }
+    const config = await this.wallet.createInitialConfig({ userConfig })
+    // backendAddress: this.backendAddresses.watchdog,
     await this.wallet.initialConfiguration(config)
     await TestUtils.evmMine(this.web3)
   }

@@ -1,29 +1,30 @@
 pragma solidity ^0.5.10;
 
-import "./ISmartAccount.sol";
 import "tabookey-gasless/contracts/GsnUtils.sol";
 import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
 import "openzeppelin-solidity/contracts/cryptography/ECDSA.sol";
 import "./ProxyFactory.sol";
 import "gsn-sponsor/contracts/GsnRecipient.sol";
+import "./SmartAccount.sol";
 
 contract SmartAccountFactory is GsnRecipient, Ownable, ProxyFactory {
     using GsnUtils for bytes;
     using ECDSA for bytes32;
 
-    ISmartAccount template;
+    SmartAccount template;
+    address bypassLibTemplate;
 
     uint256 constant APPROVAL_VALIDITY = 1 days;
 
-    event SmartAccountCreated(address sender, ISmartAccount smartAccount, bytes32 smartAccountId);
+    event SmartAccountCreated(address sender, SmartAccount smartAccount, bytes32 smartAccountId);
 
     mapping(address => bool) public trustedSigners;
     mapping(bytes32 => address) public knownSmartAccounts;
 
-    constructor(address _forwarder, address _template) public {
+    constructor(address _forwarder, address payable _template, address _bypassLibTemplate) public {
         setGsnForwarder(_forwarder);
-        template = ISmartAccount(_template);
-        //        createAccountTemplate();
+        template = SmartAccount(_template);
+        bypassLibTemplate = _bypassLibTemplate;
     }
 
     function addTrustedSigners(address[] memory signers) public onlyOwner {
@@ -76,8 +77,8 @@ contract SmartAccountFactory is GsnRecipient, Ownable, ProxyFactory {
             "Must have a valid approvalData");
         require(knownSmartAccounts[smartAccountId] == address(0), "SmartAccount already created for this id");
         address payable proxy = address(uint160(createProxyImpl(address(template), "")));
-        ISmartAccount smartAccount = ISmartAccount(proxy);
-        smartAccount.ctr2(getGsnForwarder(), getSender());
+        SmartAccount smartAccount = SmartAccount(proxy);
+        smartAccount.ctr2(getGsnForwarder(), getSender(), bypassLibTemplate);
         knownSmartAccounts[smartAccountId] = address(smartAccount);
         emit SmartAccountCreated(getSender(), smartAccount, smartAccountId);
     }

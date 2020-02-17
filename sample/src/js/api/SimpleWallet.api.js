@@ -10,6 +10,16 @@ export default class SimpleWalletApi {
     validate(SimpleWalletApi, this)
   }
 
+  async createInitialConfig ({ userConfig }) {
+    return {
+      ...userConfig,
+      initialParticipants: ['operator', 'backendAsWatchdog', 'backendAsAdmin'],
+      bypassTargets: [],
+      bypassMethods: [],
+      bypassModules: []
+    }
+  }
+
   async initialConfiguration (configuration) {
     error('set initial configuration in the contract')
   }
@@ -18,7 +28,15 @@ export default class SimpleWalletApi {
     error('initiate transfer operation. adds a pending item, depending on transfer policy')
   }
 
-  removeOperator (addr) {
+  async scheduleBypassCall ({ destination, value, encodedTransaction }) {
+    error('initiate operation. adds a pending item.')
+  }
+
+  async removeParticipantByAddress ({ address }) {
+    error('find the signle participant with this address, and remove it.')
+  }
+
+  async removeParticipant ({ address, rawPermissions, level }) {
     error('add "remove operator" operation, (delayed, can be canceled by watchdog)')
   }
 
@@ -37,16 +55,12 @@ export default class SimpleWalletApi {
     error('perform a transfer to a whitelisted address')
   }
 
-  addWhitelist (addrs) {
+  async setWhitelistedDestination (destination, isWhitelisted) {
     error('add pending operation to add entries to whitelist')
   }
 
-  removeWhitelist (addrs) {
-    error('remove entries from whitelist (immediate)')
-  }
-
   // return cached list of whitelisted addresses.
-  listWhitelistedAddresses () {
+  async listWhitelistedAddresses () {
     return ['add1', 'add2']
   }
 
@@ -68,6 +82,10 @@ export default class SimpleWalletApi {
 
   async getWalletInfo () {
     error('wallet info')
+  }
+
+  async getWhitelistModule () {
+    error('return bypass policy contract object')
   }
 
   async listTokens () {

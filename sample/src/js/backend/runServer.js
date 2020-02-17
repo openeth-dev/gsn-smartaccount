@@ -20,9 +20,9 @@ import fs from 'fs'
 function error (err) { throw new Error(err) }
 
 const argv = parseArgs(process.argv.slice(2), {
-  string: ['sponsor', 'factory', 'url', 'url-prefix'],
+  string: ['sponsor', 'factory', 'url', 'url-prefix', 'whitelistFactory'],
   boolean: ['auto-cancel'],
-  alias: { D: 'dev', S: 'sms', u: 'url', x: 'url-prefix', a: 'auto-cancel', s: 'sponsor', f: 'factory' }
+  alias: { D: 'dev', S: 'sms', u: 'url', x: 'url-prefix', a: 'auto-cancel', s: 'sponsor', f: 'factory', w: 'whitelistFactory' }
 })
 
 if (argv._.length) error('unknown extra params: ' + argv._)
@@ -30,6 +30,7 @@ if (argv._.length) error('unknown extra params: ' + argv._)
 const port = argv.p || error('missing -p [port]')
 const factoryAddress = argv.f || error('missing -f [factoryAddress]')
 const sponsorAddress = argv.s || error('missing -s [sponsotAddress]')
+const whitelistFactoryAddress = argv.w || error('missing -w [whitelistFactoryAddress]')
 const ethNodeUrl = argv.url || error('missing -u [ethNodeUrl]')
 const smsProvider = argv.sms === 'twilio' ? new SMStwilio() : new SMSmock()
 const urlPrefix = argv.x || error('missing -x [urlPrefix]')
@@ -59,7 +60,8 @@ const watchdog = new WatchdogClass({
   keyManager,
   accountManager,
   smartAccountFactoryAddress: factoryAddress,
-  sponsorAddress: sponsorAddress,
+  sponsorAddress,
+  whitelistFactoryAddress,
   web3provider: web3provider,
   urlPrefix,
   level: 1

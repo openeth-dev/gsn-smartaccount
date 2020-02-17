@@ -12,6 +12,7 @@ import SimpleManager from '../js/impl/SimpleManager'
 import { increaseTime } from './GanacheIncreaseTime'
 import { toBN } from 'web3-utils'
 import AccountMock from '../js/mocks/Account.mock'
+import SimpleWallet from '../js/impl/SimpleWallet'
 
 let debug = getParam('debug')
 
@@ -67,7 +68,7 @@ function GoogleLogin ({ refresh, initMgr }) {
   </div>
 }
 
-function CreateWallet ({ refresh, jwt, email, initialConfig, setInitialConfig }) {
+function CreateWallet ({ refresh, jwt, email, userConfig, setUserConfig }) {
   let phoneNumber
 
   const [initConfig, setInitConfig] = useState('')
@@ -99,7 +100,9 @@ function CreateWallet ({ refresh, jwt, email, initialConfig, setInitialConfig })
 
     try {
       await mgr.createWallet({ jwt, phoneNumber, smsVerificationCode })
+      // TODO: create wallet and initial config
       const wallet = await mgr.loadWallet()
+      const initialConfig = await wallet.createInitialConfig({ userConfig })
       await wallet.initialConfiguration(initialConfig)
 
       refresh({ err: undefined })
@@ -107,12 +110,14 @@ function CreateWallet ({ refresh, jwt, email, initialConfig, setInitialConfig })
       refresh({ err: errorStr(e) })
     }
   }
+
   function updateWhitelistConfig (val) {
     setInitConfig(val) // for UI leave string as-is
     // modify global state
-    initialConfig.whitelist = val.split(/[ \t]*[,\n][ \t]*/).filter(addr => !!addr)
-    setInitialConfig(initialConfig)
+    userConfig.whitelistPreconfigured = val.split(/[ \t]*[,\n][ \t]*/).filter(addr => !!addr)
+    setUserConfig(userConfig)
   }
+
   function updateDelayTime (val) {
     setDelayTime(val) // for UI leave string as-is
     // modify global state
@@ -121,14 +126,15 @@ function CreateWallet ({ refresh, jwt, email, initialConfig, setInitialConfig })
       const [, t, suf] = val.match(/^\s*([\d.]+)\s*(\w?)/)
 
       const time = Math.floor(t * (suffixes[suf.toLowerCase()] || 1))
-      initialConfig.initialDelays[1] = time
-      setInitialConfig(initialConfig)
+      userConfig.initialDelays[1] = time
+      setUserConfig(userConfig)
       setDelayErr('')
     } catch (e) {
       setDelayErr('invalid number/suffix')
       // ignore - just don't display..
     }
   }
+
   return <div>
     Hello <b>{email}</b>, you dont have a wallet yet.<br/>
     Click <Button title="here to verify phone" action={startCreate}/><br/>
@@ -139,19 +145,20 @@ function CreateWallet ({ refresh, jwt, email, initialConfig, setInitialConfig })
     <textarea cols="80" value={initConfig} onChange={e => updateWhitelistConfig(e.target.value)}></textarea><br/>
 
     Delay time:
-    <input cols="10" value={delayTime} onChange={e => updateDelayTime(e.target.value)} />
+    <input cols="10" value={delayTime} onChange={e => updateDelayTime(e.target.value)}/>
     <span style={{ fontSize: 10 }}>(can use d/h/m/s suffix)
       <span style={{ color: 'red' }}>{delayErr}</span>
     </span><br/>
     <pre>
-      {JSON.stringify(initialConfig, null, 2)}
+      {JSON.stringify(userConfig, null, 2)}
     </pre>
   </div>
 }
 
 function TokenWidget ({ symbol, balance, decimals, doTransfer }) {
   const div = '1' + '0'.repeat(decimals || 0)
-  return <span>{symbol}: {balance / div} <Button title={'send ' + symbol} action={() => doTransfer({ symbol })}/><br/></span>
+  return <span>{symbol}: {balance / div} <Button title={'send ' + symbol}
+    action={() => doTransfer({ symbol })}/><br/></span>
 }
 
 const PendingTransaction = ({ p }) => {
@@ -178,7 +185,7 @@ const PendingTransactions = ({ walletPending, doCancelPending }) =>
     <b>Pending</b>
     {walletPending.map((p, i) =>
       <div key={i}>
-        <PendingTransaction p={p} /> -
+        <PendingTransaction p={p}/> -
         <Button title="Cancel" action={() => doCancelPending(p.delayedOpId)}/>
       </div>)
     }
@@ -187,7 +194,8 @@ const PendingTransactions = ({ walletPending, doCancelPending }) =>
 const Whitelist = ({ whitelist, doAddToWhiteList, doRemoveFromWhitelist }) => <div>
   <b>Whitelist</b><Button title="+ add" action={doAddToWhiteList}/><br/>
   {(!whitelist || !whitelist.length) && <span style={{ fontSize: 10 }}>No whitelisted addresses</span>}
-  {whitelist && whitelist.map(wl => <span key={wl}>{wl} <Button title="remove" action={() => doRemoveFromWhitelist(wl)}/><br/></span>)}
+  {whitelist && whitelist.map(wl => <span key={wl}>{wl} <Button title="remove"
+    action={() => doRemoveFromWhitelist(wl)}/><br/></span>)}
 
 </div>
 
@@ -208,7 +216,7 @@ function ActiveWallet ({
     }
 
     <br/>
-    <Whitelist whitelist={whitelist} doAddToWhiteList={doAddToWhiteList} doRemoveFromWhitelist={doRemoveFromWhitelist} />
+    <Whitelist whitelist={whitelist} doAddToWhiteList={doAddToWhiteList} doRemoveFromWhitelist={doRemoveFromWhitelist}/>
     {
       walletPending.length ? <PendingTransactions walletPending={walletPending} doCancelPending={doCancelPending}/>
         : <b>No Pending Transactions</b>
@@ -345,7 +353,7 @@ class App extends React.Component {
     console.log('readMgrState')
     const mgrState = {
       loading: undefined,
-      initialConfig: undefined,
+      userConfig: undefined,
       walletInfo: undefined,
       walletBalances: undefined,
       walletPending: undefined
@@ -358,8 +366,8 @@ class App extends React.Component {
         email: this.state.email || await mgr.getEmail(),
         walletAddr: this.state.walletAddr || await mgr.getWalletAddress()
       })
-      if (!mgrState.walletAddr) {
-        mgrState.initialConfig = await mgr.getDefaultConfiguration()
+      if (!mgrState.walletAddr && mgrState.email) {
+        mgrState.userConfig = SimpleWallet.getDefaultUserConfig()
       }
       console.log('readMgrState: has some state')
     } else {
@@ -439,7 +447,7 @@ class App extends React.Component {
     global.web3provider = web3provider
 
     const backend = new ClientBackend({ backendURL })
-    const { sponsor, factory } = (await backend.getAddresses())
+    const { sponsor, factory, whitelistFactory } = (await backend.getAddresses())
 
     const relayOptions = {
       verbose,
@@ -452,7 +460,8 @@ class App extends React.Component {
 
     const factoryConfig = {
       provider: sdk.provider,
-      factoryAddress: factory
+      factoryAddress: factory,
+      whitelistFactoryAddress: whitelistFactory
     }
 
     mgr = new SimpleManager({
@@ -541,7 +550,8 @@ class App extends React.Component {
     try {
       const destination = prompt('Transfer ' + symbol + ' destination:')
       if (!destination) return
-      const val = prompt('Transfer ' + symbol + ' amount:')
+      const isWhitelisted = await wallet._isWhitelisted({ destination })
+      const val = prompt((isWhitelisted ? 'DIERCT ' : 'Scheduled ') + 'Transfer ' + symbol + ' amount:')
       if (!(val > 0)) return
       const tokinfo = this.state.walletBalances.find(b => b.symbol === symbol)
       const factor = '1' + '0'.repeat(tokinfo.decimals || 0)
@@ -584,8 +594,17 @@ class App extends React.Component {
   }
 
   async signout () {
+    if (!window.confirm('Signing out and requesting to self as operator\n' +
+      'has wallet=' + !!wallet)) {
+      return
+    }
     // TODO: currently, we initmgr means its online, though not strictly required for singout..
     await this.initMgr()
+
+    if (wallet) {
+      const address = await mgr.getOwner()
+      await wallet.removeParticipantByAddress({ address })
+    }
     await mgr.signOut()
 
     // clear entire react state:
@@ -604,7 +623,6 @@ class App extends React.Component {
     // await mgr.validatePhone({jwt, phone:123})
     if (!await mgr.hasWallet()) {
       await mgr.createWallet({ jwt, phoneNumber: '123', smsVerificationCode: 'v123' })
-      await mgr.setInitialConfiguration()
     } else {
       await mgr.loadWallet()
     }
@@ -640,12 +658,12 @@ class App extends React.Component {
   async doAddToWhiteList () {
     const addr = window.prompt('Add to whitelist')
     if (!addr) return
-    await wallet.addWhitelist([addr])
+    await wallet.setWhitelistedDestination(addr, true)
   }
 
   async doRemoveFromWhitelist (addr) {
     if (!window.confirm('Remove from whitelist: ' + addr)) { return }
-    await wallet.removeWhitelist([addr])
+    await wallet.setWhitelistedDestination(addr, false)
   }
 
   render () {
@@ -690,7 +708,7 @@ class App extends React.Component {
           doValidateRecoverWallet={() => this.doValidateRecoverWallet()}
           doAddToWhiteList={() => this.doAddToWhiteList()}
           doRemoveFromWhitelist={(addr) => this.doRemoveFromWhitelist(addr)}
-          setInitialConfig={config => this.setState({ initialConfig: config })}
+          setUserConfig={config => this.setState({ userConfig: config })}
           refresh={(extra) => this.reloadState(extra)} {...this.state} />
 
       </div>

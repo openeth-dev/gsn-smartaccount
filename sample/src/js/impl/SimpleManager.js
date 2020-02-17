@@ -131,19 +131,6 @@ export default class SimpleManager extends SimpleManagerApi {
     return this.loadWallet()
   }
 
-  async getDefaultConfiguration () {
-    return SimpleWallet.getDefaultSampleInitialConfiguration({
-      backendAddress: this.guardianAddress,
-      operatorAddress: await this.getOwner()
-    })
-  }
-
-  // todo: not really needed anymore: client should get default config, manipulate and set it to wallet.
-  async setInitialConfiguration () {
-    const wallet = await this.loadWallet()
-    await wallet.initialConfiguration(await this.getDefaultConfiguration())
-  }
-
   async loadWallet () {
     await this._init()
 
@@ -152,6 +139,8 @@ export default class SimpleManager extends SimpleManagerApi {
 
     const participants = this._getParticipants({ ownerAddress: owner, guardianAddress: this.guardianAddress })
     return new SimpleWallet({
+      guardianAddress: this.guardianAddress,
+      ownerAddress: owner,
       contract: smartAccount,
       backend: this.backend,
       whitelistFactory: this.whitelistFactory,

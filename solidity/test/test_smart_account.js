@@ -10,6 +10,7 @@ const AllowAllPolicy = artifacts.require('AllowAllPolicy')
 const TestContract = artifacts.require('TestContract')
 const TestPolicy = artifacts.require('TestPolicy')
 const SmartAccount = artifacts.require('SmartAccount')
+const BypassLib = artifacts.require('BypassLib')
 const DAI = artifacts.require('DAI')
 
 const testUtils = require('./utils')
@@ -126,8 +127,8 @@ async function applyDelayed ({ res, log }, fromParticipant, smartAccount) {
     { from: fromParticipant.address })
 }
 
-contract('SmartAccount', async function (accounts) {
-  let smartAccount
+contract.only('SmartAccount', async function (accounts) {
+  let smartAccount, bypassLib
   let erc20
   const fundedAmount = 300
   const from = accounts[0]
@@ -170,8 +171,9 @@ contract('SmartAccount', async function (accounts) {
       SmartAccount.network.events[topic] = TestContract.events[topic]
     })
 
-    smartAccount = await SmartAccount.new({ gas: 8e6 })
-    await smartAccount.ctr2(zeroAddress, accounts[0])
+    bypassLib = await BypassLib.new({ gas: 8e6 })
+    smartAccount = await SmartAccount.new(bypassLib.address, { gas: 8e6 })
+    await smartAccount.ctr2(zeroAddress, accounts[0], bypassLib.address)
     erc20 = await DAI.new()
     web3 = new Web3(smartAccount.contract.currentProvider)
     ownerPermissions = utils.bufferToHex(await smartAccount.ownerPermissions())
@@ -952,8 +954,9 @@ contract('SmartAccount', async function (accounts) {
     let res
 
     before(async function () {
-      failCloseGK = await SmartAccount.new({ gas: 8e6 })
-      await failCloseGK.ctr2(zeroAddress, accounts[0])
+      bypassLib = await BypassLib.new({ gas: 8e6 })
+      failCloseGK = await SmartAccount.new(bypassLib.address, { gas: 8e6 })
+      await failCloseGK.ctr2(zeroAddress, accounts[0], bypassLib.address)
     })
 
     it('should initialize gk with failclose levels', async function () {
@@ -1366,7 +1369,7 @@ contract('SmartAccount', async function (accounts) {
         const actions = [ChangeType.UNFREEZE]
         const args = ['0x0']
         const stateId = await smartAccount.stateNonce()
-        const encodedHash =  '0x' + utils.changeHash(actions, args, args, stateId).toString('hex')
+        const encodedHash = '0x' + utils.changeHash(actions, args, args, stateId).toString('hex')
         const signature = await utils.signMessage(encodedHash, web3, { from: operatorA.address })
         const res1 = await smartAccount.boostedConfigChange(
           adminB1.permLevel,
