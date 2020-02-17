@@ -16,6 +16,7 @@ import "./BypassModules/BypassLib.sol";
 
 contract SmartAccount is  ISmartAccount, SmartAccountBase {
     using LibBytes for bytes;
+<<<<<<< HEAD
     modifier delegateToBypassLib(){
         _;
         address bl = bypassLib;
@@ -29,6 +30,69 @@ contract SmartAccount is  ISmartAccount, SmartAccountBase {
             case 0 { revert(ptr, returndatasize()) }
             default { return(ptr, returndatasize()) }
         }
+=======
+
+    // Nice idea to use mock token address for ETH instead of 'address(0)'
+    address constant internal ETH_TOKEN_ADDRESS = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+
+    uint256 constant USE_DEFAULT = uint(- 1);
+
+    enum ChangeType {
+        ADD_PARTICIPANT, // arg: participant_hash
+        REMOVE_PARTICIPANT, // arg: participant_hash
+        ADD_BYPASS_BY_TARGET,
+        ADD_BYPASS_BY_METHOD,
+        SET_ACCELERATED_CALLS,
+        SET_ADD_OPERATOR_NOW,
+        UNFREEZE, // no args
+        ADD_OPERATOR,
+        ADD_OPERATOR_NOW
+    }
+
+    //***** events
+
+    event ConfigPending(bytes32 indexed delayedOpId, address sender, uint32 senderPermsLevel, address booster, uint32 boosterPermsLevel, uint256 stateId, uint8[] actions, bytes32[] actionsArguments1, bytes32[] actionsArguments2, uint256 dueTime);
+    event ConfigCancelled(bytes32 indexed delayedOpId, address sender);
+    event ConfigApplied(bytes32 indexed delayedOpId, address sender);
+    event ParticipantAdded(address indexed participant, uint32 permissions, uint8 level);
+    event ParticipantRemoved(address indexed participant, uint32 permissions, uint8 level);
+    event SmartAccountInitialized(bytes32[] participants, uint256[] delays, uint256[] requiredApprovalsPerLevel, address[] bypassModules);
+    event LevelFrozen(uint256 frozenLevel, uint256 frozenUntil, address sender);
+    event UnfreezeCompleted();
+    event BypassByTargetAdded(address target, BypassPolicy  indexed bypass);
+    event BypassByMethodAdded(bytes4 method, BypassPolicy indexed bypass);
+    event BypassByTargetRemoved(address target, BypassPolicy indexed bypass);
+    event BypassByMethodRemoved(bytes4 method, BypassPolicy indexed bypass);
+    event BypassCallPending(bytes32 indexed delayedOpId, uint256 stateId, address sender, uint32 senderPermsLevel, address target, uint256 value, bytes msgdata, uint256 dueTime);
+    event BypassCallCancelled(bytes32 indexed delayedOpId, address sender);
+    event BypassCallApplied(bytes32 indexed delayedOpId, bool status);
+    event BypassCallExecuted(bool status);
+    event AcceleratedCAllSet(bool status);
+    event AddOperatorNowSet(bool status);
+
+    struct PendingChange {
+        uint256 dueTime;
+        bytes32[] approvers;
+    }
+
+    mapping(bytes32 => PendingChange) public pendingChanges;
+    uint256[] public delays;
+    mapping(address => BypassPolicy) public bypassPoliciesByTarget; // instance level bypass exceptions
+    mapping(bytes4 => BypassPolicy) public bypassPoliciesByMethod; // interface (method sigs) level bypass exceptions
+    // TODO: do not call this 'bypass calls', this does not describe what these are.
+    mapping(bytes32 => PendingChange) public pendingBypassCalls;
+    bool public allowAcceleratedCalls;
+    bool public allowAddOperatorNow;
+    // 0 - no approvals needed before applying
+    uint256[] public requiredApprovalsPerLevel;
+
+    function getApprovalsPerLevel() public view returns (uint256[] memory) {
+        return requiredApprovalsPerLevel;
+    }
+
+    function getDelays() public view returns (uint256[] memory) {
+        return delays;
+>>>>>>> master
     }
 
     constructor (address _bypassLib) public {

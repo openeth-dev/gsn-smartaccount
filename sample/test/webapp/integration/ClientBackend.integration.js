@@ -44,6 +44,11 @@ async function newTest () {
 }
 
 describe('Client <-> Backend <-> Blockchain', async function () {
+  before(async () => {
+    // restart GSN (someone, previous tests left it in an unstable state.
+    TestEnvironment.stopBackendServer(true)
+  })
+
   describe('SimpleManager', async function () {
     describe('#cancelByUrl()', async function () {
       let testContext

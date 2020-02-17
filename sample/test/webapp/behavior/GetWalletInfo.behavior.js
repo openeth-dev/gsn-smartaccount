@@ -6,7 +6,7 @@ import assert from 'assert'
 export function testGetWalletInfoBehavior (getContext) {
   let wallet
   let initEvent
-  const participantAddedEvents = []
+  const events = []
 
   function getExpected (source) {
     const expected = require(source)
@@ -21,7 +21,7 @@ export function testGetWalletInfoBehavior (getContext) {
     initEvent = require('../testdata/GetWalletInfoSampleEvents/InitialConfigEvent')
     initEvent.address = wallet.contract.address
     wallet._getCompletedConfigurationEvents = function () {
-      return { participantAddedEvents, initEvent }
+      return { events, initEvent }
     }
     wallet._getAllowedFlags = function () {
       return { allowAcceleratedCalls: true }
@@ -36,11 +36,20 @@ export function testGetWalletInfoBehavior (getContext) {
 
   it('should recognize vault configuration after participant added', async function () {
     const participantAddedEvent = require('../testdata/GetWalletInfoSampleEvents/ParticipantAddedEvent')
-    participantAddedEvents.push(participantAddedEvent)
+    // Sanity check that multiple additions of the same participant have no effect
+    for (let i = 0; i < 4; i++) {
+      events.push(participantAddedEvent)
+    }
     const expectedWalletInfo = getExpected('../testdata/ExpectedWalletInfoB')
     const walletInfo = await wallet.getWalletInfo()
     assert.deepStrictEqual(walletInfo, expectedWalletInfo)
   })
 
-  it('should recognize vault configuration if some participants are not recognized')
+  it('should recognize vault configuration after participant removed', async function () {
+    const participantRemovedEvent = require('../testdata/GetWalletInfoSampleEvents/ParticipantRemovedEvent')
+    events.push(participantRemovedEvent)
+    const expectedWalletInfo = getExpected('../testdata/ExpectedWalletInfoA')
+    const walletInfo = await wallet.getWalletInfo()
+    assert.deepStrictEqual(walletInfo, expectedWalletInfo)
+  })
 }

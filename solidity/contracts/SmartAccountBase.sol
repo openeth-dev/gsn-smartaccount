@@ -31,7 +31,7 @@ contract SmartAccountBase is GsnRecipient, PermissionsLevel {
     event ConfigApplied(bytes32 indexed delayedOpId, address sender);
     event ParticipantAdded(address indexed participant, uint32 permissions, uint8 level);
     event ParticipantRemoved(address indexed participant, uint32 permissions, uint8 level);
-    event SmartAccountInitialized(bytes32[] participants, uint256[] delays, uint256[] requiredApprovalsPerLevel);
+    event SmartAccountInitialized(bytes32[] participants, uint256[] delays, uint256[] requiredApprovalsPerLevel, address[] bypassModules);
     event LevelFrozen(uint256 frozenLevel, uint256 frozenUntil, address sender);
     event UnfreezeCompleted();
     event BypassByTargetAdded(address target, BypassPolicy  indexed bypass);

@@ -10,9 +10,12 @@ function hex2buf (str) {
 // usage: just after method call, use nonNull({param1,param2})
 function nonNull (params) {
   if (arguments.length > 1 || typeof params !== 'object') { throw new Error('usage: nonNull({param1,param2,..})') }
-  Object.entries(params).forEach(e => {
-    if (typeof e[1] === 'undefined' || e[1] === 'null') {
-      throw new Error('Unexpected ' + e[0] + '=' + e[1])
+  Object.entries(params).forEach(([name, val]) => {
+    if (typeof val === 'undefined' || val === 'null') {
+      throw new Error('Unexpected ' + name + '=' + val)
+    }
+    if (typeof val.then === 'function') {
+      throw new Error('Unexpected Promise ' + name + '. forgot await ?')
     }
   })
 }

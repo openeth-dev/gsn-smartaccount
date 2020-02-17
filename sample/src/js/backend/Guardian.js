@@ -13,13 +13,14 @@ abiDecoder.addABI(SmartAccountFactoryABI)
 abiDecoder.addABI(SmartAccountABI)
 
 class Guardian {
-  constructor ({ smsManager, keyManager, accountManager, smartAccountFactoryAddress, sponsorAddress, web3provider }) {
+  constructor ({ smsManager, keyManager, accountManager, smartAccountFactoryAddress, sponsorAddress, whitelistFactoryAddress, web3provider }) {
     Object.assign(this, {
       smsManager,
       keyManager,
       accountManager,
       smartAccountFactoryAddress,
       sponsorAddress,
+      whitelistFactoryAddress,
       web3provider,
       web3: new Web3(web3provider),
       secretSMSCodeSeed: crypto.randomBytes(32)
@@ -51,8 +52,8 @@ class Guardian {
 }
 
 export class Watchdog extends Guardian {
-  constructor ({ smsManager, keyManager, accountManager, smartAccountFactoryAddress, sponsorAddress, web3provider, urlPrefix }) {
-    super({ smsManager, keyManager, accountManager, smartAccountFactoryAddress, sponsorAddress, web3provider })
+  constructor ({ smsManager, keyManager, accountManager, smartAccountFactoryAddress, sponsorAddress, whitelistFactoryAddress, web3provider, urlPrefix }) {
+    super({ smsManager, keyManager, accountManager, smartAccountFactoryAddress, sponsorAddress, whitelistFactoryAddress, web3provider })
     this.urlPrefix = new URL(urlPrefix)
     if (!this.urlPrefix.href) {
       throw new Error(`Invalid url: ${urlPrefix}`)
@@ -310,6 +311,7 @@ export class Watchdog extends Guardian {
       watchdog: this.keyManager.address(),
       admin: this.keyManager.address(),
       factory: this.smartAccountFactoryAddress,
+      whitelistFactory: this.whitelistFactoryAddress,
       sponsor: this.sponsorAddress
     }
   }

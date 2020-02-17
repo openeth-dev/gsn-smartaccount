@@ -7,6 +7,7 @@ import TestEnvironment from '../utils/TestEnvironment'
 
 import { increaseTime } from 'safechannels-contracts/test/utils'
 import { sleep } from '../backend/testutils'
+import SimpleWallet from '../../src/js/impl/SimpleWallet'
 
 const DAY = 24 * 3600
 
@@ -23,6 +24,7 @@ describe('System flow', () => {
 
   before('check "gsn-dock-relay" is active', async function () {
     this.timeout(30000)
+    TestEnvironment.stopBackendServer(true)
 
     testEnvironment = await TestEnvironment.initializeAndStartBackendForRealGSN({ verbose })
     await testEnvironment.snapshot()
@@ -33,7 +35,9 @@ describe('System flow', () => {
   after('stop backend', async () => {
     console.log('before kill', (await axios.get('http://localhost:8090/getaddr')).data)
     TestEnvironment.stopBackendServer()
-    await testEnvironment.revert()
+    if (!process.env.NOREVERT) {
+      await testEnvironment.revert()
+    }
     try {
       console.log('after kill relay', (await axios.get('http://localhost:8090/getaddr')).data)
       fail('server should be down!')
@@ -86,7 +90,10 @@ describe('System flow', () => {
     })
 
     it('initialConfiguration', async () => {
-      const config = await mgr.getDefaultConfiguration()
+      const userConfig = SimpleWallet.getDefaultUserConfig()
+      userConfig.initialDelays[0] = 60
+      userConfig.whitelistPreconfigured.push('0x' + '5'.repeat(40))
+      const config = await await wallet.createInitialConfig({ userConfig })
       await wallet.initialConfiguration(config)
     })
 
@@ -96,6 +103,20 @@ describe('System flow', () => {
       const operators = await walletOperators(wallet)
       assert.deepEqual(operators.length, 1)
       assert.deepEqual(operators[0].address, await mgr.getOwner())
+    })
+  })
+
+  describe('whitelist', async () => {
+    it('should add pending operation for new whitelist item', async () => {
+      const whiteAddr = '0x' + '3'.repeat(40)
+      await wallet.getWalletInfo()
+
+      await wallet.setWhitelistedDestination(whiteAddr, true)
+
+      await increaseTime(3 * DAY, web3)
+
+      await sleep(1000)
+      assert.deepInclude(await wallet.listWhitelistedAddresses(), whiteAddr)
     })
   })
 
@@ -112,6 +133,7 @@ describe('System flow', () => {
       const ethInfo = tokens.find(t => t.symbol === 'ETH')
       assert.equal(ethInfo.balance, '0')
     })
+
     it('balance should rise after funding wallet address', async () => {
       const val = 1.23e18.toString()
       const walletAddress = (await wallet.getWalletInfo()).address
@@ -184,6 +206,7 @@ describe('System flow', () => {
       newenv.verbose = testEnvironment.verbose
       newenv.factory = testEnvironment.factory
       newenv.backendAddresses = testEnvironment.backendAddresses
+      newenv.whitelistFactory = testEnvironment.whitelistFactory
 
       await newenv._initializeSimpleManager()
 
@@ -268,6 +291,7 @@ describe('System flow', () => {
         newenv.verbose = testEnvironment.verbose
         newenv.factory = testEnvironment.factory
         newenv.backendAddresses = testEnvironment.backendAddresses
+        newenv.whitelistFactory = testEnvironment.whitelistFactory
 
         await newenv._initializeSimpleManager()
 
@@ -317,13 +341,7 @@ describe('System flow', () => {
       const newwallet = await newmgr.loadWallet()
       assert.ok(!await newwallet.isOperator(newOperator))
 
-      const resolvePromise = null
-      await wallet.subscribe(e => {
-        console.log('got event ' + e)
-        resolvePromise()
-      })
-
-      const fromBlock = await web3.eth.getBlockNumber()
+      const fromBlock = (await web3.eth.getBlockNumber())
       await wallet.getWalletInfo()
       await wallet.addOperatorNow(newOperator)
 
@@ -343,7 +361,7 @@ describe('System flow', () => {
       // console.log('events.length', events.length)
       // assert.equal('ParticipantAdded', events[1].event)
       // console.log('events[0].participant is', events[0].returnValues.participant)
-      // console.log('newOperator is', newOperator)
+      console.log('new operator: ', newOperator)
       assert.ok(await newwallet.isOperator(newOperator))
     })
   })

@@ -6,21 +6,25 @@
     {
       "address": "0x3333333333333333333333333333333333333333",
       "level": 1,
+      "rawPermissions": 64991,
       "type": "operator"
     },
     {
       "address": "0x2222222222222222222222222222222222222222",
       "level": 1,
+      "rawPermissions": 5056,
       "type": "watchdog"
     },
     {
       "address": "0x2222222222222222222222222222222222222222",
       "level": 1,
+      "rawPermissions": 1056,
       "type": "admin"
     },
     {
       "address": "0x4444444444444444444444444444444444444444",
       "level": 1,
+      "rawPermissions": 64991,
       "type": "operator"
     }
   ],
