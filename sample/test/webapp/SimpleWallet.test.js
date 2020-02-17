@@ -57,7 +57,7 @@ describe('SimpleWallet', async function () {
   })
 
   async function newTest (_operator = operator, whitelistPreconfigured = [], knownTokens = [], skipInit = false) {
-    const smartAccount = await FactoryContractInteractor.deploySmartAccountDirectly(from, ethNodeUrl)
+    const { smartAccount }= await FactoryContractInteractor.deploySmartAccountDirectly(from, ethNodeUrl)
     // TODO: duplicate code, testenv does same work as the rest of the code here!!!
     const testEnvironment = await TestEnvironment.initializeWithFakeBackendAndGSN({ clientBackend: BaseBackendMock })
     const wallet = new SimpleWallet(

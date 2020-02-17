@@ -21,7 +21,7 @@ describe('#ProxyFactory', () => {
   })
 
   it('modify proxy shouldn\'t change template', async () => {
-    await acc.ctr2('0x' + '0'.repeat(40), '0x' + '3'.repeat(40))
+    await acc.ctr2('0x' + '0'.repeat(40), '0x' + '3'.repeat(40), '0x' + '3'.repeat(40))
     assert.equal(await acc.creator(), '0x' + '3'.repeat(40))
     assert.equal(await template.creator(), '0x' + '0'.repeat(40))
   })

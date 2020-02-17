@@ -264,7 +264,7 @@ describe('Backend', async function () {
       jwt = generateMockJwt({ email, nonce: newOperatorAddress })
       const accountId = await backend.getSmartAccountId({ email })
       account = await backend.accountManager.getAccountById({ accountId })
-      const smartAccount = await FactoryContractInteractor.deploySmartAccountDirectly(accountZero, ethNodeUrl)
+      const { smartAccount } = await FactoryContractInteractor.deploySmartAccountDirectly(accountZero, ethNodeUrl)
       account.address = smartAccount.address
       await backend.accountManager.putAccount({ account })
 

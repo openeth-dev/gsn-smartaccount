@@ -173,7 +173,7 @@ contract.only('SmartAccount', async function (accounts) {
 
     bypassLib = await BypassLib.new({ gas: 8e6 })
     smartAccount = await SmartAccount.new(bypassLib.address, { gas: 8e6 })
-    await smartAccount.ctr2(zeroAddress, accounts[0])
+    await smartAccount.ctr2(zeroAddress, accounts[0], bypassLib.address)
     erc20 = await DAI.new()
     web3 = new Web3(smartAccount.contract.currentProvider)
     ownerPermissions = utils.bufferToHex(await smartAccount.ownerPermissions())
@@ -956,7 +956,7 @@ contract.only('SmartAccount', async function (accounts) {
     before(async function () {
       bypassLib = await BypassLib.new({ gas: 8e6 })
       failCloseGK = await SmartAccount.new(bypassLib.address, { gas: 8e6 })
-      await failCloseGK.ctr2(zeroAddress, accounts[0])
+      await failCloseGK.ctr2(zeroAddress, accounts[0], bypassLib.address)
     })
 
     it('should initialize gk with failclose levels', async function () {

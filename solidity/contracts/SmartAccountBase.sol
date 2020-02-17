@@ -75,7 +75,7 @@ contract SmartAccountBase is GsnRecipient, PermissionsLevel {
     // 0 - no approvals needed before applying
     uint256[] public requiredApprovalsPerLevel;
 
-    address bypassLib;
+    address public bypassLib;
 
     function getApprovalsPerLevel() public view returns (uint256[] memory) {
         return requiredApprovalsPerLevel;

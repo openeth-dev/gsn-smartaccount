@@ -14,7 +14,7 @@ import "./SmartAccountBase.sol";
 import "./BypassModules/BypassLib.sol";
 
 
-contract SmartAccount is  ISmartAccount, SmartAccountBase {
+contract SmartAccount is SmartAccountBase {
     using LibBytes for bytes;
     modifier delegateToBypassLib(){
         _;
@@ -30,18 +30,19 @@ contract SmartAccount is  ISmartAccount, SmartAccountBase {
             default { return(ptr, returndatasize()) }
         }
     }
-
+    event DEBUG(address bypasslib);
     constructor (address _bypassLib) public {
         bypassLib = _bypassLib;
     }
 
     //constructor-method. Must be called immediately after construction
     // (or after proxy creation)
-    function ctr2(address _forwarder, address _creator) public {
+    function ctr2(address _forwarder, address _creator, address _bypassLib) public {
         require(creator == address(0), "ctr2: can only be called once");
         setGsnForwarder(_forwarder);
         deployedBlock = block.number;
         creator = _creator;
+        bypassLib = _bypassLib;
     }
 
     function initialConfig(
@@ -385,8 +386,8 @@ contract SmartAccount is  ISmartAccount, SmartAccountBase {
     }
 
     //BYPASS SUPPORT
-
     function scheduleBypassCall(uint32 senderPermsLevel, address target, uint256 value, bytes memory encodedFunction, uint256 targetStateNonce) public delegateToBypassLib {
+//        emit DEBUG(bypassLib);
 //        bypassLib.delegatecall(msg.data);
 //        bypassLib.scheduleBypassCall(senderPermsLevel, target, value, encodedFunction, targetStateNonce);
     }

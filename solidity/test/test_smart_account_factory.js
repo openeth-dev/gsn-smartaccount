@@ -27,7 +27,7 @@ contract('SmartAccountFactory', function (accounts) {
     mockForwarder = await MockGsnForwarder.new(mockHub.address, { gas: 9e6 })
     bypassLib = await BypassLib.new({ gas: 8e6 })
     smartAccountTemplate = await SmartAccount.new(bypassLib.address, { gas: 9e6 })
-    smartAccountFactory = await SmartAccountFactory.new(mockForwarder.address, smartAccountTemplate.address,
+    smartAccountFactory = await SmartAccountFactory.new(mockForwarder.address, smartAccountTemplate.address, bypassLib.address,
       { gas: 9e7, from: vfOwner })
     // Mocking backend signature
     const approvalData = await forgeApprovalData(smartAccountId, smartAccountFactory, vfOwner)
