@@ -127,7 +127,7 @@ async function applyDelayed ({ res, log }, fromParticipant, smartAccount) {
     { from: fromParticipant.address })
 }
 
-contract.only('SmartAccount', async function (accounts) {
+contract('SmartAccount', async function (accounts) {
   let smartAccount, bypassLib
   let erc20
   const fundedAmount = 300
