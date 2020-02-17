@@ -27,8 +27,6 @@ contract SmartAccountBase is GsnRecipient, PermissionsLevel {
     }
 
     //***** events
-    event DEBUG(bool isPart);
-    event DEBUG(bytes4 sig);
     event ConfigPending(bytes32 indexed delayedOpId, address sender, uint32 senderPermsLevel, address booster, uint32 boosterPermsLevel, uint256 stateId, uint8[] actions, bytes32[] actionsArguments1, bytes32[] actionsArguments2, uint256 dueTime);
     event ConfigCancelled(bytes32 indexed delayedOpId, address sender);
     event ConfigApplied(bytes32 indexed delayedOpId, address sender);

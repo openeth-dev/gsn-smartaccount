@@ -29,7 +29,6 @@ contract SmartAccount is SmartAccountBase {
             default { return(ptr, returndatasize()) }
         }
     }
-    event DEBUG(address bypasslib);
     constructor (address _bypassLib) public {
         bypassLib = _bypassLib;
     }
@@ -386,7 +385,6 @@ contract SmartAccount is SmartAccountBase {
 
     //BYPASS SUPPORT
     function scheduleBypassCall(uint32 senderPermsLevel, address target, uint256 value, bytes memory encodedFunction, uint256 targetStateNonce) public delegateToBypassLib {
-//        emit DEBUG(bypassLib);
 //        bypassLib.delegatecall(msg.data);
 //        bypassLib.scheduleBypassCall(senderPermsLevel, target, value, encodedFunction, targetStateNonce);
     }

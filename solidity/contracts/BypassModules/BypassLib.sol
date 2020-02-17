@@ -184,6 +184,5 @@ contract BypassLib is SmartAccountBase {
     function _acceptCall( address from, bytes memory encodedFunction) view internal returns (uint256 res, bytes memory data) {}
 
     function () external {
-        emit DEBUG(msg.sig);
     }
 }
