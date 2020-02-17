@@ -1,6 +1,5 @@
 pragma solidity ^0.5.10;
 
-import "./ISmartAccount.sol";
 import "tabookey-gasless/contracts/GsnUtils.sol";
 import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
 import "openzeppelin-solidity/contracts/cryptography/ECDSA.sol";

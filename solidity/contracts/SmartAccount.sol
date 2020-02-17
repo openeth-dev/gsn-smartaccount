@@ -9,7 +9,6 @@ import "tabookey-gasless/contracts/GsnUtils.sol";
 import "./PermissionsLevel.sol";
 import "./Utilities.sol";
 import "./BypassModules/BypassPolicy.sol";
-import "./ISmartAccount.sol";
 import "./SmartAccountBase.sol";
 import "./BypassModules/BypassLib.sol";
 
