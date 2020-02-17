@@ -10,128 +10,39 @@ import "./PermissionsLevel.sol";
 import "./Utilities.sol";
 import "./BypassModules/BypassPolicy.sol";
 import "./ISmartAccount.sol";
+import "./SmartAccountBase.sol";
+import "./BypassModules/BypassLib.sol";
 
 
-contract SmartAccount is PermissionsLevel, GsnRecipient, ISmartAccount {
-
+contract SmartAccount is  ISmartAccount, SmartAccountBase {
     using LibBytes for bytes;
-
-    uint256 constant USE_DEFAULT = uint(- 1);
-
-    enum ChangeType {
-        ADD_PARTICIPANT, // arg: participant_hash
-        REMOVE_PARTICIPANT, // arg: participant_hash
-        ADD_BYPASS_BY_TARGET,
-        ADD_BYPASS_BY_METHOD,
-        SET_ACCELERATED_CALLS,
-        UNFREEZE, // no args
-        ADD_OPERATOR,
-        ADD_OPERATOR_NOW
+    modifier delegateToBypassLib(){
+        _;
+        address bl = bypassLib;
+        assembly {
+            let ptr := mload(0x40)
+//            let delegateTo := and(sload(bypassLib_slot), 0xffffffffffffffffffffffffffffffffffffffff)
+            calldatacopy(ptr, 0, calldatasize())
+            let result := delegatecall(gas, bl, ptr, calldatasize(), 0, 0)
+            returndatacopy(ptr, 0, returndatasize())
+            switch result
+            case 0 { revert(ptr, returndatasize()) }
+            default { return(ptr, returndatasize()) }
+        }
     }
 
-    //***** events
-
-    event ConfigPending(bytes32 indexed delayedOpId, address sender, uint32 senderPermsLevel, address booster, uint32 boosterPermsLevel, uint256 stateId, uint8[] actions, bytes32[] actionsArguments1, bytes32[] actionsArguments2, uint256 dueTime);
-    event ConfigCancelled(bytes32 indexed delayedOpId, address sender);
-    event ConfigApplied(bytes32 indexed delayedOpId, address sender);
-    event ParticipantAdded(address indexed participant, uint32 permissions, uint8 level);
-    event ParticipantRemoved(address indexed participant, uint32 permissions, uint8 level);
-    event SmartAccountInitialized(bytes32[] participants, uint256[] delays, uint256[] requiredApprovalsPerLevel);
-    event LevelFrozen(uint256 frozenLevel, uint256 frozenUntil, address sender);
-    event UnfreezeCompleted();
-    event BypassByTargetAdded(address target, BypassPolicy  indexed bypass);
-    event BypassByMethodAdded(bytes4 method, BypassPolicy indexed bypass);
-    event BypassByTargetRemoved(address target, BypassPolicy indexed bypass);
-    event BypassByMethodRemoved(bytes4 method, BypassPolicy indexed bypass);
-    event BypassCallPending(bytes32 indexed delayedOpId, uint256 stateId, address sender, uint32 senderPermsLevel, address target, uint256 value, bytes msgdata, uint256 dueTime);
-    event BypassCallCancelled(bytes32 indexed delayedOpId, address sender);
-    event BypassCallApplied(bytes32 indexed delayedOpId, bool status);
-    event BypassCallExecuted(bool status);
-    event AcceleratedCAllSet(bool status);
-    event AddOperatorNowSet(bool status);
-
-    struct PendingChange {
-        uint256 dueTime;
-        bytes32[] approvers;
+    constructor (address _bypassLib) public {
+        bypassLib = _bypassLib;
     }
-
-    mapping(bytes32 => PendingChange) public pendingChanges;
-    uint256[] public delays;
-    mapping(address => BypassPolicy) public bypassPoliciesByTarget; // instance level bypass exceptions
-    mapping(bytes4 => BypassPolicy) public bypassPoliciesByMethod; // interface (method sigs) level bypass exceptions
-    // TODO: do not call this 'bypass calls', this does not describe what these are.
-    mapping(bytes32 => PendingChange) public pendingBypassCalls;
-    bool public allowAcceleratedCalls;
-    // 0 - no approvals needed before applying
-    uint256[] public requiredApprovalsPerLevel;
-
-    function getApprovalsPerLevel() public view returns (uint256[] memory) {
-        return requiredApprovalsPerLevel;
-    }
-
-    function getDelays() public view returns (uint256[] memory) {
-        return delays;
-    }
-
-    function getPendingChange(bytes32 hash) public view returns (uint256 dueTime, bytes32[] memory approvers) {
-        return (pendingChanges[hash].dueTime, pendingChanges[hash].approvers);
-    }
-
-    mapping(bytes32 => bool) public participants;
-
-    uint256 public frozenLevel;
-    uint256 public frozenUntil;
-
-    uint256 public stateNonce;
-
-    uint256 public deployedBlock;
-
-    address public creator;
 
     //constructor-method. Must be called immediately after construction
     // (or after proxy creation)
     function ctr2(address _forwarder, address _creator) public {
-        require(creator==address(0), "ctr2: can only be called once");
+        require(creator == address(0), "ctr2: can only be called once");
         setGsnForwarder(_forwarder);
         deployedBlock = block.number;
         creator = _creator;
     }
-
-    // ********** Access control functions below this point
-
-    function requireNotFrozen(uint32 senderPermsLevel, string memory errorMessage) view internal {
-        uint8 senderLevel = extractLevel(senderPermsLevel);
-        require(now > frozenUntil || senderLevel > frozenLevel, errorMessage);
-    }
-
-    function requireNotFrozen(uint32 senderPermsLevel) view internal {
-        requireNotFrozen(senderPermsLevel, "level is frozen");
-    }
-
-    function isParticipant(address participant, uint32 permsLevel) public view returns (bool) {
-        bytes32 participantId = Utilities.encodeParticipant(participant, permsLevel);
-        return participants[participantId];
-    }
-
-    function requireParticipant(address participant, uint32 permsLevel) view internal {
-        require(isParticipant(participant, permsLevel), "not participant");
-    }
-
-    function requirePermissions(address sender, uint32 neededPermissions, uint32 senderPermsLevel) view internal {
-        requireParticipant(sender, senderPermsLevel);
-        uint32 senderPermissions = extractPermission(senderPermsLevel);
-        comparePermissions(neededPermissions, senderPermissions);
-    }
-
-    function requireCorrectState(uint256 targetStateNonce) view internal {
-        require(stateNonce == targetStateNonce, "incorrect state");
-    }
-
-    uint256 constant maxParticipants = 20;
-    uint256 constant maxLevels = 10;
-    uint256 constant maxDelay = 365 days;
-    uint256 constant maxFreeze = 365 days;
-
 
     function initialConfig(
         bytes32[] memory initialParticipants,
@@ -215,7 +126,7 @@ contract SmartAccount is PermissionsLevel, GsnRecipient, ISmartAccount {
         uint8[] memory actions = new uint8[](1);
         bytes32[] memory args = new bytes32[](1);
         actions[0] = uint8(ChangeType.ADD_OPERATOR_NOW);
-        args[0] = Utilities.encodeParticipant(newOperatorAddress,ownerPermissions, 1);
+        args[0] = Utilities.encodeParticipant(newOperatorAddress, ownerPermissions, 1);
         bytes32 hash = Utilities.transactionHash(actions, args, args, scheduledStateId, scheduler, schedulerPermsLevel, address(0), 0);
         require(pendingChanges[hash].dueTime != 0, "Pending change not found");
         delete pendingChanges[hash];
@@ -225,24 +136,12 @@ contract SmartAccount is PermissionsLevel, GsnRecipient, ISmartAccount {
         stateNonce++;
     }
 
-    function removeBypassByTarget(uint32 senderPermsLevel, address target) public {
-        address sender = getSender();
-        requirePermissions(sender, canChangeBypass, senderPermsLevel);
-        requireNotFrozen(senderPermsLevel);
-        BypassPolicy bypass = bypassPoliciesByTarget[target];
-        delete bypassPoliciesByTarget[target];
-        emit BypassByTargetRemoved(target, bypass);
-        stateNonce++;
+    function removeBypassByTarget(uint32 senderPermsLevel, address target) public delegateToBypassLib {
+//        bypassLib.delegatecall(msg.data);
     }
 
-    function removeBypassByMethod(uint32 senderPermsLevel, bytes4 method) public {
-        address sender = getSender();
-        requirePermissions(sender, canChangeBypass, senderPermsLevel);
-        requireNotFrozen(senderPermsLevel);
-        BypassPolicy bypass = bypassPoliciesByMethod[method];
-        delete bypassPoliciesByMethod[method];
-        emit BypassByMethodRemoved(method, bypass);
-        stateNonce++;
+    function removeBypassByMethod(uint32 senderPermsLevel, bytes4 method) public delegateToBypassLib {
+//        bypassLib.delegatecall(msg.data);
     }
 
     function boostedConfigChange(
@@ -331,13 +230,6 @@ contract SmartAccount is PermissionsLevel, GsnRecipient, ISmartAccount {
         delete pendingChanges[hash];
         emit ConfigCancelled(hash, sender);
         stateNonce++;
-    }
-
-    function hasApproved(bytes32 participant, bytes32[] memory approvers) internal pure returns (bool) {
-        for (uint256 i = 0; i < approvers.length; i++) {
-            if (approvers[i] == participant) return true;
-        }
-        return false;
     }
 
     function approveConfig(
@@ -459,15 +351,16 @@ contract SmartAccount is PermissionsLevel, GsnRecipient, ISmartAccount {
     }
 
     function addBypassByTarget(address sender, uint32 senderPermsLevel, address target, BypassPolicy bypass) private {
-        requirePermissions(sender, canChangeBypass, senderPermsLevel);
-        bypassPoliciesByTarget[target] = bypass;
-        emit BypassByTargetAdded(target, bypass);
+        bytes memory msgData = abi.encodeWithSelector(BypassLib(bypassLib).addBypassByTarget.selector, sender, senderPermsLevel, target, bypass);
+        (bool status, bytes memory ret) = bypassLib.delegatecall(msgData);
+        require(status, "delegatecall failed");
     }
 
     function addBypassByMethod(address sender, uint32 senderPermsLevel, bytes4 method, BypassPolicy bypass) private {
-        requirePermissions(sender, canChangeBypass, senderPermsLevel);
-        bypassPoliciesByMethod[method] = bypass;
-        emit BypassByMethodAdded(method, bypass);
+        bytes memory msgData = abi.encodeWithSelector(BypassLib(bypassLib).addBypassByMethod.selector, sender, senderPermsLevel, method, bypass);
+        (bool status, bytes memory ret) = bypassLib.delegatecall(msgData);
+        require(status, "delegatecall failed");
+//        bypassLib.addBypassByMethod(sender, senderPermsLevel, method, bypass);
     }
 
     function removeParticipant(address sender, uint32 senderPermsLevel, bytes32 participantId) private {
@@ -493,37 +386,9 @@ contract SmartAccount is PermissionsLevel, GsnRecipient, ISmartAccount {
 
     //BYPASS SUPPORT
 
-    function getBypassPolicy(address target, uint256 value, bytes memory encodedFunction) public view returns (uint256 delay, uint256 requiredApprovals, bool requireBothDelayAndApprovals) {
-        BypassPolicy bypass = bypassPoliciesByTarget[target];
-        if (address(bypass) == address(0)) {
-            bytes4 method = '';
-            if (encodedFunction.length >= 4) {
-                method = encodedFunction.readBytes4(0);
-            }
-            bypass = bypassPoliciesByMethod[method];
-        }
-        if (address(bypass) == address(0)) {
-            return (USE_DEFAULT, USE_DEFAULT, true);
-        }
-        return bypass.getBypassPolicy(target, value, encodedFunction);
-    }
-
-    function scheduleBypassCall(uint32 senderPermsLevel, address target, uint256 value, bytes memory encodedFunction, uint256 targetStateNonce) public {
-        address sender = getSender();
-        requirePermissions(sender, canExecuteBypassCall, senderPermsLevel);
-        requireNotFrozen(senderPermsLevel);
-        requireCorrectState(targetStateNonce);
-
-        (uint256 delay,,) = getBypassPolicy(target, value, encodedFunction);
-        require(allowAcceleratedCalls || delay >= delays[extractLevel(senderPermsLevel)], "Accelerated calls blocked - delay too short");
-        if (delay == USE_DEFAULT) {
-            delay = delays[extractLevel(senderPermsLevel)];
-        }
-        bytes32 bypassCallHash = Utilities.bypassCallHash(stateNonce, sender, senderPermsLevel, target, value, encodedFunction);
-        uint256 dueTime = SafeMath.add(now, delay);
-        pendingBypassCalls[bypassCallHash] = PendingChange(dueTime, new bytes32[](0));
-        emit BypassCallPending(bypassCallHash, stateNonce, sender, senderPermsLevel, target, value, encodedFunction, dueTime);
-        stateNonce++;
+    function scheduleBypassCall(uint32 senderPermsLevel, address target, uint256 value, bytes memory encodedFunction, uint256 targetStateNonce) public delegateToBypassLib {
+//        bypassLib.delegatecall(msg.data);
+//        bypassLib.scheduleBypassCall(senderPermsLevel, target, value, encodedFunction, targetStateNonce);
     }
 
     function approveBypassCall(
@@ -534,19 +399,16 @@ contract SmartAccount is PermissionsLevel, GsnRecipient, ISmartAccount {
         address target,
         uint256 value,
         bytes memory encodedFunction)
-    public {
-        address sender = getSender();
-        requirePermissions(sender, canApprove, senderPermsLevel);
-        requireNotFrozen(senderPermsLevel);
-        requireNotFrozen(schedulerPermsLevel);
-
-        bytes32 bypassCallHash = Utilities.bypassCallHash(scheduledStateNonce, scheduler, schedulerPermsLevel, target, value, encodedFunction);
-        PendingChange storage pendingBypassCall = pendingBypassCalls[bypassCallHash];
-        require(pendingBypassCall.dueTime != 0, "non existent pending bypass call");
-        bytes32 approver = Utilities.encodeParticipant(sender, senderPermsLevel);
-        require(!hasApproved(approver, pendingBypassCall.approvers), "Cannot approve twice");
-        pendingBypassCall.approvers.push(approver);
-        stateNonce++;
+    public delegateToBypassLib {
+//        bypassLib.delegatecall(msg.data);
+//        bypassLib.approveBypassCall(
+//            senderPermsLevel,
+//                scheduler,
+//                schedulerPermsLevel,
+//                scheduledStateNonce,
+//                target,
+//                value,
+//                encodedFunction);
     }
 
     function applyBypassCall(
@@ -557,28 +419,16 @@ contract SmartAccount is PermissionsLevel, GsnRecipient, ISmartAccount {
         address target,
         uint256 value,
         bytes memory encodedFunction)
-    public {
-        address sender = getSender();
-        requireParticipant(sender, senderPermsLevel);
-        requireNotFrozen(senderPermsLevel);
-        requireNotFrozen(schedulerPermsLevel);
-
-        bytes32 bypassCallHash = Utilities.bypassCallHash(scheduledStateNonce, scheduler, schedulerPermsLevel, target, value, encodedFunction);
-        PendingChange memory pendingBypassCall = pendingBypassCalls[bypassCallHash];
-        (uint256 delay, uint256 requiredApprovals, bool requireBothDelayAndApprovals) = getBypassPolicy(target, value, encodedFunction);
-        if (delay == USE_DEFAULT && requiredApprovals == USE_DEFAULT) {
-            requireBothDelayAndApprovals = true;
-        }
-        require(pendingBypassCall.dueTime != 0, "non existent pending bypass call");
-        require(now >= pendingBypassCall.dueTime || !requireBothDelayAndApprovals, "before due time");
-        if (requiredApprovals == USE_DEFAULT) {
-            requiredApprovals = requiredApprovalsPerLevel[extractLevel(schedulerPermsLevel)];
-        }
-        require(pendingBypassCall.approvers.length >= requiredApprovals, "Pending approvals");
-        delete pendingBypassCalls[bypassCallHash];
-        bool success = _execute(target, value, encodedFunction);
-        emit BypassCallApplied(bypassCallHash, success);
-        stateNonce++;
+    public delegateToBypassLib {
+//        bypassLib.delegatecall(msg.data);
+//        bypassLib.applyBypassCall(
+//            senderPermsLevel,
+//            scheduler,
+//            schedulerPermsLevel,
+//            scheduledStateNonce,
+//            target,
+//            value,
+//            encodedFunction);
     }
 
     function cancelBypassCall(
@@ -589,45 +439,28 @@ contract SmartAccount is PermissionsLevel, GsnRecipient, ISmartAccount {
         address target,
         uint256 value,
         bytes memory encodedFunction)
-    public {
-        address sender = getSender();
-        requirePermissions(sender, canCancelBypassCall, senderPermsLevel);
-        requireNotFrozen(senderPermsLevel);
-
-        bytes32 bypassCallHash = Utilities.bypassCallHash(scheduledStateNonce, scheduler, schedulerPermsLevel, target, value, encodedFunction);
-        PendingChange memory pendingBypassCall = pendingBypassCalls[bypassCallHash];
-        require(pendingBypassCall.dueTime != 0, "non existent pending bypass call");
-        delete pendingBypassCalls[bypassCallHash];
-        emit BypassCallCancelled(bypassCallHash, sender);
-        stateNonce++;
+    public delegateToBypassLib {
+//        bypassLib.delegatecall(msg.data);
+//        bypassLib.cancelBypassCall(
+//            senderPermsLevel,
+//            scheduler,
+//            schedulerPermsLevel,
+//            scheduledStateNonce,
+//            target,
+//            value,
+//            encodedFunction);
     }
 
-    function executeBypassCall(uint32 senderPermsLevel, address target, uint256 value, bytes memory encodedFunction, uint256 targetStateNonce) public {
-        address sender = getSender();
-        requirePermissions(sender, canExecuteBypassCall, senderPermsLevel);
-        requireNotFrozen(senderPermsLevel);
-        require(allowAcceleratedCalls, "Accelerated calls blocked");
-        requireCorrectState(targetStateNonce);
+    function executeBypassCall(uint32 senderPermsLevel, address target, uint256 value, bytes memory encodedFunction, uint256 targetStateNonce) public delegateToBypassLib {
+//        bypassLib.delegatecall(msg.data);
+//        bypassLib.executeBypassCall(senderPermsLevel, target, value, encodedFunction, targetStateNonce);
 
-        (uint256 delay, uint256 requiredApprovals,) = getBypassPolicy(target, value, encodedFunction);
-        require(delay == 0 && requiredApprovals == 0, "Call cannot be executed immediately");
-        bool success = _execute(target, value, encodedFunction);
-        emit BypassCallExecuted(success);
-        stateNonce++;
     }
 
     /****** Moved over from the Vault contract *******/
 
-    event FundsReceived(uint256 value);
-
     function() payable external {
         emit FundsReceived(msg.value);
-    }
-
-    //TODO
-    function _execute(address target, uint256 value, bytes memory encodedFunction) internal returns (bool success){
-        (success,) = target.call.value(value)(encodedFunction);
-        //TODO: ...
     }
 
     function _acceptCall(address from, bytes memory encodedFunction) view internal returns (uint256 res, bytes memory data){

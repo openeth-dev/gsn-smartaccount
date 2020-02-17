@@ -23,7 +23,6 @@ contract SmartAccountFactory is GsnRecipient, Ownable, ProxyFactory {
     constructor(address _forwarder, address _template) public {
         setGsnForwarder(_forwarder);
         template = ISmartAccount(_template);
-        //        createAccountTemplate();
     }
 
     function addTrustedSigners(address[] memory signers) public onlyOwner {
