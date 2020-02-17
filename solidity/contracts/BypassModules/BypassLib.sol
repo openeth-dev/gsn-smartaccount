@@ -1,6 +1,5 @@
 pragma solidity ^0.5.10;
 
-import "@0x/contracts-utils/contracts/src/LibBytes.sol";
 import "openzeppelin-solidity/contracts/math/SafeMath.sol";
 import "gsn-sponsor/contracts/GsnRecipient.sol";
 import "@0x/contracts-utils/contracts/src/LibBytes.sol";
@@ -10,8 +9,6 @@ import "../PermissionsLevel.sol";
 import "../Utilities.sol";
 
 contract BypassLib is SmartAccountBase {
-    using LibBytes for bytes;
-
     function removeBypassByTarget(
         uint32 senderPermsLevel,
         address target)
@@ -60,27 +57,27 @@ contract BypassLib is SmartAccountBase {
         emit BypassByMethodAdded(method, bypass);
     }
 
-    function getBypassPolicy(
-        address target,
-        uint256 value,
-        bytes memory encodedFunction)
-    public view returns (
-        uint256 delay,
-        uint256 requiredApprovals,
-        bool requireBothDelayAndApprovals) {
-        BypassPolicy bypass = bypassPoliciesByTarget[target];
-        if (address(bypass) == address(0)) {
-            bytes4 method = '';
-            if (encodedFunction.length >= 4) {
-                method = encodedFunction.readBytes4(0);
-            }
-            bypass = bypassPoliciesByMethod[method];
-        }
-        if (address(bypass) == address(0)) {
-            return (USE_DEFAULT, USE_DEFAULT, true);
-        }
-        return bypass.getBypassPolicy(target, value, encodedFunction);
-    }
+//    function getBypassPolicy(
+//        address target,
+//        uint256 value,
+//        bytes memory encodedFunction)
+//    public view returns (
+//        uint256 delay,
+//        uint256 requiredApprovals,
+//        bool requireBothDelayAndApprovals) {
+//        BypassPolicy bypass = bypassPoliciesByTarget[target];
+//        if (address(bypass) == address(0)) {
+//            bytes4 method = '';
+//            if (encodedFunction.length >= 4) {
+//                method = encodedFunction.readBytes4(0);
+//            }
+//            bypass = bypassPoliciesByMethod[method];
+//        }
+//        if (address(bypass) == address(0)) {
+//            return (USE_DEFAULT, USE_DEFAULT, true);
+//        }
+//        return bypass.getBypassPolicy(target, value, encodedFunction);
+//    }
 
     function scheduleBypassCall(
         uint32 senderPermsLevel,

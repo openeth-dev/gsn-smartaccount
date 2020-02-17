@@ -1,11 +1,14 @@
 pragma solidity ^0.5.10;
 
+import "@0x/contracts-utils/contracts/src/LibBytes.sol";
+
 import "./BypassModules/BypassPolicy.sol";
 import "./PermissionsLevel.sol";
 import "./Utilities.sol";
 import "gsn-sponsor/contracts/GsnRecipient.sol";
 
 contract SmartAccountBase is GsnRecipient, PermissionsLevel {
+    using LibBytes for bytes;
     uint256 constant USE_DEFAULT = uint(- 1);
     uint256 constant maxParticipants = 20;
     uint256 constant maxLevels = 10;
@@ -121,5 +124,27 @@ contract SmartAccountBase is GsnRecipient, PermissionsLevel {
             if (approvers[i] == participant) return true;
         }
         return false;
+    }
+
+    function getBypassPolicy(
+        address target,
+        uint256 value,
+        bytes memory encodedFunction)
+    public view returns (
+        uint256 delay,
+        uint256 requiredApprovals,
+        bool requireBothDelayAndApprovals) {
+        BypassPolicy bypass = bypassPoliciesByTarget[target];
+        if (address(bypass) == address(0)) {
+            bytes4 method = '';
+            if (encodedFunction.length >= 4) {
+                method = encodedFunction.readBytes4(0);
+            }
+            bypass = bypassPoliciesByMethod[method];
+        }
+        if (address(bypass) == address(0)) {
+            return (USE_DEFAULT, USE_DEFAULT, true);
+        }
+        return bypass.getBypassPolicy(target, value, encodedFunction);
     }
 }
