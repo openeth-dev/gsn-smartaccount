@@ -74,7 +74,7 @@ describe('Security flow', () => {
 
     it('initialConfiguration', async () => {
       const userConfig = await SimpleWallet.getDefaultUserConfig()
-      const config = await wallet.createInitialConfig( { userConfig })
+      const config = await wallet.createInitialConfig({ userConfig })
       levelTwoAdmin1Address = accounts[4].toLowerCase()
       levelTwoAdmin2Address = accounts[5].toLowerCase()
       levelTwoAdmin3Address = accounts[6].toLowerCase()
