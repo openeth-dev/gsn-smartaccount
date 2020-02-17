@@ -67,7 +67,7 @@ contract('SmartAccount Bootstrapping', async function (accounts) {
       from, recipient, encodedFunctionCall, transactionFee, gasPrice, gasLimit, nonce, signature, approvalData,
       {
         from: relay,
-        gasLimit: 1e10
+        gasLimit: 8e6
       })
   }
 
@@ -78,10 +78,10 @@ contract('SmartAccount Bootstrapping', async function (accounts) {
     gsnForwarder = await GsnForwarder.new(relayHub.address, gsnSponsor.address)
     await gsnSponsor.setForwarder(gsnForwarder.address)
     bypassLib = await BypassLib.new({ gas: 8e6 })
-    smartAccountTemplate = await SmartAccount.new(bypassLib.address, { gas: 9e6 })
+    smartAccountTemplate = await SmartAccount.new(bypassLib.address, { gas: 8e6 })
     smartAccountFactory = await SmartAccountFactory.new(gsnForwarder.address, smartAccountTemplate.address,
       bypassLib.address,
-      { gas: 9e7, from: vfOwner })
+      { gas: 8e6, from: vfOwner })
 
     whitelistFactory = await WhitelistFactory.new(gsnForwarder.address)
     ephemeralOperator = RelayClient.newEphemeralKeypair()
