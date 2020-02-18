@@ -20,7 +20,6 @@ contract SmartAccount is SmartAccountBase {
         address bl = bypassLib;
         assembly {
             let ptr := mload(0x40)
-//            let delegateTo := and(sload(bypassLib_slot), 0xffffffffffffffffffffffffffffffffffffffff)
             calldatacopy(ptr, 0, calldatasize())
             let result := delegatecall(gas, bl, ptr, calldatasize(), 0, 0)
             returndatacopy(ptr, 0, returndatasize())
@@ -136,11 +135,9 @@ contract SmartAccount is SmartAccountBase {
     }
 
     function removeBypassByTarget(uint32 senderPermsLevel, address target) public delegateToBypassLib {
-//        bypassLib.delegatecall(msg.data);
     }
 
     function removeBypassByMethod(uint32 senderPermsLevel, bytes4 method) public delegateToBypassLib {
-//        bypassLib.delegatecall(msg.data);
     }
 
     function boostedConfigChange(
@@ -352,14 +349,21 @@ contract SmartAccount is SmartAccountBase {
     function addBypassByTarget(address sender, uint32 senderPermsLevel, address target, BypassPolicy bypass) private {
         bytes memory msgData = abi.encodeWithSelector(BypassLib(bypassLib).addBypassByTarget.selector, sender, senderPermsLevel, target, bypass);
         (bool status, bytes memory ret) = bypassLib.delegatecall(msgData);
-        require(status, "delegatecall failed");
+        bytes memory errStr = bytes("");
+        if (!status) {
+            errStr = abi.decode(ret.slice(4, ret.length), (bytes));
+        }
+        require(status, string(errStr));
     }
 
     function addBypassByMethod(address sender, uint32 senderPermsLevel, bytes4 method, BypassPolicy bypass) private {
         bytes memory msgData = abi.encodeWithSelector(BypassLib(bypassLib).addBypassByMethod.selector, sender, senderPermsLevel, method, bypass);
         (bool status, bytes memory ret) = bypassLib.delegatecall(msgData);
-        require(status, "delegatecall failed");
-//        bypassLib.addBypassByMethod(sender, senderPermsLevel, method, bypass);
+        bytes memory errStr = bytes("");
+        if (!status) {
+            errStr = abi.decode(ret.slice(4, ret.length), (bytes));
+        }
+        require(status, string(errStr));
     }
 
     function removeParticipant(address sender, uint32 senderPermsLevel, bytes32 participantId) private {
@@ -384,10 +388,7 @@ contract SmartAccount is SmartAccountBase {
     }
 
     //BYPASS SUPPORT
-    function scheduleBypassCall(uint32 senderPermsLevel, address target, uint256 value, bytes memory encodedFunction, uint256 targetStateNonce) public delegateToBypassLib {
-//        bypassLib.delegatecall(msg.data);
-//        bypassLib.scheduleBypassCall(senderPermsLevel, target, value, encodedFunction, targetStateNonce);
-    }
+    function scheduleBypassCall(uint32 senderPermsLevel, address target, uint256 value, bytes memory encodedFunction, uint256 targetStateNonce) public delegateToBypassLib {}
 
     function approveBypassCall(
         uint32 senderPermsLevel,
@@ -397,17 +398,7 @@ contract SmartAccount is SmartAccountBase {
         address target,
         uint256 value,
         bytes memory encodedFunction)
-    public delegateToBypassLib {
-//        bypassLib.delegatecall(msg.data);
-//        bypassLib.approveBypassCall(
-//            senderPermsLevel,
-//                scheduler,
-//                schedulerPermsLevel,
-//                scheduledStateNonce,
-//                target,
-//                value,
-//                encodedFunction);
-    }
+    public delegateToBypassLib {}
 
     function applyBypassCall(
         uint32 senderPermsLevel,
@@ -417,17 +408,7 @@ contract SmartAccount is SmartAccountBase {
         address target,
         uint256 value,
         bytes memory encodedFunction)
-    public delegateToBypassLib {
-//        bypassLib.delegatecall(msg.data);
-//        bypassLib.applyBypassCall(
-//            senderPermsLevel,
-//            scheduler,
-//            schedulerPermsLevel,
-//            scheduledStateNonce,
-//            target,
-//            value,
-//            encodedFunction);
-    }
+    public delegateToBypassLib {}
 
     function cancelBypassCall(
         uint32 senderPermsLevel,
@@ -437,23 +418,9 @@ contract SmartAccount is SmartAccountBase {
         address target,
         uint256 value,
         bytes memory encodedFunction)
-    public delegateToBypassLib {
-//        bypassLib.delegatecall(msg.data);
-//        bypassLib.cancelBypassCall(
-//            senderPermsLevel,
-//            scheduler,
-//            schedulerPermsLevel,
-//            scheduledStateNonce,
-//            target,
-//            value,
-//            encodedFunction);
-    }
+    public delegateToBypassLib {}
 
-    function executeBypassCall(uint32 senderPermsLevel, address target, uint256 value, bytes memory encodedFunction, uint256 targetStateNonce) public delegateToBypassLib {
-//        bypassLib.delegatecall(msg.data);
-//        bypassLib.executeBypassCall(senderPermsLevel, target, value, encodedFunction, targetStateNonce);
-
-    }
+    function executeBypassCall(uint32 senderPermsLevel, address target, uint256 value, bytes memory encodedFunction, uint256 targetStateNonce) public delegateToBypassLib {}
 
     /****** Moved over from the Vault contract *******/
 

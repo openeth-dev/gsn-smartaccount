@@ -357,10 +357,6 @@ describe('System flow', () => {
         })
         await sleep(400)
       }
-      // events = await wallet.contract.getPastEvents('ParticipantAdded', { fromBlock })
-      // console.log('events.length', events.length)
-      // assert.equal('ParticipantAdded', events[1].event)
-      // console.log('events[0].participant is', events[0].returnValues.participant)
       console.log('new operator: ', newOperator)
       assert.ok(await newwallet.isOperator(newOperator))
     })
