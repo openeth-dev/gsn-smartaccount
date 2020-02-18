@@ -1,5 +1,7 @@
 /* global artifacts contract before it assert after */
 const SmartAccountFactory = artifacts.require('./SmartAccountFactory.sol')
+const SmartAccount = artifacts.require('./SmartAccount.sol')
+const BypassLib = artifacts.require('./BypassModules/BypassLib.sol')
 const RelayHub = artifacts.require('./RelayHub.sol')
 const MockGsnForwarder = artifacts.require('./tests/MockGsnForwarder.sol')
 
@@ -10,6 +12,8 @@ const forgeApprovalData = require('./utils').forgeApprovalData
 
 contract('SmartAccountFactory', function (accounts) {
   let mockForwarder
+  let bypassLib
+  let smartAccountTemplate
   let mockHub
   let smartAccountFactory
   let callData
@@ -19,9 +23,12 @@ contract('SmartAccountFactory', function (accounts) {
 
   before(async function () {
     smartAccountId = crypto.randomBytes(32)
-    mockHub = await RelayHub.new({ gas: 9e6 })
-    mockForwarder = await MockGsnForwarder.new(mockHub.address, { gas: 9e6 })
-    smartAccountFactory = await SmartAccountFactory.new(mockForwarder.address, { gas: 9e6, from: vfOwner })
+    mockHub = await RelayHub.new({ gas: 8e6 })
+    mockForwarder = await MockGsnForwarder.new(mockHub.address, { gas: 8e6 })
+    bypassLib = await BypassLib.new({ gas: 8e6 })
+    smartAccountTemplate = await SmartAccount.new({ gas: 8e6 })
+    smartAccountFactory = await SmartAccountFactory.new(mockForwarder.address, smartAccountTemplate.address, bypassLib.address,
+      { gas: 8e6, from: vfOwner })
     // Mocking backend signature
     const approvalData = await forgeApprovalData(smartAccountId, smartAccountFactory, vfOwner)
     callData = smartAccountFactory.contract.methods.newSmartAccount(smartAccountId, approvalData).encodeABI()

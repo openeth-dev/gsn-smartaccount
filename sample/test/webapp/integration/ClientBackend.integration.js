@@ -53,7 +53,7 @@ describe('Client <-> Backend <-> Blockchain', async function () {
     describe('#cancelByUrl()', async function () {
       let testContext
       before(async function () {
-        this.timeout(10000)
+        this.timeout(30000)
         testContext = await newTest()
       })
       testCancelByUrlBehavior(() => testContext)
@@ -65,7 +65,7 @@ describe('Client <-> Backend <-> Blockchain', async function () {
     describe('#createWallet()', async function () {
       let testContext
       before(async function () {
-        this.timeout(10000)
+        this.timeout(30000)
         testContext = await newTest()
         testContext.phoneNumber = '+1-541-754-3010'
       })
@@ -80,7 +80,7 @@ describe('Client <-> Backend <-> Blockchain', async function () {
       let testContext
       const newOperatorAddress = '0x' + '7'.repeat(40)
       before(async function () {
-        this.timeout(10000)
+        this.timeout(30000)
         testContext = await newTest()
         const email = await testContext.manager.getEmail()
         testContext.jwt = generateMockJwt({ email, nonce: newOperatorAddress })
@@ -97,6 +97,7 @@ describe('Client <-> Backend <-> Blockchain', async function () {
   describe.skip('SimpleWallet', async function () {
     let testContext
     before(async function () {
+      this.timeout(30000)
       testContext = await TestEnvironment.initializeAndStartBackendForRealGSN({})
       await testContext.manager.googleLogin()
 

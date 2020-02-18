@@ -27,17 +27,16 @@ contract PermissionsLevel {
     uint32 constant public canCancelBypassCall = 1 << 12;
 
     uint32 constant public canSetAcceleratedCalls = 1 << 13;
-    uint32 constant public canSetAddOperatorNow = 1 << 14;
     uint32 constant public canAddOperatorNow = 1 << 15;
 
-    uint32 public canChangeConfig = canUnfreeze | canChangeParticipants | canAddOperator | canAddOperatorNow | canChangeBypass | canSetAcceleratedCalls | canSetAddOperatorNow/*| canChangeOwner*/ /* | canChangeDelays */;
-    uint32 public canCancel = canCancelSpend | canCancelConfigChanges | canCancelBypassCall;
+    uint32 constant public canChangeConfig = canUnfreeze | canChangeParticipants | canAddOperator | canAddOperatorNow | canChangeBypass | canSetAcceleratedCalls /*| canSetAddOperatorNow| canChangeOwner*/ /* | canChangeDelays */;
+    uint32 constant public canCancel = canCancelSpend | canCancelConfigChanges | canCancelBypassCall;
 
-    uint32 public ownerPermissions = canSpend | canCancel | canFreeze | canChangeConfig | canSignBoosts | canExecuteBypassCall;
-    uint32 public adminPermissions = /*canChangeOwner |*/ canExecuteBoosts | canAddOperator;
-    uint32 public watchdogPermissions = canCancel | canFreeze | canApprove;
+    uint32 constant public ownerPermissions = canSpend | canCancel | canFreeze | canChangeConfig | canSignBoosts | canExecuteBypassCall;
+    uint32 constant public adminPermissions = /*canChangeOwner |*/ canExecuteBoosts | canAddOperator;
+    uint32 constant public watchdogPermissions = canCancel | canFreeze | canApprove;
 
-    function comparePermissions(uint32 neededPermissions, uint32 senderPermissions) view internal {
+    function comparePermissions(uint32 neededPermissions, uint32 senderPermissions) pure internal {
         uint32 missingPermissions = neededPermissions & (senderPermissions ^ uint32(- 1));
         string memory error = Assert.concat("permissions missing: ", missingPermissions);
         require(missingPermissions == 0, error);
@@ -46,7 +45,7 @@ contract PermissionsLevel {
             senderPermissions == ownerPermissions ||
             senderPermissions == adminPermissions ||
             senderPermissions == watchdogPermissions,
-            "use defaults or go compile your vault from sources");
+            "unsupported permission set");
 
     }
 
@@ -57,12 +56,4 @@ contract PermissionsLevel {
     function extractPermission(uint32 permLev) pure internal returns (uint32 permission) {
         (permission,) = Utilities.extractPermissionLevel(permLev);
     }
-
-    function packPermissionLevel(uint32 permissions, uint8 level) pure internal returns (uint32 permLev) {
-        require(permissions <= 0x07FFFFFF, "permissions overflow");
-        require(level <= 0x1F, "level overflow");
-        return (uint32(level) << 27) + permissions;
-    }
-
-
 }

@@ -57,7 +57,7 @@ describe('SimpleWallet', async function () {
   })
 
   async function newTest (_operator = operator, whitelistPreconfigured = [], knownTokens = [], skipInit = false) {
-    const smartAccount = await FactoryContractInteractor.deploySmartAccountDirectly(from, ethNodeUrl)
+    const { smartAccount } = await FactoryContractInteractor.deploySmartAccountDirectly(from, ethNodeUrl)
     // TODO: duplicate code, testenv does same work as the rest of the code here!!!
     const testEnvironment = await TestEnvironment.initializeWithFakeBackendAndGSN({ clientBackend: BaseBackendMock })
     const wallet = new SimpleWallet(
@@ -87,6 +87,7 @@ describe('SimpleWallet', async function () {
   describe('#getWalletInfo', async function () {
     let testContext
     before(async function () {
+      this.timeout(30000)
       testContext = await newTest()
     })
     testGetWalletInfoBehavior(() => testContext)
@@ -96,6 +97,7 @@ describe('SimpleWallet', async function () {
   describe.skip('#initialConfiguration()', async function () {
     let testContext
     before(async function () {
+      this.timeout(30000)
       testContext = await newTest(operator, [], [], true)
       expectedWalletInfoA.address = testContext.smartAccount.address
     })
@@ -117,6 +119,7 @@ describe('SimpleWallet', async function () {
   describe('#listPendingTransactions()', async function () {
     let testContext
     before(async function () {
+      this.timeout(30000)
       testContext = await newTest()
       testContext.wallet._getRawPastEvents = async function () {
         return {
@@ -146,6 +149,7 @@ describe('SimpleWallet', async function () {
   describe('#listPendingConfigChanges()', async function () {
     let testContext
     before(async function () {
+      this.timeout(30000)
       testContext = await newTest()
       testContext.wallet._getRawPastEvents = function () {
         return {
@@ -166,6 +170,7 @@ describe('SimpleWallet', async function () {
   describe('#deployWhitelistModule()', async function () {
     let testContext
     before(async function () {
+      this.timeout(30000)
       testContext = await newTest(from)
     })
 
@@ -183,6 +188,7 @@ describe('SimpleWallet', async function () {
     let dai
 
     before(async function () {
+      this.timeout(30000)
       dai = await FactoryContractInteractor.deployERC20(from, ethNodeUrl)
       const whitelistPreconfigured = [whitelistedDestination]
       testContext = await newTest(from, whitelistPreconfigured,
@@ -250,6 +256,7 @@ describe('SimpleWallet', async function () {
     let testContext
 
     before(async function () {
+      this.timeout(30000)
       testContext = await newTest()
       testContext.newOperator = newOperator
       testContext.smsCode = smsCode
@@ -268,6 +275,7 @@ describe('SimpleWallet', async function () {
       let testContext
 
       before(async function () {
+        this.timeout(30000)
         testContext = await newTest(from)
         await testContext.wallet.getWalletInfo()
       })
@@ -293,6 +301,7 @@ describe('SimpleWallet', async function () {
     let pending
 
     before(async function () {
+      this.timeout(30000)
       testContext = await newTest(from)
     })
 
@@ -319,6 +328,7 @@ describe('SimpleWallet', async function () {
     let dai
     let bat
     before(async function () {
+      this.timeout(30000)
       testContext = await newTest(from)
       dai = await FactoryContractInteractor.deployERC20(from, ethNodeUrl)
       bat = await FactoryContractInteractor.deployERC20(from, ethNodeUrl)
@@ -341,6 +351,7 @@ describe('SimpleWallet', async function () {
   describe('#applyAllPendingOperations()', async function () {
     let testContext
     before(async function () {
+      this.timeout(30000)
       testContext = await newTest(from)
       await testContext.wallet.getWalletInfo()
       // TODO: migrate to usage of wallet methods after implemented

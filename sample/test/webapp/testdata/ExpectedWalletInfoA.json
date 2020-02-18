@@ -1,13 +1,12 @@
 {
   "options": {
-    "allowAddOperatorNow": true,
     "allowAcceleratedCalls": true
   },
   "participants": [
     {
       "address": "0x3333333333333333333333333333333333333333",
       "level": 1,
-      "rawPermissions": 64991,
+      "rawPermissions": 48607,
       "type": "operator"
     },
     {

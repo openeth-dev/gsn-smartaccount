@@ -1,13 +1,18 @@
 pragma solidity ^0.5.10;
 
-import "./SmartAccount.sol";
 import "tabookey-gasless/contracts/GsnUtils.sol";
 import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
 import "openzeppelin-solidity/contracts/cryptography/ECDSA.sol";
+import "./ProxyFactory.sol";
+import "gsn-sponsor/contracts/GsnRecipient.sol";
+import "./SmartAccount.sol";
 
-contract SmartAccountFactory is GsnRecipient, Ownable {
+contract SmartAccountFactory is GsnRecipient, Ownable, ProxyFactory {
     using GsnUtils for bytes;
     using ECDSA for bytes32;
+
+    SmartAccount template;
+    address bypassLibTemplate;
 
     uint256 constant APPROVAL_VALIDITY = 1 days;
 
@@ -16,8 +21,10 @@ contract SmartAccountFactory is GsnRecipient, Ownable {
     mapping(address => bool) public trustedSigners;
     mapping(bytes32 => address) public knownSmartAccounts;
 
-    constructor(address _forwarder) public {
+    constructor(address _forwarder, address payable _template, address _bypassLibTemplate) public {
         setGsnForwarder(_forwarder);
+        template = SmartAccount(_template);
+        bypassLibTemplate = _bypassLibTemplate;
     }
 
     function addTrustedSigners(address[] memory signers) public onlyOwner {
@@ -65,10 +72,13 @@ contract SmartAccountFactory is GsnRecipient, Ownable {
     * @param smartAccountId - generated through keccak256(<userEmail>) by backend service
     */
     function newSmartAccount(bytes32 smartAccountId, bytes memory approvalData) public {
+        require(address(template) != address(0), "newSmartAccount: createAccountTemplate not called");
         require(validateNewSmartAccountRequest(smartAccountId, approvalData),
             "Must have a valid approvalData");
         require(knownSmartAccounts[smartAccountId] == address(0), "SmartAccount already created for this id");
-        SmartAccount smartAccount = new SmartAccount(this.getGsnForwarder(), getSender());
+        address payable proxy = address(uint160(createProxyImpl(address(template), "")));
+        SmartAccount smartAccount = SmartAccount(proxy);
+        smartAccount.ctr2(getGsnForwarder(), getSender(), bypassLibTemplate);
         knownSmartAccounts[smartAccountId] = address(smartAccount);
         emit SmartAccountCreated(getSender(), smartAccount, smartAccountId);
     }

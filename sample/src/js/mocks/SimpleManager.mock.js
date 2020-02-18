@@ -91,7 +91,6 @@ export default class SimpleManagerMock extends SimpleManagerApi {
         '0x8b1aaea1f8bb4142e4d1a6bfa358a668f1a9e7ee5ee8afad59b570f9e655ac2b'
       ],
       allowAcceleratedCalls: true,
-      allowAddOperatorNow: true,
       requiredApprovalsPerLevel: [
         1,
         0

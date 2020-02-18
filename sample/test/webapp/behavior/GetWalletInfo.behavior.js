@@ -24,7 +24,7 @@ export function testGetWalletInfoBehavior (getContext) {
       return { events, initEvent }
     }
     wallet._getAllowedFlags = function () {
-      return { allowAcceleratedCalls: true, allowAddOperatorNow: true }
+      return { allowAcceleratedCalls: true }
     }
   })
 

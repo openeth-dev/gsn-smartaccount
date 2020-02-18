@@ -15,6 +15,7 @@ import { AccountManager } from './AccountManager'
 import crypto from 'crypto'
 import { Watchdog, Admin } from './Guardian'
 import Web3 from 'web3'
+import fs from 'fs'
 
 function error (err) { throw new Error(err) }
 
@@ -38,8 +39,16 @@ console.log('Using sms provider: ', smsProvider.constructor.name)
 const devMode = argv.dev || argv.D
 
 const smsManager = new SmsManager({ smsProvider, secretSMSCodeSeed: crypto.randomBytes(32) })
-const keypair = KeyManager.newKeypair()
-const keyManager = new KeyManager({ ecdsaKeyPair: keypair })
+let keypair
+try {
+  keypair = JSON.parse(fs.readFileSync('/tmp/test/runserver/keystore')).ecdsaKeyPair
+  keypair.privateKey = Buffer.from(keypair.privateKey)
+  console.log('Using saved keypair')
+} catch (e) {
+  keypair = KeyManager.newKeypair()
+}
+
+const keyManager = new KeyManager({ ecdsaKeyPair: keypair, workdir: '/tmp/test/runserver' })
 const accountManager = new AccountManager({ workdir: '/tmp/test/runserver' })
 const web3provider = new Web3.providers.WebsocketProvider(ethNodeUrl)
 const watchdog = new Watchdog({
@@ -90,6 +99,7 @@ function hookNodeTime () {
 
 if (devMode) {
   console.log('Running server in dev mode')
+  accountManager.clearAll()
   hookBackend(backend)
   hookNodeTime()
   smsManager.secretSMSCodeSeed = Buffer.from('f'.repeat(64), 'hex')

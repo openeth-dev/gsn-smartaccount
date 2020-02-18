@@ -74,7 +74,6 @@ export default class SimpleWallet extends SimpleWalletApi {
       configuration.initialParticipants,
       configuration.initialDelays,
       configuration.allowAcceleratedCalls,
-      configuration.allowAddOperatorNow,
       configuration.requiredApprovalsPerLevel,
       configuration.bypassTargets,
       configuration.bypassMethods,
@@ -267,7 +266,7 @@ export default class SimpleWallet extends SimpleWalletApi {
   // TODO-4: the format of returned data is bad. take 'participants' - they have 'type' instead of 'permissions, wtf?
   async getWalletInfo () {
     this.stateId = await this.contract.stateNonce()
-    const { allowAcceleratedCalls, allowAddOperatorNow } = await this._getAllowedFlags()
+    const { allowAcceleratedCalls } = await this._getAllowedFlags()
     const { initEvent, events } = await this._getCompletedConfigurationEvents()
     const args = initEvent.args
     const foundParticipants = this._findParticipants({ initEvent, events })
@@ -304,8 +303,7 @@ export default class SimpleWallet extends SimpleWalletApi {
     return {
       address: initEvent.address,
       options: {
-        allowAcceleratedCalls,
-        allowAddOperatorNow
+        allowAcceleratedCalls
       },
       participants,
       levels: levels
@@ -369,8 +367,7 @@ export default class SimpleWallet extends SimpleWalletApi {
 
   async _getAllowedFlags () {
     const allowAcceleratedCalls = await this.contract.allowAcceleratedCalls()
-    const allowAddOperatorNow = await this.contract.allowAddOperatorNow()
-    return { allowAcceleratedCalls, allowAddOperatorNow }
+    return { allowAcceleratedCalls }
   }
 
   // TODO: so much duplication... refactor!!!

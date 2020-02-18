@@ -15,6 +15,7 @@ import SimpleWallet from '../../src/js/impl/SimpleWallet'
 import abiDecoder from 'abi-decoder'
 import Permissions from 'safechannels-contracts/src/js/Permissions'
 import Participant from 'safechannels-contracts/src/js/Participant'
+import { ChangeType, changeTypeToString } from '../../src/js/etc/ChangeType'
 
 const ethUtils = require('ethereumjs-util')
 const abi = require('ethereumjs-abi')
@@ -42,6 +43,7 @@ describe('Backend', async function () {
 
   const audience = '202746986880-u17rbgo95h7ja4fghikietupjknd1bln.apps.googleusercontent.com'
   before(async function () {
+    this.timeout(30000)
     smsProvider = new SMSmock()
     smsManager = new SmsManager({ smsProvider, secretSMSCodeSeed: crypto.randomBytes(32) })
     keyManager = new KeyManager({ ecdsaKeyPair: keypair })
@@ -73,6 +75,7 @@ describe('Backend', async function () {
     let firstCode
     let formattedNumber
     before(async function () {
+      this.timeout(30000)
       formattedNumber = backend._formatPhoneNumber(phoneNumber)
       ts = backend.smsManager.getMinuteTimestamp({})
       firstCode = backend.smsManager.calcSmsCode(
@@ -257,10 +260,11 @@ describe('Backend', async function () {
     let jwt
 
     before(async function () {
+      this.timeout(30000)
       jwt = generateMockJwt({ email, nonce: newOperatorAddress })
       const accountId = await backend.getSmartAccountId({ email })
       account = await backend.accountManager.getAccountById({ accountId })
-      const smartAccount = await FactoryContractInteractor.deploySmartAccountDirectly(accountZero, ethNodeUrl)
+      const { smartAccount } = await FactoryContractInteractor.deploySmartAccountDirectly(accountZero, ethNodeUrl)
       account.address = smartAccount.address
       await backend.accountManager.putAccount({ account })
 
@@ -308,7 +312,7 @@ describe('Backend', async function () {
       assert.equal(log.name, 'ConfigPending')
       assert.equal(log.events[7].value.length, 1)
       assert.equal(log.events[7].value[0].replace(/0{24}/, ''), newOperatorAddress)
-      assert.equal(log.events[6].value, '7')
+      assert.equal(changeTypeToString(log.events[6].value), changeTypeToString(ChangeType.ADD_OPERATOR))
       assert.deepEqual(backend.unverifiedNewOperators, {})
     })
   })

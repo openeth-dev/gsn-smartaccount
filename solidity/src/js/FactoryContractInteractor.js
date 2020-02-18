@@ -41,13 +41,6 @@ class FactoryContractInteractor {
     this.smartAccountFactoryAddress = smartAccountFactoryAddress
   }
 
-  static async getInstance ({ credentials, smartAccountFactoryAddress, provider }) {
-    SmartAccountFactory.setProvider(provider)
-    const instance = new FactoryContractInteractor(credentials, smartAccountFactoryAddress)
-    instance.smartAccountFactory = await SmartAccountFactory.at(instance.smartAccountFactoryAddress)
-    return instance
-  }
-
   /**
    * Not a constructor because constructors cannot be async
    * @param credentials
@@ -143,12 +136,18 @@ class FactoryContractInteractor {
 
   static async deploySmartAccountDirectly (from, relayHub, ethNodeUrl) {
     const utilitiesContract = await this.deployUtilitiesLibrary(from, ethNodeUrl)
-    const { instance } = await this.deployContract(
+    const { instance: bypassLib } = await this.deployContract(
+      'generated/BypassModules/BypassLib',
+      'bypassLib',
+      [utilitiesContract], [], from, ethNodeUrl
+    )
+    const { instance: smartAccount } = await this.deployContract(
       'generated/SmartAccount',
       'SmartAccount',
-      [utilitiesContract], [zeroAddress(), from], from, ethNodeUrl
+      [utilitiesContract], [], from, ethNodeUrl
     )
-    return instance
+    await smartAccount.ctr2(zeroAddress(), from, bypassLib.address, { from })
+    return { smartAccount, bypassLib }
   }
 
   /**
@@ -158,8 +157,10 @@ class FactoryContractInteractor {
    */
   static async deployNewSmartAccountFactory (from, ethNodeUrl, forwarder) {
     const utilitiesContract = await this.deployUtilitiesLibrary(from, ethNodeUrl)
+    const { smartAccount: smartAccountTemplate, bypassLib } = await this.deploySmartAccountDirectly(from, ethNodeUrl)
     const { instance: smartAccountFactory } = await this.deployContract('generated/SmartAccountFactory',
-      'SmartAccountFactory', [utilitiesContract], [forwarder], from, ethNodeUrl)
+      'SmartAccountFactory', [utilitiesContract], [forwarder, smartAccountTemplate.address, bypassLib.address], from,
+      ethNodeUrl)
     return smartAccountFactory
   }
 

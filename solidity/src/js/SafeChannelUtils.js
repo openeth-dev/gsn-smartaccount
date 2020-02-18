@@ -37,6 +37,15 @@ module.exports = {
       [stateNonce, sender, senderPermsLevel, target, value, calldataBuffer])
   },
 
+  changeHash: function (actions, args1, args2, stateId) {
+    return ABI.soliditySHA3(['uint8[]', 'bytes32[]', 'bytes32[]', 'uint256'], [actions, args1, args2, stateId])
+  },
+
+  transactionHash: function (actions, args1, args2, stateId, sender, senderPermsLevel, booster, boosterPermsLevel) {
+    return ABI.soliditySHA3(['uint8[]', 'bytes32[]', 'bytes32[]', 'uint256', 'address', 'uint32', 'address', 'uint32'],
+      [actions, args1, args2, stateId, sender, senderPermsLevel, booster, boosterPermsLevel])
+  },
+
   // Only used in tests
   validateConfigParticipants: async function (participants, gatekeeper) {
     await this.asyncForEach(participants, async (participant) => {

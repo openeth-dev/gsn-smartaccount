@@ -6,7 +6,7 @@
   "scripts": {
     "test": "npx truffle test | sed -l -e 's/^,//;' ",
     "ci-unlimited": "yarn run lint && npx run-with-testrpc -p 8544 -a 15 -l 80000000 --allowUnlimitedContractSize 'npx truffle --network npmtest test'",
-    "ci": "yarn run lint && npx run-with-testrpc -p 8544 -a 15 -l 80000000 --allowUnlimitedContractSize 'npx truffle --network npmtest test'",
+    "ci": "yarn run lint && npx run-with-testrpc -p 8544 -a 15 -l 80000000 'npx truffle --network npmtest test'",
     "compile": "npx truffle compile|sed -l -e 's/^,//;' ",
     "lint": "yarn run lint:js",
     "lint:fix": "yarn run lint:js:fix",

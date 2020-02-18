@@ -57,6 +57,7 @@ describe('As Guardian', async function () {
   let newSmartAccountReceipt
 
   before(async function () {
+    this.timeout(30000)
     web3provider = new Web3.providers.WebsocketProvider(ethNodeUrl)
     web3 = new Web3(web3provider)
     web3.eth.net.isListening(function (error, result) {
@@ -298,6 +299,18 @@ describe('As Guardian', async function () {
       assert.equal(receipt.logs[0].args.actions[0], ChangeType.ADD_OPERATOR_NOW.toString())
       const ret = await watchdog._worker()
       assert.equal(ret[0].message, `Cannot find new operator address of accountId ${newAccount.accountId}`)
+    })
+
+    it('should putOperatorToAdd only once', async function () {
+      await watchdog.accountManager.putOperatorToAdd({ accountId: newAccount.accountId, address: newOperatorAddress })
+      const op1 = await watchdog.accountManager.getOperatorToAdd({ accountId: newAccount.accountId })
+      await watchdog.accountManager.putOperatorToAdd({ accountId: newAccount.accountId, address: wrongOperatorAddress })
+      const op2 = await watchdog.accountManager.getOperatorToAdd({ accountId: newAccount.accountId })
+      console.log('op1 op2', op1, op2)
+      assert.equal(op2, wrongOperatorAddress)
+      assert.equal(op1, newOperatorAddress)
+      const count = await watchdog.accountManager.operatorsToAdd.asyncCount({})
+      assert.equal(count, 1)
     })
 
     it('should NOT approve addOperatorNow on participant hash mismatch', async function () {
