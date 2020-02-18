@@ -1,7 +1,7 @@
 /* global describe it before after fail */
 
 import axios from 'axios'
-import { assert, expect } from 'chai'
+import { assert } from 'chai'
 import SMSmock from '../../src/js/mocks/SMS.mock'
 import TestEnvironment from '../utils/TestEnvironment'
 import SafeChannelUtils from 'safechannels-contracts/src/js/SafeChannelUtils'
