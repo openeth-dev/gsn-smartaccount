@@ -78,7 +78,7 @@ contract('SmartAccount Bootstrapping', async function (accounts) {
     gsnForwarder = await GsnForwarder.new(relayHub.address, gsnSponsor.address)
     await gsnSponsor.setForwarder(gsnForwarder.address)
     bypassLib = await BypassLib.new({ gas: 8e6 })
-    smartAccountTemplate = await SmartAccount.new(bypassLib.address, { gas: 8e6 })
+    smartAccountTemplate = await SmartAccount.new({ gas: 8e6 })
     smartAccountFactory = await SmartAccountFactory.new(gsnForwarder.address, smartAccountTemplate.address,
       bypassLib.address,
       { gas: 8e6, from: vfOwner })

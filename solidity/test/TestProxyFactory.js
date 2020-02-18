@@ -8,7 +8,7 @@ describe('#ProxyFactory', () => {
   before(async () => {
     factory = await ProxyFactory.new({ gas: 7e6 })
     bypassLib = await BypassLib.new({ gas: 7e6 })
-    template = await SmartAccount.new(bypassLib.address, { gas: 7e6 })
+    template = await SmartAccount.new( { gas: 7e6 })
   })
 
   let acc
