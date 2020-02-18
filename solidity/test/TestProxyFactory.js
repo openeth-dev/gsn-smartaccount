@@ -1,14 +1,12 @@
 /* global describe before it assert artifacts */
 const ProxyFactory = artifacts.require('ProxyFactory')
 const SmartAccount = artifacts.require('SmartAccount')
-const BypassLib = artifacts.require('BypassLib')
 
 describe('#ProxyFactory', () => {
-  let factory, template, bypassLib
+  let factory, template
   before(async () => {
     factory = await ProxyFactory.new({ gas: 7e6 })
-    bypassLib = await BypassLib.new({ gas: 7e6 })
-    template = await SmartAccount.new( { gas: 7e6 })
+    template = await SmartAccount.new({ gas: 7e6 })
   })
 
   let acc
