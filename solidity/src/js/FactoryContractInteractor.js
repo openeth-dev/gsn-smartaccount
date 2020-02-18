@@ -144,7 +144,7 @@ class FactoryContractInteractor {
     const { instance: smartAccount } = await this.deployContract(
       'generated/SmartAccount',
       'SmartAccount',
-      [utilitiesContract], [bypassLib.address], from, ethNodeUrl
+      [utilitiesContract], [], from, ethNodeUrl
     )
     await smartAccount.ctr2(zeroAddress(), from, bypassLib.address, { from })
     return { smartAccount, bypassLib }

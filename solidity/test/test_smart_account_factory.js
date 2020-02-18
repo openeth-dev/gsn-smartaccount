@@ -26,7 +26,7 @@ contract('SmartAccountFactory', function (accounts) {
     mockHub = await RelayHub.new({ gas: 8e6 })
     mockForwarder = await MockGsnForwarder.new(mockHub.address, { gas: 8e6 })
     bypassLib = await BypassLib.new({ gas: 8e6 })
-    smartAccountTemplate = await SmartAccount.new(bypassLib.address, { gas: 8e6 })
+    smartAccountTemplate = await SmartAccount.new({ gas: 8e6 })
     smartAccountFactory = await SmartAccountFactory.new(mockForwarder.address, smartAccountTemplate.address, bypassLib.address,
       { gas: 8e6, from: vfOwner })
     // Mocking backend signature

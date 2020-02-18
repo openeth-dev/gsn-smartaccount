@@ -28,9 +28,6 @@ contract SmartAccount is SmartAccountBase {
             default { return(ptr, returndatasize()) }
         }
     }
-    constructor (address _bypassLib) public {
-        bypassLib = _bypassLib;
-    }
 
     //constructor-method. Must be called immediately after construction
     // (or after proxy creation)
