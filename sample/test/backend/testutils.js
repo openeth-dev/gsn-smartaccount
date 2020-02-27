@@ -32,7 +32,7 @@ export function generateMockJwt ({ email, nonce, iat, exp }) {
     kid: '5b5dd9be40b5e1cf121e3573c8e49f12527183d3',
     typ: 'JWT'
   })).toString('base64')
-  const aud = '202746986880-u17rbgo95h7ja4fghikietupjknd1bln.apps.googleusercontent.com'
+  const aud = '966448872848-td59kkdbgdk4r1pngbmf71mor450upn0.apps.googleusercontent.com'
   const azp = aud
   const iss = 'accounts.google.com'
   const part2 = Buffer.from(JSON.stringify(

@@ -31,7 +31,8 @@ describe('Backend', async function () {
   let smsManager
   let keyManager
   let accountManager
-  const jwt = require('./testJwt').jwt
+  const jwt = generateMockJwt({ email: 'shahaf@tabookey.com', nonce: 'hello-world' })
+
   let smsCode
   let accountZero
   let web3
@@ -41,7 +42,7 @@ describe('Backend', async function () {
   const wrongEmail = 'wrong@email.com'
   const nonce = 'hello-world'
 
-  const audience = '202746986880-u17rbgo95h7ja4fghikietupjknd1bln.apps.googleusercontent.com'
+  const audience = '966448872848-td59kkdbgdk4r1pngbmf71mor450upn0.apps.googleusercontent.com'
   before(async function () {
     this.timeout(30000)
     smsProvider = new SMSmock()
