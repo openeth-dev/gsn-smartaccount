@@ -89,6 +89,7 @@ export default class TestEnvironment {
     useTwilio,
     useDev,
     urlPrefix,
+    noGsn,
     verbose
   }) {
     const instance = new TestEnvironment({
@@ -104,10 +105,12 @@ export default class TestEnvironment {
     })
     instance.from = (await instance.web3.eth.getAccounts())[0]
 
-    // bring up RelayHub, relay.
-    // all parameters are optional.
-    await startGsnRelay({ from: instance.from, provider: instance.ethNodeUrl, verbose: instance.verbose })
-    for (let i = 0; i <= 100; i++) {
+    if (!noGsn) {
+      // bring up RelayHub, relay.
+      // all parameters are optional.
+      await startGsnRelay({ from: instance.from, provider: instance.ethNodeUrl, verbose: instance.verbose })
+    }
+    for (let i = 0; ; i++) {
       await sleep(500)
       const { isRelayReady, minGasPrice } = await instance.getRelayAddress()
       if (isRelayReady && minGasPrice) {
@@ -118,22 +121,29 @@ export default class TestEnvironment {
     }
     process.on('exit', stopGsnRelay) // its synchronous call, so its OK to call from 'exit'
 
+    if (verbose) console.log('deploy factory', 'balance=', await instance.web3.eth.getBalance((await instance.web3.eth.getAccounts())[0]))
     // await instance.fundRelayIfNeeded()
     await instance.deployNewFactory()
+    if (verbose) console.log('deploy WL factory')
     await instance.deployWhitelistFactory()
+    if (verbose) console.log('startBackendServer')
     await instance.startBackendServer({ autoCancel: false })
     // From this point on, there is an external process running that has to be killed if construction fails
     try {
       instance.backendAddresses = await instance.clientBackend.getAddresses()
+      if (verbose) console.log('fund watchdog')
       await instance.web3.eth.sendTransaction({
         from: instance.from,
         to: instance.backendAddresses.watchdog,
         value: 3e18
       })
+      if (verbose) console.log('add backend as trusted signer on factory')
       await instance.addBackendAsTrustedSignerOnFactory()
+      if (verbose) console.log('initialize simple manager')
       await instance._initializeSimpleManager()
       return instance
     } catch (e) {
+      console.log('ex', e)
       TestEnvironment.stopBackendServer()
       throw e
     }

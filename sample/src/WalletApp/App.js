@@ -444,10 +444,17 @@ class App extends React.Component {
   }
 
   async _initRealSdk () {
-    const backendURL = window.location.protocol + '//' + window.location.host.replace(/(:\d+)?$/, ':8888')
+    function urlport (port) {
+      if (window.location.protocol.startsWith('https')) {
+        port++
+      }
+      return window.location.protocol + '//' + window.location.host.replace(/(:\d+)?$/, ':' + port)
+    }
+
+    const backendURL = urlport(8888)
 
     // debug node runs on server's host. real node might use infura.
-    const ethNodeUrl = window.location.protocol + '//' + window.location.host.replace(/(:\d+)?$/, ':8545')
+    const ethNodeUrl = urlport(8545)
 
     console.log('connecting to:', { backendURL, ethNodeUrl })
     const web3provider = new Web3.providers.HttpProvider(ethNodeUrl)
