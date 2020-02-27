@@ -69,16 +69,15 @@ function GoogleLogin ({ refresh, initMgr }) {
 }
 
 function CreateWallet ({ refresh, jwt, email, userConfig, setUserConfig }) {
-  let phoneNumber
-
   const [initConfig, setInitConfig] = useState('')
   const [delayTime, setDelayTime] = useState('1m')
   const [delayErr, setDelayErr] = useState('')
+  const [enteredPhoneNumber, setEnteredPhoneNumber] = useState('')
 
   const startCreate = async () => {
     const PHONE = '+972541234567'
 
-    phoneNumber = prompt('enter phone number to validate ( put 1 for "' + PHONE + '" )')
+    let phoneNumber = prompt('enter phone number to validate ( put 1 for "' + PHONE + '" )')
     if (!phoneNumber) {
       return
     }
@@ -87,12 +86,15 @@ function CreateWallet ({ refresh, jwt, email, userConfig, setUserConfig }) {
     if (phoneNumber === '1') {
       phoneNumber = PHONE
     }
-    console.log('validate:', jwt, phoneNumber)
+    setEnteredPhoneNumber(phoneNumber)
+    // console.log('validate:', jwt, phoneNumber)
     await mgr.validatePhone({ jwt, phoneNumber })
     window.alert('sms sent. copy SMS code to create wallet')
   }
 
   const createWallet = async () => {
+    const phoneNumber = enteredPhoneNumber
+    if (!phoneNumber) { return alert('no phone number yet') }
     const smsVerificationCode = prompt('enter SMS verification code')
     if (!smsVerificationCode) {
       return
@@ -134,18 +136,19 @@ function CreateWallet ({ refresh, jwt, email, userConfig, setUserConfig }) {
       // ignore - just don't display..
     }
   }
-
   return <div>
     Hello <b>{email}</b>, you dont have a wallet yet.<br/>
-    Click <Button title="here to verify phone" action={startCreate}/><br/>
-    Click here to enter SMS verification code <Button title="verify and create" action={createWallet}/>
+    <ol>
+      <li> To create a wallet, click <Button title="here to verify phone" action={startCreate}/> </li>
+      <li> Click here to enter SMS verification code <Button title="verify and create" action={createWallet}/></li>
+    </ol>
 
     <p/>
     Enter whitelisted addresses for initial configuration:<br/>
     <textarea cols="80" value={initConfig} onChange={e => updateWhitelistConfig(e.target.value)}></textarea><br/>
 
     Delay time:
-    <input cols="10" value={delayTime} onChange={e => updateDelayTime(e.target.value)}/>
+    <input cols="10" value={delayTime} onChange={e => updateDelayTime(e.target.value)} />
     <span style={{ fontSize: 10 }}>(can use d/h/m/s suffix)
       <span style={{ color: 'red' }}>{delayErr}</span>
     </span><br/>
