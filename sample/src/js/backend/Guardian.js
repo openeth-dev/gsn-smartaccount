@@ -162,7 +162,7 @@ export class Watchdog extends Guardian {
         const smsCode = this.smsManager.getSmsCode({ phoneNumber: account.phone, email: account.email })
         await this.smsManager.sendSMS({
           phoneNumber: account.phone,
-          message: `${this.urlPrefix.href}&delayedOpId=${change.log.args.delayedOpId}&address=${account.address}&smsCode=${smsCode}`
+          message: `${this.urlPrefix.href}&op=cancel&delayedOpId=${change.log.args.delayedOpId}&address=${account.address}&smsCode=${smsCode}`
         })
         change.smsSent = true
       }

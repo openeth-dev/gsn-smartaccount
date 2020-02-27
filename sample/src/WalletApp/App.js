@@ -306,10 +306,14 @@ class CancelByUrl extends React.Component {
   }
 }
 
+function isCancelPage () {
+  return window.location.href.includes('op=cancel')
+}
+
 function WalletComponent (options) {
   const { walletAddr, email, ownerAddr, walletInfo, loading, pendingAddOperatorNow } = options
 
-  if (window.location.href.includes('op=cancel')) {
+  if (isCancelPage()) {
     return <CancelByUrl {...options} />
   }
 
@@ -686,14 +690,17 @@ class App extends React.Component {
             !!(useMock && !(mgr && mgr.wallet)) &&
             <Button title="DEBUG: activate wallet" action={this.debugActiveWallet.bind(this)}/>
           }
-          <Button title="DEBUG: fund wallet with ETH" action={() => this.debugFundWallet()}/>
           <Button title="DEBUG: reloadState" action={() => this.debugReloadState()}/>
           <Button title="DEBUG: increaseTime" action={() => this.debugIncreaseTime()}/>
         </div> }
-        <Button title="signout" action={this.signout.bind(this)}/><p/>
-        {
-          this.state.needApprove &&
-          <div><Button title="Must first connect app to iframe wallet" action={() => this.enableApp()}/></div>
+        { !isCancelPage() && <div>
+          <Button title="DEBUG: fund wallet with ETH" action={() => this.debugFundWallet()}/>
+          <Button title="signout" action={this.signout.bind(this)}/><p/>
+          {
+            this.state.needApprove &&
+            <div><Button title="Must first connect app to iframe wallet" action={() => this.enableApp()}/></div>
+          }
+        </div>
         }
         {
           this.state.err &&

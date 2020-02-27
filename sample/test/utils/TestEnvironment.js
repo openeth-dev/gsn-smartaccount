@@ -88,6 +88,7 @@ export default class TestEnvironment {
     clientBackend,
     useTwilio,
     useDev,
+    urlPrefix,
     verbose
   }) {
     const instance = new TestEnvironment({
@@ -98,6 +99,7 @@ export default class TestEnvironment {
       clientBackend,
       useTwilio,
       useDev,
+      urlPrefix,
       verbose
     })
     instance.from = (await instance.web3.eth.getAccounts())[0]
