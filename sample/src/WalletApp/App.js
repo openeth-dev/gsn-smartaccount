@@ -29,7 +29,7 @@ var mgr, sms, wallet, sdk
 const Button = ({ title, action }) => <input type="submit" onClick={action} value={title}/>
 
 function errorStr (e) {
-  if (e.stack) return 'stk:' + e.message + '\n' + e.stack.replace( /Error\s*/, '' )
+  if (e.stack) return 'stk:' + e.message + '\n' + e.stack.replace(/Error\s*/, '')
   if (e.message) return 'msg:' + e.message
   if (e.error) return 'err:' + e.error
   return JSON.stringify(e)
@@ -681,7 +681,7 @@ class App extends React.Component {
             <xmp>{JSON.stringify(this.state, null, 4)}</xmp>
           }
         </div>
-        <div>
+        { this.state.debug && <div>
           {
             !!(useMock && !(mgr && mgr.wallet)) &&
             <Button title="DEBUG: activate wallet" action={this.debugActiveWallet.bind(this)}/>
@@ -689,7 +689,7 @@ class App extends React.Component {
           <Button title="DEBUG: fund wallet with ETH" action={() => this.debugFundWallet()}/>
           <Button title="DEBUG: reloadState" action={() => this.debugReloadState()}/>
           <Button title="DEBUG: increaseTime" action={() => this.debugIncreaseTime()}/>
-        </div>
+        </div> }
         <Button title="signout" action={this.signout.bind(this)}/><p/>
         {
           this.state.needApprove &&
