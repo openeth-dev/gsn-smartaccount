@@ -29,7 +29,7 @@ var mgr, sms, wallet, sdk
 const Button = ({ title, action }) => <input type="submit" onClick={action} value={title}/>
 
 function errorStr (e) {
-  if (e.stack) return 'stk:' + e.stack
+  if (e.stack) return 'stk:' + e.message + '\n' + e.stack.replace( /Error\s*/, '' )
   if (e.message) return 'msg:' + e.message
   if (e.error) return 'err:' + e.error
   return JSON.stringify(e)
@@ -695,7 +695,7 @@ class App extends React.Component {
         {
           this.state.err &&
           <div style={{ color: 'red' }} onClick={() => this.setState({ err: undefined })}> <pre>
-            <h2>Error: {this.state.err} </h2></pre>
+            <h2>Error: {debug ? this.state.err : this.state.err.replace(/\n\s*at\s[\s\S]*/, '')} </h2></pre>
           </div>
         }
         <WalletComponent
