@@ -7,7 +7,7 @@ export class BackendAccount {
 }
 
 export class AccountManager {
-  constructor ({ workdir = '/tmp' }) {
+  constructor ({ workdir = '/tmp/test/' }) {
     this.accounts = new Nedb({ filename: `${workdir}/accounts.db`, autoload: true })
     this.accounts.ensureIndex({ fieldName: 'accountId', unique: true })
     this.accounts.ensureIndex({ fieldName: 'address', unique: true })

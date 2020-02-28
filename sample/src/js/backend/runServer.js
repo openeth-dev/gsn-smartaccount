@@ -13,15 +13,16 @@ import { hookBackend } from '../../../test/backend/testutils'
 import { SmsManager } from './SmsManager'
 import { AccountManager } from './AccountManager'
 import crypto from 'crypto'
-import { Watchdog, Admin } from './Guardian'
+import { Watchdog, Admin, AutoCancelWatchdog } from './Guardian'
 import Web3 from 'web3'
 import fs from 'fs'
 
 function error (err) { throw new Error(err) }
 
 const argv = parseArgs(process.argv.slice(2), {
-  string: ['s', 'f', 'url', 'w', 'url-prefix'],
-  alias: { D: 'dev', S: 'sms', u: 'url', x: 'url-prefix', w: 'whitelistFactory' }
+  string: ['sponsor', 'factory', 'url', 'url-prefix', 'whitelistFactory'],
+  boolean: ['auto-cancel'],
+  alias: { D: 'dev', S: 'sms', u: 'url', x: 'url-prefix', a: 'auto-cancel', s: 'sponsor', f: 'factory', w: 'whitelistFactory' }
 })
 
 if (argv._.length) error('unknown extra params: ' + argv._)
@@ -33,25 +34,28 @@ const whitelistFactoryAddress = argv.w || error('missing -w [whitelistFactoryAdd
 const ethNodeUrl = argv.url || error('missing -u [ethNodeUrl]')
 const smsProvider = argv.sms === 'twilio' ? new SMStwilio() : new SMSmock()
 const urlPrefix = argv.x || error('missing -x [urlPrefix]')
-
+const autoCancel = argv.a
+if (autoCancel) {
+  console.log('Running auto cancelling watchdog')
+}
 console.log('Using sms provider: ', smsProvider.constructor.name)
 
-const devMode = argv.dev || argv.D
-
+const devMode = argv.dev
+const workdir = '/tmp/test/runserver'
 const smsManager = new SmsManager({ smsProvider, secretSMSCodeSeed: crypto.randomBytes(32) })
 let keypair
 try {
-  keypair = JSON.parse(fs.readFileSync('/tmp/test/runserver/keystore')).ecdsaKeyPair
+  keypair = JSON.parse(fs.readFileSync(`${workdir}/keystore`)).ecdsaKeyPair
   keypair.privateKey = Buffer.from(keypair.privateKey)
   console.log('Using saved keypair')
 } catch (e) {
   keypair = KeyManager.newKeypair()
 }
-
-const keyManager = new KeyManager({ ecdsaKeyPair: keypair, workdir: '/tmp/test/runserver' })
-const accountManager = new AccountManager({ workdir: '/tmp/test/runserver' })
+const keyManager = new KeyManager({ ecdsaKeyPair: keypair, workdir })
+const accountManager = new AccountManager({ workdir })
 const web3provider = new Web3.providers.WebsocketProvider(ethNodeUrl)
-const watchdog = new Watchdog({
+const WatchdogClass = autoCancel ? AutoCancelWatchdog : Watchdog
+const watchdog = new WatchdogClass({
   smsManager,
   keyManager,
   accountManager,
@@ -59,7 +63,8 @@ const watchdog = new Watchdog({
   sponsorAddress,
   whitelistFactoryAddress,
   web3provider: web3provider,
-  urlPrefix
+  urlPrefix,
+  level: 1
 })
 const admin = new Admin({
   smsManager,
@@ -99,7 +104,9 @@ function hookNodeTime () {
 
 if (devMode) {
   console.log('Running server in dev mode')
-  accountManager.clearAll()
+  if (!autoCancel) {
+    accountManager.clearAll()
+  }
   hookBackend(backend)
   hookNodeTime()
   smsManager.secretSMSCodeSeed = Buffer.from('f'.repeat(64), 'hex')

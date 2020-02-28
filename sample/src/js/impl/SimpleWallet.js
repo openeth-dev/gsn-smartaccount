@@ -566,10 +566,10 @@ export default class SimpleWallet extends SimpleWalletApi {
   // later passed into the getDefaultSampleInitConfiguration
   static getDefaultUserConfig () {
     return {
-      initialDelays: [86400, 172800],
+      initialDelays: [86400, 172800, 345600],
       allowAcceleratedCalls: true,
       allowAddOperatorNow: true,
-      requiredApprovalsPerLevel: [1, 0],
+      requiredApprovalsPerLevel: [0, 0, 1],
       whitelistPreconfigured: []
     }
   }
