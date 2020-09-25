@@ -135,7 +135,9 @@ export class Backend {
       throw new Error(`invalid jwt format: ${jwt}`)
     }
     if (!parsed.aud || parsed.aud !== parsed.azp || this.audience !== parsed.aud) {
-      throw new Error('invalid jwt: Invalid azp/aud')
+      throw new Error('invalid jwt: Invalid azp/aud ' + JSON.stringify({
+        paud: parsed.aud, thisaud: this.audience
+      }))
     }
     if (!parsed.email || !parsed.email_verified) {
       throw new Error('invalid jwt: Email not verified')

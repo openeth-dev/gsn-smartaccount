@@ -29,7 +29,7 @@ var mgr, sms, wallet, sdk
 const Button = ({ title, action }) => <input type="submit" onClick={action} value={title}/>
 
 function errorStr (e) {
-  if (e.stack) return 'stk:' + e.stack
+  if (e.stack) return 'stk:' + e.message + '\n' + e.stack.replace(/Error\s*/, '')
   if (e.message) return 'msg:' + e.message
   if (e.error) return 'err:' + e.error
   return JSON.stringify(e)
@@ -69,16 +69,15 @@ function GoogleLogin ({ refresh, initMgr }) {
 }
 
 function CreateWallet ({ refresh, jwt, email, userConfig, setUserConfig }) {
-  let phoneNumber
-
   const [initConfig, setInitConfig] = useState('')
   const [delayTime, setDelayTime] = useState('1m')
   const [delayErr, setDelayErr] = useState('')
+  const [enteredPhoneNumber, setEnteredPhoneNumber] = useState('')
 
   const startCreate = async () => {
     const PHONE = '+972541234567'
 
-    phoneNumber = prompt('enter phone number to validate ( put 1 for "' + PHONE + '" )')
+    let phoneNumber = prompt('enter phone number to validate ( put 1 for "' + PHONE + '" )')
     if (!phoneNumber) {
       return
     }
@@ -87,12 +86,15 @@ function CreateWallet ({ refresh, jwt, email, userConfig, setUserConfig }) {
     if (phoneNumber === '1') {
       phoneNumber = PHONE
     }
-    console.log('validate:', jwt, phoneNumber)
+    setEnteredPhoneNumber(phoneNumber)
+    // console.log('validate:', jwt, phoneNumber)
     await mgr.validatePhone({ jwt, phoneNumber })
     window.alert('sms sent. copy SMS code to create wallet')
   }
 
   const createWallet = async () => {
+    const phoneNumber = enteredPhoneNumber
+    if (!phoneNumber) { return alert('no phone number yet') }
     const smsVerificationCode = prompt('enter SMS verification code')
     if (!smsVerificationCode) {
       return
@@ -134,18 +136,19 @@ function CreateWallet ({ refresh, jwt, email, userConfig, setUserConfig }) {
       // ignore - just don't display..
     }
   }
-
   return <div>
     Hello <b>{email}</b>, you dont have a wallet yet.<br/>
-    Click <Button title="here to verify phone" action={startCreate}/><br/>
-    Click here to enter SMS verification code <Button title="verify and create" action={createWallet}/>
+    <ol>
+      <li> To create a wallet, click <Button title="here to verify phone" action={startCreate}/> </li>
+      <li> Click here to enter SMS verification code <Button title="verify and create" action={createWallet}/></li>
+    </ol>
 
     <p/>
     Enter whitelisted addresses for initial configuration:<br/>
     <textarea cols="80" value={initConfig} onChange={e => updateWhitelistConfig(e.target.value)}></textarea><br/>
 
     Delay time:
-    <input cols="10" value={delayTime} onChange={e => updateDelayTime(e.target.value)}/>
+    <input cols="10" value={delayTime} onChange={e => updateDelayTime(e.target.value)} />
     <span style={{ fontSize: 10 }}>(can use d/h/m/s suffix)
       <span style={{ color: 'red' }}>{delayErr}</span>
     </span><br/>
@@ -303,10 +306,14 @@ class CancelByUrl extends React.Component {
   }
 }
 
+function isCancelPage () {
+  return window.location.href.includes('op=cancel')
+}
+
 function WalletComponent (options) {
   const { walletAddr, email, ownerAddr, walletInfo, loading, pendingAddOperatorNow } = options
 
-  if (window.location.href.includes('op=cancel')) {
+  if (isCancelPage()) {
     return <CancelByUrl {...options} />
   }
 
@@ -437,10 +444,17 @@ class App extends React.Component {
   }
 
   async _initRealSdk () {
-    const backendURL = window.location.protocol + '//' + window.location.host.replace(/(:\d+)?$/, ':8888')
+    function urlport (port) {
+      if (window.location.protocol.startsWith('https')) {
+        port++
+      }
+      return window.location.protocol + '//' + window.location.host.replace(/(:\d+)?$/, ':' + port)
+    }
+
+    const backendURL = urlport(8888)
 
     // debug node runs on server's host. real node might use infura.
-    const ethNodeUrl = window.location.protocol + '//' + window.location.host.replace(/(:\d+)?$/, ':8545')
+    const ethNodeUrl = urlport(8545)
 
     console.log('connecting to:', { backendURL, ethNodeUrl })
     const web3provider = new Web3.providers.HttpProvider(ethNodeUrl)
@@ -678,24 +692,27 @@ class App extends React.Component {
             <xmp>{JSON.stringify(this.state, null, 4)}</xmp>
           }
         </div>
-        <div>
+        { this.state.debug && <div>
           {
             !!(useMock && !(mgr && mgr.wallet)) &&
             <Button title="DEBUG: activate wallet" action={this.debugActiveWallet.bind(this)}/>
           }
-          <Button title="DEBUG: fund wallet with ETH" action={() => this.debugFundWallet()}/>
           <Button title="DEBUG: reloadState" action={() => this.debugReloadState()}/>
           <Button title="DEBUG: increaseTime" action={() => this.debugIncreaseTime()}/>
+        </div> }
+        { !isCancelPage() && <div>
+          <Button title="DEBUG: fund wallet with ETH" action={() => this.debugFundWallet()}/>
+          <Button title="signout" action={this.signout.bind(this)}/><p/>
+          {
+            this.state.needApprove &&
+            <div><Button title="Must first connect app to iframe wallet" action={() => this.enableApp()}/></div>
+          }
         </div>
-        <Button title="signout" action={this.signout.bind(this)}/><p/>
-        {
-          this.state.needApprove &&
-          <div><Button title="Must first connect app to iframe wallet" action={() => this.enableApp()}/></div>
         }
         {
           this.state.err &&
           <div style={{ color: 'red' }} onClick={() => this.setState({ err: undefined })}> <pre>
-            <h2>Error: {this.state.err} </h2></pre>
+            <h2>Error: {debug ? this.state.err : this.state.err.replace(/\n\s*at\s[\s\S]*/, '')} </h2></pre>
           </div>
         }
         <WalletComponent

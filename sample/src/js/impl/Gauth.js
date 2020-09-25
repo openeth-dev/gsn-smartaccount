@@ -3,7 +3,7 @@ import axios from 'axios'
 import GauthApi from '../api/Gauth.api'
 
 // wsample
-const CLIENT_ID = '202746986880-u17rbgo95h7ja4fghikietupjknd1bln.apps.googleusercontent.com'
+const CLIENT_ID = '966448872848-td59kkdbgdk4r1pngbmf71mor450upn0.apps.googleusercontent.com'
 
 // SmartAccount app: https://console.developers.google.com/apis/credentials?highlightClient=966448872848-td59kkdbgdk4r1pngbmf71mor450upn0.apps.googleusercontent.com&project=smartaccount-263422&organizationId=208398235469
 // const CLIENT_ID = '966448872848-td59kkdbgdk4r1pngbmf71mor450upn0.apps.googleusercontent.com'

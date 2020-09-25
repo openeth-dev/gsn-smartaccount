@@ -50,7 +50,7 @@ describe('As Guardian', async function () {
   const wrongOperatorAddress = '0x1234567892222222222222222222222222222223'
   const amount = 1e3
   let newAccount
-  const audience = '202746986880-u17rbgo95h7ja4fghikietupjknd1bln.apps.googleusercontent.com'
+  const audience = '966448872848-td59kkdbgdk4r1pngbmf71mor450upn0.apps.googleusercontent.com'
   const email = 'someone@somewhere.com'
   let nonce
   const phoneNumber = '+972541234567'
